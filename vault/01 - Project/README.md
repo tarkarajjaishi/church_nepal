@@ -20,9 +20,10 @@ FullProductionSetup-main/
 │   │   ├── auth.rs         # JWT authentication
 │   │   └── main.rs         # Entry point
 │   └── migrations/         # SQL migrations (001-004)
-├── admin/                  # Admin SPA (embeds main site + admin panel)
+├── admin/                  # Admin SPA (main site at /, admin at /admin)
+│   ├── public/site/        # Built main site files (iframe source)
 │   └── src/
-│       ├── main.tsx        # Routes: / = main site, /admin = admin panel
+│       ├── main.tsx        # Routes: / = iframe(main site), /admin = admin panel
 │       ├── pages/          # Dashboard, Login, CrudPage, UserManagement
 │       └── components/     # Layout, sidebar navigation
 └── vault/                  # Obsidian knowledge base

@@ -110,3 +110,21 @@ const { BrowserRouter } = await import('react-router')
 // GOOD - standard static imports
 import { BrowserRouter } from 'react-router'
 ```
+
+## Vite Can't Serve Files Outside Project Root
+
+**Symptom**: Importing from `../../src/app/` in admin project causes white screen. Vite returns index.html instead of the actual file.
+
+**Cause**: Vite's dev server only serves files within the project root directory.
+
+**Solution**: Build the main site and copy to `admin/public/site/`, then serve via iframe:
+```tsx
+function MainSite() {
+  return <iframe src="/site/index.html" style={{width:'100%',height:'100vh',border:'none'}} />
+}
+```
+Add to vite.config.ts:
+```ts
+fs: { allow: ['..'] },
+resolve: { alias: { '@site': path.resolve(__dirname, '../src/app') } }
+```
