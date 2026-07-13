@@ -131,20 +131,32 @@ function App() {
   )
 }
 
-const root = document.getElementById('root')!
+// Error display div OUTSIDE React's root
+const errorDiv = document.createElement('div')
+errorDiv.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:99999;background:white;padding:20px;font-family:monospace;font-size:14px;white-space:pre-wrap;overflow:auto'
+errorDiv.style.display = 'none'
+document.body.appendChild(errorDiv)
+
+function showError(msg: string) {
+  errorDiv.style.display = 'block'
+  errorDiv.textContent = msg
+}
+
 window.addEventListener('error', (e) => {
-  root.innerHTML = '<pre style="padding:20px;color:red;background:#fff;font-size:14px;white-space:pre-wrap">ERROR: ' + e.message + '\n\nFile: ' + e.filename + '\nLine: ' + e.lineno + ':' + e.colno + (e.error ? '\n\nStack:\n' + e.error.stack : '') + '</pre>'
+  showError('ERROR: ' + e.message + '\n\nFile: ' + e.filename + '\nLine: ' + e.lineno + ':' + e.colno + (e.error ? '\n\nStack:\n' + e.error.stack : ''))
 })
+
 window.addEventListener('unhandledrejection', (e) => {
-  root.innerHTML = '<pre style="padding:20px;color:red;background:#fff;font-size:14px;white-space:pre-wrap">UNHANDLED REJECTION:\n\n' + (e.reason?.stack || e.reason || String(e.reason)) + '</pre>'
+  showError('UNHANDLED REJECTION:\n\n' + (e.reason?.stack || e.reason || String(e.reason)))
 })
 
 try {
+  const root = document.getElementById('root')!
   createRoot(root).render(
     <StrictMode>
       <App />
     </StrictMode>,
   )
 } catch (err: any) {
-  root.innerHTML = '<pre style="padding:20px;color:red;background:#fff;font-size:14px;white-space:pre-wrap">RENDER ERROR:\n\n' + (err.stack || err.message || String(err)) + '</pre>'
+  showError('RENDER ERROR:\n\n' + (err.stack || err.message || String(err)))
 }
