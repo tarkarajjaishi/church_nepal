@@ -3,13 +3,14 @@
 Auto-synced from project memory.
 
 ## Last Sync
-- **Date**: 2026-07-13 17:00 UTC
+- **Date**: 2026-07-13 17:31 UTC
 - **Source**: Project MEMORY.md
-- **Status**: Synced iframe approach and Vite cross-project serving notes
+- **Status**: Synced HashRouter and iframe hash fixes
 
 ## Sync History
 | Date | Changes |
 |------|---------|
+| 2026-07-13 17:31 | Added HashRouter and iframe hash troubleshooting, updated MEMORY.md |
 | 2026-07-13 17:00 | Updated README.md with iframe approach, added Vite fs.allow troubleshooting |
 | 2026-07-13 16:47 | Updated README.md with production ports and routing, TODO.md with completed features |
 | 2026-07-13 16:35 | Updated ADMIN-PANEL.md with new routing structure, added CORS and top-level await fixes to troubleshooting |

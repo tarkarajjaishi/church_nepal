@@ -128,3 +128,35 @@ Add to vite.config.ts:
 fs: { allow: ['..'] },
 resolve: { alias: { '@site': path.resolve(__dirname, '../src/app') } }
 ```
+
+## BrowserRouter Shows 404 in Iframe
+
+**Symptom**: Main site loads in iframe but shows 404/NotFound page with Bible verse.
+
+**Cause**: BrowserRouter uses browser URL path (`/about`, `/sermons`). In iframe at `/site/index.html`, the URL is `/site/` which doesn't match any routes.
+
+**Solution**: Use HashRouter in main site:
+```tsx
+// BAD - doesn't work in iframe
+import { BrowserRouter } from 'react-router'
+<BrowserRouter>...</BrowserRouter>
+
+// GOOD - works in any context
+import { HashRouter } from 'react-router'
+<HashRouter>...</HashRouter>
+```
+
+## HashRouter Shows 404 on Initial Load in Iframe
+
+**Symptom**: HashRouter in iframe still shows NotFound on first load.
+
+**Cause**: iframe `src="/site/index.html"` leaves hash empty. HashRouter sees no `#/` and falls through to catch-all route.
+
+**Solution**: Add `#/` to iframe src:
+```tsx
+// BAD - empty hash
+<iframe src="/site/index.html" />
+
+// GOOD - hash present on load
+<iframe src="/site/index.html#/" />
+```
