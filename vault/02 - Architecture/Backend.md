@@ -1,7 +1,7 @@
 # Backend Architecture
 
 **Stack**: Rust + Axum + SQLx + PostgreSQL
-**Port**: 3001
+**Port**: 3002 (changed from 3001 due to port conflict with nepsetrading)
 
 ## Overview
 

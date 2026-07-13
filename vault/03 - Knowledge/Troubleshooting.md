@@ -6,16 +6,12 @@
 
 **Cause**: Another project (nepsetrading, PID 21608) occupies port 3001 on 0.0.0.0.
 
-**Solution**:
-```powershell
-# Find conflicting process
-netstat -ano | findstr :3001
-
-# Kill it
-Stop-Process -Id <PID> -Force
-
-# Our backend binds to [::1] only, but PowerShell's Invoke-RestMethod may resolve to wrong process
+**Solution**: Changed backend to use port 3002. Updated in `backend/.env`:
 ```
+PORT=3002
+```
+
+**Note**: Admin panel API client already points to `http://localhost:3002/api`.
 
 ## Vite Plugin Version Conflict
 
@@ -48,3 +44,10 @@ packages:
 
 ## Related
 - [[03 - Knowledge/Windows-Gotchas|Windows Gotchas]]
+
+## Admin Panel Credentials
+
+**Email**: admin@gracenepal.org
+**Password**: admin123
+
+**Note**: Stored in PostgreSQL `users` table with bcrypt hashed password.
