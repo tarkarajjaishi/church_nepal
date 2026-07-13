@@ -131,8 +131,20 @@ function App() {
   )
 }
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
-)
+const root = document.getElementById('root')!
+window.addEventListener('error', (e) => {
+  root.innerHTML = '<pre style="padding:20px;color:red;background:#fff;font-size:14px;white-space:pre-wrap">ERROR: ' + e.message + '\n\nFile: ' + e.filename + '\nLine: ' + e.lineno + ':' + e.colno + (e.error ? '\n\nStack:\n' + e.error.stack : '') + '</pre>'
+})
+window.addEventListener('unhandledrejection', (e) => {
+  root.innerHTML = '<pre style="padding:20px;color:red;background:#fff;font-size:14px;white-space:pre-wrap">UNHANDLED REJECTION:\n\n' + (e.reason?.stack || e.reason || String(e.reason)) + '</pre>'
+})
+
+try {
+  createRoot(root).render(
+    <StrictMode>
+      <App />
+    </StrictMode>,
+  )
+} catch (err: any) {
+  root.innerHTML = '<pre style="padding:20px;color:red;background:#fff;font-size:14px;white-space:pre-wrap">RENDER ERROR:\n\n' + (err.stack || err.message || String(err)) + '</pre>'
+}
