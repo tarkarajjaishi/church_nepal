@@ -4,6 +4,7 @@ import { Layout } from './components/Layout'
 import { Login } from './pages/Login'
 import { Dashboard } from './pages/Dashboard'
 import { CrudPage } from './pages/CrudPage'
+import { UserManagement } from './pages/UserManagement'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
@@ -20,6 +21,7 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
             <Route index element={<Dashboard />} />
+            <Route path="users" element={<UserManagement />} />
             <Route path="sermons" element={<CrudPage endpoint="sermons" title="Sermons" fields={[
               { key: 'title', label: 'Title', type: 'text' },
               { key: 'speaker', label: 'Speaker', type: 'text' },

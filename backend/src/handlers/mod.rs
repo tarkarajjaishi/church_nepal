@@ -11,3 +11,4 @@ pub mod service_times;
 pub mod verses;
 pub mod campaigns;
 pub mod settings;
+pub mod users;

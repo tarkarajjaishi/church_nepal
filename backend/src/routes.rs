@@ -10,6 +10,9 @@ pub fn api_routes() -> Router<PgPool> {
         .route("/auth/login", post(auth::login))
         .route("/auth/register", post(auth::register))
         .route("/auth/me", get(auth::me))
+        // Users (admin only)
+        .route("/users", get(users::list).post(users::create))
+        .route("/users/{id}", get(users::get).put(users::update).delete(users::delete))
         // Sermons
         .route("/sermons", get(sermons::list).post(sermons::create))
         .route("/sermons/{id}", get(sermons::get).put(sermons::update).delete(sermons::delete))
