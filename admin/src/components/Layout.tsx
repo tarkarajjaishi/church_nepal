@@ -1,6 +1,6 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router'
 import { useAuth } from '../lib/auth'
-import { LayoutDashboard, BookOpen, Calendar, Users, Image, Quote, Bell, UserCheck, Clock, Bible, DollarSign, Settings, LogOut, Church, Shield } from 'lucide-react'
+import { LayoutDashboard, BookOpen, Calendar, Users, Image, Quote, Bell, UserCheck, Clock, BookMarked, DollarSign, Settings, LogOut, Church, Shield } from 'lucide-react'
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -14,7 +14,7 @@ const navItems = [
   { to: '/notices', icon: Bell, label: 'Notices' },
   { to: '/members', icon: Users, label: 'Members' },
   { to: '/service-times', icon: Clock, label: 'Service Times' },
-  { to: '/verses', icon: Bible, label: 'Verses' },
+  { to: '/verses', icon: BookMarked, label: 'Verses' },
   { to: '/campaigns', icon: DollarSign, label: 'Campaigns' },
   { divider: true, label: 'Management' },
   { to: '/users', icon: Shield, label: 'User Management' },

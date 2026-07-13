@@ -4,8 +4,7 @@ import { useAuth } from '../lib/auth'
 import { Link } from 'react-router'
 import {
   BookOpen, Calendar, Users, Bell, Image, Quote, UserCheck, Clock,
-  Bible, DollarSign, Settings, Shield, TrendingUp, ArrowRight,
-  Plus, Pencil, Trash2, Activity
+  BookMarked, DollarSign, Settings, Shield, ArrowRight, Activity
 } from 'lucide-react'
 
 export function Dashboard() {
@@ -43,7 +42,7 @@ export function Dashboard() {
     { label: 'Gallery', value: gallery.data?.length ?? 0, icon: Image, color: 'bg-pink-500', link: '/gallery' },
     { label: 'Testimonies', value: testimonies.data?.length ?? 0, icon: Quote, color: 'bg-amber-500', link: '/testimonies' },
     { label: 'Members', value: members.data?.length ?? 0, icon: Users, color: 'bg-indigo-500', link: '/members' },
-    { label: 'Verses', value: verses.data?.length ?? 0, icon: Bible, color: 'bg-rose-500', link: '/verses' },
+    { label: 'Verses', value: verses.data?.length ?? 0, icon: BookMarked, color: 'bg-rose-500', link: '/verses' },
     { label: 'Campaigns', value: campaigns.data?.length ?? 0, icon: DollarSign, color: 'bg-emerald-500', link: '/campaigns' },
   ]
 
