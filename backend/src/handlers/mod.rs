@@ -1,0 +1,13 @@
+pub mod auth;
+pub mod sermons;
+pub mod ministries;
+pub mod events;
+pub mod leaders;
+pub mod gallery;
+pub mod testimonies;
+pub mod notices;
+pub mod members;
+pub mod service_times;
+pub mod verses;
+pub mod campaigns;
+pub mod settings;

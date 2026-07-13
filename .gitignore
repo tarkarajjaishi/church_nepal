@@ -1,0 +1,52 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+dist-ssr/
+build/
+target/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+vite-log.txt
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.DS_Store
+
+# OS
+Thumbs.db
+Desktop.ini
+
+# Rust
+backend/target/
+
+# Backend runtime
+backend/stderr.txt
+backend/stdout.txt
+
+# Obsidian (optional - comment out if you want to track vault config)
+# vault/.obsidian/workspace.json
+# vault/.obsidian/workspace-mobile.json
+
+# Misc
+*.local
+.cache/

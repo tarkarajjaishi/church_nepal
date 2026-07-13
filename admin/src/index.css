@@ -1,0 +1,12 @@
+@import "tailwindcss";
+
+:root {
+  --church-blue: #0b3c5d;
+  --gold: #d4a843;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, sans-serif;
+  background: #f8fafc;
+}

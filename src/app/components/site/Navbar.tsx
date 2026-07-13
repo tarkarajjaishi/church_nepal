@@ -1,0 +1,182 @@
+import { useEffect, useState } from "react";
+import { Link, NavLink, useLocation } from "react-router";
+import { Menu, Search, Radio, ChevronDown, Church } from "lucide-react";
+import { Button } from "../ui/button";
+import {
+  Sheet,
+  SheetContent,
+  SheetTrigger,
+  SheetTitle,
+} from "../ui/sheet";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "../ui/dropdown-menu";
+import { useLang } from "../../lib/language";
+
+const primary = [
+  { to: "/", key: "nav_home" },
+  { to: "/visit", key: "nav_visit" },
+  { to: "/about", key: "nav_about" },
+  { to: "/ministries", key: "nav_ministries" },
+  { to: "/sermons", key: "nav_sermons" },
+  { to: "/events", key: "nav_events" },
+  { to: "/gallery", key: "nav_gallery" },
+  { to: "/contact", key: "nav_contact" },
+];
+
+const more = [
+  { to: "/pastor", key: "nav_pastor" },
+  { to: "/leadership", key: "nav_leadership" },
+  { to: "/prayer", key: "nav_prayer" },
+];
+
+const allLinks = [...primary, ...more, { to: "/give", key: "give" }];
+
+export function Navbar() {
+  const [scrolled, setScrolled] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const { lang, setLang, t } = useLang();
+  const location = useLocation();
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 20);
+    onScroll();
+    window.addEventListener("scroll", onScroll);
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  useEffect(() => setMobileOpen(false), [location.pathname]);
+
+  return (
+    <header
+      className={`sticky top-0 z-50 transition-all duration-300 ${
+        scrolled ? "bg-white/95 backdrop-blur shadow-[0_4px_24px_rgba(11,60,93,0.08)]" : "bg-white/80 backdrop-blur"
+      }`}
+    >
+      <nav className="mx-auto max-w-7xl px-4 h-16 flex items-center justify-between gap-4">
+        {/* Logo */}
+        <Link to="/" className="flex items-center gap-2.5 shrink-0">
+          <span className="grid place-items-center size-10 rounded-xl bg-church-blue text-white">
+            <Church className="size-5" />
+          </span>
+          <span className="leading-tight">
+            <span className="block text-church-blue" style={{ fontFamily: "var(--font-heading)", fontWeight: 700 }}>
+              {t("churchName")}
+            </span>
+            <span className="block text-[11px] text-gold" style={{ fontFamily: "var(--font-heading)" }}>
+              {t("tagline")}
+            </span>
+          </span>
+        </Link>
+
+        {/* Desktop nav */}
+        <div className="hidden lg:flex items-center gap-1">
+          {primary.map((l) => (
+            <NavLink
+              key={l.to}
+              to={l.to}
+              className={({ isActive }) =>
+                `px-3 py-2 rounded-md text-sm transition-colors ${
+                  isActive ? "text-church-blue" : "text-foreground/70 hover:text-church-blue"
+                }`
+              }
+            >
+              {t(l.key)}
+            </NavLink>
+          ))}
+          <DropdownMenu>
+            <DropdownMenuTrigger className="px-3 py-2 rounded-md text-sm text-foreground/70 hover:text-church-blue inline-flex items-center gap-1 outline-none">
+              {lang === "en" ? "More" : "थप"} <ChevronDown className="size-3.5" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {more.map((l) => (
+                <DropdownMenuItem key={l.to} asChild>
+                  <Link to={l.to}>{t(l.key)}</Link>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
+        {/* Right actions */}
+        <div className="flex items-center gap-2">
+          <Link
+            to="/sermons"
+            className="hidden sm:grid place-items-center size-9 rounded-md text-foreground/70 hover:bg-secondary"
+            aria-label={t("search")}
+          >
+            <Search className="size-4" />
+          </Link>
+
+          <div className="hidden sm:flex items-center rounded-full bg-secondary p-0.5 text-xs">
+            <button
+              onClick={() => setLang("en")}
+              className={`px-2.5 py-1 rounded-full transition ${lang === "en" ? "bg-church-blue text-white" : "text-church-blue"}`}
+            >
+              EN
+            </button>
+            <button
+              onClick={() => setLang("ne")}
+              className={`px-2.5 py-1 rounded-full transition ${lang === "ne" ? "bg-church-blue text-white" : "text-church-blue"}`}
+              style={{ fontFamily: "var(--font-heading)" }}
+            >
+              नेपाली
+            </button>
+          </div>
+
+          <Button asChild size="sm" className="hidden md:inline-flex bg-gold text-church-blue hover:bg-gold/90">
+            <Link to="/live">
+              <Radio className="size-4" /> {t("joinLive")}
+            </Link>
+          </Button>
+
+          <Button asChild size="sm" className="hidden xl:inline-flex bg-church-blue hover:bg-church-blue/90">
+            <Link to="/give">{t("give")}</Link>
+          </Button>
+
+          {/* Mobile menu */}
+          <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+            <SheetTrigger asChild>
+              <button className="lg:hidden grid place-items-center size-9 rounded-md text-church-blue hover:bg-secondary" aria-label="Menu">
+                <Menu className="size-5" />
+              </button>
+            </SheetTrigger>
+            <SheetContent side="right" className="w-80 overflow-y-auto">
+              <SheetTitle className="text-church-blue" style={{ fontFamily: "var(--font-heading)" }}>
+                {t("churchName")}
+              </SheetTitle>
+              <div className="mt-6 flex flex-col gap-1">
+                {allLinks.map((l) => (
+                  <NavLink
+                    key={l.to + l.key}
+                    to={l.to}
+                    className={({ isActive }) =>
+                      `px-3 py-2.5 rounded-lg transition-colors ${
+                        isActive ? "bg-church-blue text-white" : "text-foreground/80 hover:bg-secondary"
+                      }`
+                    }
+                  >
+                    {t(l.key)}
+                  </NavLink>
+                ))}
+              </div>
+              <div className="mt-6 flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">{lang === "en" ? "Language" : "भाषा"}:</span>
+                <div className="flex items-center rounded-full bg-secondary p-0.5 text-xs">
+                  <button onClick={() => setLang("en")} className={`px-3 py-1 rounded-full ${lang === "en" ? "bg-church-blue text-white" : "text-church-blue"}`}>EN</button>
+                  <button onClick={() => setLang("ne")} className={`px-3 py-1 rounded-full ${lang === "ne" ? "bg-church-blue text-white" : "text-church-blue"}`}>नेपाली</button>
+                </div>
+              </div>
+              <Button asChild className="mt-4 w-full bg-gold text-church-blue hover:bg-gold/90">
+                <Link to="/live"><Radio className="size-4" /> {t("joinLive")}</Link>
+              </Button>
+            </SheetContent>
+          </Sheet>
+        </div>
+      </nav>
+    </header>
+  );
+}
