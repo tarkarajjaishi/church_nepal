@@ -174,3 +174,37 @@ optimizeDeps: {
 },
 ```
 Then clear cache: `rm -rf node_modules/.vite` and restart Vite with `--force`.
+
+## Next.js Migration: Common Errors
+
+### 'use client' Required
+**Symptom**: `This React Hook only works in a Client Component`
+**Fix**: Add `'use client'` at top of any file using useState, useEffect, useContext, useRef, useRouter, useParams.
+
+### Link Import Wrong
+**Symptom**: `Module '"next/navigation"' has no exported member 'Link'`
+**Fix**: `Link` comes from `next/link`, not `next/navigation`. Split imports:
+```tsx
+import Link from 'next/link'
+import { useParams } from 'next/navigation'
+```
+
+### Link `to` vs `href`
+**Symptom**: `Property 'to' does not exist on type LinkProps`
+**Fix**: React Router uses `<Link to="/">`, Next.js uses `<Link href="/">`.
+
+### useLocation Not Found
+**Symptom**: `Module '"next/navigation"' has no exported member 'useLocation'`
+**Fix**: Use `usePathname()` from `next/navigation` instead.
+
+### Outlet Not Found
+**Symptom**: `Module '"next/navigation"' has no exported member 'Outlet'`
+**Fix**: Next.js layouts accept `{children}` prop directly. No Outlet needed.
+
+### Named vs Default Export
+**Symptom**: `Property 'default' is incompatible with index signature`
+**Fix**: All page files in `app/` must use `export default function`.
+
+### Relative Imports Break
+**Symptom**: `Can't resolve '../components/ui/card'`
+**Fix**: Use `@/components/ui/card` with path alias configured in tsconfig.json.
