@@ -3,13 +3,14 @@
 Auto-synced from project memory.
 
 ## Last Sync
-- **Date**: 2026-07-13 17:31 UTC
+- **Date**: 2026-07-13 18:01 UTC
 - **Source**: Project MEMORY.md
-- **Status**: Synced HashRouter and iframe hash fixes
+- **Status**: Synced duplicate React instance fix
 
 ## Sync History
 | Date | Changes |
 |------|---------|
+| 2026-07-13 18:01 | Added duplicate React instance troubleshooting, updated MEMORY.md with optimizeDeps fix |
 | 2026-07-13 17:31 | Added HashRouter and iframe hash troubleshooting, updated MEMORY.md |
 | 2026-07-13 17:00 | Updated README.md with iframe approach, added Vite fs.allow troubleshooting |
 | 2026-07-13 16:47 | Updated README.md with production ports and routing, TODO.md with completed features |

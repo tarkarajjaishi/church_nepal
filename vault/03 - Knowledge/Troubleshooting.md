@@ -160,3 +160,17 @@ import { HashRouter } from 'react-router'
 // GOOD - hash present on load
 <iframe src="/site/index.html#/" />
 ```
+
+## Duplicate React Instance (useState null error)
+
+**Symptom**: `TypeError: Cannot read properties of null (reading 'useState')` in browser console.
+
+**Cause**: Vite pre-bundles `react` and `react-dom` as separate modules with different content hashes, creating two React instances. Hooks fail because one instance isn't initialized.
+
+**Solution**: Add `optimizeDeps.include` to vite.config.ts:
+```ts
+optimizeDeps: {
+  include: ['react', 'react-dom', 'react/jsx-runtime', 'react-router', '@tanstack/react-query', 'axios', 'lucide-react'],
+},
+```
+Then clear cache: `rm -rf node_modules/.vite` and restart Vite with `--force`.
