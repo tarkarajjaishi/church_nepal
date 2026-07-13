@@ -26,7 +26,10 @@ function LandingPage() {
         <div style={{width:64,height:64,borderRadius:16,background:'#0b3c5d',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 24px',fontSize:32}}>⛪</div>
         <h1 style={{color:'#0b3c5d',fontSize:32,fontWeight:'bold',margin:'0 0 8px'}}>Grace Nepal Church</h1>
         <p style={{color:'#666',fontSize:16,margin:'0 0 32px'}}>Welcome to our church website</p>
-        <a href="/admin" style={{display:'inline-block',padding:'12px 32px',background:'#0b3c5d',color:'white',borderRadius:8,textDecoration:'none',fontSize:16,fontWeight:500}}>Admin Panel →</a>
+        <div style={{display:'flex',gap:16,justifyContent:'center'}}>
+          <a href="http://localhost:5173" style={{display:'inline-block',padding:'12px 32px',background:'#0b3c5d',color:'white',borderRadius:8,textDecoration:'none',fontSize:16,fontWeight:500}}>Visit Website →</a>
+          <a href="/admin" style={{display:'inline-block',padding:'12px 32px',background:'white',color:'#0b3c5d',borderRadius:8,textDecoration:'none',fontSize:16,fontWeight:500,border:'2px solid #0b3c5d'}}>Admin Panel →</a>
+        </div>
       </div>
     </div>
   )
