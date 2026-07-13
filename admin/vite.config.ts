@@ -12,4 +12,7 @@ export default defineConfig({
     },
   },
   fs: { allow: ['..'] },
+  optimizeDeps: {
+    include: ['react', 'react-dom', 'react/jsx-runtime', 'react-router', '@tanstack/react-query', 'axios', 'lucide-react'],
+  },
 })
