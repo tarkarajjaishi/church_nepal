@@ -66,3 +66,20 @@ import { Bible } from 'lucide-react'
 // GOOD
 import { BookMarked } from 'lucide-react'
 ```
+
+## Admin White Screen (Browser-Side)
+
+**Symptom**: Page loads at localhost:5174 but shows completely white/blank screen. Server-side code all works. Build succeeds.
+
+**Cause**: Browser-side JavaScript runtime error. Could be:
+- Browser cache holding old JS with `Bible` icon import
+- Vite dep optimization issue
+- React Refresh preamble mismatch
+
+**Debug steps**:
+1. Ctrl+Shift+R (hard refresh) to clear browser cache
+2. F12 → Console tab → check for red errors
+3. Try incognito/private window
+4. Restart Vite with `--force` flag
+
+**Fix**: Added error handlers in main.tsx to catch and display errors on page.
