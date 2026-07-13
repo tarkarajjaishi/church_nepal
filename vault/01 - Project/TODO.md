@@ -20,6 +20,7 @@
 ### Priority 2: Admin Features
 - [x] Authentication flow (login/logout)
 - [x] Protected routes
+- [x] User management (CRUD)
 - [ ] Image upload
 - [ ] Bilingual support (EN/NE)
 - [ ] Search and filtering

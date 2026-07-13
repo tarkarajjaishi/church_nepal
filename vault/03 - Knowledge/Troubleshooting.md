@@ -51,3 +51,18 @@ packages:
 **Password**: admin123
 
 **Note**: Stored in PostgreSQL `users` table with bcrypt hashed password.
+
+## lucide-react Bible Icon Not Found
+
+**Symptom**: Blank white screen or build error `"Bible" is not exported by lucide-react`.
+
+**Cause**: `Bible` icon doesn't exist in lucide-react 0.487.0.
+
+**Solution**: Use `BookMarked` instead:
+```tsx
+// BAD
+import { Bible } from 'lucide-react'
+
+// GOOD
+import { BookMarked } from 'lucide-react'
+```
