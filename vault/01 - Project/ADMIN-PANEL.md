@@ -3,66 +3,72 @@
 **Location**: `C:\churchnepal.com\FullProductionSetup-main\admin`
 **Port**: 5174 (separate Vite project)
 
-## Current State
+## Routing Structure
+
+| URL | What it shows |
+|-----|--------------|
+| `/` | Landing page with "Visit Website" (→ :5173) and "Admin Panel" (→ /admin) |
+| `/admin/login` | Admin login page |
+| `/admin/dashboard` | Dashboard (after login) |
+| `/admin/*` | All CRUD pages (sermons, events, ministries, etc.) |
+
+## Current State - COMPLETED
 
 ### Pages Built
-| Page | Status | Notes |
+| Page | Status | Route |
 |------|--------|-------|
-| Login | ✅ Done | JWT auth |
-| Dashboard | ✅ Done | Stats overview |
-| CrudPage | ✅ Done | Generic CRUD component |
+| Landing Page | ✅ Done | `/` |
+| Login | ✅ Done | `/admin/login` |
+| Dashboard | ✅ Done | `/admin/dashboard` |
+| User Management | ✅ Done | `/admin/users` |
+| CrudPage | ✅ Done | Reusable for all 12 entities |
+| Layout (Sidebar) | ✅ Done | With section dividers |
 
-### What's Missing
-- Individual entity pages (using CrudPage template)
-- API integration hooks
-- Protected route wrapper
-- Image upload component
+### All CRUD Routes
+- `/admin/sermons` - Sermons management
+- `/admin/events` - Events management
+- `/admin/ministries` - Ministries management
+- `/admin/leaders` - Leaders management
+- `/admin/gallery` - Gallery management
+- `/admin/testimonies` - Testimonies management
+- `/admin/notices` - Notices management
+- `/admin/members` - Members management
+- `/admin/service-times` - Service Times management
+- `/admin/verses` - Verses management
+- `/admin/campaigns` - Campaigns management
+- `/admin/settings` - Settings management
 
 ## Architecture
 
 ```
-admin/
-├── src/
-│   ├── pages/
-│   │   ├── Login.tsx        # Authentication
-│   │   ├── Dashboard.tsx    # Stats overview
-│   │   └── CrudPage.tsx     # Reusable CRUD component
-│   ├── components/          # UI components
-│   └── lib/                 # API hooks, utilities
+admin/src/
+├── main.tsx          # Entry point with all routes
+├── pages/
+│   ├── Login.tsx     # Authentication
+│   ├── Dashboard.tsx # Stats overview + quick actions
+│   └── CrudPage.tsx  # Reusable CRUD component
+├── pages/
+│   └── UserManagement.tsx  # User CRUD
+├── components/
+│   └── Layout.tsx    # Sidebar + outlet layout
+└── lib/
+    ├── api.ts        # Axios client (port 3002)
+    └── auth.tsx      # JWT auth context
 ```
 
-## CrudPage Pattern
+## Credentials
 
-The `CrudPage.tsx` is a generic component that takes:
-- `entityName` - Display name
-- `endpoint` - API path
-- `columns` - Table column definitions
-- `formFields` - Form field definitions
+**Email**: admin@gracenepal.org
+**Password**: admin123
 
-### Example Usage
-```tsx
-<CrudPage
-  entityName="Sermons"
-  endpoint="/api/sermons"
-  columns={[
-    { key: 'title', label: 'Title' },
-    { key: 'speaker', label: 'Speaker' },
-    { key: 'date', label: 'Date' }
-  ]}
-  formFields={[
-    { key: 'title', label: 'Title', type: 'text' },
-    { key: 'speaker', label: 'Speaker', type: 'text' },
-    { key: 'video_url', label: 'Video URL', type: 'url' }
-  ]}
-/>
-```
+## Services
 
-## Next Steps
-
-1. Create entity-specific pages using CrudPage
-2. Add API hooks (React Query) for admin
-3. Implement protected route wrapper
-4. Add image upload component
+| Service | Port |
+|---------|------|
+| PostgreSQL | 5432 |
+| Backend API | 3002 |
+| Main Website | 5173 |
+| Admin Panel | 5174 |
 
 ## Related
 - [[02 - Architecture/Backend|Backend API]]

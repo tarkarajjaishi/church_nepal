@@ -83,3 +83,30 @@ import { BookMarked } from 'lucide-react'
 4. Restart Vite with `--force` flag
 
 **Fix**: Added error handlers in main.tsx to catch and display errors on page.
+
+## CORS Error in Admin Panel
+
+**Symptom**: Browser console shows CORS error when loading modules from Vite dev server.
+
+**Cause**: Vite only listening on IPv6 (`[::1]:5174`) while browser connects via IPv4 (`127.0.0.1:5174`).
+
+**Solution**: Add `host: true` to vite.config.ts:
+```ts
+server: { port: 5174, host: true }
+```
+This makes Vite listen on both `0.0.0.0:5174` (IPv4) and `[::]:5174` (IPv6).
+
+## Top-Level Await Module Error
+
+**Symptom**: "Missing module" or CORS error in browser console.
+
+**Cause**: Using `await import()` at top level in main.tsx. Vite transforms this into a module that some browsers can't handle.
+
+**Solution**: Use static imports instead of dynamic `await import()`:
+```tsx
+// BAD - causes module loading errors
+const { BrowserRouter } = await import('react-router')
+
+// GOOD - standard static imports
+import { BrowserRouter } from 'react-router'
+```
