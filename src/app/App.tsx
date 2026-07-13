@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from "react-router";
+import { HashRouter, Routes, Route } from "react-router";
 import { LanguageProvider } from "./lib/language";
 import { Layout } from "./components/site/Layout";
 import { Toaster } from "./components/ui/sonner";
@@ -26,7 +26,7 @@ import NotFound from "./pages/NotFound";
 export default function App() {
   return (
     <LanguageProvider>
-      <BrowserRouter>
+      <HashRouter>
         <Routes>
           <Route element={<Layout />}>
             <Route path="/" element={<Home />} />
@@ -50,7 +50,7 @@ export default function App() {
             <Route path="*" element={<NotFound />} />
           </Route>
         </Routes>
-      </BrowserRouter>
+      </HashRouter>
       <Toaster position="top-center" richColors />
     </LanguageProvider>
   );
