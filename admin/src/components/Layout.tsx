@@ -3,22 +3,22 @@ import { useAuth } from '../lib/auth'
 import { LayoutDashboard, BookOpen, Calendar, Users, Image, Quote, Bell, UserCheck, Clock, BookMarked, DollarSign, Settings, LogOut, Church, Shield } from 'lucide-react'
 
 const navItems = [
-  { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
+  { to: '/admin/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { divider: true, label: 'Content' },
-  { to: '/sermons', icon: BookOpen, label: 'Sermons' },
-  { to: '/events', icon: Calendar, label: 'Events' },
-  { to: '/ministries', icon: Users, label: 'Ministries' },
-  { to: '/leaders', icon: UserCheck, label: 'Leaders' },
-  { to: '/gallery', icon: Image, label: 'Gallery' },
-  { to: '/testimonies', icon: Quote, label: 'Testimonies' },
-  { to: '/notices', icon: Bell, label: 'Notices' },
-  { to: '/members', icon: Users, label: 'Members' },
-  { to: '/service-times', icon: Clock, label: 'Service Times' },
-  { to: '/verses', icon: BookMarked, label: 'Verses' },
-  { to: '/campaigns', icon: DollarSign, label: 'Campaigns' },
+  { to: '/admin/sermons', icon: BookOpen, label: 'Sermons' },
+  { to: '/admin/events', icon: Calendar, label: 'Events' },
+  { to: '/admin/ministries', icon: Users, label: 'Ministries' },
+  { to: '/admin/leaders', icon: UserCheck, label: 'Leaders' },
+  { to: '/admin/gallery', icon: Image, label: 'Gallery' },
+  { to: '/admin/testimonies', icon: Quote, label: 'Testimonies' },
+  { to: '/admin/notices', icon: Bell, label: 'Notices' },
+  { to: '/admin/members', icon: Users, label: 'Members' },
+  { to: '/admin/service-times', icon: Clock, label: 'Service Times' },
+  { to: '/admin/verses', icon: BookMarked, label: 'Verses' },
+  { to: '/admin/campaigns', icon: DollarSign, label: 'Campaigns' },
   { divider: true, label: 'Management' },
-  { to: '/users', icon: Shield, label: 'User Management' },
-  { to: '/settings', icon: Settings, label: 'Settings' },
+  { to: '/admin/users', icon: Shield, label: 'User Management' },
+  { to: '/admin/settings', icon: Settings, label: 'Settings' },
 ]
 
 export function Layout() {
@@ -28,7 +28,7 @@ export function Layout() {
 
   const handleLogout = () => {
     logout()
-    navigate('/login')
+    navigate('/admin/login')
   }
 
   return (

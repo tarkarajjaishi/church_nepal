@@ -15,8 +15,21 @@ const queryClient = new QueryClient()
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
   if (loading) return <div style={{padding:40,textAlign:'center',fontSize:20}}>Loading...</div>
-  if (!user) return <Navigate to="/login" replace />
+  if (!user) return <Navigate to="/admin/login" replace />
   return <>{children}</>
+}
+
+function LandingPage() {
+  return (
+    <div style={{minHeight:'100vh',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',background:'#f8fafc',fontFamily:'system-ui,sans-serif'}}>
+      <div style={{textAlign:'center',maxWidth:500,padding:40}}>
+        <div style={{width:64,height:64,borderRadius:16,background:'#0b3c5d',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 24px',fontSize:32}}>⛪</div>
+        <h1 style={{color:'#0b3c5d',fontSize:32,fontWeight:'bold',margin:'0 0 8px'}}>Grace Nepal Church</h1>
+        <p style={{color:'#666',fontSize:16,margin:'0 0 32px'}}>Welcome to our church website</p>
+        <a href="/admin" style={{display:'inline-block',padding:'12px 32px',background:'#0b3c5d',color:'white',borderRadius:8,textDecoration:'none',fontSize:16,fontWeight:500}}>Admin Panel →</a>
+      </div>
+    </div>
+  )
 }
 
 function App() {
@@ -24,9 +37,11 @@ function App() {
     <AuthProvider>
       <BrowserRouter>
         <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
-            <Route index element={<Dashboard />} />
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/admin/login" element={<Login />} />
+          <Route path="/admin" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+            <Route index element={<Navigate to="/admin/dashboard" replace />} />
+            <Route path="dashboard" element={<Dashboard />} />
             <Route path="users" element={<UserManagement />} />
             <Route path="sermons" element={<CrudPage endpoint="sermons" title="Sermons" fields={[
               { key: 'title', label: 'Title', type: 'text' },
