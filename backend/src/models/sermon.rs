@@ -12,6 +12,7 @@ pub struct Sermon {
     pub topic: String,
     pub image: String,
     pub description: String,
+    pub video_url: Option<String>,
     pub enabled: Option<bool>,
     pub sort_order: Option<i32>,
     pub created_at: chrono::NaiveDateTime,
@@ -28,6 +29,8 @@ pub struct CreateSermon {
     pub topic: String,
     pub image: String,
     pub description: String,
+    #[serde(default)]
+    pub video_url: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -40,5 +43,6 @@ pub struct UpdateSermon {
     pub topic: Option<String>,
     pub image: Option<String>,
     pub description: Option<String>,
+    pub video_url: Option<String>,
     pub sort_order: Option<i32>,
 }

@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { motion } from "motion/react";
 import {
-  Play, Calendar, Clock, MapPin, ArrowRight, Quote, Star, Share2, HandHeart, ChevronRight, Sparkles,
+  Play, Calendar, Clock, MapPin, ArrowRight, Quote, Star, Share2, HandHeart, ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -15,9 +15,6 @@ import { SectionHeading } from "@/components/site/SectionHeading";
 import { CountUp } from "@/components/site/CountUp";
 import { Countdown } from "@/components/site/Countdown";
 import { Icon } from "@/components/site/Icon";
-import { NoticeBoard } from "@/components/site/NoticeBoard";
-import { ChurchMembers } from "@/components/site/ChurchMembers";
-
 import { useLang } from "@/lib/language";
 import { toBS } from "@/lib/nepaliDate";
 import { images } from "@/lib/data";
@@ -27,9 +24,14 @@ import {
   useSections, useContentBlocks, ContentBlock,
 } from "@/lib/hooks";
 
-function ContentBlockSection({ block, children }: { block: ContentBlock | null | undefined, children: React.ReactNode }) {
+function CB({ block, children }: { block: ContentBlock | null | undefined, children: React.ReactNode }) {
   if (!block || block.enabled === false) return null
   return <>{children}</>
+}
+
+function Eyebrow({ block, fallback }: { block: ContentBlock | null | undefined, fallback: string }) {
+  const eyebrow = block?.items?.[0]?.eyebrow
+  return eyebrow || fallback
 }
 
 export default function Home() {
@@ -55,6 +57,16 @@ export default function Home() {
   const whatWeBelieve = cb('what_we_believe')
   const watchOnline = cb('watch_online')
   const prayerCta = cb('prayer_cta')
+  const serviceTimesSec = cb('service_times_section')
+  const sermonsSec = cb('featured_sermons')
+  const ministriesSec = cb('ministries_section')
+  const eventsSec = cb('events_section')
+  const testimoniesSec = cb('testimonies_section')
+  const gallerySec = cb('gallery_section')
+  const verseSec = cb('verse_section')
+  const donationSec = cb('donation_section')
+  const noticeSec = cb('notice_board')
+  const membersSec = cb('church_members')
 
   const serviceTimes = allServiceTimes;
   const featuredSermons = allSermons.slice(0, 3);
@@ -68,39 +80,20 @@ export default function Home() {
       {hero && (
       <section className="relative min-h-[88vh] flex items-center overflow-hidden">
         <div className="absolute inset-0">
-          <ImageWithFallback src={hero.image || images.hero} alt="Worshippers with hands raised" className="w-full h-full object-cover" />
+          <ImageWithFallback src={hero.image || images.hero} alt={hero.title || "Church"} className="w-full h-full object-cover" />
           <div className="absolute inset-0 gradient-hero-br" />
         </div>
-
         <div className="relative mx-auto max-w-7xl px-4 py-24 w-full">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-            className="max-w-2xl"
-          >
+          <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }} className="max-w-2xl">
             <Badge className="bg-gold/20 text-gold border-gold/30 mb-5">{t("tagline")}</Badge>
-            <h1 className="text-white text-4xl sm:text-5xl lg:text-6xl" style={{ fontFamily: "var(--font-heading)", fontWeight: 800, lineHeight: 1.05 }}>
-              {hero.title || t("hero_welcome")}
-            </h1>
+            <h1 className="text-white text-4xl sm:text-5xl lg:text-6xl" style={{ fontFamily: "var(--font-heading)", fontWeight: 800, lineHeight: 1.05 }}>{hero.title || t("hero_welcome")}</h1>
             <p className="mt-5 text-lg text-white/85 max-w-xl">{hero.subtitle || t("hero_sub")}</p>
             <div className="mt-8 flex flex-wrap gap-3">
-              <Button asChild size="lg" className="bg-gold text-church-blue hover:bg-gold/90">
-                <Link href="/sermons"><Play className="size-4" /> {t("hero_watch")}</Link>
-              </Button>
-              <Button asChild size="lg" variant="ghost" className="text-white hover:bg-white/10 hover:text-white">
-                <Link href="/prayer"><HandHeart className="size-4" /> {t("hero_pray")}</Link>
-              </Button>
+              <Button asChild size="lg" className="bg-gold text-church-blue hover:bg-gold/90"><Link href="/sermons"><Play className="size-4" /> {t("hero_watch")}</Link></Button>
+              <Button asChild size="lg" variant="ghost" className="text-white hover:bg-white/10 hover:text-white"><Link href="/prayer"><HandHeart className="size-4" /> {t("hero_pray")}</Link></Button>
             </div>
           </motion.div>
-
-          {/* Floating next-service card */}
-          <motion.div
-            initial={{ opacity: 0, y: 40 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.3 }}
-            className="mt-14 max-w-md"
-          >
+          <motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: 0.3 }} className="mt-14 max-w-md">
             <Card className="p-5 bg-white/95 backdrop-blur border-0 shadow-2xl">
               <div className="flex items-center justify-between mb-3">
                 <span className="text-sm text-muted-foreground">{lang === "en" ? "Next Service" : "अर्को सेवा"}</span>
@@ -109,8 +102,8 @@ export default function Home() {
               <div className="flex items-center gap-3 mb-4">
                 <span className="grid place-items-center size-11 rounded-xl bg-church-blue text-white"><Icon name="Church" className="size-5" /></span>
                 <div>
-                  <div className="text-church-blue" style={{ fontFamily: "var(--font-heading)", fontWeight: 600 }}>Sunday Worship</div>
-                  <div className="text-sm text-muted-foreground">Sunday · 10:00 AM · Kathmandu</div>
+                  <div className="text-church-blue" style={{ fontFamily: "var(--font-heading)", fontWeight: 600 }}>{serviceTimes[0]?.name || "Sunday Worship"}</div>
+                  <div className="text-sm text-muted-foreground">{serviceTimes[0]?.day || "Sunday"} · {serviceTimes[0]?.time || "10:00 AM"} · Kathmandu</div>
                 </div>
               </div>
               <Countdown date={nextEvent.date} />
@@ -120,22 +113,18 @@ export default function Home() {
       </section>
       )}
 
-
       {/* ---------- Service Times ---------- */}
       {sec.serviceTimes === true && (
+      <CB block={serviceTimesSec}>
       <section className="py-20 bg-section">
         <div className="mx-auto max-w-7xl px-4">
-          <SectionHeading eyebrow="Join Us" title={t("service_times")} subtitle={lang === "en" ? "There's a place for everyone in the family of God. Come as you are." : "परमेश्वरको परिवारमा सबैका लागि ठाउँ छ। जस्तो हुनुहुन्छ, त्यस्तै आउनुहोस्।"} />
+          <SectionHeading eyebrow={<Eyebrow block={serviceTimesSec} fallback="Join Us" />} title={serviceTimesSec?.title || t("service_times")} subtitle={serviceTimesSec?.subtitle || ""} />
           <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
             {serviceTimes.map((s, i) => (
               <Reveal key={s.id} delay={i * 0.05}>
                 <Card className="group p-6 h-full border-border/60 hover:border-gold hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-                  <span className="grid place-items-center size-12 rounded-xl bg-secondary text-church-blue group-hover:bg-gold group-hover:text-church-blue transition-colors">
-                    <Icon name={s.icon} className="size-6" />
-                  </span>
-                  <h3 className="mt-4 text-church-blue" style={{ fontFamily: "var(--font-heading)", fontWeight: 600 }}>
-                    {lang === "en" ? s.name : s.nameNe}
-                  </h3>
+                  <span className="grid place-items-center size-12 rounded-xl bg-secondary text-church-blue group-hover:bg-gold group-hover:text-church-blue transition-colors"><Icon name={s.icon} className="size-6" /></span>
+                  <h3 className="mt-4 text-church-blue" style={{ fontFamily: "var(--font-heading)", fontWeight: 600 }}>{lang === "en" ? s.name : s.nameNe}</h3>
                   <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground"><Calendar className="size-4 text-gold" /> {s.day}</div>
                   <div className="mt-1 flex items-center gap-2 text-sm text-muted-foreground"><Clock className="size-4 text-gold" /> {s.time}</div>
                 </Card>
@@ -144,13 +133,14 @@ export default function Home() {
           </div>
         </div>
       </section>
+      </CB>
       )}
 
       {/* ---------- What to Expect ---------- */}
-      <ContentBlockSection block={whatToExpect}>
+      <CB block={whatToExpect}>
       <section className="py-20 bg-section">
         <div className="mx-auto max-w-7xl px-4">
-          <SectionHeading eyebrow={lang === "en" ? "First Time Here?" : "पहिलो पटक यहाँ?"} title={whatToExpect?.title || "What to Expect"} subtitle={whatToExpect?.subtitle || ""} />
+          <SectionHeading eyebrow={<Eyebrow block={whatToExpect} fallback="First Time Here?" />} title={whatToExpect?.title || "What to Expect"} subtitle={whatToExpect?.subtitle || ""} />
           <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {(whatToExpect?.items || []).map((item: any, i: number) => (
               <Reveal key={i} delay={i * 0.05}>
@@ -163,7 +153,7 @@ export default function Home() {
           </div>
         </div>
       </section>
-      </ContentBlockSection>
+      </CB>
 
       {/* ---------- Welcome / Pastor ---------- */}
       {welcome && (
@@ -179,21 +169,17 @@ export default function Home() {
             </div>
           </Reveal>
           <div>
-            <SectionHeading center={false} eyebrow="Welcome" title={welcome.title || t("welcome_title")} subtitle={welcome.subtitle || ""} />
+            <SectionHeading center={false} eyebrow={<Eyebrow block={welcome} fallback="Welcome" />} title={welcome.title || t("welcome_title")} subtitle={welcome.subtitle || ""} />
             <Reveal delay={0.1}>
               <div className="mt-8 grid grid-cols-2 sm:grid-cols-4 gap-4">
                 {(welcome.items || []).map((st: any, i: number) => (
                   <div key={i} className="text-center rounded-2xl bg-section p-4">
-                    <div className="text-church-blue" style={{ fontFamily: "var(--font-heading)", fontWeight: 700, fontSize: "1.75rem" }}>
-                      {st.value}
-                    </div>
+                    <div className="text-church-blue" style={{ fontFamily: "var(--font-heading)", fontWeight: 700, fontSize: "1.75rem" }}>{st.value}</div>
                     <div className="text-xs text-muted-foreground mt-1">{st.label}</div>
                   </div>
                 ))}
               </div>
-              <Button asChild className="mt-8 bg-church-blue hover:bg-church-blue/90">
-                <Link href="/about">{t("read_more")} <ArrowRight className="size-4" /></Link>
-              </Button>
+              <Button asChild className="mt-8 bg-church-blue hover:bg-church-blue/90"><Link href="/about">{t("read_more")} <ArrowRight className="size-4" /></Link></Button>
             </Reveal>
           </div>
         </div>
@@ -201,60 +187,49 @@ export default function Home() {
       )}
 
       {/* ---------- What We Believe ---------- */}
-      <ContentBlockSection block={whatWeBelieve}>
+      <CB block={whatWeBelieve}>
       <section className="py-20 bg-section">
         <div className="mx-auto max-w-7xl px-4">
-          <SectionHeading eyebrow="Our Faith" title={whatWeBelieve?.title || "What We Believe"} subtitle={whatWeBelieve?.subtitle || ""} />
+          <SectionHeading eyebrow={<Eyebrow block={whatWeBelieve} fallback="Our Faith" />} title={whatWeBelieve?.title || "What We Believe"} subtitle={whatWeBelieve?.subtitle || ""} />
           <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {(whatWeBelieve?.items || []).map((item: any, i: number) => (
               <Reveal key={i} delay={i * 0.05}>
                 <Card className="p-6 h-full border-border/60 hover:shadow-lg transition-all">
-                  <span className="grid place-items-center size-10 rounded-xl bg-church-blue/10 text-church-blue mb-3">
-                    <Icon name={whatWeBelieve?.icon || "BookOpen"} className="size-5" />
-                  </span>
+                  <span className="grid place-items-center size-10 rounded-xl bg-church-blue/10 text-church-blue mb-3"><Icon name={whatWeBelieve?.icon || "BookOpen"} className="size-5" /></span>
                   <h3 className="text-church-blue font-semibold" style={{ fontFamily: "var(--font-heading)" }}>{item.title}</h3>
                   <p className="mt-2 text-sm text-muted-foreground leading-relaxed">{item.desc}</p>
                 </Card>
               </Reveal>
             ))}
           </div>
-          <div className="mt-10 text-center">
-            <Button asChild variant="outline" className="border-church-blue text-church-blue hover:bg-church-blue hover:text-white">
-              <Link href="/about">{t("learn_more")} <ArrowRight className="size-4" /></Link>
-            </Button>
-          </div>
+          <div className="mt-10 text-center"><Button asChild variant="outline" className="border-church-blue text-church-blue hover:bg-church-blue hover:text-white"><Link href="/about">{t("learn_more")} <ArrowRight className="size-4" /></Link></Button></div>
         </div>
       </section>
-      </ContentBlockSection>
+      </CB>
 
       {/* ---------- Watch Online ---------- */}
-      <ContentBlockSection block={watchOnline}>
+      <CB block={watchOnline}>
       <section className="py-20">
         <div className="mx-auto max-w-7xl px-4 text-center">
-          <SectionHeading eyebrow="Live Stream" title={watchOnline?.title || "Watch Online"} subtitle={watchOnline?.subtitle || ""} />
+          <SectionHeading eyebrow={<Eyebrow block={watchOnline} fallback="Live Stream" />} title={watchOnline?.title || "Watch Online"} subtitle={watchOnline?.subtitle || ""} />
           <Reveal delay={0.1}>
             <div className="mt-10 flex flex-wrap gap-4 justify-center">
-              <Button asChild size="lg" className="bg-red-600 hover:bg-red-700 text-white">
-                <Link href="/sermons"><Play className="size-5" /> {lang === "en" ? "Watch Live" : "लाइभ हेर्नुहोस्"}</Link>
-              </Button>
-              <Button asChild size="lg" variant="outline" className="border-church-blue text-church-blue hover:bg-church-blue hover:text-white">
-                <Link href="/sermons">{lang === "en" ? "All Sermons" : "सबै प्रचारहरू"} <ArrowRight className="size-4" /></Link>
-              </Button>
+              <Button asChild size="lg" className="bg-red-600 hover:bg-red-700 text-white"><Link href="/sermons"><Play className="size-5" /> {lang === "en" ? "Watch Live" : "लाइभ हेर्नुहोस्"}</Link></Button>
+              <Button asChild size="lg" variant="outline" className="border-church-blue text-church-blue hover:bg-church-blue hover:text-white"><Link href="/sermons">{lang === "en" ? "All Sermons" : "सबै प्रचारहरू"} <ArrowRight className="size-4" /></Link></Button>
             </div>
           </Reveal>
         </div>
       </section>
-      </ContentBlockSection>
+      </CB>
 
       {/* ---------- Featured Sermons ---------- */}
       {sec.sermons === true && allSermons.length > 0 && (
+      <CB block={sermonsSec}>
       <section className="py-20 bg-section">
         <div className="mx-auto max-w-7xl px-4">
           <div className="flex items-end justify-between gap-4 flex-wrap">
-            <SectionHeading center={false} eyebrow="Watch & Listen" title={t("featured_sermons")} />
-            <Button asChild variant="ghost" className="text-church-blue hover:text-gold hidden sm:inline-flex">
-              <Link href="/sermons">{t("view_all")} <ChevronRight className="size-4" /></Link>
-            </Button>
+            <SectionHeading center={false} eyebrow={<Eyebrow block={sermonsSec} fallback="Watch & Listen" />} title={sermonsSec?.title || t("featured_sermons")} />
+            <Button asChild variant="ghost" className="text-church-blue hover:text-gold hidden sm:inline-flex"><Link href="/sermons">{t("view_all")} <ChevronRight className="size-4" /></Link></Button>
           </div>
           <div className="mt-10 grid gap-6 md:grid-cols-3">
             {featuredSermons.map((s, i) => (
@@ -264,9 +239,7 @@ export default function Home() {
                     <div className="relative aspect-video overflow-hidden">
                       <ImageWithFallback src={s.image} alt={s.title} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                       <div className="absolute inset-0 bg-church-blue/20 group-hover:bg-church-blue/40 transition-colors grid place-items-center">
-                        <span className="grid place-items-center size-14 rounded-full bg-white/90 text-church-blue group-hover:scale-110 transition-transform">
-                          <Play className="size-6 fill-church-blue" />
-                        </span>
+                        <span className="grid place-items-center size-14 rounded-full bg-white/90 text-church-blue group-hover:scale-110 transition-transform"><Play className="size-6 fill-church-blue" /></span>
                       </div>
                       <Badge className="absolute top-3 left-3 bg-gold text-church-blue border-0">{s.series}</Badge>
                       <span className="absolute bottom-3 right-3 text-xs bg-church-blue/90 text-white px-2 py-1 rounded-md">{s.duration}</span>
@@ -275,9 +248,7 @@ export default function Home() {
                       <div className="text-xs text-muted-foreground flex items-center gap-2">{s.speaker} · {s.date}</div>
                       <h3 className="mt-2 text-church-blue" style={{ fontFamily: "var(--font-heading)", fontWeight: 600 }}>{s.title}</h3>
                       <p className="mt-2 text-sm text-muted-foreground line-clamp-2">{s.description}</p>
-                      <span className="mt-2 inline-flex items-center gap-1 text-gold text-sm font-medium">
-                        {t("watch_now")} <ArrowRight className="size-4" />
-                      </span>
+                      <span className="mt-2 inline-flex items-center gap-1 text-gold text-sm font-medium">{t("watch_now")} <ArrowRight className="size-4" /></span>
                     </div>
                   </Card>
                 </Link>
@@ -286,13 +257,15 @@ export default function Home() {
           </div>
         </div>
       </section>
+      </CB>
       )}
 
       {/* ---------- Ministries ---------- */}
       {sec.ministries === true && (
+      <CB block={ministriesSec}>
       <section className="py-20">
         <div className="mx-auto max-w-7xl px-4">
-          <SectionHeading eyebrow="Get Involved" title={t("our_ministries")} subtitle={lang === "en" ? "Discover a ministry where you can grow, serve and belong." : "बढ्न, सेवा गर्न र सम्बन्धित हुन सक्ने सेवाकार्य पत्ता लगाउनुहोस्।"} />
+          <SectionHeading eyebrow={<Eyebrow block={ministriesSec} fallback="Get Involved" />} title={ministriesSec?.title || t("our_ministries")} subtitle={ministriesSec?.subtitle || ""} />
           <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {featuredMinistries.map((m, i) => (
               <Reveal key={m.id} delay={i * 0.06}>
@@ -305,29 +278,25 @@ export default function Home() {
                     <div className="p-5">
                       <h3 className="text-church-blue" style={{ fontFamily: "var(--font-heading)", fontWeight: 600 }}>{lang === "en" ? m.name : m.nameNe}</h3>
                       <p className="mt-2 text-sm text-muted-foreground line-clamp-2">{m.description}</p>
-                      <span className="mt-2 inline-flex items-center gap-1 text-gold text-sm font-medium">
-                        {t("learn_more")} <ArrowRight className="size-4" />
-                      </span>
+                      <span className="mt-2 inline-flex items-center gap-1 text-gold text-sm font-medium">{t("learn_more")} <ArrowRight className="size-4" /></span>
                     </div>
                   </Card>
                 </Link>
               </Reveal>
             ))}
           </div>
-          <div className="mt-10 text-center">
-            <Button asChild variant="outline" className="border-church-blue text-church-blue hover:bg-church-blue hover:text-white">
-              <Link href="/ministries">{t("view_all")} <ArrowRight className="size-4" /></Link>
-            </Button>
-          </div>
+          <div className="mt-10 text-center"><Button asChild variant="outline" className="border-church-blue text-church-blue hover:bg-church-blue hover:text-white"><Link href="/ministries">{t("view_all")} <ArrowRight className="size-4" /></Link></Button></div>
         </div>
       </section>
+      </CB>
       )}
 
       {/* ---------- Upcoming Events ---------- */}
       {sec.events === true && (
+      <CB block={eventsSec}>
       <section className="py-20 bg-section">
         <div className="mx-auto max-w-7xl px-4">
-          <SectionHeading eyebrow="Mark Your Calendar" title={t("upcoming_events")} />
+          <SectionHeading eyebrow={<Eyebrow block={eventsSec} fallback="Mark Your Calendar" />} title={eventsSec?.title || t("upcoming_events")} />
           <div className="mt-12 grid gap-6 lg:grid-cols-2">
             {allEvents.slice(0, 2).map((e, i) => (
               <Reveal key={e.id} delay={i * 0.08}>
@@ -348,9 +317,7 @@ export default function Home() {
                         <div className="flex items-center gap-2"><MapPin className="size-4 text-gold" /> {e.location}</div>
                       </div>
                       <div className="mt-4"><Countdown date={e.date} /></div>
-                      <span className="mt-4 inline-flex items-center gap-1 text-gold text-sm font-medium">
-                        {t("register")} <ArrowRight className="size-4" />
-                      </span>
+                      <span className="mt-4 inline-flex items-center gap-1 text-gold text-sm font-medium">{t("register")} <ArrowRight className="size-4" /></span>
                     </div>
                   </Card>
                 </Link>
@@ -359,47 +326,48 @@ export default function Home() {
           </div>
         </div>
       </section>
+      </CB>
       )}
 
       {/* ---------- Prayer CTA ---------- */}
-      <ContentBlockSection block={prayerCta}>
+      <CB block={prayerCta}>
       <section className="relative py-24">
         <div className="absolute inset-0">
           <ImageWithFallback src={prayerCta?.image || images.worship3} alt="Prayer" loading="lazy" className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-church-blue/85" />
         </div>
         <div className="relative mx-auto max-w-3xl px-4 text-center">
-          <SectionHeading light eyebrow="We're Here For You" title={prayerCta?.title || t("need_prayer")} subtitle={prayerCta?.subtitle || t("need_prayer_sub")} />
-          <Reveal delay={0.1}>
-            <Button asChild size="lg" className="mt-8 bg-gold text-church-blue hover:bg-gold/90">
-              <Link href="/prayer"><HandHeart className="size-5" /> {t("nav_prayer")}</Link>
-            </Button>
-          </Reveal>
+          <SectionHeading light eyebrow={<Eyebrow block={prayerCta} fallback="We're Here For You" />} title={prayerCta?.title || t("need_prayer")} subtitle={prayerCta?.subtitle || t("need_prayer_sub")} />
+          <Reveal delay={0.1}><Button asChild size="lg" className="mt-8 bg-gold text-church-blue hover:bg-gold/90"><Link href="/prayer"><HandHeart className="size-5" /> {t("nav_prayer")}</Link></Button></Reveal>
         </div>
       </section>
-      </ContentBlockSection>
+      </CB>
 
       {/* ---------- Notice Board ---------- */}
       {sec.notices === true && (
-      <NoticeBoard />
+      <CB block={noticeSec}>
+      <section className="py-20">
+        <div className="mx-auto max-w-7xl px-4">
+          <SectionHeading eyebrow={<Eyebrow block={noticeSec} fallback="Notice Board" />} title={noticeSec?.title || "Church Notices"} subtitle={noticeSec?.subtitle || ""} />
+          <div className="mt-8 text-center"><Button asChild variant="outline" className="border-church-blue text-church-blue hover:bg-church-blue hover:text-white"><Link href="/events">{noticeSec?.items?.[0]?.view_all || "View All Events"} <ArrowRight className="size-4" /></Link></Button></div>
+        </div>
+      </section>
+      </CB>
       )}
 
       {/* ---------- Testimonies ---------- */}
       {sec.testimonies === true && (
+      <CB block={testimoniesSec}>
       <section className="py-20">
         <div className="mx-auto max-w-7xl px-4">
-          <SectionHeading eyebrow="Stories of Grace" title={t("testimonies")} />
+          <SectionHeading eyebrow={<Eyebrow block={testimoniesSec} fallback="Stories of Grace" />} title={testimoniesSec?.title || t("testimonies")} />
           <div className="mt-12 grid gap-6 md:grid-cols-3">
             {allTestimonies.map((tst, i) => (
               <Reveal key={tst.id} delay={i * 0.08}>
                 <Card className="p-6 h-full border-border/60 hover:shadow-xl transition-all">
                   <Quote className="size-8 text-gold/40" />
                   <p className="mt-3 text-foreground/80 leading-relaxed">"{tst.quote}"</p>
-                  <div className="mt-4 flex gap-0.5">
-                    {Array.from({ length: tst.rating }).map((_, k) => (
-                      <Star key={k} className="size-4 fill-gold text-gold" />
-                    ))}
-                  </div>
+                  <div className="mt-4 flex gap-0.5">{Array.from({ length: tst.rating }).map((_, k) => <Star key={k} className="size-4 fill-gold text-gold" />)}</div>
                   <div className="mt-4 flex items-center gap-3">
                     <ImageWithFallback src={tst.image} alt={tst.name} loading="lazy" className="size-11 rounded-full object-cover" />
                     <div>
@@ -413,62 +381,74 @@ export default function Home() {
           </div>
         </div>
       </section>
+      </CB>
       )}
 
       {/* ---------- Church Members ---------- */}
       {sec.members === true && (
-      <ChurchMembers />
+      <CB block={membersSec}>
+      <section className="py-20 bg-section">
+        <div className="mx-auto max-w-7xl px-4">
+          <SectionHeading eyebrow={<Eyebrow block={membersSec} fallback="Our Family" />} title={membersSec?.title || "Church Members"} subtitle={membersSec?.subtitle || ""} />
+          <div className="mt-10 text-center">
+            <p className="text-muted-foreground max-w-xl mx-auto">{membersSec?.items?.[0]?.join_desc || ""}</p>
+            <div className="mt-6 flex gap-4 justify-center">
+              <Button asChild className="bg-church-blue hover:bg-church-blue/90"><Link href="/contact">{membersSec?.items?.[0]?.join_btn || "Join Us"}</Link></Button>
+              <Button asChild variant="outline" className="border-church-blue text-church-blue hover:bg-church-blue hover:text-white"><Link href="/about">{membersSec?.items?.[0]?.connected_btn || "Get Connected"}</Link></Button>
+            </div>
+          </div>
+        </div>
+      </section>
+      </CB>
       )}
 
       {/* ---------- Gallery preview ---------- */}
       {sec.gallery === true && (
+      <CB block={gallerySec}>
       <section className="py-20 bg-section">
         <div className="mx-auto max-w-7xl px-4">
-          <SectionHeading eyebrow="Moments" title={t("gallery_title")} />
+          <SectionHeading eyebrow={<Eyebrow block={gallerySec} fallback="Moments" />} title={gallerySec?.title || t("gallery_title")} />
           <div className="mt-12 grid grid-cols-2 md:grid-cols-4 gap-3">
             {allGallery.slice(0, 8).map((g, i) => (
               <Reveal key={g.id} delay={i * 0.04}>
                 <Link href="/gallery" className={`group relative block overflow-hidden rounded-2xl ${i % 5 === 0 ? "row-span-2 aspect-[3/4]" : "aspect-square"}`}>
                   <ImageWithFallback src={g.image} alt={g.title} loading="lazy" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
-                  <div className="absolute inset-0 bg-church-blue/0 group-hover:bg-church-blue/50 transition-colors grid place-items-end p-3">
-                    <span className="text-white text-sm opacity-0 group-hover:opacity-100 transition-opacity">{g.title}</span>
-                  </div>
+                  <div className="absolute inset-0 bg-church-blue/0 group-hover:bg-church-blue/50 transition-colors grid place-items-end p-3"><span className="text-white text-sm opacity-0 group-hover:opacity-100 transition-opacity">{g.title}</span></div>
                 </Link>
               </Reveal>
             ))}
           </div>
         </div>
       </section>
+      </CB>
       )}
 
       {/* ---------- Verse of the day ---------- */}
       {sec.verses === true && (
+      <CB block={verseSec}>
       <section className="py-20 bg-church-blue">
         <div className="mx-auto max-w-3xl px-4 text-center">
           <Reveal>
-            <span className="uppercase tracking-[0.25em] text-xs text-gold">{t("verse_of_day")}</span>
-            <p className="mt-6 text-white text-2xl md:text-3xl" style={{ fontFamily: "var(--font-heading)", fontWeight: 600, lineHeight: 1.4 }}>
-              "{lang === "en" ? verse.text : verse.ne}"
-            </p>
+            <span className="uppercase tracking-[0.25em] text-xs text-gold">{verseSec?.title || t("verse_of_day")}</span>
+            <p className="mt-6 text-white text-2xl md:text-3xl" style={{ fontFamily: "var(--font-heading)", fontWeight: 600, lineHeight: 1.4 }}>"{lang === "en" ? verse.text : verse.ne}"</p>
             <p className="mt-4 text-gold">— {verse.ref}</p>
-            <Button variant="outline" className="mt-6 border-white/30 text-white bg-white/5 hover:bg-white/15 hover:text-white">
-              <Share2 className="size-4" /> Share
-            </Button>
+            <Button variant="outline" className="mt-6 border-white/30 text-white bg-white/5 hover:bg-white/15 hover:text-white"><Share2 className="size-4" /> {t("share")}</Button>
           </Reveal>
         </div>
       </section>
+      </CB>
       )}
 
       {/* ---------- Donation ---------- */}
       {sec.campaigns === true && (
+      <CB block={donationSec}>
       <section className="py-20">
         <div className="mx-auto max-w-7xl px-4 grid lg:grid-cols-2 gap-12 items-center">
           <div>
-            <SectionHeading center={false} eyebrow="Give" title={t("support_ministry")}
-              subtitle={lang === "en" ? "Your generosity fuels the mission — reaching villages, discipling believers, and serving the community." : "तपाईंको उदारताले मिसनलाई अघि बढाउँछ — गाउँहरूमा पुग्दै, विश्वासीहरूलाई चेला बनाउँदै।"} />
+            <SectionHeading center={false} eyebrow={<Eyebrow block={donationSec} fallback="Give" />} title={donationSec?.title || t("support_ministry")} subtitle={donationSec?.subtitle || ""} />
             <Reveal delay={0.1}>
               <div className="mt-8 flex flex-wrap gap-3">
-                {["eSewa", "Khalti", "Bank Transfer", "QR Code"].map((m) => (
+                {(donationSec?.items?.[0]?.payment_methods || ["eSewa", "Khalti", "Bank Transfer", "QR Code"]).map((m: string) => (
                   <span key={m} className="px-4 py-2 rounded-full bg-secondary text-church-blue text-sm">{m}</span>
                 ))}
               </div>
@@ -494,6 +474,7 @@ export default function Home() {
           </Reveal>
         </div>
       </section>
+      </CB>
       )}
     </div>
   );

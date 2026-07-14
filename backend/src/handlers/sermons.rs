@@ -75,10 +75,11 @@ pub async fn create(
 ) -> Result<Json<Sermon>, AppError> {
     let row = sqlx::query_as!(
         Sermon,
-        r#"INSERT INTO sermons (title, speaker, date, duration, series, topic, image, description)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *"#,
+        r#"INSERT INTO sermons (title, speaker, date, duration, series, topic, image, description, video_url)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *"#,
         input.title, input.speaker, input.date, input.duration,
-        input.series, input.topic, input.image, input.description
+        input.series, input.topic, input.image, input.description,
+        input.video_url.as_deref().unwrap_or("")
     )
     .fetch_one(&pool)
     .await?;
@@ -107,7 +108,8 @@ pub async fn update(
             topic = COALESCE($7, topic),
             image = COALESCE($8, image),
             description = COALESCE($9, description),
-            sort_order = COALESCE($10, sort_order),
+            video_url = COALESCE($10, video_url),
+            sort_order = COALESCE($11, sort_order),
             updated_at = NOW()
            WHERE id = $1 RETURNING *"#,
         id,
@@ -119,6 +121,7 @@ pub async fn update(
         input.topic.as_deref().unwrap_or(&existing.topic),
         input.image.as_deref().unwrap_or(&existing.image),
         input.description.as_deref().unwrap_or(&existing.description),
+        input.video_url.as_deref().unwrap_or(existing.video_url.as_deref().unwrap_or("")),
         input.sort_order
     )
     .fetch_one(&pool)
