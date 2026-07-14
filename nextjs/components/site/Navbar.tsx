@@ -20,8 +20,6 @@ import {
 import { useLang } from "@/lib/language";
 
 const primary = [
-  { to: "/", key: "nav_home" },
-  { to: "/visit", key: "nav_visit" },
   { to: "/about", key: "nav_about" },
   { to: "/ministries", key: "nav_ministries" },
   { to: "/sermons", key: "nav_sermons" },

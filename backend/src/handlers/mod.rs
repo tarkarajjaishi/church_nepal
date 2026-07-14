@@ -13,3 +13,4 @@ pub mod campaigns;
 pub mod settings;
 pub mod users;
 pub mod upload;
+pub mod content_blocks;

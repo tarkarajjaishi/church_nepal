@@ -75,4 +75,11 @@ pub fn api_routes() -> Router<PgPool> {
         .route("/settings/sections/{section}/toggle", put(settings::toggle_section))
         // Upload
         .route("/upload", post(upload::upload))
+        // Content Blocks
+        .route("/content-blocks", get(content_blocks::list).post(content_blocks::create))
+        .route("/content-blocks/{id}", get(content_blocks::get).put(content_blocks::update).delete(content_blocks::delete))
+        .route("/content-blocks/{id}/toggle", put(content_blocks::toggle))
+        .route("/content-blocks/{id}/reorder", put(content_blocks::reorder))
+        .route("/content-blocks/key/{key}", get(content_blocks::get_by_key))
+        .route("/content-blocks/enabled", get(content_blocks::list_enabled))
 }

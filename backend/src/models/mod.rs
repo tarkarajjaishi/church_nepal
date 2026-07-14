@@ -11,6 +11,7 @@ pub mod service_time;
 pub mod verse;
 pub mod campaign;
 pub mod setting;
+pub mod content_block;
 
 pub use user::*;
 pub use sermon::*;
@@ -25,3 +26,4 @@ pub use service_time::*;
 pub use verse::*;
 pub use campaign::*;
 pub use setting::*;
+pub use content_block::*;
