@@ -42,11 +42,20 @@ export function useReadingHistory() {
     if (saved) setHistory(JSON.parse(saved))
   }, [])
 
-  const addToHistory = (book: string, chapter: number) => {
-    const updated = [{ book, chapter, timestamp: Date.now() }, ...history.filter(h => !(h.book === book && h.chapter === chapter))].slice(0, 50)
-    setHistory(updated)
-    localStorage.setItem('bible_history', JSON.stringify(updated))
-  }
+  const addToHistory = useCallback((book: string, chapter: number) => {
+    setHistory((prev) => {
+      const updated = [
+        { book, chapter, timestamp: Date.now() },
+        ...prev.filter((h) => !(h.book === book && h.chapter === chapter)),
+      ].slice(0, 50)
+      try {
+        localStorage.setItem('bible_history', JSON.stringify(updated))
+      } catch {
+        /* ignore */
+      }
+      return updated
+    })
+  }, [])
 
   const clearHistory = () => {
     setHistory([])
@@ -65,14 +74,22 @@ export function useReadingProgress() {
     if (saved) setProgress(JSON.parse(saved))
   }, [])
 
-  const updateProgress = (book: string, chapter: number, totalChapters: number) => {
+  const updateProgress = useCallback((book: string, chapter: number, totalChapters: number) => {
     const percent = Math.round((chapter / totalChapters) * 100)
-    const updated = { ...progress, [book]: percent }
-    setProgress(updated)
-    localStorage.setItem('bible_progress', JSON.stringify(updated))
-  }
+    setProgress((prev) => {
+      // Keep the highest progress reached for each book
+      const nextPct = Math.max(prev[book] || 0, percent)
+      const updated = { ...prev, [book]: nextPct }
+      try {
+        localStorage.setItem('bible_progress', JSON.stringify(updated))
+      } catch {
+        /* ignore */
+      }
+      return updated
+    })
+  }, [])
 
-  const getProgress = (book: string) => progress[book] || 0
+  const getProgress = useCallback((book: string) => progress[book] || 0, [progress])
 
   return { progress, updateProgress, getProgress }
 }
