@@ -1,53 +1,5 @@
-'use client'
-
-import { usePathname, useRouter } from 'next/navigation'
-import { AuthProvider, useAuth } from '@/lib/auth'
-import { Providers } from '@/lib/providers'
-import { Layout as AdminLayoutComponent } from '@/components/admin/Layout'
-import { useEffect } from 'react'
-
-function AuthGuard({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth()
-  const router = useRouter()
-  const pathname = usePathname()
-
-  useEffect(() => {
-    if (!loading && !user) {
-      router.push('/admin/login')
-    }
-  }, [user, loading, router])
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-gray-50">
-        <div className="text-center">
-          <div className="size-8 border-4 border-[#0b3c5d] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-gray-500">Loading...</p>
-        </div>
-      </div>
-    )
-  }
-
-  if (!user) return null
-
-  return <>{children}</>
-}
+import { AdminClientLayout } from '@/components/admin/AdminClientLayout'
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname()
-  const isLoginPage = pathname === '/admin/login'
-
-  return (
-    <Providers>
-      <AuthProvider>
-        {isLoginPage ? (
-          children
-        ) : (
-          <AuthGuard>
-            <AdminLayoutComponent>{children}</AdminLayoutComponent>
-          </AuthGuard>
-        )}
-      </AuthProvider>
-    </Providers>
-  )
+  return <AdminClientLayout>{children}</AdminClientLayout>
 }
