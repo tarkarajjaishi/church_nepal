@@ -36,10 +36,41 @@ pub async fn initiate(
             )
         }
         "khalti" => {
-            format!(
-                "{}/sandbox?token=placeholder&donation_id={}",
-                domain, row.id
-            )
+            let config = crate::payment::khalti::KhaltiConfig::from_env();
+            let public_key = crate::payment::khalti::get_public_key();
+            let domain_clone = domain.clone();
+            let donation_id_clone = row.id.to_string();
+
+            // Call Khalti API to initiate payment
+            let client = reqwest::Client::new();
+            let khalti_resp = client.post(format!("{}/payment/initiate/", config.base_url))
+                .header("Authorization", format!("Key {}", config.secret_key))
+                .json(&crate::payment::khalti::KhaltiInitiateRequest {
+                    public_key,
+                    product_identity: row.id.to_string(),
+                    product_name: format!("Donation - {}", input.payment_method),
+                    product_url: format!("{}/give", domain_clone),
+                    amount: input.amount,
+                })
+                .send().await;
+
+            match khalti_resp {
+                Ok(resp) if resp.status().is_success() => {
+                    let khalti_data: crate::payment::khalti::KhaltiInitiateResponse = resp.json().await
+                        .map_err(|_| AppError::internal("Failed to parse Khalti response"))?;
+                    khalti_data.redirect_url
+                }
+                Ok(resp) => {
+                    let status = resp.status();
+                    let body = resp.text().await.unwrap_or_default();
+                    eprintln!("Khalti initiate failed: {} - {}", status, body);
+                    format!("{}/give/success?donation_id={}", domain_clone, donation_id_clone)
+                }
+                Err(e) => {
+                    eprintln!("Khalti API error: {}", e);
+                    format!("{}/give/success?donation_id={}", domain_clone, donation_id_clone)
+                }
+            }
         }
         _ => format!("{}/give/success?donation_id={}", domain, row.id),
     };
