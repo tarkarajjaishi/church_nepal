@@ -20,7 +20,7 @@ import { ChurchMembers } from "@/components/site/ChurchMembers";
 import { WhatToExpect } from "@/components/site/WhatToExpect";
 import { WhatWeBelieve } from "@/components/site/WhatWeBelieve";
 import { WatchOnline } from "@/components/site/WatchOnline";
-import { BibleSection } from "@/components/site/BibleSection";
+
 import { useLang } from "@/lib/language";
 import { toBS } from "@/lib/nepaliDate";
 import { images, stats } from "@/lib/data";
@@ -104,8 +104,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ---------- पवित्र बाइबल (NE) ---------- */}
-      <BibleSection />
 
       {/* ---------- Service Times ---------- */}
       <section className="py-20 bg-section">

@@ -111,10 +111,10 @@ export function Navbar() {
 
           <Link
             href="/bible"
-            className="hidden sm:grid place-items-center size-9 rounded-md text-foreground/70 hover:bg-secondary"
-            aria-label="पवित्र बाइबल"
+            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium text-foreground/70 hover:bg-secondary hover:text-church-blue transition-colors"
           >
             <BookOpen className="size-4" />
+            पवित्र बाइबल (NE)
           </Link>
 
           <div className="hidden sm:flex items-center rounded-full bg-secondary p-0.5 text-xs">

@@ -3,7 +3,7 @@
 import { useState, use } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import Link from 'next/link'
-import { BookOpen, ChevronLeft, ChevronRight, Home, Search, Church } from 'lucide-react'
+import { BookOpen, ChevronLeft, ChevronRight, Home, Search, Church, ChevronDown, Minus, Plus } from 'lucide-react'
 import { VerseRenderer } from '@/components/bible/VerseRenderer'
 
 const BOOK_NAMES: Record<string, string> = {
@@ -32,17 +32,23 @@ const NT_BOOKS = ['MAT','MRK','LUK','JHN','ACT','ROM','1CO','2CO','GAL','EPH','P
 export default function BiblePage({ params }: { params: Promise<{ book?: string }> }) {
   const resolvedParams = use(params)
   const [selectedBook, setSelectedBook] = useState(resolvedParams?.book?.toUpperCase() || 'EXO')
-  const [chapter, setChapter] = useState(1)
+  // Real chapter = display chapter + 1 (skip chapter 1)
+  const [displayChapter, setDisplayChapter] = useState(1)
   const [selectedVerse, setSelectedVerse] = useState<number | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
+  const [otOpen, setOtOpen] = useState(true)
+  const [ntOpen, setNtOpen] = useState(false)
+  const [fontSize, setFontSize] = useState(16)
+
+  const realChapter = displayChapter + 1 // Chapter 2 in data = "अध्याय 1" display
 
   const { data: chapterData, isLoading } = useQuery({
-    queryKey: ['bible-chapter', selectedBook, chapter],
-    queryFn: () => fetch(`/api/bible?book=${selectedBook}&chapter=${chapter}`).then(r => r.json()),
+    queryKey: ['bible-chapter', selectedBook, realChapter],
+    queryFn: () => fetch(`/api/bible?book=${selectedBook}&chapter=${realChapter}`).then(r => r.json()),
   })
 
   const bookName = BOOK_NAMES[selectedBook] || selectedBook
-  const totalChapters = chapterData?.totalChapters || 50
+  const totalDisplayChapters = Math.max(1, (chapterData?.totalChapters || 50) - 1) // Skip chapter 1
 
   const filteredOT = OT_BOOKS.filter(abbr =>
     BOOK_NAMES[abbr].includes(searchQuery) || abbr.toLowerCase().includes(searchQuery.toLowerCase())
@@ -65,6 +71,7 @@ export default function BiblePage({ params }: { params: Promise<{ book?: string 
           </div>
         </div>
 
+        {/* Search */}
         <div className="px-3 py-2 border-b border-white/10">
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-white/40" />
@@ -78,37 +85,71 @@ export default function BiblePage({ params }: { params: Promise<{ book?: string 
           </div>
         </div>
 
+        {/* Book List */}
         <nav className="flex-1 overflow-y-auto py-1">
+          {/* पुरानो करार - Collapsible */}
           <div className="px-3 py-1">
-            <p className="text-[9px] font-semibold text-white/30 uppercase tracking-wider mb-1">पुरानो करार</p>
-            {filteredOT.map(abbr => (
-              <Link key={abbr} href={`/bible/${abbr}`}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded text-xs transition-colors ${
-                  selectedBook === abbr ? 'bg-white/15 text-white' : 'text-white/60 hover:bg-white/10 hover:text-white'
-                }`}>
-                <BookOpen className="size-3" />
-                <span>{BOOK_NAMES[abbr]}</span>
-              </Link>
-            ))}
+            <button
+              onClick={() => setOtOpen(!otOpen)}
+              className="w-full flex items-center justify-between text-[9px] font-semibold text-white/30 uppercase tracking-wider mb-1 hover:text-white/50"
+            >
+              <span>पुरानो करार</span>
+              <ChevronDown className={`size-3 transition-transform ${otOpen ? 'rotate-180' : ''}`} />
+            </button>
+            {otOpen && (
+              <div className="space-y-0.5">
+                {filteredOT.map(abbr => (
+                  <Link key={abbr} href={`/bible/${abbr}`}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded text-xs transition-colors ${
+                      selectedBook === abbr ? 'bg-white/15 text-white' : 'text-white/60 hover:bg-white/10 hover:text-white'
+                    }`}>
+                    <BookOpen className="size-3" />
+                    <span>{BOOK_NAMES[abbr]}</span>
+                  </Link>
+                ))}
+              </div>
+            )}
           </div>
+
+          {/* नयाँ करार - Collapsible */}
           <div className="px-3 py-1 border-t border-white/10">
-            <p className="text-[9px] font-semibold text-white/30 uppercase tracking-wider mb-1">नयाँ करार</p>
-            {filteredNT.map(abbr => (
-              <Link key={abbr} href={`/bible/${abbr}`}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded text-xs transition-colors ${
-                  selectedBook === abbr ? 'bg-white/15 text-white' : 'text-white/60 hover:bg-white/10 hover:text-white'
-                }`}>
-                <BookOpen className="size-3" />
-                <span>{BOOK_NAMES[abbr]}</span>
-              </Link>
-            ))}
+            <button
+              onClick={() => setNtOpen(!ntOpen)}
+              className="w-full flex items-center justify-between text-[9px] font-semibold text-white/30 uppercase tracking-wider mb-1 hover:text-white/50"
+            >
+              <span>नयाँ करार</span>
+              <ChevronDown className={`size-3 transition-transform ${ntOpen ? 'rotate-180' : ''}`} />
+            </button>
+            {ntOpen && (
+              <div className="space-y-0.5">
+                {filteredNT.map(abbr => (
+                  <Link key={abbr} href={`/bible/${abbr}`}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded text-xs transition-colors ${
+                      selectedBook === abbr ? 'bg-white/15 text-white' : 'text-white/60 hover:bg-white/10 hover:text-white'
+                    }`}>
+                    <BookOpen className="size-3" />
+                    <span>{BOOK_NAMES[abbr]}</span>
+                  </Link>
+                ))}
+              </div>
+            )}
           </div>
         </nav>
 
-        <div className="p-3 border-t border-white/10">
+        {/* Font Size Controls */}
+        <div className="px-3 py-2 border-t border-white/10 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2 text-xs text-white/60 hover:text-white transition-colors">
             <Home className="size-3.5" /> मुख्य पृष्ठ
           </Link>
+          <div className="flex items-center gap-1">
+            <button onClick={() => setFontSize(Math.max(12, fontSize - 2))} className="p-1 rounded hover:bg-white/10">
+              <Minus className="size-3 text-white/60" />
+            </button>
+            <span className="text-[10px] text-white/40 w-6 text-center">{fontSize}</span>
+            <button onClick={() => setFontSize(Math.min(24, fontSize + 2))} className="p-1 rounded hover:bg-white/10">
+              <Plus className="size-3 text-white/60" />
+            </button>
+          </div>
         </div>
       </aside>
 
@@ -129,31 +170,31 @@ export default function BiblePage({ params }: { params: Promise<{ book?: string 
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <span className="text-sm font-medium text-gray-700">अध्याय:</span>
-                <button onClick={() => setChapter(Math.max(1, chapter - 1))} disabled={chapter <= 1}
+                <button onClick={() => setDisplayChapter(Math.max(1, displayChapter - 1))} disabled={displayChapter <= 1}
                   className="px-3 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-50 transition-colors text-sm">
                   ←
                 </button>
-                <select value={chapter} onChange={(e) => setChapter(Number(e.target.value))}
+                <select value={displayChapter} onChange={(e) => setDisplayChapter(Number(e.target.value))}
                   className="px-3 py-1 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0b3c5d]">
-                  {Array.from({ length: totalChapters }, (_, i) => (
+                  {Array.from({ length: totalDisplayChapters }, (_, i) => (
                     <option key={i + 1} value={i + 1}>{i + 1}</option>
                   ))}
                 </select>
-                <button onClick={() => setChapter(Math.min(totalChapters, chapter + 1))} disabled={chapter >= totalChapters}
+                <button onClick={() => setDisplayChapter(Math.min(totalDisplayChapters, displayChapter + 1))} disabled={displayChapter >= totalDisplayChapters}
                   className="px-3 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-50 transition-colors text-sm">
                   →
                 </button>
               </div>
               <div className="text-sm text-gray-500">
-                अध्याय {chapter} / {totalChapters}
+                अध्याय {displayChapter} / {totalDisplayChapters}
               </div>
             </div>
           </div>
 
           {/* Chapter Content */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-            <h2 className="text-lg font-bold text-[#0b3c5d] mb-4" style={{ fontFamily: 'var(--font-heading)' }}>
-              {bookName} — अध्याय {chapter}
+            <h2 className="text-lg font-bold text-[#0b3c5d] mb-4" style={{ fontFamily: 'var(--font-heading)', fontSize: `${fontSize}px` }}>
+              {bookName} — अध्याय {displayChapter}
             </h2>
 
             {isLoading ? (
@@ -163,7 +204,7 @@ export default function BiblePage({ params }: { params: Promise<{ book?: string 
                 ))}
               </div>
             ) : chapterData?.verses ? (
-              <div className="space-y-1">
+              <div className="space-y-1" style={{ fontSize: `${fontSize}px` }}>
                 {chapterData.verses.map((v: { text: string }, i: number) => (
                   <VerseRenderer key={i} text={v.text} verseNumber={i + 1}
                     selected={selectedVerse === i + 1}
