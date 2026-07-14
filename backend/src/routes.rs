@@ -17,46 +17,57 @@ pub fn api_routes() -> Router<PgPool> {
         .route("/sermons", get(sermons::list).post(sermons::create))
         .route("/sermons/{id}", get(sermons::get).put(sermons::update).delete(sermons::delete))
         .route("/sermons/{id}/toggle", put(sermons::toggle))
+        .route("/sermons/{id}/reorder", put(sermons::reorder))
         // Ministries
         .route("/ministries", get(ministries::list).post(ministries::create))
         .route("/ministries/{id}", get(ministries::get).put(ministries::update).delete(ministries::delete))
         .route("/ministries/{id}/toggle", put(ministries::toggle))
+        .route("/ministries/{id}/reorder", put(ministries::reorder))
         // Events
         .route("/events", get(events::list).post(events::create))
         .route("/events/{id}", get(events::get).put(events::update).delete(events::delete))
         .route("/events/{id}/toggle", put(events::toggle))
+        .route("/events/{id}/reorder", put(events::reorder))
         // Leaders
         .route("/leaders", get(leaders::list).post(leaders::create))
         .route("/leaders/{id}", get(leaders::get).put(leaders::update).delete(leaders::delete))
         .route("/leaders/{id}/toggle", put(leaders::toggle))
+        .route("/leaders/{id}/reorder", put(leaders::reorder))
         // Gallery
         .route("/gallery", get(gallery::list).post(gallery::create))
         .route("/gallery/{id}", get(gallery::get).put(gallery::update).delete(gallery::delete))
         .route("/gallery/{id}/toggle", put(gallery::toggle))
+        .route("/gallery/{id}/reorder", put(gallery::reorder))
         // Testimonies
         .route("/testimonies", get(testimonies::list).post(testimonies::create))
         .route("/testimonies/{id}", get(testimonies::get).put(testimonies::update).delete(testimonies::delete))
         .route("/testimonies/{id}/toggle", put(testimonies::toggle))
+        .route("/testimonies/{id}/reorder", put(testimonies::reorder))
         // Notices
         .route("/notices", get(notices::list).post(notices::create))
         .route("/notices/{id}", get(notices::get).put(notices::update).delete(notices::delete))
         .route("/notices/{id}/toggle", put(notices::toggle))
+        .route("/notices/{id}/reorder", put(notices::reorder))
         // Members
         .route("/members", get(members::list).post(members::create))
         .route("/members/{id}", get(members::get).put(members::update).delete(members::delete))
         .route("/members/{id}/toggle", put(members::toggle))
+        .route("/members/{id}/reorder", put(members::reorder))
         // Service Times
         .route("/service-times", get(service_times::list).post(service_times::create))
         .route("/service-times/{id}", get(service_times::get).put(service_times::update).delete(service_times::delete))
         .route("/service-times/{id}/toggle", put(service_times::toggle))
+        .route("/service-times/{id}/reorder", put(service_times::reorder))
         // Verses
         .route("/verses", get(verses::list).post(verses::create))
         .route("/verses/{id}", get(verses::get).put(verses::update).delete(verses::delete))
         .route("/verses/{id}/toggle", put(verses::toggle))
+        .route("/verses/{id}/reorder", put(verses::reorder))
         // Campaigns
         .route("/campaigns", get(campaigns::list).post(campaigns::create))
         .route("/campaigns/{id}", get(campaigns::get).put(campaigns::update).delete(campaigns::delete))
         .route("/campaigns/{id}/toggle", put(campaigns::toggle))
+        .route("/campaigns/{id}/reorder", put(campaigns::reorder))
         // Settings
         .route("/settings", get(settings::list))
         .route("/settings/{key}", get(settings::get).put(settings::upsert))

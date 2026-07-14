@@ -30,4 +30,5 @@ pub struct UpdateNotice {
     pub category: Option<String>,
     pub text: Option<String>,
     pub urgent: Option<bool>,
+    pub sort_order: Option<i32>,
 }

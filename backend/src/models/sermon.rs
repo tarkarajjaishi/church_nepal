@@ -40,4 +40,5 @@ pub struct UpdateSermon {
     pub topic: Option<String>,
     pub image: Option<String>,
     pub description: Option<String>,
+    pub sort_order: Option<i32>,
 }

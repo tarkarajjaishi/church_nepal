@@ -6,6 +6,11 @@ use crate::auth::AuthUser;
 use crate::error::AppError;
 use crate::models::{CreateSermon, Sermon, UpdateSermon};
 
+#[derive(serde::Deserialize)]
+pub struct ReorderRequest {
+    pub sort_order: i32,
+}
+
 pub async fn list(State(pool): State<PgPool>) -> Result<Json<Vec<Sermon>>, AppError> {
     let rows = sqlx::query_as!(Sermon, "SELECT * FROM sermons ORDER BY sort_order ASC, created_at DESC")
         .fetch_all(&pool)
@@ -29,6 +34,23 @@ pub async fn toggle(
         "UPDATE sermons SET enabled = NOT enabled WHERE id = $1 RETURNING *",
     )
     .bind(id)
+    .fetch_optional(&pool)
+    .await?
+    .ok_or_else(|| AppError::not_found("Sermon not found"))?;
+    Ok(Json(row))
+}
+
+pub async fn reorder(
+    _auth: AuthUser,
+    State(pool): State<PgPool>,
+    Path(id): Path<uuid::Uuid>,
+    Json(input): Json<ReorderRequest>,
+) -> Result<Json<Sermon>, AppError> {
+    let row = sqlx::query_as::<_, Sermon>(
+        "UPDATE sermons SET sort_order = $2 WHERE id = $1 RETURNING *",
+    )
+    .bind(id)
+    .bind(input.sort_order)
     .fetch_optional(&pool)
     .await?
     .ok_or_else(|| AppError::not_found("Sermon not found"))?;
@@ -85,6 +107,7 @@ pub async fn update(
             topic = COALESCE($7, topic),
             image = COALESCE($8, image),
             description = COALESCE($9, description),
+            sort_order = COALESCE($10, sort_order),
             updated_at = NOW()
            WHERE id = $1 RETURNING *"#,
         id,
@@ -95,7 +118,8 @@ pub async fn update(
         input.series.as_deref().unwrap_or(&existing.series),
         input.topic.as_deref().unwrap_or(&existing.topic),
         input.image.as_deref().unwrap_or(&existing.image),
-        input.description.as_deref().unwrap_or(&existing.description)
+        input.description.as_deref().unwrap_or(&existing.description),
+        input.sort_order
     )
     .fetch_one(&pool)
     .await?;

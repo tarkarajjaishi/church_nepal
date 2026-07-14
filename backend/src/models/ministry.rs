@@ -36,4 +36,5 @@ pub struct UpdateMinistry {
     pub meeting: Option<String>,
     pub image: Option<String>,
     pub icon: Option<String>,
+    pub sort_order: Option<i32>,
 }

@@ -46,3 +46,25 @@ pub async fn toggle(
     .ok_or_else(|| AppError::not_found("Leader not found"))?;
     Ok(Json(row))
 }
+
+#[derive(serde::Deserialize)]
+pub struct ReorderRequest {
+    pub sort_order: i32,
+}
+
+pub async fn reorder(
+    _auth: AuthUser,
+    State(pool): State<PgPool>,
+    Path(id): Path<uuid::Uuid>,
+    Json(input): Json<ReorderRequest>,
+) -> Result<Json<Leader>, AppError> {
+    let row = sqlx::query_as::<_, Leader>(
+        "UPDATE leaders SET sort_order = $2 WHERE id = $1 RETURNING *",
+    )
+    .bind(id)
+    .bind(input.sort_order)
+    .fetch_optional(&pool)
+    .await?
+    .ok_or_else(|| AppError::not_found("Leader not found"))?;
+    Ok(Json(row))
+}

@@ -30,4 +30,5 @@ pub struct UpdateLeader {
     pub category: Option<String>,
     pub image: Option<String>,
     pub bio: Option<String>,
+    pub sort_order: Option<i32>,
 }

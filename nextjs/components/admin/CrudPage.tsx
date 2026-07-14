@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '@/lib/admin/api'
-import { Plus, Pencil, Trash2, X } from 'lucide-react'
+import { Plus, Pencil, Trash2, X, ChevronUp, ChevronDown } from 'lucide-react'
 
 interface Field {
   key: string
@@ -43,7 +43,23 @@ export function CrudPage({ endpoint, title, fields }: { endpoint: string; title:
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [endpoint] }),
   })
 
-  const openCreate = () => { setEditing(null); setForm({}); setShowForm(true) }
+  const reorderMut = useMutation({
+    mutationFn: ({ id, sort_order }: { id: string; sort_order: number }) =>
+      api.put(`/${endpoint}/${id}/reorder`, { sort_order }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: [endpoint] }),
+  })
+
+  const moveItem = (index: number, direction: 'up' | 'down') => {
+    const item = items[index]
+    const swapIndex = direction === 'up' ? index - 1 : index + 1
+    if (swapIndex < 0 || swapIndex >= items.length) return
+    const swapItem = items[swapIndex]
+    // Swap sort_order values
+    reorderMut.mutate({ id: item.id, sort_order: swapItem.sort_order ?? swapIndex })
+    reorderMut.mutate({ id: swapItem.id, sort_order: item.sort_order ?? index })
+  }
+
+  const openCreate = () => { setEditing(null); setForm({ sort_order: items.length }); setShowForm(true) }
   const openEdit = (item: any) => { setEditing(item); setForm(item); setShowForm(true) }
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -74,6 +90,7 @@ export function CrudPage({ endpoint, title, fields }: { endpoint: string; title:
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
+                  <th className="px-3 py-3 text-center font-medium text-gray-600 w-16">#</th>
                   <th className="px-4 py-3 text-center font-medium text-gray-600 w-20">Status</th>
                   {fields.slice(0, 3).map(f => (
                     <th key={f.key} className="px-4 py-3 text-left font-medium text-gray-600">{f.label}</th>
@@ -82,8 +99,27 @@ export function CrudPage({ endpoint, title, fields }: { endpoint: string; title:
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {items.map((item: any) => (
+                {items.map((item: any, index: number) => (
                   <tr key={item.id} className="hover:bg-gray-50">
+                    <td className="px-3 py-3 text-center">
+                      <div className="flex flex-col items-center gap-0.5">
+                        <button
+                          onClick={() => moveItem(index, 'up')}
+                          disabled={index === 0 || reorderMut.isPending}
+                          className="p-0.5 text-gray-400 hover:text-[#0b3c5d] disabled:opacity-30 disabled:cursor-not-allowed"
+                        >
+                          <ChevronUp className="size-3.5" />
+                        </button>
+                        <span className="text-xs font-mono text-gray-500">{item.sort_order ?? index}</span>
+                        <button
+                          onClick={() => moveItem(index, 'down')}
+                          disabled={index === items.length - 1 || reorderMut.isPending}
+                          className="p-0.5 text-gray-400 hover:text-[#0b3c5d] disabled:opacity-30 disabled:cursor-not-allowed"
+                        >
+                          <ChevronDown className="size-3.5" />
+                        </button>
+                      </div>
+                    </td>
                     <td className="px-4 py-3 text-center">
                       <button
                         onClick={() => toggleMut.mutate(item.id)}
@@ -153,6 +189,18 @@ export function CrudPage({ endpoint, title, fields }: { endpoint: string; title:
                   )}
                 </div>
               ))}
+              {/* Sort order field */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Display Order</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={form.sort_order ?? 0}
+                  onChange={e => setForm({ ...form, sort_order: Number(e.target.value) })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0b3c5d]"
+                />
+                <p className="text-xs text-gray-400 mt-1">Lower numbers appear first on homepage</p>
+              </div>
               <div className="flex gap-3 pt-2">
                 <button type="submit" disabled={createMut.isPending || updateMut.isPending} className="px-5 py-2 bg-[#0b3c5d] text-white rounded-lg text-sm font-medium hover:bg-[#0b3c5d]/90 disabled:opacity-50">
                   {createMut.isPending || updateMut.isPending ? 'Saving...' : 'Save'}
