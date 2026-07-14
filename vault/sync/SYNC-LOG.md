@@ -3,13 +3,14 @@
 Auto-synced from project memory.
 
 ## Last Sync
-- **Date**: 2026-07-14 03:01 UTC
+- **Date**: 2026-07-14 03:37 UTC
 - **Source**: Project MEMORY.md
-- **Status**: Admin login fix and gradient fixes
+- **Status**: Vite removed, Bun + Next.js setup
 
 ## Sync History
 | Date | Changes |
 |------|---------|
+| 2026-07-14 03:37 | Removed Vite (src/, admin/, dist/), switched to Bun + Next.js |
 | 2026-07-14 03:01 | Admin login blank fix (ProtectedRoute skip for /admin/login), gradient CSS classes, broken className fix |
 | 2026-07-14 02:30 | Theme CSS fixed (hex values, fonts), Countdown hydration fix, displayDate null safety |
 | 2026-07-14 02:03 | Updated MEMORY.md: Next.js migration complete (all 33 pages working) |
