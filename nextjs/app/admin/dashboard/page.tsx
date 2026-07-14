@@ -1,16 +1,21 @@
 'use client'
 
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from "@/lib/admin/api"
 import { useAuth } from "@/lib/admin/auth"
 import Link from 'next/link'
 import {
   BookOpen, Calendar, Users, Bell, Image, Quote, UserCheck, Clock,
-  BookMarked, DollarSign, Settings, Shield, ArrowRight, Activity
+  BookMarked, DollarSign, Settings, Shield, ArrowRight, Activity, Eye, EyeOff
 } from 'lucide-react'
+import { useSections, useToggleSection } from '@/lib/hooks'
 
 export default function Dashboard() {
   const { user } = useAuth()
+  const queryClient = useQueryClient()
+  const { data: sections = {} } = useSections()
+  const { toggleSection } = useToggleSection()
+  const sec = sections as Record<string, boolean>
 
   const sermons = useQuery({ queryKey: ['sermons'], queryFn: () => api.get('/sermons').then(r => r.data) })
   const events = useQuery({ queryKey: ['events'], queryFn: () => api.get('/events').then(r => r.data) })
@@ -74,6 +79,53 @@ export default function Dashboard() {
             <div className="text-2xl font-bold">{settings.data?.length ?? 0}</div>
             <div className="text-xs text-white/60">Settings</div>
           </div>
+        </div>
+      </div>
+
+      {/* Homepage Visibility Controls */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+        <div className="flex items-center gap-2 mb-4">
+          <Eye className="size-5 text-[#0b3c5d]" />
+          <h2 className="font-semibold text-[#0b3c5d]">Homepage Visibility</h2>
+          <span className="text-xs text-gray-500 ml-2">Control which sections appear on the homepage</span>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+          {[
+            { key: 'service_times', label: 'Service Times', icon: Clock },
+            { key: 'sermons', label: 'Sermons', icon: BookOpen },
+            { key: 'ministries', label: 'Ministries', icon: Users },
+            { key: 'events', label: 'Events', icon: Calendar },
+            { key: 'notices', label: 'Notices', icon: Bell },
+            { key: 'testimonies', label: 'Testimonies', icon: Quote },
+            { key: 'leaders', label: 'Leaders', icon: UserCheck },
+            { key: 'gallery', label: 'Gallery', icon: Image },
+            { key: 'members', label: 'Members', icon: Users },
+            { key: 'verses', label: 'Verses', icon: BookMarked },
+            { key: 'campaigns', label: 'Campaigns', icon: DollarSign },
+          ].map(({ key, label, icon: Icon }) => {
+            const enabled = sec[key] !== false
+            return (
+              <button
+                key={key}
+                onClick={() => toggleSection(key, {
+                  onSuccess: () => queryClient.invalidateQueries({ queryKey: ["settings", "sections"] }),
+                })}
+                className={`flex items-center justify-between p-3 rounded-xl border-2 transition-all hover:shadow-md ${
+                  enabled
+                    ? 'border-green-200 bg-green-50 hover:border-green-300'
+                    : 'border-red-200 bg-red-50 hover:border-red-300'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <Icon className={`size-4 ${enabled ? 'text-green-600' : 'text-red-500'}`} />
+                  <span className="text-sm font-medium text-gray-800">{label}</span>
+                </div>
+                <div className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${enabled ? 'bg-green-500' : 'bg-gray-300'}`}>
+                  <span className={`inline-block size-3.5 transform rounded-full bg-white transition-transform shadow ${enabled ? 'translate-x-4.5' : 'translate-x-0.5'}`} />
+                </div>
+              </button>
+            )
+          })}
         </div>
       </div>
 

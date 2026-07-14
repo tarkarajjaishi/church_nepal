@@ -1,5 +1,6 @@
-import { useQuery } from "@tanstack/react-query"
+import { useQuery, useMutation } from "@tanstack/react-query"
 import { fetchAll, fetchOne } from "./api"
+import api from "./admin/api"
 import {
   serviceTimes as fallbackServiceTimes,
   sermons as fallbackSermons,
@@ -195,7 +196,7 @@ export function useEnabledMembers() {
 export function useSections() {
   return useQuery({
     queryKey: ["settings", "sections"],
-    queryFn: () => import("./admin/api").then(m => m.default.get("/settings/sections").then(r => r.data)),
+    queryFn: () => api.get("/settings/sections").then(r => r.data),
     placeholderData: {} as Record<string, boolean>,
   })
 }
@@ -203,7 +204,7 @@ export function useSections() {
 export function useToggleSection() {
   const { mutate, ...rest } = useMutation({
     mutationFn: (section: string) =>
-      import("./admin/api").then(m => m.default.put(`/settings/sections/${section}/toggle`).then(r => r.data)),
+      api.put(`/settings/sections/${section}/toggle`).then(r => r.data),
   })
   return { toggleSection: mutate, ...rest }
 }
