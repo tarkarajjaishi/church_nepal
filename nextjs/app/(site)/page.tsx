@@ -50,7 +50,7 @@ export default function Home() {
       <section className="relative min-h-[88vh] flex items-center overflow-hidden">
         <div className="absolute inset-0">
           <ImageWithFallback src={images.hero} alt="Worshippers with hands raised" className="w-full h-full object-cover" />
-          <div className="absolute inset-0 className="gradient-hero-br"" />
+          <div className="absolute inset-0 gradient-hero-br" />
         </div>
 
         <div className="relative mx-auto max-w-7xl px-4 py-24 w-full">
