@@ -21,11 +21,14 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 function MainSite() {
   return (
-    <iframe
-      src="/site/index.html#/"
-      style={{width:'100%',height:'100vh',border:'none'}}
-      title="Grace Nepal Church"
-    />
+    <div style={{width:'100%',height:'100vh'}}>
+      <iframe
+        src="/site/index.html#/"
+        style={{width:'100%',height:'100%',border:'none'}}
+        title="Grace Nepal Church"
+        onError={() => console.error('iframe failed to load')}
+      />
+    </div>
   )
 }
 
