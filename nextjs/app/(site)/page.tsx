@@ -27,18 +27,20 @@ import { images, stats } from "@/lib/data";
 import {
   useServiceTimes, useSermons, useMinistries, useEvents,
   useTestimonies, useGallery, useCampaigns, useVerses,
+  useEnabledServiceTimes, useEnabledSermons, useEnabledMinistries, useEnabledEvents,
+  useEnabledTestimonies, useEnabledGallery, useEnabledCampaigns, useEnabledVerses,
 } from "@/lib/hooks";
 
 export default function Home() {
   const { t, lang } = useLang();
-  const { data: allServiceTimes = [] } = useServiceTimes();
-  const { data: allSermons = [] } = useSermons();
-  const { data: allMinistries = [] } = useMinistries();
-  const { data: allEvents = [] } = useEvents();
-  const { data: allTestimonies = [] } = useTestimonies();
-  const { data: allGallery = [] } = useGallery();
-  const { data: allCampaigns = [] } = useCampaigns();
-  const { data: allVerses = [] } = useVerses();
+  const { data: allServiceTimes = [] } = useEnabledServiceTimes();
+  const { data: allSermons = [] } = useEnabledSermons();
+  const { data: allMinistries = [] } = useEnabledMinistries();
+  const { data: allEvents = [] } = useEnabledEvents();
+  const { data: allTestimonies = [] } = useEnabledTestimonies();
+  const { data: allGallery = [] } = useEnabledGallery();
+  const { data: allCampaigns = [] } = useEnabledCampaigns();
+  const { data: allVerses = [] } = useEnabledVerses();
   const serviceTimes = allServiceTimes;
   const featuredSermons = allSermons.slice(0, 3);
   const featuredMinistries = allMinistries.slice(0, 6);

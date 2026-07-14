@@ -9,6 +9,8 @@ pub struct Notice {
     pub category: String,
     pub text: String,
     pub urgent: bool,
+    pub enabled: Option<bool>,
+    pub sort_order: Option<i32>,
     pub created_at: chrono::NaiveDateTime,
 }
 

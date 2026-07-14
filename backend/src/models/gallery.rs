@@ -7,6 +7,8 @@ pub struct GalleryItem {
     pub title: String,
     pub category: String,
     pub image: String,
+    pub enabled: Option<bool>,
+    pub sort_order: Option<i32>,
     pub created_at: chrono::NaiveDateTime,
 }
 

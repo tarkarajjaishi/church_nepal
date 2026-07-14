@@ -12,6 +12,8 @@ pub struct Sermon {
     pub topic: String,
     pub image: String,
     pub description: String,
+    pub enabled: Option<bool>,
+    pub sort_order: Option<i32>,
     pub created_at: chrono::NaiveDateTime,
     pub updated_at: chrono::NaiveDateTime,
 }

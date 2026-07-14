@@ -38,6 +38,11 @@ export function CrudPage({ endpoint, title, fields }: { endpoint: string; title:
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: [endpoint] }); setConfirmDelete(null) },
   })
 
+  const toggleMut = useMutation({
+    mutationFn: (id: string) => api.put(`/${endpoint}/${id}/toggle`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: [endpoint] }),
+  })
+
   const openCreate = () => { setEditing(null); setForm({}); setShowForm(true) }
   const openEdit = (item: any) => { setEditing(item); setForm(item); setShowForm(true) }
   const handleSubmit = (e: React.FormEvent) => {
@@ -69,7 +74,8 @@ export function CrudPage({ endpoint, title, fields }: { endpoint: string; title:
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
-                  {fields.slice(0, 4).map(f => (
+                  <th className="px-4 py-3 text-center font-medium text-gray-600 w-20">Status</th>
+                  {fields.slice(0, 3).map(f => (
                     <th key={f.key} className="px-4 py-3 text-left font-medium text-gray-600">{f.label}</th>
                   ))}
                   <th className="px-4 py-3 text-right font-medium text-gray-600">Actions</th>
@@ -78,7 +84,23 @@ export function CrudPage({ endpoint, title, fields }: { endpoint: string; title:
               <tbody className="divide-y divide-gray-100">
                 {items.map((item: any) => (
                   <tr key={item.id} className="hover:bg-gray-50">
-                    {fields.slice(0, 4).map(f => (
+                    <td className="px-4 py-3 text-center">
+                      <button
+                        onClick={() => toggleMut.mutate(item.id)}
+                        disabled={toggleMut.isPending}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                          item.enabled ? 'bg-green-500' : 'bg-gray-300'
+                        } ${toggleMut.isPending ? 'opacity-50' : ''}`}
+                      >
+                        <span className={`inline-block size-4 transform rounded-full bg-white transition-transform ${
+                          item.enabled ? 'translate-x-6' : 'translate-x-1'
+                        }`} />
+                      </button>
+                      <span className={`ml-2 text-xs font-medium ${item.enabled ? 'text-green-600' : 'text-gray-400'}`}>
+                        {item.enabled ? 'On' : 'Off'}
+                      </span>
+                    </td>
+                    {fields.slice(0, 3).map(f => (
                       <td key={f.key} className="px-4 py-3 text-gray-700 max-w-[200px] truncate">
                         {f.type === 'checkbox' ? (item[f.key] ? 'Yes' : 'No') : String(item[f.key] ?? '')}
                       </td>

@@ -1,0 +1,48 @@
+-- Add enabled and sort_order columns to all content tables
+-- This migration enables headless CMS control over homepage sections
+
+-- Sermons
+ALTER TABLE sermons ADD COLUMN IF NOT EXISTS enabled BOOLEAN DEFAULT TRUE;
+ALTER TABLE sermons ADD COLUMN IF NOT EXISTS sort_order INTEGER DEFAULT 0;
+
+-- Events
+ALTER TABLE events ADD COLUMN IF NOT EXISTS enabled BOOLEAN DEFAULT TRUE;
+ALTER TABLE events ADD COLUMN IF NOT EXISTS sort_order INTEGER DEFAULT 0;
+
+-- Ministries
+ALTER TABLE ministries ADD COLUMN IF NOT EXISTS enabled BOOLEAN DEFAULT TRUE;
+ALTER TABLE ministries ADD COLUMN IF NOT EXISTS sort_order INTEGER DEFAULT 0;
+
+-- Leaders
+ALTER TABLE leaders ADD COLUMN IF NOT EXISTS enabled BOOLEAN DEFAULT TRUE;
+ALTER TABLE leaders ADD COLUMN IF NOT EXISTS sort_order INTEGER DEFAULT 0;
+
+-- Gallery
+ALTER TABLE gallery ADD COLUMN IF NOT EXISTS enabled BOOLEAN DEFAULT TRUE;
+ALTER TABLE gallery ADD COLUMN IF NOT EXISTS sort_order INTEGER DEFAULT 0;
+
+-- Testimonies
+ALTER TABLE testimonies ADD COLUMN IF NOT EXISTS enabled BOOLEAN DEFAULT TRUE;
+ALTER TABLE testimonies ADD COLUMN IF NOT EXISTS sort_order INTEGER DEFAULT 0;
+
+-- Notices
+ALTER TABLE notices ADD COLUMN IF NOT EXISTS enabled BOOLEAN DEFAULT TRUE;
+ALTER TABLE notices ADD COLUMN IF NOT EXISTS sort_order INTEGER DEFAULT 0;
+
+-- Members
+ALTER TABLE members ADD COLUMN IF NOT EXISTS enabled BOOLEAN DEFAULT TRUE;
+ALTER TABLE members ADD COLUMN IF NOT EXISTS sort_order INTEGER DEFAULT 0;
+
+-- Service Times
+ALTER TABLE service_times ADD COLUMN IF NOT EXISTS enabled BOOLEAN DEFAULT TRUE;
+-- service_times already has sort_order
+
+-- Verses
+ALTER TABLE verses ADD COLUMN IF NOT EXISTS enabled BOOLEAN DEFAULT TRUE;
+ALTER TABLE verses ADD COLUMN IF NOT EXISTS sort_order INTEGER DEFAULT 0;
+
+-- Campaigns
+ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS enabled BOOLEAN DEFAULT TRUE;
+ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS sort_order INTEGER DEFAULT 0;
+
+-- Settings (no enabled/sort_order needed - it's key-value config)

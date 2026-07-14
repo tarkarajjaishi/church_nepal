@@ -148,3 +148,45 @@ export function useCampaigns() {
     placeholderData: fallbackCampaigns,
   })
 }
+
+// Enabled-only variants for homepage (filter by enabled=true)
+export function useEnabledServiceTimes() {
+  const q = useServiceTimes()
+  return { ...q, data: (q.data ?? []).filter((s: any) => s.enabled !== false) }
+}
+export function useEnabledSermons() {
+  const q = useSermons()
+  return { ...q, data: (q.data ?? []).filter((s: any) => s.enabled !== false) }
+}
+export function useEnabledMinistries() {
+  const q = useMinistries()
+  return { ...q, data: (q.data ?? []).filter((m: any) => m.enabled !== false) }
+}
+export function useEnabledEvents() {
+  const q = useEvents()
+  return { ...q, data: (q.data ?? []).filter((e: any) => e.enabled !== false) }
+}
+export function useEnabledTestimonies() {
+  const q = useTestimonies()
+  return { ...q, data: (q.data ?? []).filter((t: any) => t.enabled !== false) }
+}
+export function useEnabledGallery() {
+  const q = useGallery()
+  return { ...q, data: (q.data ?? []).filter((g: any) => g.enabled !== false) }
+}
+export function useEnabledCampaigns() {
+  const q = useCampaigns()
+  return { ...q, data: (q.data ?? []).filter((c: any) => c.enabled !== false) }
+}
+export function useEnabledVerses() {
+  const q = useVerses()
+  return { ...q, data: (q.data ?? []).filter((v: any) => v.enabled !== false) }
+}
+export function useEnabledNotices() {
+  const q = useNotices()
+  return { ...q, data: (q.data ?? []).filter((n: any) => n.enabled !== false) }
+}
+export function useEnabledMembers() {
+  const q = useMembers()
+  return { ...q, data: (q.data ?? []).filter((m: any) => m.enabled !== false) }
+}

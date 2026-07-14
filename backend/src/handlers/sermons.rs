@@ -7,10 +7,32 @@ use crate::error::AppError;
 use crate::models::{CreateSermon, Sermon, UpdateSermon};
 
 pub async fn list(State(pool): State<PgPool>) -> Result<Json<Vec<Sermon>>, AppError> {
-    let rows = sqlx::query_as!(Sermon, "SELECT * FROM sermons ORDER BY created_at DESC")
+    let rows = sqlx::query_as!(Sermon, "SELECT * FROM sermons ORDER BY sort_order ASC, created_at DESC")
         .fetch_all(&pool)
         .await?;
     Ok(Json(rows))
+}
+
+pub async fn list_enabled(State(pool): State<PgPool>) -> Result<Json<Vec<Sermon>>, AppError> {
+    let rows = sqlx::query_as!(Sermon, "SELECT * FROM sermons WHERE enabled = TRUE ORDER BY sort_order ASC, created_at DESC")
+        .fetch_all(&pool)
+        .await?;
+    Ok(Json(rows))
+}
+
+pub async fn toggle(
+    _auth: AuthUser,
+    State(pool): State<PgPool>,
+    Path(id): Path<uuid::Uuid>,
+) -> Result<Json<Sermon>, AppError> {
+    let row = sqlx::query_as::<_, Sermon>(
+        "UPDATE sermons SET enabled = NOT enabled WHERE id = $1 RETURNING *",
+    )
+    .bind(id)
+    .fetch_optional(&pool)
+    .await?
+    .ok_or_else(|| AppError::not_found("Sermon not found"))?;
+    Ok(Json(row))
 }
 
 pub async fn get(

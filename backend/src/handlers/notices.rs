@@ -33,3 +33,17 @@ pub async fn delete(_auth: AuthUser, State(pool): State<PgPool>, Path(id): Path<
     sqlx::query!("DELETE FROM notices WHERE id = $1", id).execute(&pool).await?;
     Ok(Json(serde_json::json!({ "deleted": true })))
 }
+pub async fn toggle(
+    _auth: AuthUser,
+    State(pool): State<PgPool>,
+    Path(id): Path<uuid::Uuid>,
+) -> Result<Json<Notice>, AppError> {
+    let row = sqlx::query_as::<_, Notice>(
+        "UPDATE notices SET enabled = NOT enabled WHERE id = $1 RETURNING *",
+    )
+    .bind(id)
+    .fetch_optional(&pool)
+    .await?
+    .ok_or_else(|| AppError::not_found("Notice not found"))?;
+    Ok(Json(row))
+}

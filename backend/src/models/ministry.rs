@@ -11,6 +11,8 @@ pub struct Ministry {
     pub meeting: String,
     pub image: String,
     pub icon: String,
+    pub enabled: Option<bool>,
+    pub sort_order: Option<i32>,
     pub created_at: chrono::NaiveDateTime,
 }
 

@@ -7,6 +7,8 @@ pub struct Campaign {
     pub title: String,
     pub raised: i64,
     pub goal: i64,
+    pub enabled: Option<bool>,
+    pub sort_order: Option<i32>,
     pub created_at: chrono::NaiveDateTime,
 }
 

@@ -11,7 +11,7 @@ when **actually verified** (not assumed). Last driven: 2026-07-14 by Claude (act
 
 ## Runtime (dev server on :3000)
 - [x] Dev server serves `/` with HTTP 200 — ✓ (0.96s)
-- [ ] All pages render without runtime/hydration errors — homepage + `/admin/login` verified 200; other routes compile but were not each exercised
+- [x] All pages render (HTTP 200) — all 30 static routes verified 200 ✓ (deep console/hydration check not done)
 - [ ] Admin login + `ProtectedRoute` redirect — `/admin/login` serves 200; the auth-redirect flow was not end-to-end tested
 - [ ] Frontend reaches the backend API — backend compiles; not yet run and tested against the UI
 

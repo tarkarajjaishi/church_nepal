@@ -9,7 +9,8 @@ pub struct ServiceTime {
     pub day: String,
     pub time: String,
     pub icon: String,
-    pub sort_order: i32,
+    pub enabled: Option<bool>,
+    pub sort_order: Option<i32>,
 }
 
 #[derive(Debug, Deserialize)]

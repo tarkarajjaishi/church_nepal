@@ -7,6 +7,8 @@ pub struct Verse {
     pub text: String,
     pub ref_text: String,
     pub ne: String,
+    pub enabled: Option<bool>,
+    pub sort_order: Option<i32>,
     pub created_at: chrono::NaiveDateTime,
 }
 
