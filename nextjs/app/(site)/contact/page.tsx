@@ -1,3 +1,5 @@
+'use client'
+
 import { toast } from "sonner";
 import { MapPin, Phone, Mail, Clock, MessageCircle, Send } from "lucide-react";
 import { Card } from "@/components/ui/card";
