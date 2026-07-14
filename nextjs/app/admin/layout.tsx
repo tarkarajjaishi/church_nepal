@@ -6,25 +6,30 @@ import { Providers } from '@/lib/providers'
 import { Layout as AdminLayoutComponent } from '@/components/admin/Layout'
 import { useEffect } from 'react'
 
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
+function AuthGuard({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
   const router = useRouter()
   const pathname = usePathname()
 
-  // All hooks must be called before any conditional returns
   useEffect(() => {
-    if (!loading && !user && pathname !== '/admin/login') {
+    if (!loading && !user) {
       router.push('/admin/login')
     }
-  }, [user, loading, router, pathname])
+  }, [user, loading, router])
 
-  // Skip protection for login page
-  if (pathname === '/admin/login') {
-    return <>{children}</>
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-gray-50">
+        <div className="text-center">
+          <div className="size-8 border-4 border-[#0b3c5d] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-gray-500">Loading...</p>
+        </div>
+      </div>
+    )
   }
 
-  if (loading) return <div className="flex items-center justify-center h-screen">Loading...</div>
   if (!user) return null
+
   return <>{children}</>
 }
 
@@ -35,13 +40,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   return (
     <Providers>
       <AuthProvider>
-        <ProtectedRoute>
-          {isLoginPage ? (
-            children
-          ) : (
+        {isLoginPage ? (
+          children
+        ) : (
+          <AuthGuard>
             <AdminLayoutComponent>{children}</AdminLayoutComponent>
-          )}
-        </ProtectedRoute>
+          </AuthGuard>
+        )}
       </AuthProvider>
     </Providers>
   )
