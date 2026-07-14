@@ -15,7 +15,9 @@ function toCamelCase(obj: unknown): unknown {
 }
 
 const api = axios.create({
-  baseURL: 'http://localhost:3002/api',
+  baseURL: typeof window !== 'undefined'
+    ? `${window.location.protocol}//${window.location.hostname}:3002/api`
+    : 'http://localhost:3002/api',
 })
 
 // Normalize all API responses from snake_case to camelCase
