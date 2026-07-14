@@ -9,6 +9,7 @@ pub struct Leader {
     pub category: String,
     pub image: String,
     pub bio: String,
+    pub social_links: Option<serde_json::Value>,
     pub enabled: Option<bool>,
     pub sort_order: Option<i32>,
     pub created_at: chrono::NaiveDateTime,
@@ -21,6 +22,8 @@ pub struct CreateLeader {
     pub category: String,
     pub image: String,
     pub bio: String,
+    #[serde(default)]
+    pub social_links: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -30,5 +33,6 @@ pub struct UpdateLeader {
     pub category: Option<String>,
     pub image: Option<String>,
     pub bio: Option<String>,
+    pub social_links: Option<serde_json::Value>,
     pub sort_order: Option<i32>,
 }

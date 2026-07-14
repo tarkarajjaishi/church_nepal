@@ -16,15 +16,29 @@ pub async fn get(State(pool): State<PgPool>, Path(id): Path<uuid::Uuid>) -> Resu
 }
 
 pub async fn create(_auth: AuthUser, State(pool): State<PgPool>, Json(input): Json<CreateLeader>) -> Result<Json<Leader>, AppError> {
-    let row = sqlx::query_as!(Leader, r#"INSERT INTO leaders (name, role, category, image, bio) VALUES ($1,$2,$3,$4,$5) RETURNING *"#,
-        input.name, input.role, input.category, input.image, input.bio).fetch_one(&pool).await?;
+    let row = sqlx::query_as::<_, Leader>(
+        "INSERT INTO leaders (name, role, category, image, bio, social_links) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *"
+    )
+    .bind(&input.name).bind(&input.role).bind(&input.category)
+    .bind(&input.image).bind(&input.bio)
+    .bind(input.social_links.as_ref().unwrap_or(&serde_json::json!([])))
+    .fetch_one(&pool).await?;
     Ok(Json(row))
 }
 
 pub async fn update(_auth: AuthUser, State(pool): State<PgPool>, Path(id): Path<uuid::Uuid>, Json(input): Json<UpdateLeader>) -> Result<Json<Leader>, AppError> {
     let existing = sqlx::query_as!(Leader, "SELECT * FROM leaders WHERE id = $1", id).fetch_optional(&pool).await?.ok_or_else(|| AppError::not_found("Leader not found"))?;
-    let row = sqlx::query_as!(Leader, r#"UPDATE leaders SET name=COALESCE($2,name), role=COALESCE($3,role), category=COALESCE($4,category), image=COALESCE($5,image), bio=COALESCE($6,bio) WHERE id=$1 RETURNING *"#,
-        id, input.name.as_deref().unwrap_or(&existing.name), input.role.as_deref().unwrap_or(&existing.role), input.category.as_deref().unwrap_or(&existing.category), input.image.as_deref().unwrap_or(&existing.image), input.bio.as_deref().unwrap_or(&existing.bio)).fetch_one(&pool).await?;
+    let row = sqlx::query_as::<_, Leader>(
+        "UPDATE leaders SET name=COALESCE($2,name), role=COALESCE($3,role), category=COALESCE($4,category), image=COALESCE($5,image), bio=COALESCE($6,bio), social_links=COALESCE($7,social_links) WHERE id=$1 RETURNING *"
+    )
+    .bind(id)
+    .bind(input.name.as_deref().unwrap_or(&existing.name))
+    .bind(input.role.as_deref().unwrap_or(&existing.role))
+    .bind(input.category.as_deref().unwrap_or(&existing.category))
+    .bind(input.image.as_deref().unwrap_or(&existing.image))
+    .bind(input.bio.as_deref().unwrap_or(&existing.bio))
+    .bind(input.social_links.as_ref())
+    .fetch_one(&pool).await?;
     Ok(Json(row))
 }
 
