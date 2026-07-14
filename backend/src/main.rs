@@ -9,11 +9,15 @@ mod routes;
 use axum::http::header;
 use axum::http::Method;
 use tower_http::cors::{Any, CorsLayer};
+use tower_http::services::ServeDir;
 
 #[tokio::main]
 async fn main() {
     let config = config::Config::from_env();
     let pool = db::new_pool(&config).await;
+
+    // Ensure uploads directory exists
+    std::fs::create_dir_all("uploads").ok();
 
     let cors = CorsLayer::new()
         .allow_origin(Any)
@@ -22,6 +26,7 @@ async fn main() {
 
     let app = axum::Router::new()
         .nest("/api", routes::api_routes())
+        .nest_service("/api/uploads", ServeDir::new("uploads"))
         .layer(cors)
         .with_state(pool);
 

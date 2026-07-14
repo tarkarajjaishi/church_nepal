@@ -23,6 +23,10 @@ impl AppError {
     pub fn not_found(message: impl Into<String>) -> Self {
         Self::new(StatusCode::NOT_FOUND, message)
     }
+
+    pub fn internal(message: impl Into<String>) -> Self {
+        Self::new(StatusCode::INTERNAL_SERVER_ERROR, message)
+    }
 }
 
 impl IntoResponse for AppError {

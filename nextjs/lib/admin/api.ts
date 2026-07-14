@@ -74,3 +74,20 @@ export function createCrudHooks<T extends { id: string }>(endpoint: string) {
     },
   }
 }
+
+// File upload helper
+export async function uploadFile(file: File): Promise<{ url: string; filename: string; original_name: string; content_type: string; size: number }> {
+  const formData = new FormData()
+  formData.append('file', file)
+  const token = localStorage.getItem('admin_token')
+  const res = await fetch('http://localhost:3002/api/upload', {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: formData,
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: 'Upload failed' }))
+    throw new Error(err.error || 'Upload failed')
+  }
+  return res.json()
+}

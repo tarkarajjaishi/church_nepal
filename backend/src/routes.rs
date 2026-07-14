@@ -71,4 +71,6 @@ pub fn api_routes() -> Router<PgPool> {
         // Settings
         .route("/settings", get(settings::list))
         .route("/settings/{key}", get(settings::get).put(settings::upsert))
+        // Upload
+        .route("/upload", post(upload::upload))
 }

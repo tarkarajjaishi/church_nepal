@@ -12,3 +12,4 @@ pub mod verses;
 pub mod campaigns;
 pub mod settings;
 pub mod users;
+pub mod upload;

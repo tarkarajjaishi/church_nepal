@@ -1,9 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api from '@/lib/admin/api'
-import { Plus, Pencil, Trash2, X, ChevronUp, ChevronDown } from 'lucide-react'
+import api, { uploadFile } from '@/lib/admin/api'
+import { Plus, Pencil, Trash2, X, ChevronUp, ChevronDown, Upload, ImageIcon } from 'lucide-react'
 
 interface Field {
   key: string
@@ -17,6 +17,8 @@ export function CrudPage({ endpoint, title, fields }: { endpoint: string; title:
   const [editing, setEditing] = useState<any>(null)
   const [form, setForm] = useState<Record<string, any>>({})
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+  const [uploadingField, setUploadingField] = useState<string | null>(null)
+  const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
 
   const { data: items = [], isLoading } = useQuery({
     queryKey: [endpoint],
@@ -54,10 +56,23 @@ export function CrudPage({ endpoint, title, fields }: { endpoint: string; title:
     const swapIndex = direction === 'up' ? index - 1 : index + 1
     if (swapIndex < 0 || swapIndex >= items.length) return
     const swapItem = items[swapIndex]
-    // Swap sort_order values
     reorderMut.mutate({ id: item.id, sort_order: swapItem.sort_order ?? swapIndex })
     reorderMut.mutate({ id: swapItem.id, sort_order: item.sort_order ?? index })
   }
+
+  const handleUpload = async (fieldKey: string, file: File) => {
+    setUploadingField(fieldKey)
+    try {
+      const result = await uploadFile(file)
+      setForm(prev => ({ ...prev, [fieldKey]: result.url }))
+    } catch (err: any) {
+      alert(`Upload failed: ${err.message}`)
+    } finally {
+      setUploadingField(null)
+    }
+  }
+
+  const isImageField = (key: string) => key === 'image' || key === 'thumbnail' || key === 'banner'
 
   const openCreate = () => { setEditing(null); setForm({ sort_order: items.length }); setShowForm(true) }
   const openEdit = (item: any) => { setEditing(item); setForm(item); setShowForm(true) }
@@ -68,6 +83,13 @@ export function CrudPage({ endpoint, title, fields }: { endpoint: string; title:
     } else {
       createMut.mutate(form)
     }
+  }
+
+  // Get image base URL for display
+  const getImageSrc = (url: string) => {
+    if (!url) return ''
+    if (url.startsWith('http')) return url
+    return `http://localhost:3002${url}`
   }
 
   return (
@@ -138,7 +160,12 @@ export function CrudPage({ endpoint, title, fields }: { endpoint: string; title:
                     </td>
                     {fields.slice(0, 3).map(f => (
                       <td key={f.key} className="px-4 py-3 text-gray-700 max-w-[200px] truncate">
-                        {f.type === 'checkbox' ? (item[f.key] ? 'Yes' : 'No') : String(item[f.key] ?? '')}
+                        {isImageField(f.key) && item[f.key] ? (
+                          <div className="flex items-center gap-2">
+                            <img src={getImageSrc(item[f.key])} alt="" className="size-8 rounded object-cover" onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                            <span className="truncate">{item[f.key]}</span>
+                          </div>
+                        ) : f.type === 'checkbox' ? (item[f.key] ? 'Yes' : 'No') : String(item[f.key] ?? '')}
                       </td>
                     ))}
                     <td className="px-4 py-3 text-right">
@@ -179,6 +206,62 @@ export function CrudPage({ endpoint, title, fields }: { endpoint: string; title:
                       onChange={e => setForm({ ...form, [f.key]: e.target.checked })}
                       className="size-4"
                     />
+                  ) : isImageField(f.key) ? (
+                    <div className="space-y-2">
+                      {/* Image preview */}
+                      {form[f.key] && (
+                        <div className="relative inline-block">
+                          <img
+                            src={getImageSrc(form[f.key])}
+                            alt="Preview"
+                            className="h-24 rounded-lg object-cover border border-gray-200"
+                            onError={e => { (e.target as HTMLImageElement).src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96"><rect fill="%23f3f4f6" width="96" height="96"/><text x="48" y="54" text-anchor="middle" fill="%239ca3af" font-size="12">No image</text></svg>' }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setForm(prev => ({ ...prev, [f.key]: '' }))}
+                            className="absolute -top-2 -right-2 size-5 bg-red-500 text-white rounded-full flex items-center justify-center text-xs hover:bg-red-600"
+                          >
+                            x
+                          </button>
+                        </div>
+                      )}
+                      {/* Upload button */}
+                      <div className="flex gap-2">
+                        <input
+                          type="file"
+                          ref={el => { fileInputRefs.current[f.key] = el }}
+                          accept="image/*"
+                          className="hidden"
+                          onChange={e => {
+                            const file = e.target.files?.[0]
+                            if (file) handleUpload(f.key, file)
+                            e.target.value = ''
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => fileInputRefs.current[f.key]?.click()}
+                          disabled={uploadingField === f.key}
+                          className="flex items-center gap-2 px-3 py-2 border border-dashed border-gray-300 rounded-lg text-sm text-gray-600 hover:border-[#0b3c5d] hover:text-[#0b3c5d] disabled:opacity-50"
+                        >
+                          {uploadingField === f.key ? (
+                            <span className="animate-spin size-4 border-2 border-gray-300 border-t-[#0b3c5d] rounded-full" />
+                          ) : (
+                            <Upload className="size-4" />
+                          )}
+                          {uploadingField === f.key ? 'Uploading...' : 'Upload Image'}
+                        </button>
+                        {/* Or enter URL manually */}
+                        <input
+                          type="text"
+                          value={form[f.key] ?? ''}
+                          onChange={e => setForm({ ...form, [f.key]: e.target.value })}
+                          placeholder="Or paste image URL"
+                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0b3c5d]"
+                        />
+                      </div>
+                    </div>
                   ) : (
                     <input
                       type={f.type === 'number' ? 'number' : 'text'}
@@ -202,7 +285,7 @@ export function CrudPage({ endpoint, title, fields }: { endpoint: string; title:
                 <p className="text-xs text-gray-400 mt-1">Lower numbers appear first on homepage</p>
               </div>
               <div className="flex gap-3 pt-2">
-                <button type="submit" disabled={createMut.isPending || updateMut.isPending} className="px-5 py-2 bg-[#0b3c5d] text-white rounded-lg text-sm font-medium hover:bg-[#0b3c5d]/90 disabled:opacity-50">
+                <button type="submit" disabled={createMut.isPending || updateMut.isPending || uploadingField !== null} className="px-5 py-2 bg-[#0b3c5d] text-white rounded-lg text-sm font-medium hover:bg-[#0b3c5d]/90 disabled:opacity-50">
                   {createMut.isPending || updateMut.isPending ? 'Saving...' : 'Save'}
                 </button>
                 <button type="button" onClick={() => setShowForm(false)} className="px-5 py-2 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50">Cancel</button>
