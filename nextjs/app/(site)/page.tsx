@@ -34,8 +34,10 @@ import {
 
 export default function Home() {
   const { t, lang } = useLang();
-  const { data: sections = {} } = useSections();
-  const sec = sections as Record<string, boolean>;
+  const { data: sectionsData, isLoading: sectionsLoading } = useSections();
+  const sec: Record<string, boolean> = sectionsLoading || Object.keys(sectionsData || {}).length === 0
+    ? { service_times: true, sermons: true, ministries: true, events: true, notices: true, testimonies: true, leaders: true, gallery: true, members: true, verses: true, campaigns: true }
+    : sectionsData as Record<string, boolean>;
   const { data: allServiceTimes = [] } = useEnabledServiceTimes();
   const { data: allSermons = [] } = useEnabledSermons();
   const { data: allMinistries = [] } = useEnabledMinistries();
