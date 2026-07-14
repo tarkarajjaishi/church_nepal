@@ -107,6 +107,13 @@ server {
     listen 80;
     server_name _;
 
+    # Static assets from Next.js build - serve directly
+    location /_next/static/ {
+        alias /opt/churchnepal/nextjs/.next/static/;
+        expires 365d;
+        add_header Cache-Control "public, immutable";
+    }
+
     # Frontend
     location / {
         proxy_pass http://127.0.0.1:3000;
@@ -121,10 +128,7 @@ server {
     location /api/ {
         proxy_pass http://127.0.0.1:3002;
         proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
         proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
         client_max_body_size 10M;
     }
 
