@@ -1,12 +1,13 @@
 'use client'
 
+import { Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { CheckCircle, ArrowRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 
-export default function GiveSuccess() {
+function GiveSuccessContent() {
   const searchParams = useSearchParams()
   const donationId = searchParams.get('donation_id')
 
@@ -38,5 +39,13 @@ export default function GiveSuccess() {
         </div>
       </Card>
     </div>
+  )
+}
+
+export default function GiveSuccess() {
+  return (
+    <Suspense fallback={<div className="min-h-[60vh] flex items-center justify-center"><div className="animate-spin size-8 border-4 border-[#0b3c5d] border-t-transparent rounded-full" /></div>}>
+      <GiveSuccessContent />
+    </Suspense>
   )
 }

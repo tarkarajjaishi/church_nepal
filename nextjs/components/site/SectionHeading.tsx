@@ -2,7 +2,7 @@ import { ReactNode } from "react";
 import { Reveal } from "./Reveal";
 
 interface Props {
-  eyebrow?: string;
+  eyebrow?: ReactNode;
   title: string;
   subtitle?: ReactNode;
   center?: boolean;
