@@ -3,13 +3,14 @@
 Auto-synced from project memory.
 
 ## Last Sync
-- **Date**: 2026-07-14 02:30 UTC
+- **Date**: 2026-07-14 03:01 UTC
 - **Source**: Project MEMORY.md
-- **Status**: Theme fix and hydration fixes committed
+- **Status**: Admin login fix and gradient fixes
 
 ## Sync History
 | Date | Changes |
 |------|---------|
+| 2026-07-14 03:01 | Admin login blank fix (ProtectedRoute skip for /admin/login), gradient CSS classes, broken className fix |
 | 2026-07-14 02:30 | Theme CSS fixed (hex values, fonts), Countdown hydration fix, displayDate null safety |
 | 2026-07-14 02:03 | Updated MEMORY.md: Next.js migration complete (all 33 pages working) |
 | 2026-07-13 19:21 | Added Next.js migration troubleshooting (use client, Link, href, useLocation, Outlet, exports, imports) |
