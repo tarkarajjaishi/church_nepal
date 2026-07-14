@@ -16,7 +16,7 @@ export function PageHero({ title, subtitle, image, crumb, children }: Props) {
     <section className="relative">
       <div className="absolute inset-0">
         <ImageWithFallback src={image} alt={title} className="w-full h-full object-cover" />
-        <div className="absolute inset-0" style={{ background: 'linear-gradient(to right, rgba(11,60,93,0.9), rgba(11,60,93,0.75), rgba(11,60,93,0.4))' }} />
+        <div className="absolute inset-0 gradient-hero" />
       </div>
       <div className="relative mx-auto max-w-7xl px-4 py-20 md:py-28">
         <nav className="flex items-center gap-1.5 text-sm text-white/70 mb-3">
