@@ -14,9 +14,12 @@ function diff(target: number) {
 
 export function Countdown({ date, dark = false }: { date: string; dark?: boolean }) {
   const target = new Date(date).getTime();
-  const [time, setTime] = useState(() => diff(target));
+  const [mounted, setMounted] = useState(false);
+  const [time, setTime] = useState({ days: 0, hours: 0, mins: 0, secs: 0 });
 
   useEffect(() => {
+    setMounted(true);
+    setTime(diff(target));
     const id = setInterval(() => setTime(diff(target)), 1000);
     return () => clearInterval(id);
   }, [target]);
@@ -38,7 +41,7 @@ export function Countdown({ date, dark = false }: { date: string; dark?: boolean
           }`}
         >
           <div style={{ fontFamily: "var(--font-heading)", fontWeight: 700, fontSize: "1.25rem" }}>
-            {String(u.value).padStart(2, "0")}
+            {mounted ? String(u.value).padStart(2, "0") : "00"}
           </div>
           <div className="text-[10px] uppercase tracking-wider opacity-70">{u.label}</div>
         </div>
