@@ -82,4 +82,12 @@ pub fn api_routes() -> Router<PgPool> {
         .route("/content-blocks/{id}/reorder", put(content_blocks::reorder))
         .route("/content-blocks/key/{key}", get(content_blocks::get_by_key))
         .route("/content-blocks/enabled", get(content_blocks::list_enabled))
+        // Donations
+        .route("/donations/initiate", post(donations::initiate))
+        .route("/donations/callback/esewa", get(donations::callback_esewa))
+        .route("/donations/callback/khalti/{id}", post(donations::callback_khalti))
+        .route("/donations/status", get(donations::status))
+        .route("/donations", get(donations::list))
+        .route("/donations/stats", get(donations::stats))
+        .route("/donations/{id}", get(donations::get))
 }

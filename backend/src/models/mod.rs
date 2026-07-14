@@ -12,6 +12,7 @@ pub mod verse;
 pub mod campaign;
 pub mod setting;
 pub mod content_block;
+pub mod donation;
 
 pub use user::*;
 pub use sermon::*;
@@ -27,3 +28,4 @@ pub use verse::*;
 pub use campaign::*;
 pub use setting::*;
 pub use content_block::*;
+pub use donation::*;
