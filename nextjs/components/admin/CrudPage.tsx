@@ -3,7 +3,8 @@
 import { useState, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api, { uploadFile } from '@/lib/admin/api'
-import { Plus, Pencil, Trash2, X, ChevronUp, ChevronDown, Upload, ImageIcon } from 'lucide-react'
+import { Plus, Pencil, Trash2, X, ChevronUp, ChevronDown, Upload } from 'lucide-react'
+import { RichTextEditor } from './RichTextEditor'
 
 interface Field {
   key: string
@@ -183,7 +184,7 @@ export function CrudPage({ endpoint, title, fields }: { endpoint: string; title:
       {/* Form Modal */}
       {showForm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowForm(false)}>
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between p-5 border-b">
               <h2 className="text-lg font-bold text-[#0b3c5d]">{editing ? 'Edit' : 'Create'} {title.replace(/s$/, '')}</h2>
               <button onClick={() => setShowForm(false)} className="p-1 text-gray-400 hover:text-gray-600"><X className="size-5" /></button>
@@ -193,11 +194,9 @@ export function CrudPage({ endpoint, title, fields }: { endpoint: string; title:
                 <div key={f.key}>
                   <label className="block text-sm font-medium text-gray-700 mb-1">{f.label}</label>
                   {f.type === 'textarea' ? (
-                    <textarea
+                    <RichTextEditor
                       value={form[f.key] ?? ''}
-                      onChange={e => setForm({ ...form, [f.key]: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0b3c5d]"
-                      rows={3}
+                      onChange={val => setForm({ ...form, [f.key]: val })}
                     />
                   ) : f.type === 'checkbox' ? (
                     <input
