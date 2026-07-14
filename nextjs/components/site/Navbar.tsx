@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import Link from 'next/link'
 import { usePathname } from 'next/navigation';
 import { Menu, Search, Radio, ChevronDown, Church, BookOpen } from "lucide-react";
-import { BibleModal } from "./BibleModal";
 import { Button } from "../ui/button";
 import {
   Sheet,
@@ -42,7 +41,6 @@ const allLinks = [...primary, ...more, { to: "/give", key: "give" }];
 export function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [bibleOpen, setBibleOpen] = useState(false);
   const { lang, setLang, t } = useLang();
   const pathname = usePathname();
 
@@ -111,13 +109,13 @@ export function Navbar() {
             <Search className="size-4" />
           </Link>
 
-          <button
-            onClick={() => setBibleOpen(true)}
+          <Link
+            href="/bible"
             className="hidden sm:grid place-items-center size-9 rounded-md text-foreground/70 hover:bg-secondary"
-            aria-label="Bible"
+            aria-label="पवित्र बाइबल"
           >
             <BookOpen className="size-4" />
-          </button>
+          </Link>
 
           <div className="hidden sm:flex items-center rounded-full bg-secondary p-0.5 text-xs">
             <button
@@ -166,12 +164,13 @@ export function Navbar() {
                     {t(l.key)}
                   </Link>
                 ))}
-                <button
-                  onClick={() => { setMobileOpen(false); setBibleOpen(true); }}
+                <Link
+                  href="/bible"
                   className="px-3 py-2.5 rounded-lg text-foreground/80 hover:bg-secondary text-left flex items-center gap-2"
+                  onClick={() => setMobileOpen(false)}
                 >
                   <BookOpen className="size-4" /> पवित्र बाइबल
-                </button>
+                </Link>
               </div>
               <div className="mt-6 flex items-center gap-2">
                 <span className="text-sm text-muted-foreground">{lang === "en" ? "Language" : "भाषा"}:</span>
@@ -187,9 +186,6 @@ export function Navbar() {
           </Sheet>
         </div>
       </nav>
-
-      {/* Bible Modal */}
-      <BibleModal open={bibleOpen} onClose={() => setBibleOpen(false)} />
     </header>
   );
 }
