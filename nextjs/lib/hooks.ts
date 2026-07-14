@@ -190,3 +190,20 @@ export function useEnabledMembers() {
   const q = useMembers()
   return { ...q, data: (q.data ?? []).filter((m: any) => m.enabled !== false) }
 }
+
+// Section-level enabled settings (master toggle per section)
+export function useSections() {
+  return useQuery({
+    queryKey: ["settings", "sections"],
+    queryFn: () => import("./admin/api").then(m => m.default.get("/settings/sections").then(r => r.data)),
+    placeholderData: {} as Record<string, boolean>,
+  })
+}
+
+export function useToggleSection() {
+  const { mutate, ...rest } = useMutation({
+    mutationFn: (section: string) =>
+      import("./admin/api").then(m => m.default.put(`/settings/sections/${section}/toggle`).then(r => r.data)),
+  })
+  return { toggleSection: mutate, ...rest }
+}

@@ -29,10 +29,13 @@ import {
   useTestimonies, useGallery, useCampaigns, useVerses,
   useEnabledServiceTimes, useEnabledSermons, useEnabledMinistries, useEnabledEvents,
   useEnabledTestimonies, useEnabledGallery, useEnabledCampaigns, useEnabledVerses,
+  useSections,
 } from "@/lib/hooks";
 
 export default function Home() {
   const { t, lang } = useLang();
+  const { data: sections = {} } = useSections();
+  const sec = sections as Record<string, boolean>;
   const { data: allServiceTimes = [] } = useEnabledServiceTimes();
   const { data: allSermons = [] } = useEnabledSermons();
   const { data: allMinistries = [] } = useEnabledMinistries();
@@ -108,6 +111,7 @@ export default function Home() {
 
 
       {/* ---------- Service Times ---------- */}
+      {sec.service_times !== false && (
       <section className="py-20 bg-section">
         <div className="mx-auto max-w-7xl px-4">
           <SectionHeading eyebrow="Join Us" title={t("service_times")} subtitle={lang === "en" ? "There's a place for everyone in the family of God. Come as you are." : "परमेश्वरको परिवारमा सबैका लागि ठाउँ छ। जस्तो हुनुहुन्छ, त्यस्तै आउनुहोस्।"} />
@@ -129,6 +133,7 @@ export default function Home() {
           </div>
         </div>
       </section>
+      )}
 
       {/* ---------- What to Expect (first-time visitors) ---------- */}
       <WhatToExpect />
@@ -176,6 +181,7 @@ export default function Home() {
       <WatchOnline />
 
       {/* ---------- Featured Sermons ---------- */}
+      {sec.sermons !== false && allSermons.length > 0 && (
       <section className="py-20 bg-section">
         <div className="mx-auto max-w-7xl px-4">
           <div className="flex items-end justify-between gap-4 flex-wrap">
@@ -214,8 +220,10 @@ export default function Home() {
           </div>
         </div>
       </section>
+      )}
 
       {/* ---------- Ministries ---------- */}
+      {sec.ministries !== false && (
       <section className="py-20">
         <div className="mx-auto max-w-7xl px-4">
           <SectionHeading eyebrow="Get Involved" title={t("our_ministries")} subtitle={lang === "en" ? "Discover a ministry where you can grow, serve and belong." : "बढ्न, सेवा गर्न र सम्बन्धित हुन सक्ने सेवाकार्य पत्ता लगाउनुहोस्।"} />
@@ -247,8 +255,10 @@ export default function Home() {
           </div>
         </div>
       </section>
+      )}
 
       {/* ---------- Upcoming Events ---------- */}
+      {sec.events !== false && (
       <section className="py-20 bg-section">
         <div className="mx-auto max-w-7xl px-4">
           <SectionHeading eyebrow="Mark Your Calendar" title={t("upcoming_events")} />
@@ -283,6 +293,7 @@ export default function Home() {
           </div>
         </div>
       </section>
+      )}
 
       {/* ---------- Prayer CTA ---------- */}
       <section className="relative py-24">
@@ -301,9 +312,12 @@ export default function Home() {
       </section>
 
       {/* ---------- Notice Board ---------- */}
+      {sec.notices !== false && (
       <NoticeBoard />
+      )}
 
       {/* ---------- Testimonies ---------- */}
+      {sec.testimonies !== false && (
       <section className="py-20">
         <div className="mx-auto max-w-7xl px-4">
           <SectionHeading eyebrow="Stories of Grace" title={t("testimonies")} />
@@ -331,11 +345,15 @@ export default function Home() {
           </div>
         </div>
       </section>
+      )}
 
       {/* ---------- Church Members ---------- */}
+      {sec.members !== false && (
       <ChurchMembers />
+      )}
 
       {/* ---------- Gallery preview ---------- */}
+      {sec.gallery !== false && (
       <section className="py-20 bg-section">
         <div className="mx-auto max-w-7xl px-4">
           <SectionHeading eyebrow="Moments" title={t("gallery_title")} />
@@ -353,8 +371,10 @@ export default function Home() {
           </div>
         </div>
       </section>
+      )}
 
       {/* ---------- Verse of the day ---------- */}
+      {sec.verses !== false && (
       <section className="py-20 bg-church-blue">
         <div className="mx-auto max-w-3xl px-4 text-center">
           <Reveal>
@@ -369,8 +389,10 @@ export default function Home() {
           </Reveal>
         </div>
       </section>
+      )}
 
       {/* ---------- Donation ---------- */}
+      {sec.campaigns !== false && (
       <section className="py-20">
         <div className="mx-auto max-w-7xl px-4 grid lg:grid-cols-2 gap-12 items-center">
           <div>
@@ -404,6 +426,7 @@ export default function Home() {
           </Reveal>
         </div>
       </section>
+      )}
     </div>
   );
 }

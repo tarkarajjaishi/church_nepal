@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api, { uploadFile } from '@/lib/admin/api'
 import { Plus, Pencil, Trash2, X, ChevronUp, ChevronDown, Upload } from 'lucide-react'
 import { RichTextEditor } from './RichTextEditor'
+import { useSections, useToggleSection } from '@/lib/hooks'
 
 interface Field {
   key: string
@@ -20,6 +21,12 @@ export function CrudPage({ endpoint, title, fields }: { endpoint: string; title:
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const [uploadingField, setUploadingField] = useState<string | null>(null)
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
+
+  // Section master toggle
+  const sectionKey = endpoint.replace('-', '_')
+  const { data: sections = {} } = useSections()
+  const { toggleSection, isPending: sectionToggling } = useToggleSection()
+  const sectionEnabled = (sections as Record<string, boolean>)[sectionKey] !== false
 
   const { data: items = [], isLoading } = useQuery({
     queryKey: [endpoint],
@@ -95,6 +102,40 @@ export function CrudPage({ endpoint, title, fields }: { endpoint: string; title:
 
   return (
     <div>
+      {/* Master Section Toggle */}
+      <div className={`flex items-center justify-between p-4 mb-6 rounded-xl border-2 transition-colors ${
+        sectionEnabled
+          ? 'bg-green-50 border-green-200'
+          : 'bg-red-50 border-red-200'
+      }`}>
+        <div className="flex items-center gap-3">
+          <div className={`size-3 rounded-full ${sectionEnabled ? 'bg-green-500' : 'bg-red-500'}`} />
+          <div>
+            <h2 className="text-sm font-semibold text-gray-900">
+              {title} Section — Homepage Visibility
+            </h2>
+            <p className="text-xs text-gray-500 mt-0.5">
+              {sectionEnabled
+                ? 'This section is VISIBLE on the homepage'
+                : 'This section is HIDDEN from the homepage'}
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={() => toggleSection(sectionKey, {
+            onSuccess: () => queryClient.invalidateQueries({ queryKey: ["settings", "sections"] }),
+          })}
+          disabled={sectionToggling}
+          className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors ${
+            sectionEnabled ? 'bg-green-500' : 'bg-gray-300'
+          } ${sectionToggling ? 'opacity-50' : ''}`}
+        >
+          <span className={`inline-block size-6 transform rounded-full bg-white transition-transform shadow ${
+            sectionEnabled ? 'translate-x-7' : 'translate-x-1'
+          }`} />
+        </button>
+      </div>
+
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-[#0b3c5d]">{title}</h1>
         <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2 bg-[#0b3c5d] text-white rounded-lg text-sm font-medium hover:bg-[#0b3c5d]/90">

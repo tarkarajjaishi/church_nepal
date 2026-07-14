@@ -20,3 +20,38 @@ pub async fn upsert(_auth: AuthUser, State(pool): State<PgPool>, Path(key): Path
         key, input.value).fetch_one(&pool).await?;
     Ok(Json(row))
 }
+
+pub async fn toggle_section(
+    _auth: AuthUser,
+    State(pool): State<PgPool>,
+    Path(section): Path<String>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let key = format!("section_enabled_{}", section);
+    let row = sqlx::query_as!(
+        Setting,
+        r#"INSERT INTO settings (key, value) VALUES ($1, 'false') ON CONFLICT (key) DO UPDATE SET value = CASE WHEN settings.value = 'true' THEN 'false' ELSE 'true' END, updated_at = NOW() RETURNING *"#,
+        key
+    )
+    .fetch_optional(&pool)
+    .await?
+    .ok_or_else(|| AppError::not_found("Section not found"))?;
+    Ok(Json(serde_json::json!({ "key": row.key, "enabled": row.value == "true" })))
+}
+
+pub async fn get_sections(
+    State(pool): State<PgPool>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let rows = sqlx::query_as!(
+        Setting,
+        "SELECT * FROM settings WHERE key LIKE 'section_enabled_%' ORDER BY key"
+    )
+    .fetch_all(&pool)
+    .await?;
+
+    let mut sections = serde_json::Map::new();
+    for row in rows {
+        let section_name = row.key.strip_prefix("section_enabled_").unwrap_or(&row.key);
+        sections.insert(section_name.to_string(), serde_json::Value::Bool(row.value == "true"));
+    }
+    Ok(Json(serde_json::Value::Object(sections)))
+}
