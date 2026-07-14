@@ -208,3 +208,30 @@ export function useToggleSection() {
   })
   return { toggleSection: mutate, ...rest }
 }
+
+// Content blocks for homepage sections (hero, what_to_expect, welcome, etc.)
+export interface ContentBlock {
+  id: string
+  section_key: string
+  title: string
+  subtitle: string | null
+  body: string | null
+  image: string | null
+  icon: string | null
+  items: any
+  enabled: boolean | null
+  sort_order: number | null
+}
+
+export function useContentBlocks() {
+  return useQuery({
+    queryKey: ["content-blocks", "enabled"],
+    queryFn: () => api.get("/content-blocks/enabled").then(r => r.data as ContentBlock[]),
+    placeholderData: [] as ContentBlock[],
+  })
+}
+
+export function useContentBlock(key: string) {
+  const { data: blocks = [] } = useContentBlocks()
+  return blocks.find((b: ContentBlock) => b.section_key === key) ?? null
+}
