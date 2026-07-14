@@ -256,14 +256,14 @@ export default function Home() {
                     <div className="relative sm:w-2/5 h-48 sm:h-auto overflow-hidden">
                       <ImageWithFallback src={e.image} alt={e.title} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                       <div className="absolute top-3 left-3 bg-white rounded-lg px-3 py-1.5 text-center shadow">
-                        <div className="text-church-blue" style={{ fontFamily: "var(--font-heading)", fontWeight: 700 }}>{((e.displayDate || e.display_date || "") || e.display_date || "").split(" ")[1]?.replace(",", "") ?? ""}</div>
-                        <div className="text-[10px] uppercase text-gold">{((e.displayDate || e.display_date || "") || e.display_date || "").split(" ")[0]}</div>
+                        <div className="text-church-blue" style={{ fontFamily: "var(--font-heading)", fontWeight: 700 }}>{(e.displayDate || "").split(" ")[1]?.replace(",", "") ?? ""}</div>
+                        <div className="text-[10px] uppercase text-gold">{(e.displayDate || "").split(" ")[0]}</div>
                       </div>
                     </div>
                     <div className="p-5 sm:w-3/5">
                       <h3 className="text-church-blue" style={{ fontFamily: "var(--font-heading)", fontWeight: 600 }}>{e.title}</h3>
                       <div className="mt-3 space-y-1.5 text-sm text-muted-foreground">
-                        <div className="flex items-center gap-2"><Clock className="size-4 text-gold" /> {(e.displayDate || e.display_date || "")} · {e.time}</div>
+                        <div className="flex items-center gap-2"><Clock className="size-4 text-gold" /> {(e.displayDate || "")} · {e.time}</div>
                         <div className="flex items-center gap-2"><Calendar className="size-4 text-gold" /> {toBS(e.date, lang)}</div>
                         <div className="flex items-center gap-2"><MapPin className="size-4 text-gold" /> {e.location}</div>
                       </div>
