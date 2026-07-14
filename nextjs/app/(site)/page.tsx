@@ -111,7 +111,7 @@ export default function Home() {
 
 
       {/* ---------- Service Times ---------- */}
-      {sec.service_times !== false && (
+      {sec.service_times === true && (
       <section className="py-20 bg-section">
         <div className="mx-auto max-w-7xl px-4">
           <SectionHeading eyebrow="Join Us" title={t("service_times")} subtitle={lang === "en" ? "There's a place for everyone in the family of God. Come as you are." : "परमेश्वरको परिवारमा सबैका लागि ठाउँ छ। जस्तो हुनुहुन्छ, त्यस्तै आउनुहोस्।"} />
@@ -181,7 +181,7 @@ export default function Home() {
       <WatchOnline />
 
       {/* ---------- Featured Sermons ---------- */}
-      {sec.sermons !== false && allSermons.length > 0 && (
+      {sec.sermons === true && allSermons.length > 0 && (
       <section className="py-20 bg-section">
         <div className="mx-auto max-w-7xl px-4">
           <div className="flex items-end justify-between gap-4 flex-wrap">
@@ -223,7 +223,7 @@ export default function Home() {
       )}
 
       {/* ---------- Ministries ---------- */}
-      {sec.ministries !== false && (
+      {sec.ministries === true && (
       <section className="py-20">
         <div className="mx-auto max-w-7xl px-4">
           <SectionHeading eyebrow="Get Involved" title={t("our_ministries")} subtitle={lang === "en" ? "Discover a ministry where you can grow, serve and belong." : "बढ्न, सेवा गर्न र सम्बन्धित हुन सक्ने सेवाकार्य पत्ता लगाउनुहोस्।"} />
@@ -258,7 +258,7 @@ export default function Home() {
       )}
 
       {/* ---------- Upcoming Events ---------- */}
-      {sec.events !== false && (
+      {sec.events === true && (
       <section className="py-20 bg-section">
         <div className="mx-auto max-w-7xl px-4">
           <SectionHeading eyebrow="Mark Your Calendar" title={t("upcoming_events")} />
@@ -312,12 +312,12 @@ export default function Home() {
       </section>
 
       {/* ---------- Notice Board ---------- */}
-      {sec.notices !== false && (
+      {sec.notices === true && (
       <NoticeBoard />
       )}
 
       {/* ---------- Testimonies ---------- */}
-      {sec.testimonies !== false && (
+      {sec.testimonies === true && (
       <section className="py-20">
         <div className="mx-auto max-w-7xl px-4">
           <SectionHeading eyebrow="Stories of Grace" title={t("testimonies")} />
@@ -348,12 +348,12 @@ export default function Home() {
       )}
 
       {/* ---------- Church Members ---------- */}
-      {sec.members !== false && (
+      {sec.members === true && (
       <ChurchMembers />
       )}
 
       {/* ---------- Gallery preview ---------- */}
-      {sec.gallery !== false && (
+      {sec.gallery === true && (
       <section className="py-20 bg-section">
         <div className="mx-auto max-w-7xl px-4">
           <SectionHeading eyebrow="Moments" title={t("gallery_title")} />
@@ -374,7 +374,7 @@ export default function Home() {
       )}
 
       {/* ---------- Verse of the day ---------- */}
-      {sec.verses !== false && (
+      {sec.verses === true && (
       <section className="py-20 bg-church-blue">
         <div className="mx-auto max-w-3xl px-4 text-center">
           <Reveal>
@@ -392,7 +392,7 @@ export default function Home() {
       )}
 
       {/* ---------- Donation ---------- */}
-      {sec.campaigns !== false && (
+      {sec.campaigns === true && (
       <section className="py-20">
         <div className="mx-auto max-w-7xl px-4 grid lg:grid-cols-2 gap-12 items-center">
           <div>
