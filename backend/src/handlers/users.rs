@@ -44,17 +44,18 @@ pub async fn update(
     State(pool): State<PgPool>,
     Json(input): Json<UpdateUser>,
 ) -> Result<Json<UserPublic>, AppError> {
-    // Check if user exists
-    let existing = sqlx::query_scalar!("SELECT id FROM users WHERE id = $1", id)
-        .fetch_optional(&pool)
-        .await?;
-    if existing.is_none() {
-        return Err(AppError::not_found("User not found"));
-    }
+    // Fetch existing user to preserve non-updated fields
+    let existing = sqlx::query_as!(
+        UserPublic,
+        r#"SELECT id, email, name, role FROM users WHERE id = $1"#,
+        id
+    )
+    .fetch_optional(&pool)
+    .await?
+    .ok_or_else(|| AppError::not_found("User not found"))?;
 
-    // Build update query dynamically
-    let name = input.name.unwrap_or_default();
-    let role = input.role.unwrap_or_default();
+    let name = input.name.unwrap_or(existing.name);
+    let role = input.role.unwrap_or(existing.role);
     let password_hash = if let Some(password) = input.password {
         if password.is_empty() {
             None
@@ -65,28 +66,23 @@ pub async fn update(
         None
     };
 
-    let user = if let Some(hash) = password_hash {
+    let user = if let Some(h) = password_hash {
         sqlx::query_as!(
             UserPublic,
-            r#"UPDATE users SET name = NULLIF($2, ''), role = NULLIF($3, ''), password_hash = $4, updated_at = NOW()
+            r#"UPDATE users SET name = $2, role = $3, password_hash = $4, updated_at = NOW()
                WHERE id = $1
                RETURNING id, email, name, role"#,
-            id,
-            name,
-            role,
-            hash
+            id, name, role, h
         )
         .fetch_optional(&pool)
         .await?
     } else {
         sqlx::query_as!(
             UserPublic,
-            r#"UPDATE users SET name = NULLIF($2, ''), role = NULLIF($3, ''), updated_at = NOW()
+            r#"UPDATE users SET name = $2, role = $3, updated_at = NOW()
                WHERE id = $1
                RETURNING id, email, name, role"#,
-            id,
-            name,
-            role
+            id, name, role
         )
         .fetch_optional(&pool)
         .await?
