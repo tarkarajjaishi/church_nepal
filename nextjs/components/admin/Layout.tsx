@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/lib/auth'
-import { LayoutDashboard, BookOpen, Calendar, Users, Image, Quote, Bell, UserCheck, Clock, BookMarked, DollarSign, Settings, LogOut, Church, Shield, LayoutGrid, Heart } from 'lucide-react'
+import { LayoutDashboard, BookOpen, Calendar, Users, Image, Quote, Bell, UserCheck, Clock, BookMarked, DollarSign, Settings, LogOut, Church, Shield, LayoutGrid, Heart, CheckSquare } from 'lucide-react'
 
 const navItems = [
   { to: '/admin/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -21,6 +21,7 @@ const navItems = [
   { to: '/admin/verses', icon: BookMarked, label: 'Verses' },
   { to: '/admin/campaigns', icon: DollarSign, label: 'Campaigns' },
   { to: '/admin/donations', icon: Heart, label: 'Donations' },
+  { to: '/admin/todos', icon: CheckSquare, label: 'Todos' },
   { divider: true, label: 'Management' },
   { to: '/admin/users', icon: Shield, label: 'User Management' },
   { to: '/admin/settings', icon: Settings, label: 'Settings' },

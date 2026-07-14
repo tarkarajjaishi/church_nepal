@@ -90,4 +90,9 @@ pub fn api_routes() -> Router<PgPool> {
         .route("/donations", get(donations::list))
         .route("/donations/stats", get(donations::stats))
         .route("/donations/{id}", get(donations::get))
+        // Todos
+        .route("/todos", get(todos::list).post(todos::create))
+        .route("/todos/{id}", get(todos::get).put(todos::update).delete(todos::delete))
+        .route("/todos/{id}/toggle", put(todos::toggle_status))
+        .route("/todos/{id}/reorder", put(todos::reorder))
 }
