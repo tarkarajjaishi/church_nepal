@@ -3,11 +3,16 @@
 import { Radio, X } from "lucide-react";
 import { useState } from "react";
 import { useLang } from "@/lib/language";
+import { useContentBlock } from "@/lib/hooks";
 
 export function AnnouncementBar() {
   const [open, setOpen] = useState(true);
   const { lang } = useLang();
+  const banner = useContentBlock('top_banner');
+
   if (!open) return null;
+  if (!banner || banner.enabled === false) return null;
+
   return (
     <div className="bg-church-blue text-white">
       <div className="mx-auto max-w-7xl px-4 py-2 flex items-center justify-center gap-3 text-sm relative">
@@ -17,9 +22,9 @@ export function AnnouncementBar() {
         </span>
         <Radio className="size-4 text-gold" />
         <span className="text-white/90 text-center">
-          {lang === "en"
+          {banner.title || (lang === "en"
             ? "Sunday service live at 10:00 AM (NPT) — everyone is welcome!"
-            : "आइतबार सेवा बिहान १०:०० बजे प्रत्यक्ष — सबैलाई स्वागत छ!"}
+            : "आइतबार सेवा बिहान १०:०० बजे प्रत्यक्ष — सबैलाई स्वागत छ!")}
         </span>
         <button
           onClick={() => setOpen(false)}
