@@ -91,23 +91,23 @@ export default function Dashboard() {
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
           {[
-            { key: 'service_times', label: 'Service Times', icon: Clock },
-            { key: 'sermons', label: 'Sermons', icon: BookOpen },
-            { key: 'ministries', label: 'Ministries', icon: Users },
-            { key: 'events', label: 'Events', icon: Calendar },
-            { key: 'notices', label: 'Notices', icon: Bell },
-            { key: 'testimonies', label: 'Testimonies', icon: Quote },
-            { key: 'leaders', label: 'Leaders', icon: UserCheck },
-            { key: 'gallery', label: 'Gallery', icon: Image },
-            { key: 'members', label: 'Members', icon: Users },
-            { key: 'verses', label: 'Verses', icon: BookMarked },
-            { key: 'campaigns', label: 'Campaigns', icon: DollarSign },
-          ].map(({ key, label, icon: Icon }) => {
-            const enabled = sec[key] !== false
+            { key: 'serviceTimes', apiKey: 'service_times', label: 'Service Times', icon: Clock },
+            { key: 'sermons', apiKey: 'sermons', label: 'Sermons', icon: BookOpen },
+            { key: 'ministries', apiKey: 'ministries', label: 'Ministries', icon: Users },
+            { key: 'events', apiKey: 'events', label: 'Events', icon: Calendar },
+            { key: 'notices', apiKey: 'notices', label: 'Notices', icon: Bell },
+            { key: 'testimonies', apiKey: 'testimonies', label: 'Testimonies', icon: Quote },
+            { key: 'leaders', apiKey: 'leaders', label: 'Leaders', icon: UserCheck },
+            { key: 'gallery', apiKey: 'gallery', label: 'Gallery', icon: Image },
+            { key: 'members', apiKey: 'members', label: 'Members', icon: Users },
+            { key: 'verses', apiKey: 'verses', label: 'Verses', icon: BookMarked },
+            { key: 'campaigns', apiKey: 'campaigns', label: 'Campaigns', icon: DollarSign },
+          ].map(({ key, apiKey, label, icon: Icon }) => {
+            const enabled = sec[key] === true
             return (
               <button
                 key={key}
-                onClick={() => toggleSection(key, {
+                onClick={() => toggleSection(apiKey, {
                   onSuccess: () => queryClient.invalidateQueries({ queryKey: ["settings", "sections"] }),
                 })}
                 className={`flex items-center justify-between p-3 rounded-xl border-2 transition-all hover:shadow-md ${

@@ -36,7 +36,7 @@ export default function Home() {
   const { t, lang } = useLang();
   const { data: sectionsData, isLoading: sectionsLoading } = useSections();
   const sec: Record<string, boolean> = sectionsLoading || Object.keys(sectionsData || {}).length === 0
-    ? { service_times: true, sermons: true, ministries: true, events: true, notices: true, testimonies: true, leaders: true, gallery: true, members: true, verses: true, campaigns: true }
+    ? { serviceTimes: true, sermons: true, ministries: true, events: true, notices: true, testimonies: true, leaders: true, gallery: true, members: true, verses: true, campaigns: true }
     : sectionsData as Record<string, boolean>;
   const { data: allServiceTimes = [] } = useEnabledServiceTimes();
   const { data: allSermons = [] } = useEnabledSermons();
@@ -113,7 +113,7 @@ export default function Home() {
 
 
       {/* ---------- Service Times ---------- */}
-      {sec.service_times === true && (
+      {sec.serviceTimes === true && (
       <section className="py-20 bg-section">
         <div className="mx-auto max-w-7xl px-4">
           <SectionHeading eyebrow="Join Us" title={t("service_times")} subtitle={lang === "en" ? "There's a place for everyone in the family of God. Come as you are." : "परमेश्वरको परिवारमा सबैका लागि ठाउँ छ। जस्तो हुनुहुन्छ, त्यस्तै आउनुहोस्।"} />

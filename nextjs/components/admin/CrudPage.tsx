@@ -23,10 +23,11 @@ export function CrudPage({ endpoint, title, fields }: { endpoint: string; title:
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
 
   // Section master toggle
-  const sectionKey = endpoint.replace('-', '_')
+  const sectionApiKey = endpoint.replace(/-/g, '_')
+  const sectionKey = endpoint.replace(/-([a-z])/g, (_, c) => c.toUpperCase())
   const { data: sections = {} } = useSections()
   const { toggleSection, isPending: sectionToggling } = useToggleSection()
-  const sectionEnabled = (sections as Record<string, boolean>)[sectionKey] !== false
+  const sectionEnabled = (sections as Record<string, boolean>)[sectionKey] === true
 
   const { data: items = [], isLoading } = useQuery({
     queryKey: [endpoint],
@@ -122,7 +123,7 @@ export function CrudPage({ endpoint, title, fields }: { endpoint: string; title:
           </div>
         </div>
         <button
-          onClick={() => toggleSection(sectionKey, {
+          onClick={() => toggleSection(sectionApiKey, {
             onSuccess: () => queryClient.invalidateQueries({ queryKey: ["settings", "sections"] }),
           })}
           disabled={sectionToggling}
