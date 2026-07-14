@@ -1,7 +1,5 @@
 'use client'
 
-import { useState } from 'react'
-
 interface VerseRendererProps {
   text: string
   verseNumber?: number
@@ -10,7 +8,6 @@ interface VerseRendererProps {
 }
 
 export function VerseRenderer({ text, verseNumber, selected, onClick }: VerseRendererProps) {
-  // Parse <red> tags and render them in red
   const renderText = (raw: string) => {
     const parts = raw.split(/(<red>.*?<\/red>)/gs)
     return parts.map((part, i) => {
@@ -30,14 +27,10 @@ export function VerseRenderer({ text, verseNumber, selected, onClick }: VerseRen
     <div
       onClick={onClick}
       className={`px-3 py-2 rounded-lg cursor-pointer transition-all text-sm leading-relaxed ${
-        selected
-          ? 'bg-[#0b3c5d]/10 border border-[#0b3c5d]/30'
-          : 'hover:bg-gray-50 border border-transparent'
+        selected ? 'bg-[#0b3c5d]/10 border border-[#0b3c5d]/30' : 'hover:bg-gray-50 border border-transparent'
       }`}
     >
-      {verseNumber && (
-        <span className="text-xs font-bold text-[#d4a017] mr-1.5">{verseNumber}</span>
-      )}
+      {verseNumber && <span className="text-xs font-bold text-[#d4a017] mr-1.5">{verseNumber}</span>}
       <span className="text-gray-700">{renderText(text)}</span>
     </div>
   )

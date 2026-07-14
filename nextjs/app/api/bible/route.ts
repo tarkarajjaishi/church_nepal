@@ -4,26 +4,28 @@ import path from 'path'
 
 const BIBLE_DIR = path.join(process.cwd(), 'nnrv_bible-main')
 
-// Book name mapping (abbreviation to full Nepali name)
 const BOOK_NAMES: Record<string, string> = {
-  'GEN': 'उत्पत्ति', 'EXO': 'निर्गमन', 'LEV': 'लेवीयलेवु', 'NUM': 'गणना',
-  'DEU': 'व्यवस्थापन', 'JOS': 'यहोशू', 'JDG': 'न्यायकर्ता', 'RUT': 'रूत',
-  '1SA': '१ शमूएल', '2SA': '२ शमूएल', '1KI': '१ राजा', '2KI': '२ राजा',
-  '1CH': '१ इतिहास', '2CH': '२ इतिहास', 'EZR': 'एज्रा', 'NEH': 'नहेम्याह',
-  'EST': 'एस्तेर', 'JOB': 'अय्यूब', 'PSA': 'भजनसंग्रह', 'PRO': 'हितोपदेश',
-  'ECC': 'सभावाक्त', 'SON': 'श्रेष्ठगीत', 'ISA': 'यशायाह', 'JER': 'यिर्मयाह',
-  'LAM': 'विलापगीत', 'EZK': 'हेजक्केल', 'DAN': 'दानियेल', 'HOS': 'होशे',
-  'JOE': 'योएल', 'AMO': 'आमोस', 'OBA': 'ओबद्याह', 'JON': 'योना',
-  'MIC': 'मीखा', 'NAH': 'नहूम', 'HAB': 'हबक्कूक', 'ZEP': 'सपन्याह',
-  'HAG': 'हाग्गै', 'ZEC': 'जकर्याह', 'MAL': 'मलाकी',
-  'MAT': 'मत्ती', 'MAR': 'मर्कुस', 'LUK': 'लूका', 'JHN': 'यूहन्ना',
-  'ACT': 'प्रेरितहरू', 'ROM': 'रोमनहरू', '1CO': '१ करिन्थी', '2CO': '२ करिन्थी',
-  'GAL': 'गलातीहरू', 'EPH': 'इफिसीहरू', 'PHP': 'फिलिप्पीहरू', 'COL': 'कोलोस्सीहरू',
-  '1TH': '१ थिस्सलोनिकी', '2TH': '२ थिस्सलोनिकी', '1TI': '१ तिमोथी', '2TI': '२ तिमोथी',
-  'TIT': 'तीतस', 'PHM': 'फिलेमोन', 'HEB': 'इब्रानीहरू', 'JAS': 'याकूब',
-  '1PE': '१ पेत्रस', '2PE': '२ पेत्रस', '1JN': '१ यूहन्ना', '2JN': '२ यूहन्ना',
-  '3JN': '३ यूहन्ना', 'JUD': 'यहूदा', 'REV': 'प्रकाशितवाक्य'
+  'GEN': 'उत्‍पत्ति', 'EXO': 'प्रस्‍थान', 'LEV': 'लेवीहरू', 'NUM': 'गन्ती',
+  'DEU': 'व्यवस्था', 'JOS': 'यहोशू', 'JDG': 'न्यायकर्ताहरू', 'RUT': 'रूथ',
+  '1SA': '१ शमूएल', '2SA': '२ शमूएल', '1KI': '१ राजाहरू', '2KI': '२ राजाहरू',
+  '1CH': '१ इतिहास', '2CH': '२ इतिहास', 'EZR': 'एज्रा', 'NEH': 'नहेम्‍याह',
+  'EST': 'एस्‍तर', 'JOB': 'अय्‍यूब', 'PSA': 'भजनसंग्रह', 'PRO': 'हितोपदेश',
+  'ECC': 'उपदेशक', 'SON': 'श्रेष्‍ठगीत', 'ISA': 'यशैया', 'JER': 'यर्मिया',
+  'LAM': 'विलाप', 'EZK': 'इजकिएल', 'DAN': 'दानिएल', 'HOS': 'होशे',
+  'JOL': 'योएल', 'AMO': 'आमोस', 'OBA': 'ओबदिया', 'JON': 'योना',
+  'MIC': 'मीका', 'NAM': 'नहूम', 'HAB': 'हबकूक', 'ZEP': 'सपन्‍याह',
+  'HAG': 'हाग्‍गै', 'ZEC': 'जकरिया', 'MAL': 'मलाकी',
+  'MAT': 'मत्ती', 'MRK': 'मर्कूस', 'LUK': 'लूका', 'JHN': 'यूहन्‍ना',
+  'ACT': 'प्रेरित', 'ROM': 'रोमी', '1CO': '१ कोरिन्थी', '2CO': '२ कोरिन्थी',
+  'GAL': 'गलाती', 'EPH': 'एफिसी', 'PHP': 'फिलिप्पी', 'COL': 'कलस्सी',
+  '1TH': '१ थेसलोनिकी', '2TH': '२ थेसलोनिकी', '1TI': '१ तिमोथी', '2TI': '२ तिमोथी',
+  'TIT': 'तीतस', 'PHM': 'फिलेमोन', 'HEB': 'हिब्रू', 'JAS': 'याकूब',
+  '1PE': '१ पत्रुस', '2PE': '२ पत्रुस', '1JN': '१ यूहन्‍ना', '2JN': '२ यूहन्‍ना',
+  '3JN': '३ यूहन्‍ना', 'JUD': 'यहूदा', 'REV': 'प्रकाश'
 }
+
+const OT_BOOKS = ['GEN','EXO','LEV','NUM','DEU','JOS','JDG','RUT','1SA','2SA','1KI','2KI','1CH','2CH','EZR','NEH','EST','JOB','PSA','PRO','ECC','SON','ISA','JER','LAM','EZK','DAN','HOS','JOL','AMO','OBA','JON','MIC','NAM','HAB','ZEP','HAG','ZEC','MAL']
+const NT_BOOKS = ['MAT','MRK','LUK','JHN','ACT','ROM','1CO','2CO','GAL','EPH','PHP','COL','1TH','2TH','1TI','2TI','TIT','PHM','HEB','JAS','1PE','2PE','1JN','2JN','3JN','JUD','REV']
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
@@ -32,14 +34,13 @@ export async function GET(request: NextRequest) {
   const verse = searchParams.get('verse')
 
   if (!book) {
-    // Return list of all books
     const files = fs.readdirSync(BIBLE_DIR).filter(f => f.endsWith('.json'))
     const books = files.map(f => {
       const abbr = f.replace('.json', '')
       return {
         abbreviation: abbr,
         name: BOOK_NAMES[abbr] || abbr,
-        chapters: 0 // Will be populated on demand
+        testament: OT_BOOKS.includes(abbr) ? 'OT' : 'NT'
       }
     })
     return NextResponse.json({ books })
@@ -51,14 +52,13 @@ export async function GET(request: NextRequest) {
   }
 
   const bookData = JSON.parse(fs.readFileSync(filePath, 'utf-8'))
-  const chapterData = bookData.chapters[chapter - 1]
-
-  if (!chapterData) {
-    return NextResponse.json({ error: 'Chapter not found' }, { status: 404 })
-  }
 
   if (verse) {
     const verseNum = parseInt(verse)
+    const chapterData = bookData.chapters[chapter - 1]
+    if (!chapterData) {
+      return NextResponse.json({ error: 'Chapter not found' }, { status: 404 })
+    }
     const verseData = chapterData.verses[verseNum - 1]
     if (!verseData) {
       return NextResponse.json({ error: 'Verse not found' }, { status: 404 })
@@ -73,10 +73,16 @@ export async function GET(request: NextRequest) {
     })
   }
 
+  const chapterData = bookData.chapters[chapter - 1]
+  if (!chapterData) {
+    return NextResponse.json({ error: 'Chapter not found' }, { status: 404 })
+  }
+
   return NextResponse.json({
     book: BOOK_NAMES[book] || book,
     bookAbbreviation: book,
     chapter,
+    totalChapters: bookData.chapters.length,
     verses: chapterData.verses
   })
 }
