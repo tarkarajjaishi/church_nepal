@@ -72,7 +72,7 @@ Type=simple
 User=root
 WorkingDirectory=/opt/church-nepal/backend
 Environment=DATABASE_URL=postgres://postgres:church_db_pass_2026@localhost:5432/grace_church
-Environment=JWT_SECRET=grace_church_jwt_secret_2026
+Environment=JWT_SECRET=$(openssl rand -hex 32)
 Environment=PORT=3002
 ExecStart=/opt/church-nepal/backend/target/release/grace-church-backend
 Restart=always
@@ -136,6 +136,12 @@ server {
     location /api/uploads/ {
         proxy_pass http://127.0.0.1:3002/api/uploads/;
     }
+
+    # Security headers
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
 }
 EOF
 
