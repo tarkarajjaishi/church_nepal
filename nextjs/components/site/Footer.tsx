@@ -6,9 +6,9 @@ import { Church, Facebook, Youtube, Instagram, Mail, MapPin, Phone, Send, Messag
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { useLang } from "@/lib/language";
-import { useContentBlock } from "@/lib/hooks";
+import { useContentBlock, useContentBlocks } from "@/lib/hooks";
 
-const socials = [
+const fallbackSocials = [
   { Icon: Facebook, label: "Facebook", url: "https://facebook.com/gracenepalchurch" },
   { Icon: Youtube, label: "YouTube", url: "https://youtube.com/@gracenepalchurch" },
   { Icon: Instagram, label: "Instagram", url: "https://instagram.com/gracenepalchurch" },
@@ -17,10 +17,18 @@ const socials = [
 export function Footer() {
   const { t, lang } = useLang();
   const footer = useContentBlock('footer');
+  const brand = useContentBlock('site_brand');
+  const socialBlock = useContentBlock('social_links');
+
+  const iconMap: Record<string, any> = { Facebook, Youtube, Instagram, Mail, MessageCircle, Phone, MapPin };
+  const socialItems = (socialBlock?.items || []) as any[];
+  const socials = socialItems.length > 0
+    ? socialItems.map((s: any) => ({ Icon: iconMap[s.icon] || Facebook, label: s.label, url: s.url }))
+    : fallbackSocials;
 
   const groups = (footer?.items || []) as any[];
-  const churchName = footer?.title || t("churchName");
-  const churchDesc = footer?.subtitle || (lang === "en"
+  const churchName = brand?.title || footer?.title || t("churchName");
+  const churchDesc = footer?.subtitle || brand?.subtitle || (lang === "en"
     ? "A Christ-centred community in Nepal, growing in faith, hope and love — reaching every village with the gospel."
     : "नेपालमा ख्रीष्ट-केन्द्रित समुदाय, विश्वास, आशा र प्रेममा बढ्दै — हरेक गाउँमा सुसमाचार पुर्‍याउँदै।");
 

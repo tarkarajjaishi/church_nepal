@@ -18,6 +18,7 @@ import {
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
 import { useLang } from "@/lib/language";
+import { useContentBlock } from "@/lib/hooks";
 
 const primary = [
   { to: "/about", key: "nav_about" },
@@ -41,6 +42,10 @@ export function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { lang, setLang, t } = useLang();
   const pathname = usePathname();
+  const brand = useContentBlock('site_brand');
+  const churchName = brand?.title || t("churchName");
+  const tagline = brand?.subtitle || t("tagline");
+  const logoImage = brand?.items?.[0]?.logo;
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
@@ -60,15 +65,19 @@ export function Navbar() {
       <nav className="mx-auto max-w-7xl px-4 h-16 flex items-center justify-between gap-4">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2.5 shrink-0">
-          <span className="grid place-items-center size-10 rounded-xl bg-church-blue text-white">
-            <Church className="size-5" />
-          </span>
+          {logoImage ? (
+            <img src={logoImage.startsWith('http') ? logoImage : `http://localhost:3002${logoImage}`} alt={churchName} className="size-10 rounded-xl object-cover" />
+          ) : (
+            <span className="grid place-items-center size-10 rounded-xl bg-church-blue text-white">
+              <Church className="size-5" />
+            </span>
+          )}
           <span className="leading-tight">
             <span className="block text-church-blue" style={{ fontFamily: "var(--font-heading)", fontWeight: 700 }}>
-              {t("churchName")}
+              {churchName}
             </span>
             <span className="block text-[11px] text-gold" style={{ fontFamily: "var(--font-heading)" }}>
-              {t("tagline")}
+              {tagline}
             </span>
           </span>
         </Link>
