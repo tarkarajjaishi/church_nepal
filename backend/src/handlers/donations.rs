@@ -22,21 +22,26 @@ pub async fn initiate(
     .bind(input.notes.as_deref().unwrap_or(""))
     .fetch_one(&pool).await?;
 
+    let domain = std::env::var("SITE_DOMAIN")
+        .unwrap_or_else(|_| "http://104.248.63.47".to_string());
+
     let payment_url = match input.payment_method.as_str() {
         "esewa" => {
             let config = crate::payment::esewa::EsewaConfig::from_env();
-            crate::payment::esewa::build_payment_url(
-                &config, &row.id.to_string(), input.amount, "EPAYTEST", 0, 0,
+            let success_url = format!("{}/give/success?donation_id={}", domain, row.id);
+            let fail_url = format!("{}/give", domain);
+            format!(
+                "{}/epay/main?url={}&amt={}&pid={}&scd={}&su={}&fu={}",
+                config.base_url, success_url, input.amount, row.id, config.merchant_id, success_url, fail_url
             )
         }
         "khalti" => {
-            let config = crate::payment::khalti::KhaltiConfig::from_env();
             format!(
                 "{}/sandbox?token=placeholder&donation_id={}",
-                config.base_url, row.id
+                domain, row.id
             )
         }
-        _ => format!("http://localhost:3000/give/success?donation_id={}", row.id),
+        _ => format!("{}/give/success?donation_id={}", domain, row.id),
     };
 
     Ok(Json(serde_json::json!({
@@ -57,10 +62,13 @@ pub async fn callback_esewa(
     sqlx::query("UPDATE donations SET status = 'completed', updated_at = NOW() WHERE id = $1")
         .bind(donation_id).execute(&pool).await?;
 
+    let domain = std::env::var("SITE_DOMAIN")
+        .unwrap_or_else(|_| "http://104.248.63.47".to_string());
+
     Ok(Json(serde_json::json!({
         "status": "completed",
         "message": "Payment confirmed",
-        "redirect_url": format!("http://localhost:3000/give/success?donation_id={}", donation_id),
+        "redirect_url": format!("{}/give/success?donation_id={}", domain, donation_id),
     })))
 }
 
