@@ -27,9 +27,7 @@ function toSnakeCase(obj: unknown): unknown {
 }
 
 const api = axios.create({
-  baseURL: typeof window !== 'undefined'
-    ? `${window.location.protocol}//${window.location.hostname}:3002/api`
-    : 'http://localhost:3002/api',
+  baseURL: 'http://localhost:3002/api',
 })
 
 api.interceptors.request.use((config) => {
