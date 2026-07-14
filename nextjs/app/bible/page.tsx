@@ -1,10 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, use } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import { BookOpen, Search, ChevronRight, Home, Church, LogOut } from 'lucide-react'
+import { BookOpen, ChevronLeft, ChevronRight, Home, Search, Church } from 'lucide-react'
 import { VerseRenderer } from '@/components/bible/VerseRenderer'
 
 const BOOK_NAMES: Record<string, string> = {
@@ -30,10 +29,20 @@ const BOOK_NAMES: Record<string, string> = {
 const OT_BOOKS = ['GEN','EXO','LEV','NUM','DEU','JOS','JDG','RUT','1SA','2SA','1KI','2KI','1CH','2CH','EZR','NEH','EST','JOB','PSA','PRO','ECC','SON','ISA','JER','LAM','EZK','DAN','HOS','JOL','AMO','OBA','JON','MIC','NAM','HAB','ZEP','HAG','ZEC','MAL']
 const NT_BOOKS = ['MAT','MRK','LUK','JHN','ACT','ROM','1CO','2CO','GAL','EPH','PHP','COL','1TH','2TH','1TI','2TI','TIT','PHM','HEB','JAS','1PE','2PE','1JN','2JN','3JN','JUD','REV']
 
-export default function BiblePage() {
-  const pathname = usePathname()
-  const currentBook = pathname.split('/bible/')[1]?.toUpperCase() || 'JHN'
+export default function BiblePage({ params }: { params: Promise<{ book?: string }> }) {
+  const resolvedParams = use(params)
+  const [selectedBook, setSelectedBook] = useState(resolvedParams?.book?.toUpperCase() || 'EXO')
+  const [chapter, setChapter] = useState(1)
+  const [selectedVerse, setSelectedVerse] = useState<number | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
+
+  const { data: chapterData, isLoading } = useQuery({
+    queryKey: ['bible-chapter', selectedBook, chapter],
+    queryFn: () => fetch(`/api/bible?book=${selectedBook}&chapter=${chapter}`).then(r => r.json()),
+  })
+
+  const bookName = BOOK_NAMES[selectedBook] || selectedBook
+  const totalChapters = chapterData?.totalChapters || 50
 
   const filteredOT = OT_BOOKS.filter(abbr =>
     BOOK_NAMES[abbr].includes(searchQuery) || abbr.toLowerCase().includes(searchQuery.toLowerCase())
@@ -56,7 +65,6 @@ export default function BiblePage() {
           </div>
         </div>
 
-        {/* Search */}
         <div className="px-3 py-2 border-b border-white/10">
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-white/40" />
@@ -70,14 +78,13 @@ export default function BiblePage() {
           </div>
         </div>
 
-        {/* Book List */}
         <nav className="flex-1 overflow-y-auto py-1">
           <div className="px-3 py-1">
             <p className="text-[9px] font-semibold text-white/30 uppercase tracking-wider mb-1">पुरानो करार</p>
             {filteredOT.map(abbr => (
               <Link key={abbr} href={`/bible/${abbr}`}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded text-xs transition-colors ${
-                  currentBook === abbr ? 'bg-white/15 text-white' : 'text-white/60 hover:bg-white/10 hover:text-white'
+                  selectedBook === abbr ? 'bg-white/15 text-white' : 'text-white/60 hover:bg-white/10 hover:text-white'
                 }`}>
                 <BookOpen className="size-3" />
                 <span>{BOOK_NAMES[abbr]}</span>
@@ -89,7 +96,7 @@ export default function BiblePage() {
             {filteredNT.map(abbr => (
               <Link key={abbr} href={`/bible/${abbr}`}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded text-xs transition-colors ${
-                  currentBook === abbr ? 'bg-white/15 text-white' : 'text-white/60 hover:bg-white/10 hover:text-white'
+                  selectedBook === abbr ? 'bg-white/15 text-white' : 'text-white/60 hover:bg-white/10 hover:text-white'
                 }`}>
                 <BookOpen className="size-3" />
                 <span>{BOOK_NAMES[abbr]}</span>
@@ -107,94 +114,71 @@ export default function BiblePage() {
 
       {/* Main Content */}
       <main className="flex-1 overflow-y-auto">
-        <BibleReader book={currentBook} />
+        <div className="p-6">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h1 className="text-2xl font-bold text-[#0b3c5d]" style={{ fontFamily: 'var(--font-heading)' }}>
+                {bookName}
+              </h1>
+              <p className="text-sm text-gray-500">पवित्र बाइबल — NNRV</p>
+            </div>
+          </div>
+
+          {/* Chapter Selector */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-medium text-gray-700">अध्याय:</span>
+                <button onClick={() => setChapter(Math.max(1, chapter - 1))} disabled={chapter <= 1}
+                  className="px-3 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-50 transition-colors text-sm">
+                  ←
+                </button>
+                <select value={chapter} onChange={(e) => setChapter(Number(e.target.value))}
+                  className="px-3 py-1 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0b3c5d]">
+                  {Array.from({ length: totalChapters }, (_, i) => (
+                    <option key={i + 1} value={i + 1}>{i + 1}</option>
+                  ))}
+                </select>
+                <button onClick={() => setChapter(Math.min(totalChapters, chapter + 1))} disabled={chapter >= totalChapters}
+                  className="px-3 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-50 transition-colors text-sm">
+                  →
+                </button>
+              </div>
+              <div className="text-sm text-gray-500">
+                अध्याय {chapter} / {totalChapters}
+              </div>
+            </div>
+          </div>
+
+          {/* Chapter Content */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <h2 className="text-lg font-bold text-[#0b3c5d] mb-4" style={{ fontFamily: 'var(--font-heading)' }}>
+              {bookName} — अध्याय {chapter}
+            </h2>
+
+            {isLoading ? (
+              <div className="space-y-3">
+                {[...Array(8)].map((_, i) => (
+                  <div key={i} className="animate-pulse h-14 bg-gray-100 rounded-lg" />
+                ))}
+              </div>
+            ) : chapterData?.verses ? (
+              <div className="space-y-1">
+                {chapterData.verses.map((v: { text: string }, i: number) => (
+                  <VerseRenderer key={i} text={v.text} verseNumber={i + 1}
+                    selected={selectedVerse === i + 1}
+                    onClick={() => setSelectedVerse(selectedVerse === i + 1 ? null : i + 1)} />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12 text-gray-400">
+                <BookOpen className="size-12 mx-auto mb-4 text-gray-300" />
+                <p>अध्याय भेटिएन</p>
+              </div>
+            )}
+          </div>
+        </div>
       </main>
-    </div>
-  )
-}
-
-function BibleReader({ book }: { book: string }) {
-  const [chapter, setChapter] = useState(1)
-  const [selectedVerse, setSelectedVerse] = useState<number | null>(null)
-
-  const { data: chapterData, isLoading } = useQuery({
-    queryKey: ['bible-chapter', book, chapter],
-    queryFn: () => fetch(`/api/bible?book=${book}&chapter=${chapter}`).then(r => r.json()),
-  })
-
-  const bookName = BOOK_NAMES[book] || book
-  const totalChapters = chapterData?.totalChapters || 50
-
-  return (
-    <div className="p-6">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-[#0b3c5d]" style={{ fontFamily: 'var(--font-heading)' }}>
-            {bookName}
-          </h1>
-          <p className="text-sm text-gray-500">पवित्र बाइबल — NNRV</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Link href="/" className="p-2 rounded-lg hover:bg-gray-100 transition-colors text-gray-500">
-            <Home className="size-5" />
-          </Link>
-        </div>
-      </div>
-
-      {/* Chapter Selector */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <span className="text-sm font-medium text-gray-700">अध्याय:</span>
-            <button onClick={() => setChapter(Math.max(1, chapter - 1))} disabled={chapter <= 1}
-              className="px-3 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-50 transition-colors text-sm">
-              ←
-            </button>
-            <select value={chapter} onChange={(e) => setChapter(Number(e.target.value))}
-              className="px-3 py-1 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0b3c5d]">
-              {Array.from({ length: totalChapters }, (_, i) => (
-                <option key={i + 1} value={i + 1}>{i + 1}</option>
-              ))}
-            </select>
-            <button onClick={() => setChapter(Math.min(totalChapters, chapter + 1))} disabled={chapter >= totalChapters}
-              className="px-3 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-50 transition-colors text-sm">
-              →
-            </button>
-          </div>
-          <div className="text-sm text-gray-500">
-            अध्याय {chapter} / {totalChapters}
-          </div>
-        </div>
-      </div>
-
-      {/* Chapter Content */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-        <h2 className="text-lg font-bold text-[#0b3c5d] mb-4" style={{ fontFamily: 'var(--font-heading)' }}>
-          {bookName} — अध्याय {chapter}
-        </h2>
-
-        {isLoading ? (
-          <div className="space-y-3">
-            {[...Array(8)].map((_, i) => (
-              <div key={i} className="animate-pulse h-14 bg-gray-100 rounded-lg" />
-            ))}
-          </div>
-        ) : chapterData?.verses ? (
-          <div className="space-y-1">
-            {chapterData.verses.map((v: { text: string }, i: number) => (
-              <VerseRenderer key={i} text={v.text} verseNumber={i + 1}
-                selected={selectedVerse === i + 1}
-                onClick={() => setSelectedVerse(selectedVerse === i + 1 ? null : i + 1)} />
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-12 text-gray-400">
-            <BookOpen className="size-12 mx-auto mb-4 text-gray-300" />
-            <p>अध्याय भेटिएन</p>
-          </div>
-        )}
-      </div>
     </div>
   )
 }
