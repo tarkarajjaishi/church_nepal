@@ -12,10 +12,10 @@ import { Reveal } from "@/components/site/Reveal";
 import { images } from "@/lib/data";
 
 const info = [
-  { icon: MapPin, title: "Address", lines: ["Baneshwor, Kathmandu 44600", "Nepal"] },
-  { icon: Phone, title: "Phone", lines: ["+977 1-4000000", "+977 98-00000000"] },
-  { icon: Mail, title: "Email", lines: ["hello@gracenepal.org", "prayer@gracenepal.org"] },
-  { icon: Clock, title: "Office Hours", lines: ["Sun–Fri: 9 AM – 5 PM", "Sat: Closed"] },
+  { icon: MapPin, title: "Address", lines: ["123 Faith Street", "Springfield"] },
+  { icon: Phone, title: "Phone", lines: ["(555) 123-4567"] },
+  { icon: Mail, title: "Email", lines: ["info@gracechurch.org"] },
+  { icon: Clock, title: "Office Hours", lines: ["Mon–Fri: 9 AM – 5 PM", "Sat–Sun: Closed"] },
 ];
 
 export default function Contact() {
@@ -53,8 +53,8 @@ export default function Contact() {
                 <Button type="submit" size="lg" className="bg-church-blue hover:bg-church-blue/90"><Send className="size-4" /> Send Message</Button>
               </form>
               <div className="mt-4 flex flex-wrap gap-4">
-                <a href="https://wa.me/9771400000" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-success hover:underline"><MessageCircle className="size-4" /> WhatsApp</a>
-                <a href="viber://chat?number=%2B9771400000" className="inline-flex items-center gap-2 text-[#7360f2] hover:underline"><Phone className="size-4" /> Viber</a>
+                <a href="https://wa.me/5551234567" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-success hover:underline"><MessageCircle className="size-4" /> WhatsApp</a>
+                <a href="viber://chat?number=5551234567" className="inline-flex items-center gap-2 text-[#7360f2] hover:underline"><Phone className="size-4" /> Viber</a>
               </div>
             </Card>
           </Reveal>
@@ -64,7 +64,7 @@ export default function Contact() {
               <iframe
                 title="Church location"
                 className="w-full h-full min-h-[400px]"
-                src="https://www.openstreetmap.org/export/embed.html?bbox=85.32%2C27.69%2C85.35%2C27.71&layer=mapnik&marker=27.70%2C85.335"
+                src="https://www.openstreetmap.org/export/embed.html?bbox=-89.66%2C39.78%2C-89.62%2C39.80&layer=mapnik&marker=39.79%2C-89.64"
                 loading="lazy"
               />
             </Card>
@@ -74,4 +74,3 @@ export default function Contact() {
     </div>
   );
 }
-

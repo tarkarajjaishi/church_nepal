@@ -74,14 +74,14 @@ export function Seo() {
       description: DESC,
       address: {
         "@type": "PostalAddress",
-        streetAddress: "Baneshwor",
-        addressLocality: "Kathmandu",
-        postalCode: "44600",
-        addressCountry: "NP",
+        streetAddress: "123 Faith Street",
+        addressLocality: "Springfield",
+        postalCode: "",
+        addressCountry: "US",
       },
-      telephone: "+977 1-4000000",
-      email: "hello@gracenepal.org",
-      openingHours: "Su 10:00-11:30",
+      telephone: "(555) 123-4567",
+      email: "info@gracechurch.org",
+      openingHours: "Mo-Fr 09:00-17:00",
     });
     document.head.appendChild(ld);
   }, []);
