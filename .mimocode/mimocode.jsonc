@@ -1,0 +1,15 @@
+{
+  // MiMo Code project config for C:\churchnepal.com\FullProductionSetup-main
+  // Registers the "mimo-bridge" watchdog MCP server so a boss/watchdog MiMo and
+  // the worker MiMo can message each other and run real health checks.
+  "$schema": "https://mimo.xiaomi.com/mimocode/config.json",
+  "mcp": {
+    "bridge": {
+      "type": "local",
+      "command": ["node", "C:/pc/mimo-bridge/bridge-server.js"],
+      "enabled": true,
+      // health_check(level:"full") runs builds; keep the request timeout generous.
+      "timeout": 600000
+    }
+  }
+}
