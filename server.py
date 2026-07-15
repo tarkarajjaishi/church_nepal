@@ -321,6 +321,21 @@ def get_my_role(user=Depends(get_current_user)):
     return {"role": user.get("role", "user")}
 
 
+@app.get("/dashboard/stats")
+def dashboard_stats():
+    from auth import _load_users, _load_blog_posts, _load_testimonials, _load_team, _load_services, _load_portfolio, _load_contact_info, _load_subscribers
+    return {
+        "users": len(_load_users()),
+        "blog_posts": len(_load_blog_posts()),
+        "published_posts": len([p for p in _load_blog_posts() if p.get("published")]),
+        "testimonials": len(_load_testimonials()),
+        "team_members": len(_load_team()),
+        "services": len(_load_services()),
+        "portfolio_projects": len(_load_portfolio()),
+        "subscribers": len(_load_subscribers()),
+    }
+
+
 @app.post("/contact")
 def contact(req: ContactRequest):
     try:
