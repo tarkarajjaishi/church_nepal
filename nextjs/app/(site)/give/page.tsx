@@ -108,7 +108,7 @@ export default function Give() {
                       <span className="text-sm text-gold">{pct}%</span>
                     </div>
                     <Progress value={pct} className="mt-3" />
-                    <div className="mt-2 text-sm text-muted-foreground">Rs {c.raised.toLocaleString()} of Rs {c.goal.toLocaleString()}</div>
+                    <div className="mt-2 text-sm text-muted-foreground">Rs {c.raised.toLocaleString('en-US')} of Rs {c.goal.toLocaleString('en-US')}</div>
                   </Card>
                 );
               })}

@@ -11,8 +11,8 @@ interface Todo {
   description: string
   priority: string
   status: string
-  due_date: string
-  sort_order: number | null
+  dueDate: string
+  sortOrder: number | null
 }
 
 const priorityColors: Record<string, string> = {
@@ -76,16 +76,16 @@ export default function TodosPage() {
     const swapIndex = direction === 'up' ? index - 1 : index + 1
     if (swapIndex < 0 || swapIndex >= filteredItems.length) return
     const swapItem = filteredItems[swapIndex]
-    reorderMut.mutate({ id: item.id, sort_order: swapItem.sort_order ?? swapIndex })
-    reorderMut.mutate({ id: swapItem.id, sort_order: item.sort_order ?? index })
+    reorderMut.mutate({ id: item.id, sort_order: swapItem.sortOrder ?? swapIndex })
+    reorderMut.mutate({ id: swapItem.id, sort_order: item.sortOrder ?? index })
   }
 
   const filteredItems = filterStatus === 'all' ? items : items.filter((t: Todo) => t.status === filterStatus)
   const pendingCount = items.filter((t: Todo) => t.status === 'pending').length
   const doneCount = items.filter((t: Todo) => t.status === 'done').length
 
-  const openCreate = () => { setForm({ title: '', description: '', priority: 'medium', status: 'pending', due_date: '' }); setEditing(null); setShowForm(true) }
-  const openEdit = (item: Todo) => { setEditing(item); setForm({ title: item.title, description: item.description, priority: item.priority, status: item.status, due_date: item.due_date }); setShowForm(true) }
+  const openCreate = () => { setForm({ title: '', description: '', priority: 'medium', status: 'pending', dueDate: '' }); setEditing(null); setShowForm(true) }
+  const openEdit = (item: Todo) => { setEditing(item); setForm({ title: item.title, description: item.description, priority: item.priority, status: item.status, dueDate: item.dueDate }); setShowForm(true) }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -142,7 +142,7 @@ export default function TodosPage() {
                       <td className="px-3 py-3 text-center">
                         <div className="flex flex-col items-center gap-0.5">
                           <button onClick={() => moveItem(index, 'up')} disabled={index === 0} className="p-0.5 text-gray-400 hover:text-[#0b3c5d] disabled:opacity-30"><ChevronUp className="size-3.5" /></button>
-                          <span className="text-xs font-mono text-gray-500">{item.sort_order ?? index}</span>
+                          <span className="text-xs font-mono text-gray-500">{item.sortOrder ?? index}</span>
                           <button onClick={() => moveItem(index, 'down')} disabled={index === filteredItems.length - 1} className="p-0.5 text-gray-400 hover:text-[#0b3c5d] disabled:opacity-30"><ChevronDown className="size-3.5" /></button>
                         </div>
                       </td>
@@ -160,7 +160,7 @@ export default function TodosPage() {
                           {item.priority}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-gray-500 text-xs">{item.due_date || '—'}</td>
+                      <td className="px-4 py-3 text-gray-500 text-xs">{item.dueDate || '—'}</td>
                       <td className="px-4 py-3 text-right">
                         <button onClick={() => openEdit(item)} className="p-1.5 text-gray-400 hover:text-blue-600"><Pencil className="size-4" /></button>
                         <button onClick={() => setConfirmDelete(item.id)} className="p-1.5 text-gray-400 hover:text-red-600 ml-1"><Trash2 className="size-4" /></button>
@@ -210,7 +210,7 @@ export default function TodosPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Due Date</label>
-                  <input type="date" value={form.due_date ?? ''} onChange={e => setForm({ ...form, due_date: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0b3c5d]" />
+                  <input type="date" value={form.dueDate ?? ''} onChange={e => setForm({ ...form, dueDate: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0b3c5d]" />
                 </div>
               </div>
               <div className="flex gap-3 pt-2">

@@ -18,6 +18,18 @@ const api = axios.create({
   baseURL: 'http://localhost:3002/api',
 })
 
+// Attach the JWT so authenticated endpoints (e.g. /auth/me) succeed.
+// Without this, session restore on reload always 401s and logs the admin out.
+api.interceptors.request.use((config) => {
+  if (typeof window !== 'undefined') {
+    const token = localStorage.getItem('admin_token')
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`
+    }
+  }
+  return config
+})
+
 // Normalize all API responses from snake_case to camelCase
 api.interceptors.response.use((res) => {
   res.data = toCamelCase(res.data)

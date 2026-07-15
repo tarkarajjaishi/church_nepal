@@ -212,7 +212,7 @@ export function useToggleSection() {
 // Content blocks for homepage sections (hero, what_to_expect, welcome, etc.)
 export interface ContentBlock {
   id: string
-  section_key: string
+  sectionKey: string
   title: string
   subtitle: string | null
   body: string | null
@@ -220,7 +220,7 @@ export interface ContentBlock {
   icon: string | null
   items: any
   enabled: boolean | null
-  sort_order: number | null
+  sortOrder: number | null
 }
 
 export function useContentBlocks() {
@@ -233,5 +233,5 @@ export function useContentBlocks() {
 
 export function useContentBlock(key: string) {
   const { data: blocks = [] } = useContentBlocks()
-  return blocks.find((b: ContentBlock) => b.section_key === key) ?? null
+  return blocks.find((b: ContentBlock) => b.sectionKey === key) ?? null
 }

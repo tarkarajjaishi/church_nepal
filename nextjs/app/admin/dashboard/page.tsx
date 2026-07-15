@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from "@/lib/admin/api"
-import { useAuth } from "@/lib/admin/auth"
+import { useAuth } from "@/lib/auth"
 import Link from 'next/link'
 import {
   BookOpen, Calendar, Users, Bell, Image, Quote, UserCheck, Clock,

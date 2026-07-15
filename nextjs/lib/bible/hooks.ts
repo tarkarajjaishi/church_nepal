@@ -7,8 +7,10 @@ export function useBookmarks() {
   const [bookmarks, setBookmarks] = useState<{book: string, chapter: number, verse: number, text: string, reference: string}[]>([])
 
   useEffect(() => {
-    const saved = localStorage.getItem('bible_bookmarks')
-    if (saved) setBookmarks(JSON.parse(saved))
+    try {
+      const saved = localStorage.getItem('bible_bookmarks')
+      if (saved) setBookmarks(JSON.parse(saved))
+    } catch { /* ignore corrupt storage */ }
   }, [])
 
   const addBookmark = (bookmark: {book: string, chapter: number, verse: number, text: string, reference: string}) => {
@@ -38,8 +40,10 @@ export function useReadingHistory() {
   const [history, setHistory] = useState<{book: string, chapter: number, timestamp: number}[]>([])
 
   useEffect(() => {
-    const saved = localStorage.getItem('bible_history')
-    if (saved) setHistory(JSON.parse(saved))
+    try {
+      const saved = localStorage.getItem('bible_history')
+      if (saved) setHistory(JSON.parse(saved))
+    } catch { /* ignore corrupt storage */ }
   }, [])
 
   const addToHistory = useCallback((book: string, chapter: number) => {
@@ -70,8 +74,10 @@ export function useReadingProgress() {
   const [progress, setProgress] = useState<Record<string, number>>({})
 
   useEffect(() => {
-    const saved = localStorage.getItem('bible_progress')
-    if (saved) setProgress(JSON.parse(saved))
+    try {
+      const saved = localStorage.getItem('bible_progress')
+      if (saved) setProgress(JSON.parse(saved))
+    } catch { /* ignore corrupt storage */ }
   }, [])
 
   const updateProgress = useCallback((book: string, chapter: number, totalChapters: number) => {

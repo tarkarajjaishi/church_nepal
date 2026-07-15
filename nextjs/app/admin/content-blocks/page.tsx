@@ -8,7 +8,7 @@ import { RichTextEditor } from '@/components/admin/RichTextEditor'
 
 interface ContentBlock {
   id: string
-  section_key: string
+  sectionKey: string
   title: string
   subtitle: string | null
   body: string | null
@@ -16,7 +16,7 @@ interface ContentBlock {
   icon: string | null
   items: any
   enabled: boolean | null
-  sort_order: number | null
+  sortOrder: number | null
 }
 
 const emptyForm = { section_key: '', title: '', subtitle: '', body: '', image: '', icon: '' }
@@ -64,8 +64,8 @@ export default function ContentBlocksPage() {
     const swapIndex = direction === 'up' ? index - 1 : index + 1
     if (swapIndex < 0 || swapIndex >= items.length) return
     const swapItem = items[swapIndex]
-    reorderMut.mutate({ id: item.id, sort_order: swapItem.sort_order ?? swapIndex })
-    reorderMut.mutate({ id: swapItem.id, sort_order: item.sort_order ?? index })
+    reorderMut.mutate({ id: item.id, sort_order: swapItem.sortOrder ?? swapIndex })
+    reorderMut.mutate({ id: swapItem.id, sort_order: item.sortOrder ?? index })
   }
 
   const openCreate = () => { setForm(emptyForm); setCreating(true) }
@@ -152,7 +152,7 @@ export default function ContentBlocksPage() {
                     <td className="px-3 py-3 text-center">
                       <div className="flex flex-col items-center gap-0.5">
                         <button onClick={() => moveItem(index, 'up')} disabled={index === 0} className="p-0.5 text-gray-400 hover:text-[#0b3c5d] disabled:opacity-30"><ChevronUp className="size-3.5" /></button>
-                        <span className="text-xs font-mono text-gray-500">{item.sort_order ?? index}</span>
+                        <span className="text-xs font-mono text-gray-500">{item.sortOrder ?? index}</span>
                         <button onClick={() => moveItem(index, 'down')} disabled={index === items.length - 1} className="p-0.5 text-gray-400 hover:text-[#0b3c5d] disabled:opacity-30"><ChevronDown className="size-3.5" /></button>
                       </div>
                     </td>
@@ -161,7 +161,7 @@ export default function ContentBlocksPage() {
                         <span className={`inline-block size-4 transform rounded-full bg-white transition-transform ${item.enabled ? 'translate-x-6' : 'translate-x-1'}`} />
                       </button>
                     </td>
-                    <td className="px-4 py-3 text-gray-500 font-mono text-xs">{item.section_key}</td>
+                    <td className="px-4 py-3 text-gray-500 font-mono text-xs">{item.sectionKey}</td>
                     <td className="px-4 py-3 font-medium text-gray-900">{item.title}</td>
                     <td className="px-4 py-3 text-gray-500 max-w-[300px] truncate">{item.subtitle}</td>
                     <td className="px-4 py-3 text-right">
@@ -181,7 +181,7 @@ export default function ContentBlocksPage() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => { setCreating(false); setEditing(null); setForm(emptyForm) }}>
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between p-5 border-b">
-              <h2 className="text-lg font-bold text-[#0b3c5d]">{creating ? 'Create New Section' : `Edit: ${editing?.section_key}`}</h2>
+              <h2 className="text-lg font-bold text-[#0b3c5d]">{creating ? 'Create New Section' : `Edit: ${editing?.sectionKey}`}</h2>
               <button onClick={() => { setCreating(false); setEditing(null); setForm(emptyForm) }} className="p-1 text-gray-400 hover:text-gray-600"><X className="size-5" /></button>
             </div>
             <form onSubmit={creating ? handleCreate : handleUpdate} className="p-5 space-y-4">

@@ -52,7 +52,7 @@ export default function Home() {
   const { data: allVerses = [] } = useEnabledVerses();
   const { data: contentBlocks = [] } = useContentBlocks();
 
-  const cb = (key: string) => contentBlocks.find((b: ContentBlock) => b.section_key === key)
+  const cb = (key: string) => contentBlocks.find((b: ContentBlock) => b.sectionKey === key)
   const hero = cb('hero')
   const whatToExpect = cb('what_to_expect')
   const welcome = cb('welcome')
@@ -359,7 +359,7 @@ export default function Home() {
       <section className="py-20">
         <div className="mx-auto max-w-7xl px-4">
           <SectionHeading eyebrow={<Eyebrow block={noticeSec} fallback="Notice Board" />} title={noticeSec?.title || "Church Notices"} subtitle={noticeSec?.subtitle || ""} />
-          <div className="mt-8 text-center"><Button asChild variant="outline" className="border-church-blue text-church-blue hover:bg-church-blue hover:text-white"><Link href="/events">{noticeSec?.items?.[0]?.view_all || "View All Events"} <ArrowRight className="size-4" /></Link></Button></div>
+          <div className="mt-8 text-center"><Button asChild variant="outline" className="border-church-blue text-church-blue hover:bg-church-blue hover:text-white"><Link href="/events">{noticeSec?.items?.[0]?.viewAll || "View All Events"} <ArrowRight className="size-4" /></Link></Button></div>
         </div>
       </section>
       </CB>
@@ -401,10 +401,10 @@ export default function Home() {
         <div className="mx-auto max-w-7xl px-4">
           <SectionHeading eyebrow={<Eyebrow block={membersSec} fallback="Our Family" />} title={membersSec?.title || "Church Members"} subtitle={membersSec?.subtitle || ""} />
           <div className="mt-10 text-center">
-            <p className="text-muted-foreground max-w-xl mx-auto">{membersSec?.items?.[0]?.join_desc || ""}</p>
+            <p className="text-muted-foreground max-w-xl mx-auto">{membersSec?.items?.[0]?.joinDesc || ""}</p>
             <div className="mt-6 flex gap-4 justify-center">
-              <Button asChild className="bg-church-blue hover:bg-church-blue/90"><Link href="/contact">{membersSec?.items?.[0]?.join_btn || "Join Us"}</Link></Button>
-              <Button asChild variant="outline" className="border-church-blue text-church-blue hover:bg-church-blue hover:text-white"><Link href="/about">{membersSec?.items?.[0]?.connected_btn || "Get Connected"}</Link></Button>
+              <Button asChild className="bg-church-blue hover:bg-church-blue/90"><Link href="/contact">{membersSec?.items?.[0]?.joinBtn || "Join Us"}</Link></Button>
+              <Button asChild variant="outline" className="border-church-blue text-church-blue hover:bg-church-blue hover:text-white"><Link href="/about">{membersSec?.items?.[0]?.connectedBtn || "Get Connected"}</Link></Button>
             </div>
           </div>
         </div>
@@ -458,7 +458,7 @@ export default function Home() {
             <SectionHeading center={false} eyebrow={<Eyebrow block={donationSec} fallback="Give" />} title={donationSec?.title || t("support_ministry")} subtitle={donationSec?.subtitle || ""} />
             <Reveal delay={0.1}>
               <div className="mt-8 flex flex-wrap gap-3">
-                {(donationSec?.items?.[0]?.payment_methods || ["eSewa", "Khalti", "Bank Transfer", "QR Code"]).map((m: string) => (
+                {(donationSec?.items?.[0]?.paymentMethods || ["eSewa", "Khalti", "Bank Transfer", "QR Code"]).map((m: string) => (
                   <span key={m} className="px-4 py-2 rounded-full bg-secondary text-church-blue text-sm">{m}</span>
                 ))}
               </div>
@@ -476,7 +476,7 @@ export default function Home() {
                       <span className="text-sm text-gold">{pct}%</span>
                     </div>
                     <Progress value={pct} className="mt-3" />
-                    <div className="mt-2 text-sm text-muted-foreground">Rs {c.raised.toLocaleString()} raised of Rs {c.goal.toLocaleString()}</div>
+                    <div className="mt-2 text-sm text-muted-foreground">Rs {c.raised.toLocaleString('en-US')} raised of Rs {c.goal.toLocaleString('en-US')}</div>
                   </Card>
                 );
               })}

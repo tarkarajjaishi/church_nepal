@@ -52,16 +52,25 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ books })
   }
 
+  if (!BOOK_NAMES[book]) {
+    return NextResponse.json({ error: 'Book not found' }, { status: 404 })
+  }
+
   const filePath = path.join(BIBLE_DIR, `${book}.json`)
   if (!fs.existsSync(filePath)) {
     return NextResponse.json({ error: 'Book not found' }, { status: 404 })
   }
 
-  const bookData = JSON.parse(fs.readFileSync(filePath, 'utf-8'))
+  let bookData: { chapters: Array<{ id: number; verses: Array<{ id: number; text: string }> }> }
+  try {
+    bookData = JSON.parse(fs.readFileSync(filePath, 'utf-8'))
+  } catch {
+    return NextResponse.json({ error: 'Failed to read book data' }, { status: 500 })
+  }
 
   if (verse) {
     const verseNum = parseInt(verse)
-    const chapterData = bookData.chapters[chapter - 1]
+    const chapterData = bookData.chapters.find(c => c.id === chapter)
     if (!chapterData) {
       return NextResponse.json({ error: 'Chapter not found' }, { status: 404 })
     }
@@ -79,7 +88,7 @@ export async function GET(request: NextRequest) {
     })
   }
 
-  const chapterData = bookData.chapters[chapter - 1]
+  const chapterData = bookData.chapters.find(c => c.id === chapter)
   if (!chapterData) {
     return NextResponse.json({ error: 'Chapter not found' }, { status: 404 })
   }
@@ -88,7 +97,7 @@ export async function GET(request: NextRequest) {
     book: BOOK_NAMES[book] || book,
     bookAbbreviation: book,
     chapter,
-    totalChapters: bookData.chapters.length,
+    totalChapters: bookData.chapters.filter(c => c.id > 0).length,
     verses: chapterData.verses
   })
 }

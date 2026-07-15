@@ -9,7 +9,7 @@ const fields = [
       { key: "duration", label: "Duration", type: "text" as const },
       { key: "series", label: "Series", type: "text" as const },
       { key: "topic", label: "Topic", type: "text" as const },
-      { key: "video_url", label: "Video URL (YouTube, etc.)", type: "text" as const },
+      { key: "videoUrl", label: "Video URL (YouTube, etc.)", type: "text" as const },
       { key: "image", label: "Image URL", type: "text" as const },
       { key: "description", label: "Description", type: "textarea" as const },
     ]

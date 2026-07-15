@@ -8,7 +8,7 @@ const fields = [
       { key: "category", label: "Category (Pastors/Elders/Deacons/Ministry Leaders)", type: "text" as const },
       { key: "image", label: "Profile Image", type: "text" as const },
       { key: "bio", label: "Bio", type: "textarea" as const },
-      { key: "social_links", label: 'Social Links (JSON: [{"platform":"Facebook","url":"..."}])', type: "text" as const },
+      { key: "socialLinks", label: 'Social Links (JSON: [{"platform":"Facebook","url":"..."}])', type: "text" as const },
     ]
 
 export default function LeadersPage() {

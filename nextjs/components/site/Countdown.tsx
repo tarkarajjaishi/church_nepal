@@ -18,11 +18,14 @@ export function Countdown({ date, dark = false }: { date: string; dark?: boolean
   const [time, setTime] = useState({ days: 0, hours: 0, mins: 0, secs: 0 });
 
   useEffect(() => {
+    if (Number.isNaN(target)) return;
     setMounted(true);
     setTime(diff(target));
     const id = setInterval(() => setTime(diff(target)), 1000);
     return () => clearInterval(id);
   }, [target]);
+
+  if (Number.isNaN(target)) return null;
 
   const units = [
     { label: "Days", value: time.days },

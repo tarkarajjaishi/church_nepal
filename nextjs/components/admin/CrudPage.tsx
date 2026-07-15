@@ -65,8 +65,8 @@ export function CrudPage({ endpoint, title, fields }: { endpoint: string; title:
     const swapIndex = direction === 'up' ? index - 1 : index + 1
     if (swapIndex < 0 || swapIndex >= items.length) return
     const swapItem = items[swapIndex]
-    reorderMut.mutate({ id: item.id, sort_order: swapItem.sort_order ?? swapIndex })
-    reorderMut.mutate({ id: swapItem.id, sort_order: item.sort_order ?? index })
+    reorderMut.mutate({ id: item.id, sort_order: swapItem.sortOrder ?? swapIndex })
+    reorderMut.mutate({ id: swapItem.id, sort_order: item.sortOrder ?? index })
   }
 
   const handleUpload = async (fieldKey: string, file: File) => {
@@ -83,7 +83,7 @@ export function CrudPage({ endpoint, title, fields }: { endpoint: string; title:
 
   const isImageField = (key: string) => key === 'image' || key === 'thumbnail' || key === 'banner'
 
-  const openCreate = () => { setEditing(null); setForm({ sort_order: items.length }); setShowForm(true) }
+  const openCreate = () => { setEditing(null); setForm({ sortOrder: items.length }); setShowForm(true) }
   const openEdit = (item: any) => { setEditing(item); setForm(item); setShowForm(true) }
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -175,7 +175,7 @@ export function CrudPage({ endpoint, title, fields }: { endpoint: string; title:
                         >
                           <ChevronUp className="size-3.5" />
                         </button>
-                        <span className="text-xs font-mono text-gray-500">{item.sort_order ?? index}</span>
+                        <span className="text-xs font-mono text-gray-500">{item.sortOrder ?? index}</span>
                         <button
                           onClick={() => moveItem(index, 'down')}
                           disabled={index === items.length - 1 || reorderMut.isPending}
@@ -319,8 +319,8 @@ export function CrudPage({ endpoint, title, fields }: { endpoint: string; title:
                 <input
                   type="number"
                   min="0"
-                  value={form.sort_order ?? 0}
-                  onChange={e => setForm({ ...form, sort_order: Number(e.target.value) })}
+                  value={form.sortOrder ?? 0}
+                  onChange={e => setForm({ ...form, sortOrder: Number(e.target.value) })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0b3c5d]"
                 />
                 <p className="text-xs text-gray-400 mt-1">Lower numbers appear first on homepage</p>
