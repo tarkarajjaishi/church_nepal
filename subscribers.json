@@ -1,12 +1,12 @@
 [
   {
-    "email": "test@church.org",
+    "email": "john@church.org",
     "name": "",
     "active": true
   },
   {
     "email": "jane@church.org",
     "name": "",
-    "active": true
+    "active": false
   }
 ]
