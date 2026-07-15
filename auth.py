@@ -632,3 +632,67 @@ def toggle_blog_featured(post_id):
             _save_blog_posts(posts)
             return post
     return None
+
+
+# --- Team Functions ---
+
+def _load_team():
+    path = os.path.join(os.path.dirname(__file__), "team.json")
+    if os.path.exists(path):
+        with open(path, "r") as f:
+            return json.load(f)
+    return []
+
+
+def _save_team(team):
+    path = os.path.join(os.path.dirname(__file__), "team.json")
+    with open(path, "w") as f:
+        json.dump(team, f, indent=2)
+
+
+def create_team_member(name, role, bio="", image="", category="general"):
+    team = _load_team()
+    member_id = str(len(team) + 1)
+    member = {"id": member_id, "name": name, "role": role, "bio": bio, "image": image, "category": category, "featured": False}
+    team.append(member)
+    _save_team(team)
+    return member
+
+
+def list_team():
+    return _load_team()
+
+
+def get_team_member(member_id):
+    for m in _load_team():
+        if m["id"] == member_id:
+            return m
+    return None
+
+
+def update_team_member(member_id, **kwargs):
+    team = _load_team()
+    for m in team:
+        if m["id"] == member_id:
+            for k, v in kwargs.items():
+                if v is not None:
+                    m[k] = v
+            _save_team(team)
+            return m
+    return None
+
+
+def delete_team_member(member_id):
+    team = [m for m in _load_team() if m["id"] != member_id]
+    _save_team(team)
+    return True
+
+
+def toggle_team_featured(member_id):
+    team = _load_team()
+    for m in team:
+        if m["id"] == member_id:
+            m["featured"] = not m.get("featured", False)
+            _save_team(team)
+            return m
+    return None

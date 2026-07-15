@@ -14,6 +14,7 @@ from auth import (
     create_blog_post, list_blog_posts, get_blog_post, update_blog_post, delete_blog_post,
     toggle_blog_published, toggle_blog_featured,
     create_testimonial, list_testimonials, get_testimonial, update_testimonial, delete_testimonial, toggle_testimonial_featured,
+    create_team_member, list_team, get_team_member, update_team_member, delete_team_member, toggle_team_featured,
 )
 
 app = FastAPI(title="Auth API", version="1.0.0")
@@ -95,6 +96,20 @@ class TestimonialUpdate(BaseModel):
     quote: Optional[str] = None
     image: Optional[str] = None
     rating: Optional[int] = None
+
+class TeamMemberRequest(BaseModel):
+    name: str
+    role: str
+    bio: str = ""
+    image: str = ""
+    category: str = "general"
+
+class TeamMemberUpdate(BaseModel):
+    name: Optional[str] = None
+    role: Optional[str] = None
+    bio: Optional[str] = None
+    image: Optional[str] = None
+    category: Optional[str] = None
 
 
 def get_current_user(authorization: str = Header(None)):
@@ -390,6 +405,48 @@ def toggle_test_featured(testimonial_id: str):
     return testimonial
 
 
+# --- Team Endpoints ---
+
+@app.get("/team")
+def list_team_endpoint():
+    return list_team()
+
+
+@app.get("/team/{member_id}")
+def get_team_endpoint(member_id: str):
+    member = get_team_member(member_id)
+    if not member:
+        raise HTTPException(status_code=404, detail="Team member not found")
+    return member
+
+
+@app.post("/team")
+def create_team_endpoint(req: TeamMemberRequest):
+    return create_team_member(name=req.name, role=req.role, bio=req.bio, image=req.image, category=req.category)
+
+
+@app.put("/team/{member_id}")
+def update_team_endpoint(member_id: str, req: TeamMemberUpdate):
+    member = update_team_member(member_id, name=req.name, role=req.role, bio=req.bio, image=req.image, category=req.category)
+    if not member:
+        raise HTTPException(status_code=404, detail="Team member not found")
+    return member
+
+
+@app.delete("/team/{member_id}")
+def delete_team_endpoint(member_id: str):
+    delete_team_member(member_id)
+    return {"message": "Team member deleted"}
+
+
+@app.put("/team/{member_id}/featured")
+def toggle_team_featured_endpoint(member_id: str):
+    member = toggle_team_featured(member_id)
+    if not member:
+        raise HTTPException(status_code=404, detail="Team member not found")
+    return member
+
+
 @app.get("/")
 def root():
     return {"message": "Auth API is running", "endpoints": [
@@ -399,6 +456,7 @@ def root():
         "GET /blog", "GET /blog/{slug_or_id}", "POST /blog", "PUT /blog/{post_id}", "DELETE /blog/{post_id}",
         "PUT /blog/{post_id}/publish", "PUT /blog/{post_id}/featured",
         "GET /testimonials", "GET /testimonials/{id}", "POST /testimonials", "PUT /testimonials/{id}", "DELETE /testimonials/{id}", "PUT /testimonials/{id}/featured",
+        "GET /team", "GET /team/{id}", "POST /team", "PUT /team/{id}", "DELETE /team/{id}", "PUT /team/{id}/featured",
         "GET /me", "PUT /me", "GET /me/role",
         "POST /change-password", "POST /password-reset/request", "POST /password-reset",
         "GET /users", "PUT /users/{email}/role", "DELETE /users/{email}", "GET /roles"
