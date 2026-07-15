@@ -760,3 +760,57 @@ def toggle_service_featured(service_id):
             _save_services(services)
             return s
     return None
+
+
+# --- Contact Info Functions ---
+
+def _load_contact_info():
+    path = os.path.join(os.path.dirname(__file__), "contact_info.json")
+    if os.path.exists(path):
+        with open(path, "r") as f:
+            return json.load(f)
+    return []
+
+
+def _save_contact_info(info):
+    path = os.path.join(os.path.dirname(__file__), "contact_info.json")
+    with open(path, "w") as f:
+        json.dump(info, f, indent=2)
+
+
+def create_contact_info(address="", phone="", email="", hours="", map_url="", social_links=None):
+    info = _load_contact_info()
+    info_id = str(len(info) + 1)
+    entry = {"id": info_id, "address": address, "phone": phone, "email": email, "hours": hours, "map_url": map_url, "social_links": social_links or []}
+    info.append(entry)
+    _save_contact_info(info)
+    return entry
+
+
+def list_contact_info():
+    return _load_contact_info()
+
+
+def get_contact_info(info_id):
+    for i in _load_contact_info():
+        if i["id"] == info_id:
+            return i
+    return None
+
+
+def update_contact_info(info_id, **kwargs):
+    info = _load_contact_info()
+    for i in info:
+        if i["id"] == info_id:
+            for k, v in kwargs.items():
+                if v is not None:
+                    i[k] = v
+            _save_contact_info(info)
+            return i
+    return None
+
+
+def delete_contact_info(info_id):
+    info = [i for i in _load_contact_info() if i["id"] != info_id]
+    _save_contact_info(info)
+    return True

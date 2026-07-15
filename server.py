@@ -16,6 +16,7 @@ from auth import (
     create_testimonial, list_testimonials, get_testimonial, update_testimonial, delete_testimonial, toggle_testimonial_featured,
     create_team_member, list_team, get_team_member, update_team_member, delete_team_member, toggle_team_featured,
     create_service, list_services, get_service, update_service, delete_service, toggle_service_featured,
+    create_contact_info, list_contact_info, get_contact_info, update_contact_info, delete_contact_info,
 )
 
 app = FastAPI(title="Auth API", version="1.0.0")
@@ -125,6 +126,22 @@ class ServiceUpdate(BaseModel):
     category: Optional[str] = None
     price: Optional[int] = None
     image: Optional[str] = None
+
+class ContactInfoRequest(BaseModel):
+    address: str = ""
+    phone: str = ""
+    email: str = ""
+    hours: str = ""
+    map_url: str = ""
+    social_links: list = []
+
+class ContactInfoUpdate(BaseModel):
+    address: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    hours: Optional[str] = None
+    map_url: Optional[str] = None
+    social_links: Optional[list] = None
 
 
 def get_current_user(authorization: str = Header(None)):
@@ -502,6 +519,40 @@ def toggle_service_featured_endpoint(service_id: str):
     if not service:
         raise HTTPException(status_code=404, detail="Service not found")
     return service
+
+
+# --- Contact Info Endpoints ---
+
+@app.get("/contact-info")
+def list_contact_info_endpoint():
+    return list_contact_info()
+
+
+@app.get("/contact-info/{info_id}")
+def get_contact_info_endpoint(info_id: str):
+    info = get_contact_info(info_id)
+    if not info:
+        raise HTTPException(status_code=404, detail="Contact info not found")
+    return info
+
+
+@app.post("/contact-info")
+def create_contact_info_endpoint(req: ContactInfoRequest):
+    return create_contact_info(address=req.address, phone=req.phone, email=req.email, hours=req.hours, map_url=req.map_url, social_links=req.social_links)
+
+
+@app.put("/contact-info/{info_id}")
+def update_contact_info_endpoint(info_id: str, req: ContactInfoUpdate):
+    info = update_contact_info(info_id, address=req.address, phone=req.phone, email=req.email, hours=req.hours, map_url=req.map_url, social_links=req.social_links)
+    if not info:
+        raise HTTPException(status_code=404, detail="Contact info not found")
+    return info
+
+
+@app.delete("/contact-info/{info_id}")
+def delete_contact_info_endpoint(info_id: str):
+    delete_contact_info(info_id)
+    return {"message": "Contact info deleted"}
 
 
 @app.get("/")
