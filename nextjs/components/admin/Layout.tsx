@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/lib/auth'
-import { LayoutDashboard, BookOpen, Calendar, Users, Image, Quote, Bell, UserCheck, Clock, BookMarked, DollarSign, Settings, LogOut, Church, Shield, LayoutGrid, Heart, CheckSquare, UserCircle, Newspaper, Briefcase, Globe, Mail, Contact } from 'lucide-react'
+import { LayoutDashboard, BookOpen, Calendar, Users, Image, Quote, Bell, UserCheck, Clock, BookMarked, DollarSign, LogOut, Church, Shield, LayoutGrid, Heart, CheckSquare } from 'lucide-react'
 
 const navItems = [
   { to: '/admin/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -22,17 +22,8 @@ const navItems = [
   { to: '/admin/campaigns', icon: DollarSign, label: 'Campaigns' },
   { to: '/admin/donations', icon: Heart, label: 'Donations' },
   { to: '/admin/todos', icon: CheckSquare, label: 'Todos' },
-  { divider: true, label: 'Website CMS' },
-  { to: '/admin/blog', icon: Newspaper, label: 'Blog Posts' },
-  { to: '/admin/team', icon: UserCheck, label: 'Team Members' },
-  { to: '/admin/services', icon: Briefcase, label: 'Services' },
-  { to: '/admin/portfolio', icon: Globe, label: 'Portfolio' },
-  { to: '/admin/contact-info', icon: Contact, label: 'Contact Info' },
-  { to: '/admin/newsletter', icon: Mail, label: 'Newsletter' },
   { divider: true, label: 'Management' },
   { to: '/admin/users', icon: Shield, label: 'User Management' },
-  { to: '/admin/settings', icon: Settings, label: 'Settings' },
-  { to: '/admin/profile', icon: UserCircle, label: 'My Profile' },
 ]
 
 export function Layout({ children }: { children: React.ReactNode }) {

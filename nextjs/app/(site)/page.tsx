@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { motion } from "motion/react";
 import {
-  Play, Calendar, Clock, MapPin, ArrowRight, Quote, Star, Share2, HandHeart, ChevronRight, Mail, CheckCircle,
+  Play, Calendar, Clock, MapPin, ArrowRight, Quote, Star, Share2, HandHeart, ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -486,82 +486,6 @@ export default function Home() {
       </section>
       </CB>
       )}
-
-      {/* ---------- Newsletter Signup ---------- */}
-      <NewsletterSignup />
     </div>
-  );
-}
-
-function NewsletterSignup() {
-  const [email, setEmail] = useState('');
-  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
-  const [message, setMessage] = useState('');
-  const { lang } = useLang();
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email) return;
-    setStatus('loading');
-    try {
-      const PYTHON_API = process.env.NEXT_PUBLIC_PYTHON_API || 'http://localhost:8000';
-      const res = await fetch(`${PYTHON_API}/newsletter/subscribe`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
-      });
-      if (res.ok) {
-        setStatus('success');
-        setMessage(lang === 'en' ? 'Thank you for subscribing!' : 'सदस्यता लिनुभएकोमा धन्यवाद!');
-        setEmail('');
-      } else {
-        const data = await res.json();
-        setStatus('error');
-        setMessage(data.detail || 'Already subscribed or invalid email');
-      }
-    } catch {
-      setStatus('error');
-      setMessage('Something went wrong. Please try again.');
-    }
-    setTimeout(() => { setStatus('idle'); setMessage(''); }, 5000);
-  };
-
-  return (
-    <section className="py-20 bg-church-blue">
-      <div className="mx-auto max-w-3xl px-4 text-center">
-        <Reveal>
-          <Mail className="size-10 text-gold mx-auto" />
-          <h2 className="mt-4 text-white text-3xl" style={{ fontFamily: "var(--font-heading)", fontWeight: 700 }}>
-            {lang === 'en' ? 'Stay Connected' : 'जोडिएर रहनुहोस्'}
-          </h2>
-          <p className="mt-3 text-white/70 max-w-md mx-auto">
-            {lang === 'en'
-              ? 'Subscribe to our newsletter for updates, events, and encouragement delivered to your inbox.'
-              : 'हाम्रो न्यूजलेटरका लागि सदस्यता लिनुहोस् — अपडेट, कार्यक्रम र प्रोत्साहन तपाईंको इनबक्समा।'}
-          </p>
-          <form onSubmit={handleSubmit} className="mt-8 flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
-            <input
-              type="email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              placeholder={lang === 'en' ? 'Enter your email' : 'तपाईंको इमेल राख्नुहोस्'}
-              required
-              className="flex-1 px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-gold focus:border-transparent"
-            />
-            <Button type="submit" disabled={status === 'loading'} size="lg" className="bg-gold text-church-blue hover:bg-gold/90 shrink-0">
-              {status === 'loading' ? (lang === 'en' ? 'Subscribing...' : 'सदस्यता लिइँदै...') : (lang === 'en' ? 'Subscribe' : 'सदस्यता लिनुहोस्')}
-            </Button>
-          </form>
-          {status === 'success' && (
-            <div className="mt-4 flex items-center justify-center gap-2 text-green-300 text-sm">
-              <CheckCircle className="size-4" /> {message}
-            </div>
-          )}
-          {status === 'error' && (
-            <div className="mt-4 text-red-300 text-sm">{message}</div>
-          )}
-        </Reveal>
-      </div>
-    </section>
   );
 }
