@@ -456,3 +456,105 @@ def list_subscribers():
 def get_subscriber_count():
     """Get count of active subscribers."""
     return len(list_subscribers())
+
+
+# --- Blog Functions ---
+
+def _load_blog_posts():
+    path = os.path.join(os.path.dirname(__file__), "blog_posts.json")
+    if os.path.exists(path):
+        with open(path, "r") as f:
+            return json.load(f)
+    return []
+
+
+def _save_blog_posts(posts):
+    path = os.path.join(os.path.dirname(__file__), "blog_posts.json")
+    with open(path, "w") as f:
+        json.dump(posts, f, indent=2)
+
+
+def create_blog_post(title, content, excerpt="", author="", category="", image="", slug=""):
+    """Create a new blog post."""
+    posts = _load_blog_posts()
+    post_id = str(len(posts) + 1)
+    if not slug:
+        slug = title.lower().replace(" ", "-").replace("'", "")
+
+    post = {
+        "id": post_id,
+        "title": title,
+        "content": content,
+        "excerpt": excerpt,
+        "author": author,
+        "category": category,
+        "image": image,
+        "slug": slug,
+        "published": False,
+        "featured": False,
+    }
+    posts.append(post)
+    _save_blog_posts(posts)
+    return post
+
+
+def list_blog_posts(published_only=True):
+    """List blog posts. If published_only, only return published posts."""
+    posts = _load_blog_posts()
+    if published_only:
+        return [p for p in posts if p.get("published", False)]
+    return posts
+
+
+def get_blog_post(post_id=None, slug=None):
+    """Get a blog post by ID or slug."""
+    posts = _load_blog_posts()
+    for post in posts:
+        if post_id and post["id"] == post_id:
+            return post
+        if slug and post["slug"] == slug:
+            return post
+    return None
+
+
+def update_blog_post(post_id, **kwargs):
+    """Update a blog post."""
+    posts = _load_blog_posts()
+    for post in posts:
+        if post["id"] == post_id:
+            for key, value in kwargs.items():
+                if value is not None:
+                    post[key] = value
+            _save_blog_posts(posts)
+            return post
+    return None
+
+
+def delete_blog_post(post_id):
+    """Delete a blog post."""
+    posts = _load_blog_posts()
+    posts = [p for p in posts if p["id"] != post_id]
+    _save_blog_posts(posts)
+    return True
+
+
+def toggle_blog_published(post_id):
+    """Toggle published status of a blog post."""
+    posts = _load_blog_posts()
+    for post in posts:
+        if post["id"] == post_id:
+            post["published"] = not post.get("published", False)
+            _save_blog_posts(posts)
+            return post
+    return None
+
+
+def toggle_blog_featured(post_id):
+    """Toggle featured status of a blog post."""
+    posts = _load_blog_posts()
+    for post in posts:
+        if post["id"] == post_id:
+            post["featured"] = not post.get("featured", False)
+            _save_blog_posts(posts)
+            return post
+    return None

@@ -11,6 +11,8 @@ from auth import (
     request_password_reset, reset_password, refresh_access_token,
     logout_all_devices, verify_email, get_user_role, require_role, update_user_role,
     send_contact_email, subscribe_email, unsubscribe_email, list_subscribers, get_subscriber_count,
+    create_blog_post, list_blog_posts, get_blog_post, update_blog_post, delete_blog_post,
+    toggle_blog_published, toggle_blog_featured,
 )
 
 app = FastAPI(title="Auth API", version="1.0.0")
@@ -60,6 +62,24 @@ class ContactRequest(BaseModel):
 class NewsletterSubscribeRequest(BaseModel):
     email: str
     name: str = ""
+
+class BlogPostRequest(BaseModel):
+    title: str
+    content: str
+    excerpt: str = ""
+    author: str = ""
+    category: str = ""
+    image: str = ""
+    slug: str = ""
+
+class BlogPostUpdate(BaseModel):
+    title: Optional[str] = None
+    content: Optional[str] = None
+    excerpt: Optional[str] = None
+    author: Optional[str] = None
+    category: Optional[str] = None
+    image: Optional[str] = None
+    slug: Optional[str] = None
 
 
 def get_current_user(authorization: str = Header(None)):
@@ -257,12 +277,70 @@ def newsletter_count():
     return {"count": get_subscriber_count()}
 
 
+# --- Blog Endpoints ---
+
+@app.get("/blog")
+def list_blog(published: bool = True):
+    return list_blog_posts(published_only=published)
+
+
+@app.get("/blog/{slug_or_id}")
+def get_blog(slug_or_id: str):
+    post = get_blog_post(slug=slug_or_id)
+    if not post:
+        post = get_blog_post(post_id=slug_or_id)
+    if not post:
+        raise HTTPException(status_code=404, detail="Blog post not found")
+    return post
+
+
+@app.post("/blog")
+def create_blog(req: BlogPostRequest):
+    post = create_blog_post(
+        title=req.title, content=req.content, excerpt=req.excerpt,
+        author=req.author, category=req.category, image=req.image, slug=req.slug
+    )
+    return post
+
+
+@app.put("/blog/{post_id}")
+def update_blog(post_id: str, req: BlogPostUpdate):
+    post = update_blog_post(post_id, title=req.title, content=req.content, excerpt=req.excerpt, author=req.author, category=req.category, image=req.image, slug=req.slug)
+    if not post:
+        raise HTTPException(status_code=404, detail="Blog post not found")
+    return post
+
+
+@app.delete("/blog/{post_id}")
+def delete_blog(post_id: str):
+    delete_blog_post(post_id)
+    return {"message": "Blog post deleted"}
+
+
+@app.put("/blog/{post_id}/publish")
+def toggle_publish(post_id: str):
+    post = toggle_blog_published(post_id)
+    if not post:
+        raise HTTPException(status_code=404, detail="Blog post not found")
+    return post
+
+
+@app.put("/blog/{post_id}/featured")
+def toggle_featured(post_id: str):
+    post = toggle_blog_featured(post_id)
+    if not post:
+        raise HTTPException(status_code=404, detail="Blog post not found")
+    return post
+
+
 @app.get("/")
 def root():
     return {"message": "Auth API is running", "endpoints": [
         "POST /register", "POST /login", "POST /refresh", "POST /logout", "POST /logout-all",
         "POST /verify-email", "POST /verify-email/request", "POST /contact",
         "POST /newsletter/subscribe", "POST /newsletter/unsubscribe", "GET /newsletter/subscribers", "GET /newsletter/count",
+        "GET /blog", "GET /blog/{slug_or_id}", "POST /blog", "PUT /blog/{post_id}", "DELETE /blog/{post_id}",
+        "PUT /blog/{post_id}/publish", "PUT /blog/{post_id}/featured",
         "GET /me", "PUT /me", "GET /me/role",
         "POST /change-password", "POST /password-reset/request", "POST /password-reset",
         "GET /users", "PUT /users/{email}/role", "DELETE /users/{email}", "GET /roles"
