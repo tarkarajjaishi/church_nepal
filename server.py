@@ -10,6 +10,7 @@ from auth import (
     update_profile, get_user, list_users, delete_user,
     request_password_reset, reset_password, refresh_access_token,
     logout_all_devices, verify_email, get_user_role, require_role, update_user_role,
+    send_contact_email,
 )
 
 app = FastAPI(title="Auth API", version="1.0.0")
@@ -49,6 +50,12 @@ class RefreshRequest(BaseModel):
 
 class LogoutRequest(BaseModel):
     refresh_token: Optional[str] = None
+
+class ContactRequest(BaseModel):
+    name: str
+    email: str
+    subject: str = "Contact Form"
+    message: str
 
 
 def get_current_user(authorization: str = Header(None)):
@@ -209,11 +216,21 @@ def get_my_role(user=Depends(get_current_user)):
     return {"role": user.get("role", "user")}
 
 
+@app.post("/contact")
+def contact(req: ContactRequest):
+    try:
+        send_contact_email(req.name, req.email, req.subject, req.message)
+        return {"message": "Message sent successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Failed to send message")
+
+
 @app.get("/")
 def root():
     return {"message": "Auth API is running", "endpoints": [
         "POST /register", "POST /login", "POST /refresh", "POST /logout", "POST /logout-all",
-        "POST /verify-email", "POST /verify-email/request", "GET /me", "PUT /me", "GET /me/role",
+        "POST /verify-email", "POST /verify-email/request", "POST /contact",
+        "GET /me", "PUT /me", "GET /me/role",
         "POST /change-password", "POST /password-reset/request", "POST /password-reset",
         "GET /users", "PUT /users/{email}/role", "DELETE /users/{email}", "GET /roles"
     ]}

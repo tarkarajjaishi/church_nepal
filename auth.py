@@ -358,5 +358,38 @@ def _save_users(users):
         json.dump(users, f, indent=2)
 
 
+def send_contact_email(name, email, subject, message):
+    """Send a contact form message via SMTP."""
+    import smtplib
+    from email.mime.text import MIMEText
+
+    smtp_host = os.environ.get("SMTP_HOST", "smtp.gmail.com")
+    smtp_port = int(os.environ.get("SMTP_PORT", "587"))
+    smtp_user = os.environ.get("SMTP_USER", "")
+    smtp_pass = os.environ.get("SMTP_PASS", "")
+    from_addr = os.environ.get("SMTP_FROM", smtp_user)
+    to_addr = os.environ.get("CONTACT_EMAIL", smtp_user)
+
+    body = f"From: {name} <{email}>\n\n{message}"
+
+    if not smtp_user:
+        print(f"[DEV] Contact from {name} ({email})")
+        print(f"Subject: {subject}")
+        print(f"Message: {message}")
+        return True
+
+    msg = MIMEText(body)
+    msg["Subject"] = f"Contact Form: {subject}"
+    msg["From"] = from_addr
+    msg["To"] = to_addr
+    msg["Reply-To"] = email
+
+    with smtplib.SMTP(smtp_host, smtp_port) as server:
+        server.starttls()
+        server.login(smtp_user, smtp_pass)
+        server.send_message(msg)
+    return True
+
+
 # Import from utils for password scoring
 from utils import password_strength_score
