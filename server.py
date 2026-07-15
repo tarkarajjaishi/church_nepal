@@ -18,6 +18,7 @@ from auth import (
     create_service, list_services, get_service, update_service, delete_service, toggle_service_featured,
     create_contact_info, list_contact_info, get_contact_info, update_contact_info, delete_contact_info,
     create_portfolio, list_portfolio, get_portfolio, update_portfolio, delete_portfolio, toggle_portfolio_featured,
+    get_site_settings, update_site_settings,
 )
 
 app = FastAPI(title="Auth API", version="1.0.0")
@@ -161,6 +162,22 @@ class PortfolioUpdate(BaseModel):
     client: Optional[str] = None
     year: Optional[str] = None
     url: Optional[str] = None
+
+class SiteSettingsUpdate(BaseModel):
+    church_name: Optional[str] = None
+    church_address: Optional[str] = None
+    church_phone: Optional[str] = None
+    church_email: Optional[str] = None
+    church_hours: Optional[str] = None
+    church_tagline: Optional[str] = None
+    facebook: Optional[str] = None
+    instagram: Optional[str] = None
+    youtube: Optional[str] = None
+    twitter: Optional[str] = None
+    website_url: Optional[str] = None
+    meta_title: Optional[str] = None
+    meta_description: Optional[str] = None
+    site_url: Optional[str] = None
 
 
 def get_current_user(authorization: str = Header(None)):
@@ -631,6 +648,26 @@ def toggle_portfolio_featured_endpoint(project_id: str):
     return project
 
 
+# --- Site Settings Endpoints ---
+
+@app.get("/site-settings")
+def get_site_settings_endpoint():
+    return get_site_settings()
+
+
+@app.put("/site-settings")
+def update_site_settings_endpoint(req: SiteSettingsUpdate):
+    return update_site_settings(
+        church_name=req.church_name, church_address=req.church_address,
+        church_phone=req.church_phone, church_email=req.church_email,
+        church_hours=req.church_hours, church_tagline=req.church_tagline,
+        facebook=req.facebook, instagram=req.instagram,
+        youtube=req.youtube, twitter=req.twitter,
+        website_url=req.website_url, meta_title=req.meta_title,
+        meta_description=req.meta_description, site_url=req.site_url,
+    )
+
+
 @app.get("/")
 def root():
     return {"message": "Auth API is running", "endpoints": [
@@ -643,7 +680,8 @@ def root():
         "GET /team", "GET /team/{id}", "POST /team", "PUT /team/{id}", "DELETE /team/{id}", "PUT /team/{id}/featured",
         "GET /me", "PUT /me", "GET /me/role",
         "POST /change-password", "POST /password-reset/request", "POST /password-reset",
-        "GET /users", "PUT /users/{email}/role", "DELETE /users/{email}", "GET /roles"
+        "GET /users", "PUT /users/{email}/role", "DELETE /users/{email}", "GET /roles",
+        "GET /site-settings", "PUT /site-settings",
     ]}
 
 

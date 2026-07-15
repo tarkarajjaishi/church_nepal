@@ -881,3 +881,50 @@ def toggle_portfolio_featured(project_id):
             _save_portfolio(portfolio)
             return p
     return None
+
+
+# --- Site Settings Functions ---
+
+DEFAULT_SITE_SETTINGS = {
+    "church_name": "Grace Nepal Church",
+    "church_address": "",
+    "church_phone": "",
+    "church_email": "",
+    "church_hours": "",
+    "church_tagline": "",
+    "facebook": "",
+    "instagram": "",
+    "youtube": "",
+    "twitter": "",
+    "website_url": "",
+    "meta_title": "Grace Nepal Church",
+    "meta_description": "",
+    "site_url": "https://churchnepal.com",
+}
+
+
+def _load_site_settings():
+    path = os.path.join(os.path.dirname(__file__), "site_settings.json")
+    if os.path.exists(path):
+        with open(path, "r") as f:
+            return json.load(f)
+    return dict(DEFAULT_SITE_SETTINGS)
+
+
+def _save_site_settings(settings):
+    path = os.path.join(os.path.dirname(__file__), "site_settings.json")
+    with open(path, "w") as f:
+        json.dump(settings, f, indent=2)
+
+
+def get_site_settings():
+    return _load_site_settings()
+
+
+def update_site_settings(**kwargs):
+    settings = _load_site_settings()
+    for k, v in kwargs.items():
+        if v is not None:
+            settings[k] = v
+    _save_site_settings(settings)
+    return settings
