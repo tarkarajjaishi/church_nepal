@@ -8,8 +8,11 @@ SECRET = os.environ.get("JWT_SECRET", "dev_secret_key_change_in_production")
 auth = AuthMiddleware(SECRET)
 
 
-def register_user(email, password, name=""):
+def register_user(email, password, name="", ip="127.0.0.1"):
     """Register a new user. Returns (token, user_dict) or raises ValueError."""
+    # Rate limit: max 3 registrations per 15 minutes per IP
+    if not auth.check_rate_limit(ip, max_attempts=3, window=900):
+        raise ValueError("Too many registration attempts. Please try again later.")
     # Check if user already exists (simple JSON file store for demo)
     users = _load_users()
     if email in users:
@@ -358,7 +361,7 @@ def _save_users(users):
         json.dump(users, f, indent=2)
 
 
-def send_contact_email(name, email, subject, message):
+def send_contact_email(name, email, subject, message, ip="127.0.0.1"):
     """Send a contact form message via SMTP."""
     import smtplib
     from email.mime.text import MIMEText
@@ -411,7 +414,7 @@ def _save_subscribers(subscribers):
         json.dump(subscribers, f, indent=2)
 
 
-def subscribe_email(email, name=""):
+def subscribe_email(email, name="", ip="127.0.0.1"):
     """Subscribe an email to the newsletter. Returns True or raises ValueError."""
     subscribers = _load_subscribers()
 

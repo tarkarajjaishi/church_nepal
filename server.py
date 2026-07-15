@@ -192,18 +192,20 @@ def get_current_user(authorization: str = Header(None)):
 
 
 @app.post("/register")
-def register(req: RegisterRequest):
+def register(req: RegisterRequest, request: Request):
     try:
-        access, refresh, user = register_user(req.email, req.password, req.name)
+        ip = request.client.host if request.client else "127.0.0.1"
+        access, refresh, user = register_user(req.email, req.password, req.name, ip=ip)
         return {"access_token": access, "refresh_token": refresh, "user": user}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
 @app.post("/login")
-def login(req: LoginRequest):
+def login(req: LoginRequest, request: Request):
     try:
-        access, refresh, user = login_user(req.email, req.password)
+        ip = request.client.host if request.client else "127.0.0.1"
+        access, refresh, user = login_user(req.email, req.password, ip=ip)
         return {"access_token": access, "refresh_token": refresh, "user": user}
     except ValueError as e:
         raise HTTPException(status_code=401, detail=str(e))
@@ -354,18 +356,22 @@ def dashboard_stats():
 
 
 @app.post("/contact")
-def contact(req: ContactRequest):
+def contact(req: ContactRequest, request: Request):
     try:
-        send_contact_email(req.name, req.email, req.subject, req.message)
+        ip = request.client.host if request.client else "127.0.0.1"
+        send_contact_email(req.name, req.email, req.subject, req.message, ip=ip)
         return {"message": "Message sent successfully"}
+    except ValueError as e:
+        raise HTTPException(status_code=429, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail="Failed to send message")
 
 
 @app.post("/newsletter/subscribe")
-def newsletter_subscribe(req: NewsletterSubscribeRequest):
+def newsletter_subscribe(req: NewsletterSubscribeRequest, request: Request):
     try:
-        subscribe_email(req.email, req.name)
+        ip = request.client.host if request.client else "127.0.0.1"
+        subscribe_email(req.email, req.name, ip=ip)
         return {"message": "Successfully subscribed to newsletter"}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
