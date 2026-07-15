@@ -6,9 +6,12 @@ import { useAuth } from "@/lib/admin/auth"
 import Link from 'next/link'
 import {
   BookOpen, Calendar, Users, Bell, Image, Quote, UserCheck, Clock,
-  BookMarked, DollarSign, Settings, Shield, ArrowRight, Activity, Eye, EyeOff
+  BookMarked, DollarSign, Settings, Shield, ArrowRight, Activity, Eye, EyeOff,
+  Globe, Briefcase, Star, Mail, FileText
 } from 'lucide-react'
 import { useSections, useToggleSection } from '@/lib/hooks'
+
+const PYTHON_API = process.env.NEXT_PUBLIC_PYTHON_API || 'http://localhost:8000'
 
 export default function Dashboard() {
   const { user } = useAuth()
@@ -31,6 +34,9 @@ export default function Dashboard() {
   const settings = useQuery({ queryKey: ['settings'], queryFn: () => api.get('/settings').then(r => r.data) })
   const users = useQuery({ queryKey: ['users'], queryFn: () => api.get('/users').then(r => r.data) })
 
+  // Python server stats
+  const pyStats = useQuery({ queryKey: ['pyStats'], queryFn: () => fetch(`${PYTHON_API}/dashboard/stats`).then(r => r.json()), retry: false })
+
   const allLoading = [sermons, events, ministries, notices, leaders, gallery, testimonies, members, serviceTimes, verses, campaigns, settings, users].some(q => q.isLoading)
 
   const totalContent = (sermons.data?.length ?? 0) + (events.data?.length ?? 0) + (ministries.data?.length ?? 0) +
@@ -51,13 +57,25 @@ export default function Dashboard() {
     { label: 'Members', value: members.data?.length ?? 0, icon: Users, color: 'bg-indigo-500', link: '/members' },
     { label: 'Verses', value: verses.data?.length ?? 0, icon: BookMarked, color: 'bg-rose-500', link: '/verses' },
     { label: 'Campaigns', value: campaigns.data?.length ?? 0, icon: DollarSign, color: 'bg-emerald-500', link: '/campaigns' },
+    { label: 'Blog Posts', value: pyStats.data?.blog_posts ?? 0, icon: FileText, color: 'bg-cyan-500', link: '/blog' },
+    { label: 'Testimonials', value: pyStats.data?.testimonials ?? 0, icon: Star, color: 'bg-yellow-500', link: '/testimonials' },
+    { label: 'Team', value: pyStats.data?.team_members ?? 0, icon: UserCheck, color: 'bg-violet-500', link: '/team' },
+    { label: 'Services', value: pyStats.data?.services ?? 0, icon: Briefcase, color: 'bg-fuchsia-500', link: '/services' },
+    { label: 'Portfolio', value: pyStats.data?.portfolio_projects ?? 0, icon: Globe, color: 'bg-sky-500', link: '/portfolio' },
+    { label: 'Subscribers', value: pyStats.data?.subscribers ?? 0, icon: Mail, color: 'bg-lime-500', link: '/newsletter' },
   ]
+
+  // Python server content
+  const blogPosts = useQuery({ queryKey: ['blogPosts'], queryFn: () => fetch(`${PYTHON_API}/blog`).then(r => r.json()), retry: false })
+  const portfolio = useQuery({ queryKey: ['portfolio'], queryFn: () => fetch(`${PYTHON_API}/portfolio`).then(r => r.json()), retry: false })
 
   const contentSections = [
     { label: 'Sermons', count: sermons.data?.length ?? 0, icon: BookOpen, color: 'bg-blue-500', link: '/sermons', items: sermons.data?.slice(0, 3) ?? [], renderItem: (s: any) => ({ title: s.title, sub: `${s.speaker} · ${s.date}` }) },
     { label: 'Events', count: events.data?.length ?? 0, icon: Calendar, color: 'bg-green-500', link: '/events', items: events.data?.slice(0, 3) ?? [], renderItem: (e: any) => ({ title: e.title, sub: `${e.displayDate} · ${e.location}` }) },
     { label: 'Notices', count: notices.data?.length ?? 0, icon: Bell, color: 'bg-orange-500', link: '/notices', items: notices.data?.slice(0, 3) ?? [], renderItem: (n: any) => ({ title: n.title, sub: `${n.category}${n.urgent ? ' · Urgent' : ''}` }) },
     { label: 'Campaigns', count: campaigns.data?.length ?? 0, icon: DollarSign, color: 'bg-emerald-500', link: '/campaigns', items: campaigns.data?.slice(0, 3) ?? [], renderItem: (c: any) => ({ title: c.title, sub: `Rs ${c.raised?.toLocaleString()} / Rs ${c.goal?.toLocaleString()}` }) },
+    { label: 'Blog Posts', count: blogPosts.data?.length ?? 0, icon: FileText, color: 'bg-cyan-500', link: '/blog', items: blogPosts.data?.slice(0, 3) ?? [], renderItem: (b: any) => ({ title: b.title, sub: `${b.author || 'Unknown'} · ${b.category || 'Uncategorized'}` }) },
+    { label: 'Portfolio', count: portfolio.data?.length ?? 0, icon: Globe, color: 'bg-sky-500', link: '/portfolio', items: portfolio.data?.slice(0, 3) ?? [], renderItem: (p: any) => ({ title: p.title, sub: `${p.client || 'Unknown'} · ${p.year || ''}` }) },
   ]
 
   return (
@@ -78,6 +96,14 @@ export default function Dashboard() {
           <div className="bg-white/10 rounded-lg px-4 py-2">
             <div className="text-2xl font-bold">{settings.data?.length ?? 0}</div>
             <div className="text-xs text-white/60">Settings</div>
+          </div>
+          <div className="bg-white/10 rounded-lg px-4 py-2">
+            <div className="text-2xl font-bold">{pyStats.data?.blog_posts ?? 0}</div>
+            <div className="text-xs text-white/60">Blog Posts</div>
+          </div>
+          <div className="bg-white/10 rounded-lg px-4 py-2">
+            <div className="text-2xl font-bold">{pyStats.data?.subscribers ?? 0}</div>
+            <div className="text-xs text-white/60">Subscribers</div>
           </div>
         </div>
       </div>
