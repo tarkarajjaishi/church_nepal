@@ -10,7 +10,7 @@ from auth import (
     update_profile, get_user, list_users, delete_user,
     request_password_reset, reset_password, refresh_access_token,
     logout_all_devices, verify_email, get_user_role, require_role, update_user_role,
-    send_contact_email,
+    send_contact_email, subscribe_email, unsubscribe_email, list_subscribers, get_subscriber_count,
 )
 
 app = FastAPI(title="Auth API", version="1.0.0")
@@ -56,6 +56,10 @@ class ContactRequest(BaseModel):
     email: str
     subject: str = "Contact Form"
     message: str
+
+class NewsletterSubscribeRequest(BaseModel):
+    email: str
+    name: str = ""
 
 
 def get_current_user(authorization: str = Header(None)):
@@ -225,11 +229,40 @@ def contact(req: ContactRequest):
         raise HTTPException(status_code=500, detail="Failed to send message")
 
 
+@app.post("/newsletter/subscribe")
+def newsletter_subscribe(req: NewsletterSubscribeRequest):
+    try:
+        subscribe_email(req.email, req.name)
+        return {"message": "Successfully subscribed to newsletter"}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/newsletter/unsubscribe")
+def newsletter_unsubscribe(email: str):
+    try:
+        unsubscribe_email(email)
+        return {"message": "Successfully unsubscribed from newsletter"}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@app.get("/newsletter/subscribers")
+def newsletter_subscribers(user=Depends(get_current_user)):
+    return list_subscribers()
+
+
+@app.get("/newsletter/count")
+def newsletter_count():
+    return {"count": get_subscriber_count()}
+
+
 @app.get("/")
 def root():
     return {"message": "Auth API is running", "endpoints": [
         "POST /register", "POST /login", "POST /refresh", "POST /logout", "POST /logout-all",
         "POST /verify-email", "POST /verify-email/request", "POST /contact",
+        "POST /newsletter/subscribe", "POST /newsletter/unsubscribe", "GET /newsletter/subscribers", "GET /newsletter/count",
         "GET /me", "PUT /me", "GET /me/role",
         "POST /change-password", "POST /password-reset/request", "POST /password-reset",
         "GET /users", "PUT /users/{email}/role", "DELETE /users/{email}", "GET /roles"

@@ -393,3 +393,66 @@ def send_contact_email(name, email, subject, message):
 
 # Import from utils for password scoring
 from utils import password_strength_score
+
+
+# --- Newsletter Subscriber Functions ---
+
+def _load_subscribers():
+    path = os.path.join(os.path.dirname(__file__), "subscribers.json")
+    if os.path.exists(path):
+        with open(path, "r") as f:
+            return json.load(f)
+    return []
+
+
+def _save_subscribers(subscribers):
+    path = os.path.join(os.path.dirname(__file__), "subscribers.json")
+    with open(path, "w") as f:
+        json.dump(subscribers, f, indent=2)
+
+
+def subscribe_email(email, name=""):
+    """Subscribe an email to the newsletter. Returns True or raises ValueError."""
+    subscribers = _load_subscribers()
+
+    # Check if already subscribed
+    for sub in subscribers:
+        if sub["email"] == email:
+            if sub.get("active", True):
+                raise ValueError("Email already subscribed")
+            else:
+                # Re-subscribe inactive user
+                sub["active"] = True
+                _save_subscribers(subscribers)
+                return True
+
+    subscriber = {
+        "email": email,
+        "name": name,
+        "active": True,
+    }
+    subscribers.append(subscriber)
+    _save_subscribers(subscribers)
+    return True
+
+
+def unsubscribe_email(email):
+    """Unsubscribe an email from the newsletter. Returns True or raises ValueError."""
+    subscribers = _load_subscribers()
+    for sub in subscribers:
+        if sub["email"] == email:
+            sub["active"] = False
+            _save_subscribers(subscribers)
+            return True
+    raise ValueError("Email not found in subscribers")
+
+
+def list_subscribers():
+    """List all active newsletter subscribers."""
+    subscribers = _load_subscribers()
+    return [s for s in subscribers if s.get("active", True)]
+
+
+def get_subscriber_count():
+    """Get count of active subscribers."""
+    return len(list_subscribers())
