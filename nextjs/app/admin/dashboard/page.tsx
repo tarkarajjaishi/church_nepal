@@ -7,7 +7,7 @@ import Link from 'next/link'
 import {
   BookOpen, Calendar, Users, Bell, Image, Quote, UserCheck, Clock,
   BookMarked, DollarSign, Settings, Shield, ArrowRight, Activity, Eye, EyeOff,
-  Globe, Briefcase, Star, Mail, FileText
+  Globe, Briefcase, Star, Mail, FileText, Heart
 } from 'lucide-react'
 import { useSections, useToggleSection } from '@/lib/hooks'
 
@@ -117,7 +117,13 @@ export default function Dashboard() {
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
           {[
+            { key: 'hero', apiKey: 'hero', label: 'Hero', icon: Activity },
             { key: 'serviceTimes', apiKey: 'service_times', label: 'Service Times', icon: Clock },
+            { key: 'whatToExpect', apiKey: 'what_to_expect', label: 'What to Expect', icon: Users },
+            { key: 'welcome', apiKey: 'welcome', label: 'Welcome', icon: UserCheck },
+            { key: 'whatWeBelieve', apiKey: 'what_we_believe', label: 'What We Believe', icon: BookOpen },
+            { key: 'watchOnline', apiKey: 'watch_online', label: 'Watch Online', icon: Eye },
+            { key: 'prayerCta', apiKey: 'prayer_cta', label: 'Prayer CTA', icon: Heart },
             { key: 'sermons', apiKey: 'sermons', label: 'Sermons', icon: BookOpen },
             { key: 'ministries', apiKey: 'ministries', label: 'Ministries', icon: Users },
             { key: 'events', apiKey: 'events', label: 'Events', icon: Calendar },

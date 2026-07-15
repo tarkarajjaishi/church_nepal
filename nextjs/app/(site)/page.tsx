@@ -38,7 +38,7 @@ function Eyebrow({ block, fallback }: { block: ContentBlock | null | undefined, 
 export default function Home() {
   const { t, lang } = useLang();
   const { data: sectionsData, isLoading: sectionsLoading } = useSections();
-  const defaultSections: Record<string, boolean> = { serviceTimes: true, sermons: true, ministries: true, events: true, notices: true, testimonies: true, leaders: true, gallery: true, members: true, verses: true, campaigns: true };
+  const defaultSections: Record<string, boolean> = { hero: true, serviceTimes: true, whatToExpect: true, welcome: true, whatWeBelieve: true, watchOnline: true, prayerCta: true, sermons: true, ministries: true, events: true, notices: true, testimonies: true, leaders: true, gallery: true, members: true, verses: true, campaigns: true };
   const sec: Record<string, boolean> = sectionsLoading
     ? defaultSections
     : { ...defaultSections, ...sectionsData } as Record<string, boolean>;
@@ -79,6 +79,7 @@ export default function Home() {
   return (
     <div>
       {/* ---------- Hero ---------- */}
+      {sec.hero !== false && (
       <section className="relative min-h-[88vh] flex items-center overflow-hidden">
         <div className="absolute inset-0">
           <ImageWithFallback src={hero?.image || images.hero} alt={hero?.title || "Church"} className="w-full h-full object-cover" />
@@ -112,6 +113,7 @@ export default function Home() {
           </motion.div>
         </div>
       </section>
+      )}
 
       {/* ---------- Service Times ---------- */}
       {sec.serviceTimes === true && (
@@ -137,6 +139,7 @@ export default function Home() {
       )}
 
       {/* ---------- What to Expect ---------- */}
+      {sec.whatToExpect !== false && (
       <CB block={whatToExpect}>
       <section className="py-20 bg-section">
         <div className="mx-auto max-w-7xl px-4">
@@ -154,8 +157,10 @@ export default function Home() {
         </div>
       </section>
       </CB>
+      )}
 
       {/* ---------- Welcome / Pastor ---------- */}
+      {sec.welcome !== false && (
       <section className="py-20">
         <div className="mx-auto max-w-7xl px-4 grid lg:grid-cols-2 gap-12 items-center">
           <Reveal>
@@ -183,8 +188,10 @@ export default function Home() {
           </div>
         </div>
       </section>
+      )}
 
       {/* ---------- What We Believe ---------- */}
+      {sec.whatWeBelieve !== false && (
       <CB block={whatWeBelieve}>
       <section className="py-20 bg-section">
         <div className="mx-auto max-w-7xl px-4">
@@ -204,8 +211,10 @@ export default function Home() {
         </div>
       </section>
       </CB>
+      )}
 
       {/* ---------- Watch Online ---------- */}
+      {sec.watchOnline !== false && (
       <CB block={watchOnline}>
       <section className="py-20">
         <div className="mx-auto max-w-7xl px-4 text-center">
@@ -219,6 +228,7 @@ export default function Home() {
         </div>
       </section>
       </CB>
+      )}
 
       {/* ---------- Featured Sermons ---------- */}
       {sec.sermons === true && allSermons.length > 0 && (
@@ -328,6 +338,7 @@ export default function Home() {
       )}
 
       {/* ---------- Prayer CTA ---------- */}
+      {sec.prayerCta !== false && (
       <CB block={prayerCta}>
       <section className="relative py-24">
         <div className="absolute inset-0">
@@ -340,6 +351,7 @@ export default function Home() {
         </div>
       </section>
       </CB>
+      )}
 
       {/* ---------- Notice Board ---------- */}
       {sec.notices === true && (
