@@ -696,3 +696,67 @@ def toggle_team_featured(member_id):
             _save_team(team)
             return m
     return None
+
+
+# --- Services Functions ---
+
+def _load_services():
+    path = os.path.join(os.path.dirname(__file__), "services.json")
+    if os.path.exists(path):
+        with open(path, "r") as f:
+            return json.load(f)
+    return []
+
+
+def _save_services(services):
+    path = os.path.join(os.path.dirname(__file__), "services.json")
+    with open(path, "w") as f:
+        json.dump(services, f, indent=2)
+
+
+def create_service(title, description="", category="", price=0, image=""):
+    services = _load_services()
+    service_id = str(len(services) + 1)
+    service = {"id": service_id, "title": title, "description": description, "category": category, "price": price, "image": image, "featured": False}
+    services.append(service)
+    _save_services(services)
+    return service
+
+
+def list_services():
+    return _load_services()
+
+
+def get_service(service_id):
+    for s in _load_services():
+        if s["id"] == service_id:
+            return s
+    return None
+
+
+def update_service(service_id, **kwargs):
+    services = _load_services()
+    for s in services:
+        if s["id"] == service_id:
+            for k, v in kwargs.items():
+                if v is not None:
+                    s[k] = v
+            _save_services(services)
+            return s
+    return None
+
+
+def delete_service(service_id):
+    services = [s for s in _load_services() if s["id"] != service_id]
+    _save_services(services)
+    return True
+
+
+def toggle_service_featured(service_id):
+    services = _load_services()
+    for s in services:
+        if s["id"] == service_id:
+            s["featured"] = not s.get("featured", False)
+            _save_services(services)
+            return s
+    return None

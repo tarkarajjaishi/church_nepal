@@ -15,6 +15,7 @@ from auth import (
     toggle_blog_published, toggle_blog_featured,
     create_testimonial, list_testimonials, get_testimonial, update_testimonial, delete_testimonial, toggle_testimonial_featured,
     create_team_member, list_team, get_team_member, update_team_member, delete_team_member, toggle_team_featured,
+    create_service, list_services, get_service, update_service, delete_service, toggle_service_featured,
 )
 
 app = FastAPI(title="Auth API", version="1.0.0")
@@ -110,6 +111,20 @@ class TeamMemberUpdate(BaseModel):
     bio: Optional[str] = None
     image: Optional[str] = None
     category: Optional[str] = None
+
+class ServiceRequest(BaseModel):
+    title: str
+    description: str = ""
+    category: str = ""
+    price: int = 0
+    image: str = ""
+
+class ServiceUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    category: Optional[str] = None
+    price: Optional[int] = None
+    image: Optional[str] = None
 
 
 def get_current_user(authorization: str = Header(None)):
@@ -445,6 +460,48 @@ def toggle_team_featured_endpoint(member_id: str):
     if not member:
         raise HTTPException(status_code=404, detail="Team member not found")
     return member
+
+
+# --- Services Endpoints ---
+
+@app.get("/services")
+def list_services_endpoint():
+    return list_services()
+
+
+@app.get("/services/{service_id}")
+def get_service_endpoint(service_id: str):
+    service = get_service(service_id)
+    if not service:
+        raise HTTPException(status_code=404, detail="Service not found")
+    return service
+
+
+@app.post("/services")
+def create_service_endpoint(req: ServiceRequest):
+    return create_service(title=req.title, description=req.description, category=req.category, price=req.price, image=req.image)
+
+
+@app.put("/services/{service_id}")
+def update_service_endpoint(service_id: str, req: ServiceUpdate):
+    service = update_service(service_id, title=req.title, description=req.description, category=req.category, price=req.price, image=req.image)
+    if not service:
+        raise HTTPException(status_code=404, detail="Service not found")
+    return service
+
+
+@app.delete("/services/{service_id}")
+def delete_service_endpoint(service_id: str):
+    delete_service(service_id)
+    return {"message": "Service deleted"}
+
+
+@app.put("/services/{service_id}/featured")
+def toggle_service_featured_endpoint(service_id: str):
+    service = toggle_service_featured(service_id)
+    if not service:
+        raise HTTPException(status_code=404, detail="Service not found")
+    return service
 
 
 @app.get("/")
