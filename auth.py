@@ -458,6 +458,80 @@ def get_subscriber_count():
     return len(list_subscribers())
 
 
+# --- Testimonials Functions ---
+
+def _load_testimonials():
+    path = os.path.join(os.path.dirname(__file__), "testimonials.json")
+    if os.path.exists(path):
+        with open(path, "r") as f:
+            return json.load(f)
+    return []
+
+
+def _save_testimonials(testimonials):
+    path = os.path.join(os.path.dirname(__file__), "testimonials.json")
+    with open(path, "w") as f:
+        json.dump(testimonials, f, indent=2)
+
+
+def create_testimonial(name, role, quote, image="", rating=5):
+    testimonials = _load_testimonials()
+    testimonial_id = str(len(testimonials) + 1)
+    testimonial = {
+        "id": testimonial_id,
+        "name": name,
+        "role": role,
+        "quote": quote,
+        "image": image,
+        "rating": rating,
+        "featured": False,
+    }
+    testimonials.append(testimonial)
+    _save_testimonials(testimonials)
+    return testimonial
+
+
+def list_testimonials():
+    return _load_testimonials()
+
+
+def get_testimonial(testimonial_id):
+    testimonials = _load_testimonials()
+    for t in testimonials:
+        if t["id"] == testimonial_id:
+            return t
+    return None
+
+
+def update_testimonial(testimonial_id, **kwargs):
+    testimonials = _load_testimonials()
+    for t in testimonials:
+        if t["id"] == testimonial_id:
+            for key, value in kwargs.items():
+                if value is not None:
+                    t[key] = value
+            _save_testimonials(testimonials)
+            return t
+    return None
+
+
+def delete_testimonial(testimonial_id):
+    testimonials = _load_testimonials()
+    testimonials = [t for t in testimonials if t["id"] != testimonial_id]
+    _save_testimonials(testimonials)
+    return True
+
+
+def toggle_testimonial_featured(testimonial_id):
+    testimonials = _load_testimonials()
+    for t in testimonials:
+        if t["id"] == testimonial_id:
+            t["featured"] = not t.get("featured", False)
+            _save_testimonials(testimonials)
+            return t
+    return None
+
+
 # --- Blog Functions ---
 
 def _load_blog_posts():

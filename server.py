@@ -13,6 +13,7 @@ from auth import (
     send_contact_email, subscribe_email, unsubscribe_email, list_subscribers, get_subscriber_count,
     create_blog_post, list_blog_posts, get_blog_post, update_blog_post, delete_blog_post,
     toggle_blog_published, toggle_blog_featured,
+    create_testimonial, list_testimonials, get_testimonial, update_testimonial, delete_testimonial, toggle_testimonial_featured,
 )
 
 app = FastAPI(title="Auth API", version="1.0.0")
@@ -80,6 +81,20 @@ class BlogPostUpdate(BaseModel):
     category: Optional[str] = None
     image: Optional[str] = None
     slug: Optional[str] = None
+
+class TestimonialRequest(BaseModel):
+    name: str
+    role: str
+    quote: str
+    image: str = ""
+    rating: int = 5
+
+class TestimonialUpdate(BaseModel):
+    name: Optional[str] = None
+    role: Optional[str] = None
+    quote: Optional[str] = None
+    image: Optional[str] = None
+    rating: Optional[int] = None
 
 
 def get_current_user(authorization: str = Header(None)):
@@ -333,6 +348,48 @@ def toggle_featured(post_id: str):
     return post
 
 
+# --- Testimonials Endpoints ---
+
+@app.get("/testimonials")
+def list_test():
+    return list_testimonials()
+
+
+@app.get("/testimonials/{testimonial_id}")
+def get_test(testimonial_id: str):
+    testimonial = get_testimonial(testimonial_id)
+    if not testimonial:
+        raise HTTPException(status_code=404, detail="Testimonial not found")
+    return testimonial
+
+
+@app.post("/testimonials")
+def create_test(req: TestimonialRequest):
+    return create_testimonial(name=req.name, role=req.role, quote=req.quote, image=req.image, rating=req.rating)
+
+
+@app.put("/testimonials/{testimonial_id}")
+def update_test(testimonial_id: str, req: TestimonialUpdate):
+    testimonial = update_testimonial(testimonial_id, name=req.name, role=req.role, quote=req.quote, image=req.image, rating=req.rating)
+    if not testimonial:
+        raise HTTPException(status_code=404, detail="Testimonial not found")
+    return testimonial
+
+
+@app.delete("/testimonials/{testimonial_id}")
+def delete_test(testimonial_id: str):
+    delete_testimonial(testimonial_id)
+    return {"message": "Testimonial deleted"}
+
+
+@app.put("/testimonials/{testimonial_id}/featured")
+def toggle_test_featured(testimonial_id: str):
+    testimonial = toggle_testimonial_featured(testimonial_id)
+    if not testimonial:
+        raise HTTPException(status_code=404, detail="Testimonial not found")
+    return testimonial
+
+
 @app.get("/")
 def root():
     return {"message": "Auth API is running", "endpoints": [
@@ -341,6 +398,7 @@ def root():
         "POST /newsletter/subscribe", "POST /newsletter/unsubscribe", "GET /newsletter/subscribers", "GET /newsletter/count",
         "GET /blog", "GET /blog/{slug_or_id}", "POST /blog", "PUT /blog/{post_id}", "DELETE /blog/{post_id}",
         "PUT /blog/{post_id}/publish", "PUT /blog/{post_id}/featured",
+        "GET /testimonials", "GET /testimonials/{id}", "POST /testimonials", "PUT /testimonials/{id}", "DELETE /testimonials/{id}", "PUT /testimonials/{id}/featured",
         "GET /me", "PUT /me", "GET /me/role",
         "POST /change-password", "POST /password-reset/request", "POST /password-reset",
         "GET /users", "PUT /users/{email}/role", "DELETE /users/{email}", "GET /roles"
