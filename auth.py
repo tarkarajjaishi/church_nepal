@@ -814,3 +814,70 @@ def delete_contact_info(info_id):
     info = [i for i in _load_contact_info() if i["id"] != info_id]
     _save_contact_info(info)
     return True
+
+
+
+# --- Portfolio Functions ---
+
+def _load_portfolio():
+    import os, json
+    path = os.path.join(os.path.dirname(__file__), 'portfolio.json')
+    if os.path.exists(path):
+        with open(path, 'r') as f:
+            return json.load(f)
+    return []
+
+
+def _save_portfolio(portfolio):
+    import os, json
+    path = os.path.join(os.path.dirname(__file__), 'portfolio.json')
+    with open(path, 'w') as f:
+        json.dump(portfolio, f, indent=2)
+
+
+def create_portfolio(title, description='', image='', category='', client='', year='', url=''):
+    portfolio = _load_portfolio()
+    project_id = str(len(portfolio) + 1)
+    project = {'id': project_id, 'title': title, 'description': description, 'image': image, 'category': category, 'client': client, 'year': year, 'url': url, 'featured': False}
+    portfolio.append(project)
+    _save_portfolio(portfolio)
+    return project
+
+
+def list_portfolio():
+    return _load_portfolio()
+
+
+def get_portfolio(project_id):
+    for p in _load_portfolio():
+        if p['id'] == project_id:
+            return p
+    return None
+
+
+def update_portfolio(project_id, **kwargs):
+    portfolio = _load_portfolio()
+    for p in portfolio:
+        if p['id'] == project_id:
+            for k, v in kwargs.items():
+                if v is not None:
+                    p[k] = v
+            _save_portfolio(portfolio)
+            return p
+    return None
+
+
+def delete_portfolio(project_id):
+    portfolio = [p for p in _load_portfolio() if p['id'] != project_id]
+    _save_portfolio(portfolio)
+    return True
+
+
+def toggle_portfolio_featured(project_id):
+    portfolio = _load_portfolio()
+    for p in portfolio:
+        if p['id'] == project_id:
+            p['featured'] = not p.get('featured', False)
+            _save_portfolio(portfolio)
+            return p
+    return None

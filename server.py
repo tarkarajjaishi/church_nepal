@@ -17,6 +17,7 @@ from auth import (
     create_team_member, list_team, get_team_member, update_team_member, delete_team_member, toggle_team_featured,
     create_service, list_services, get_service, update_service, delete_service, toggle_service_featured,
     create_contact_info, list_contact_info, get_contact_info, update_contact_info, delete_contact_info,
+    create_portfolio, list_portfolio, get_portfolio, update_portfolio, delete_portfolio, toggle_portfolio_featured,
 )
 
 app = FastAPI(title="Auth API", version="1.0.0")
@@ -142,6 +143,24 @@ class ContactInfoUpdate(BaseModel):
     hours: Optional[str] = None
     map_url: Optional[str] = None
     social_links: Optional[list] = None
+
+class PortfolioRequest(BaseModel):
+    title: str
+    description: str = ""
+    image: str = ""
+    category: str = ""
+    client: str = ""
+    year: str = ""
+    url: str = ""
+
+class PortfolioUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    image: Optional[str] = None
+    category: Optional[str] = None
+    client: Optional[str] = None
+    year: Optional[str] = None
+    url: Optional[str] = None
 
 
 def get_current_user(authorization: str = Header(None)):
@@ -553,6 +572,48 @@ def update_contact_info_endpoint(info_id: str, req: ContactInfoUpdate):
 def delete_contact_info_endpoint(info_id: str):
     delete_contact_info(info_id)
     return {"message": "Contact info deleted"}
+
+
+# --- Portfolio Endpoints ---
+
+@app.get("/portfolio")
+def list_portfolio_endpoint():
+    return list_portfolio()
+
+
+@app.get("/portfolio/{project_id}")
+def get_portfolio_endpoint(project_id: str):
+    project = get_portfolio(project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Portfolio project not found")
+    return project
+
+
+@app.post("/portfolio")
+def create_portfolio_endpoint(req: PortfolioRequest):
+    return create_portfolio(title=req.title, description=req.description, image=req.image, category=req.category, client=req.client, year=req.year, url=req.url)
+
+
+@app.put("/portfolio/{project_id}")
+def update_portfolio_endpoint(project_id: str, req: PortfolioUpdate):
+    project = update_portfolio(project_id, title=req.title, description=req.description, image=req.image, category=req.category, client=req.client, year=req.year, url=req.url)
+    if not project:
+        raise HTTPException(status_code=404, detail="Portfolio project not found")
+    return project
+
+
+@app.delete("/portfolio/{project_id}")
+def delete_portfolio_endpoint(project_id: str):
+    delete_portfolio(project_id)
+    return {"message": "Portfolio project deleted"}
+
+
+@app.put("/portfolio/{project_id}/featured")
+def toggle_portfolio_featured_endpoint(project_id: str):
+    project = toggle_portfolio_featured(project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Portfolio project not found")
+    return project
 
 
 @app.get("/")
