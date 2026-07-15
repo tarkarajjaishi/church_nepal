@@ -1,0 +1,105 @@
+version: '3.9'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: grace-church-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-password}
+      POSTGRES_DB: grace_church_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - grace-network
+
+  # Python Auth Server
+  auth-server:
+    build:
+      context: .
+      dockerfile: Dockerfile.auth
+    container_name: grace-church-auth
+    environment:
+      JWT_SECRET: ${AUTH_JWT_SECRET:-dev_secret_change_in_production}
+      DATABASE_URL: ${DATABASE_URL:-postgres://postgres:password@postgres:5432/grace_church_dev}
+      PORT: 8000
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./:/app
+    networks:
+      - grace-network
+    command: uvicorn server:app --host 0.0.0.0 --port 8000 --reload
+
+  # Rust API Backend
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: grace-church-api
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgres://postgres:password@postgres:5432/grace_church_dev}
+      JWT_SECRET: ${JWT_SECRET:-dev_secret_change_in_production}
+      PORT: 3002
+      RUST_LOG: info
+    ports:
+      - "3002:3002"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - grace-network
+
+  # Next.js Frontend
+  frontend:
+    build:
+      context: ./nextjs
+      dockerfile: Dockerfile
+    container_name: grace-church-frontend
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:3002
+      NEXT_PUBLIC_AUTH_URL: http://localhost:8000
+      NEXT_PUBLIC_SITE_URL: http://localhost:3000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - auth-server
+      - api
+    networks:
+      - grace-network
+
+  # Redis Cache (optional)
+  redis:
+    image: redis:7-alpine
+    container_name: grace-church-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - grace-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  grace-network:
+    driver: bridge

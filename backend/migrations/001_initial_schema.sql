@@ -1,0 +1,130 @@
+"""Database schema and migrations setup."""
+-- Initial schema for multi-tenant architecture
+
+-- Tenants table
+CREATE TABLE IF NOT EXISTS tenants (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(255) NOT NULL,
+    domain VARCHAR(255) UNIQUE NOT NULL,
+    slug VARCHAR(255) UNIQUE NOT NULL,
+    logo_url TEXT,
+    primary_color VARCHAR(7),
+    secondary_color VARCHAR(7),
+    subscription_tier VARCHAR(50) DEFAULT 'free',
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Users table (per-tenant)
+CREATE TABLE IF NOT EXISTS users (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    email VARCHAR(255) NOT NULL,
+    name VARCHAR(255),
+    password_hash VARCHAR(255),
+    role VARCHAR(50) DEFAULT 'user',
+    is_verified BOOLEAN DEFAULT false,
+    last_login TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(tenant_id, email)
+);
+
+-- API Keys table
+CREATE TABLE IF NOT EXISTS api_keys (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    key_hash VARCHAR(64) NOT NULL UNIQUE,
+    prefix VARCHAR(8),
+    name VARCHAR(255),
+    permissions TEXT[] DEFAULT ARRAY['read'],
+    rate_limit INTEGER DEFAULT 60,
+    is_active BOOLEAN DEFAULT true,
+    last_used TIMESTAMP,
+    expires_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Subscriptions table
+CREATE TABLE IF NOT EXISTS subscriptions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id UUID NOT NULL UNIQUE REFERENCES tenants(id) ON DELETE CASCADE,
+    stripe_customer_id VARCHAR(255),
+    stripe_subscription_id VARCHAR(255),
+    tier VARCHAR(50) DEFAULT 'free',
+    status VARCHAR(50) DEFAULT 'active',
+    current_period_start TIMESTAMP,
+    current_period_end TIMESTAMP,
+    cancel_at_period_end BOOLEAN DEFAULT false,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Webhooks table
+CREATE TABLE IF NOT EXISTS webhooks (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    url TEXT NOT NULL,
+    events TEXT[] NOT NULL,
+    secret VARCHAR(255),
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Blog posts table (per-tenant)
+CREATE TABLE IF NOT EXISTS blog_posts (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    title VARCHAR(255) NOT NULL,
+    slug VARCHAR(255) NOT NULL,
+    content TEXT,
+    excerpt TEXT,
+    author_id UUID REFERENCES users(id),
+    category VARCHAR(100),
+    image_url TEXT,
+    is_published BOOLEAN DEFAULT false,
+    is_featured BOOLEAN DEFAULT false,
+    view_count INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(tenant_id, slug)
+);
+
+-- Audit log table (for compliance)
+CREATE TABLE IF NOT EXISTS audit_logs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES users(id),
+    action VARCHAR(255) NOT NULL,
+    resource_type VARCHAR(100),
+    resource_id UUID,
+    changes JSONB,
+    ip_address INET,
+    user_agent TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Usage metrics table
+CREATE TABLE IF NOT EXISTS usage_metrics (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    metric_type VARCHAR(100) NOT NULL,
+    value INTEGER NOT NULL,
+    date DATE NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(tenant_id, metric_type, date)
+);
+
+-- Indexes for performance
+CREATE INDEX idx_users_tenant ON users(tenant_id);
+CREATE INDEX idx_users_email ON users(email);
+CREATE INDEX idx_blog_posts_tenant ON blog_posts(tenant_id);
+CREATE INDEX idx_blog_posts_published ON blog_posts(tenant_id, is_published);
+CREATE INDEX idx_api_keys_tenant ON api_keys(tenant_id);
+CREATE INDEX idx_api_keys_hash ON api_keys(key_hash);
+CREATE INDEX idx_webhooks_tenant ON webhooks(tenant_id);
+CREATE INDEX idx_audit_logs_tenant ON audit_logs(tenant_id);
+CREATE INDEX idx_audit_logs_user ON audit_logs(user_id);
+CREATE INDEX idx_usage_metrics_tenant ON usage_metrics(tenant_id, date);
