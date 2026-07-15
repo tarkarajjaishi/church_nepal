@@ -79,17 +79,16 @@ export default function Home() {
   return (
     <div>
       {/* ---------- Hero ---------- */}
-      {hero && (
       <section className="relative min-h-[88vh] flex items-center overflow-hidden">
         <div className="absolute inset-0">
-          <ImageWithFallback src={hero.image || images.hero} alt={hero.title || "Church"} className="w-full h-full object-cover" />
+          <ImageWithFallback src={hero?.image || images.hero} alt={hero?.title || "Church"} className="w-full h-full object-cover" />
           <div className="absolute inset-0 gradient-hero-br" />
         </div>
         <div className="relative mx-auto max-w-7xl px-4 py-24 w-full">
           <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }} className="max-w-2xl">
             <Badge className="bg-gold/20 text-gold border-gold/30 mb-5">{t("tagline")}</Badge>
-            <h1 className="text-white text-4xl sm:text-5xl lg:text-6xl" style={{ fontFamily: "var(--font-heading)", fontWeight: 800, lineHeight: 1.05 }}>{hero.title || t("hero_welcome")}</h1>
-            <p className="mt-5 text-lg text-white/85 max-w-xl">{hero.subtitle || t("hero_sub")}</p>
+            <h1 className="text-white text-4xl sm:text-5xl lg:text-6xl" style={{ fontFamily: "var(--font-heading)", fontWeight: 800, lineHeight: 1.05 }}>{hero?.title || t("hero_welcome")}</h1>
+            <p className="mt-5 text-lg text-white/85 max-w-xl">{hero?.subtitle || t("hero_sub")}</p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Button asChild size="lg" className="bg-gold text-church-blue hover:bg-gold/90"><Link href="/sermons"><Play className="size-4" /> {t("hero_watch")}</Link></Button>
               <Button asChild size="lg" variant="ghost" className="text-white hover:bg-white/10 hover:text-white"><Link href="/prayer"><HandHeart className="size-4" /> {t("hero_pray")}</Link></Button>
@@ -113,7 +112,6 @@ export default function Home() {
           </motion.div>
         </div>
       </section>
-      )}
 
       {/* ---------- Service Times ---------- */}
       {sec.serviceTimes === true && (
@@ -158,12 +156,11 @@ export default function Home() {
       </CB>
 
       {/* ---------- Welcome / Pastor ---------- */}
-      {welcome && (
       <section className="py-20">
         <div className="mx-auto max-w-7xl px-4 grid lg:grid-cols-2 gap-12 items-center">
           <Reveal>
             <div className="relative">
-              <ImageWithFallback src={welcome.image || images.pastor} alt="Senior Pastor" loading="lazy" className="rounded-3xl w-full aspect-[4/5] object-cover shadow-xl" />
+              <ImageWithFallback src={welcome?.image || images.pastor} alt="Senior Pastor" loading="lazy" className="rounded-3xl w-full aspect-[4/5] object-cover shadow-xl" />
               <Card className="absolute -bottom-6 -right-2 sm:right-6 p-4 max-w-[220px] shadow-xl border-0">
                 <div className="text-church-blue" style={{ fontFamily: "var(--font-heading)", fontWeight: 600 }}>Ps. Bishal Rai</div>
                 <div className="text-sm text-muted-foreground">Senior Pastor</div>
@@ -171,10 +168,10 @@ export default function Home() {
             </div>
           </Reveal>
           <div>
-            <SectionHeading center={false} eyebrow={<Eyebrow block={welcome} fallback="Welcome" />} title={welcome.title || t("welcome_title")} subtitle={welcome.subtitle || ""} />
+            <SectionHeading center={false} eyebrow={<Eyebrow block={welcome} fallback="Welcome" />} title={welcome?.title || t("welcome_title")} subtitle={welcome?.subtitle || ""} />
             <Reveal delay={0.1}>
               <div className="mt-8 grid grid-cols-2 sm:grid-cols-4 gap-4">
-                {(welcome.items || []).map((st: any, i: number) => (
+                {(welcome?.items || []).map((st: any, i: number) => (
                   <div key={i} className="text-center rounded-2xl bg-section p-4">
                     <div className="text-church-blue" style={{ fontFamily: "var(--font-heading)", fontWeight: 700, fontSize: "1.75rem" }}>{st.value}</div>
                     <div className="text-xs text-muted-foreground mt-1">{st.label}</div>
@@ -186,7 +183,6 @@ export default function Home() {
           </div>
         </div>
       </section>
-      )}
 
       {/* ---------- What We Believe ---------- */}
       <CB block={whatWeBelieve}>
