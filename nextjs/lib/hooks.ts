@@ -35,6 +35,57 @@ export interface Campaign {
   goal: number
 }
 
+// Generic hook wrapper for react-query with loading/error properties
+function wrapQuery<T>(query: any) {
+  return {
+    ...query,
+    loading: query.isPending,
+    error: query.error,
+  }
+}
+
+// Admin-specific typed hooks (using generic fetch)
+export function useBlogPosts() {
+  const query = useQuery({
+    queryKey: ["blog"],
+    queryFn: () => api.get("/blog").then(r => r.data),
+  })
+  return wrapQuery(query)
+}
+
+export function useUsers() {
+  const query = useQuery({
+    queryKey: ["users"],
+    queryFn: () => api.get("/users").then(r => r.data),
+  })
+  return wrapQuery(query)
+}
+
+export function useServices() {
+  const query = useQuery({
+    queryKey: ["services"],
+    queryFn: () => api.get("/services").then(r => r.data),
+  })
+  return wrapQuery(query)
+}
+
+export function usePortfolio() {
+  const query = useQuery({
+    queryKey: ["portfolio"],
+    queryFn: () => api.get("/portfolio").then(r => r.data),
+  })
+  return wrapQuery(query)
+}
+
+export function useDashboardStats() {
+  const query = useQuery({
+    queryKey: ["dashboard", "stats"],
+    queryFn: () => api.get("/dashboard/stats").then(r => r.data),
+  })
+  return wrapQuery(query)
+}
+
+// Homepage hooks (existing)
 export function useServiceTimes() {
   return useQuery({
     queryKey: ["service-times"],
@@ -235,3 +286,5 @@ export function useContentBlock(key: string) {
   const { data: blocks = [] } = useContentBlocks()
   return blocks.find((b: ContentBlock) => b.section_key === key) ?? null
 }
+
+

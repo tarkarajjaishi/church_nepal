@@ -47,6 +47,17 @@ backend/stdout.txt
 # vault/.obsidian/workspace.json
 # vault/.obsidian/workspace-mobile.json
 
+# Python (project is Rust + Next.js only — no Python in this repo)
+*.py
+requirements.txt
+Dockerfile.auth
+
+# Local data / secrets (never commit to a public repo)
+users.json
+
+# Claude Code local tooling
+.claude/
+
 # Misc
 *.local
 .cache/
