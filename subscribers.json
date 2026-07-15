@@ -1,0 +1,12 @@
+[
+  {
+    "email": "test@church.org",
+    "name": "",
+    "active": true
+  },
+  {
+    "email": "jane@church.org",
+    "name": "",
+    "active": true
+  }
+]

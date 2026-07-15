@@ -58,7 +58,7 @@ export default function ProfilePage() {
       const res = await fetch(`${PYTHON_API}/change-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ old_password: currentPassword, new_password: newPassword })
+        body: JSON.stringify({ current_password: currentPassword, new_password: newPassword })
       })
       if (!res.ok) {
         const data = await res.json()

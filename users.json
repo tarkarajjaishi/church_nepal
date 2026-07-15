@@ -1,0 +1,10 @@
+{
+  "profile@test.com": {
+    "id": "1",
+    "email": "profile@test.com",
+    "name": "Updated Name",
+    "password_hash": "$2b$12$YOUnrf5jpnj2Eaxc3BqXu.z1UpLv9DiU34e871Qd5vmPw.8qCjsQ2",
+    "role": "user",
+    "verified": false
+  }
+}
