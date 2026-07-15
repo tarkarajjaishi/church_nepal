@@ -241,6 +241,23 @@ class AuthMiddleware:
             return None
         return payload
 
+    def has_role(self, token, required_roles):
+        """Check if a token has one of the required roles."""
+        payload = self.verify_token(token)
+        if not payload:
+            return False
+        user_role = payload.get("role", "user")
+        if isinstance(required_roles, str):
+            required_roles = [required_roles]
+        return user_role in required_roles
+
+    def require_role(self, token, required_roles):
+        """Verify token has one of the required roles. Raises ValueError if not."""
+        if not self.has_role(token, required_roles):
+            payload = self.verify_token(token)
+            user_role = payload.get("role", "unknown") if payload else "unauthenticated"
+            raise ValueError(f"Access denied: requires role {required_roles}, you have '{user_role}'")
+
     def hash_password(self, password):
         """Hash a password using bcrypt."""
         return bcrypt_hash(password)

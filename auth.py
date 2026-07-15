@@ -139,6 +139,40 @@ def logout_all_devices(token):
     return True
 
 
+def get_user_role(token):
+    """Get the role from a token."""
+    payload = auth.verify_token(token)
+    if not payload:
+        return None
+    return payload.get("role", "user")
+
+
+def require_role(token, roles):
+    """Verify user has one of the required roles. Raises ValueError if not."""
+    auth.require_role(token, roles)
+
+
+def update_user_role(token, target_email, new_role):
+    """Update a user's role. Requires admin role."""
+    payload = auth.verify_token(token)
+    if not payload:
+        raise ValueError("Invalid token")
+    if payload.get("role") != "admin":
+        raise ValueError("Admin access required")
+
+    valid_roles = ["admin", "editor", "viewer"]
+    if new_role not in valid_roles:
+        raise ValueError(f"Invalid role. Must be one of: {valid_roles}")
+
+    users = _load_users()
+    if target_email not in users:
+        raise ValueError("User not found")
+
+    users[target_email]["role"] = new_role
+    _save_users(users)
+    return {k: v for k, v in users[target_email].items() if k != "password_hash"}
+
+
 def refresh_access_token(refresh_token):
     """Refresh an access token using a refresh token. Returns (new_access, new_refresh) or raises ValueError."""
     payload = auth.verify_token(refresh_token)

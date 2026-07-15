@@ -9,7 +9,7 @@ from auth import (
     register_user, login_user, verify_auth, change_password,
     update_profile, get_user, list_users, delete_user,
     request_password_reset, reset_password, refresh_access_token,
-    logout_all_devices, verify_email,
+    logout_all_devices, verify_email, get_user_role, require_role, update_user_role,
 )
 
 app = FastAPI(title="Auth API", version="1.0.0")
@@ -187,13 +187,35 @@ def delete_user_route(email: str, user=Depends(get_current_user)):
         raise HTTPException(status_code=403, detail=str(e))
 
 
+class RoleRequest(BaseModel):
+    role: str
+
+
+@app.put("/users/{email}/role")
+def update_role(email: str, req: RoleRequest, user=Depends(get_current_user)):
+    try:
+        return update_user_role(user["_token"], email, req.role)
+    except ValueError as e:
+        raise HTTPException(status_code=403, detail=str(e))
+
+
+@app.get("/roles")
+def get_roles(user=Depends(get_current_user)):
+    return {"roles": ["admin", "editor", "viewer"]}
+
+
+@app.get("/me/role")
+def get_my_role(user=Depends(get_current_user)):
+    return {"role": user.get("role", "user")}
+
+
 @app.get("/")
 def root():
     return {"message": "Auth API is running", "endpoints": [
         "POST /register", "POST /login", "POST /refresh", "POST /logout", "POST /logout-all",
-        "POST /verify-email", "POST /verify-email/request", "GET /me", "PUT /me",
+        "POST /verify-email", "POST /verify-email/request", "GET /me", "PUT /me", "GET /me/role",
         "POST /change-password", "POST /password-reset/request", "POST /password-reset",
-        "GET /users", "DELETE /users/{email}"
+        "GET /users", "PUT /users/{email}/role", "DELETE /users/{email}", "GET /roles"
     ]}
 
 
