@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useCallback, useRef, useEffect } from 'react'
+import Link from 'next/link'
 import { useQueryClient } from '@tanstack/react-query'
-import { Pencil, Check, Loader2, X } from 'lucide-react'
+import { Pencil, Check, Loader2, X, ExternalLink, ArrowRight } from 'lucide-react'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -16,9 +17,12 @@ import type { ContentBlock } from '@/lib/hooks'
 interface EditableBlockProps {
   block: ContentBlock | null | undefined
   children: React.ReactNode
+  /** For sections whose items live in a DB table, link the pen to that admin page. */
+  adminHref?: string
+  adminLabel?: string
 }
 
-export function EditableBlock({ block, children }: EditableBlockProps) {
+export function EditableBlock({ block, children, adminHref, adminLabel }: EditableBlockProps) {
   const { isAdmin } = useIsAdmin()
   const queryClient = useQueryClient()
   const [open, setOpen] = useState(false)
@@ -157,6 +161,19 @@ export function EditableBlock({ block, children }: EditableBlockProps) {
                 className="text-sm"
               />
             </div>
+            {adminHref && (
+              <Link
+                href={adminHref}
+                onClick={() => setOpen(false)}
+                className="mt-1 flex items-center justify-between rounded-md border border-border px-3 py-2 text-sm font-medium text-church-blue transition-colors hover:bg-secondary"
+              >
+                <span className="flex items-center gap-2">
+                  <ExternalLink className="size-3.5" />
+                  Manage {adminLabel || 'items'} in admin
+                </span>
+                <ArrowRight className="size-3.5" />
+              </Link>
+            )}
           </div>
         </PopoverContent>
       </Popover>

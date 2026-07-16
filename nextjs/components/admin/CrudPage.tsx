@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { type ColumnDef } from '@tanstack/react-table'
 import api, { uploadFile } from '@/lib/admin/api'
@@ -102,6 +103,21 @@ export function CrudPage({ endpoint, title, fields }: { endpoint: string; title:
 
   const openCreate = () => { setEditing(null); setForm({ sort_order: items.length }); setShowForm(true) }
   const openEdit = (item: any) => { setEditing(item); setForm(item); setShowForm(true) }
+
+  // Deep link: /admin/<resource>?edit=<id> opens that exact item's editor once.
+  // This is what the "Edit" pens on the public homepage link to.
+  const searchParams = useSearchParams()
+  const handledEditRef = useRef(false)
+  useEffect(() => {
+    if (handledEditRef.current) return
+    const editId = searchParams.get('edit')
+    if (!editId || !items.length) return
+    const item = items.find((x: any) => String(x.id) === editId)
+    if (item) {
+      openEdit(item)
+      handledEditRef.current = true
+    }
+  }, [searchParams, items])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()

@@ -25,6 +25,7 @@ import {
   useSections, useContentBlocks, ContentBlock,
 } from "@/lib/hooks";
 import { EditableBlock } from "@/components/site/EditableBlock";
+import { ItemEdit } from "@/components/site/ItemEdit";
 
 function CB({ block, children }: { block: ContentBlock | null | undefined, children: React.ReactNode }) {
   if (block?.enabled === false) return null
@@ -129,7 +130,7 @@ export default function Home() {
       )}
       {/* ---------- Service Times ---------- */}
       {sec.serviceTimes === true && (
-      <EditableBlock block={serviceTimesSec}>
+      <EditableBlock block={serviceTimesSec} adminHref="/admin/service-times" adminLabel="service times">
       <CB block={serviceTimesSec}>
       <section className="py-20 bg-section">
         <div className="mx-auto max-w-7xl px-4">
@@ -137,12 +138,14 @@ export default function Home() {
           <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
             {serviceTimes.map((s, i) => (
               <Reveal key={s.id} delay={i * 0.05}>
+                <ItemEdit href={`/admin/service-times?edit=${s.id}`}>
                 <Card className="group p-6 h-full border-border/60 hover:border-gold hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
                   <span className="grid place-items-center size-12 rounded-xl bg-secondary text-church-blue group-hover:bg-gold group-hover:text-church-blue transition-colors"><Icon name={s.icon} className="size-6" /></span>
                   <h3 className="mt-4 text-church-blue" style={{ fontFamily: "var(--font-heading)", fontWeight: 600 }}>{lang === "en" ? s.name : s.nameNe}</h3>
                   <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground"><Calendar className="size-4 text-gold" /> {s.day}</div>
                   <div className="mt-1 flex items-center gap-2 text-sm text-muted-foreground"><Clock className="size-4 text-gold" /> {s.time}</div>
                 </Card>
+                </ItemEdit>
               </Reveal>
             ))}
           </div>
@@ -264,7 +267,7 @@ export default function Home() {
 
       {/* ---------- Featured Sermons ---------- */}
       {sec.sermons === true && allSermons.length > 0 && (
-      <EditableBlock block={sermonsSec}>
+      <EditableBlock block={sermonsSec} adminHref="/admin/sermons" adminLabel="sermons">
       <CB block={sermonsSec}>
       <section className="py-20 bg-section">
         <div className="mx-auto max-w-7xl px-4">
@@ -275,6 +278,7 @@ export default function Home() {
           <div className="mt-10 grid gap-6 md:grid-cols-3">
             {featuredSermons.map((s, i) => (
               <Reveal key={s.id} delay={i * 0.08}>
+                <ItemEdit href={`/admin/sermons?edit=${s.id}`}>
                 <Link href={`/sermons/${s.id}`}>
                   <Card className="group overflow-hidden h-full border-border/60 hover:shadow-xl transition-all duration-300 gap-0">
                     <div className="relative aspect-video overflow-hidden">
@@ -293,6 +297,7 @@ export default function Home() {
                     </div>
                   </Card>
                 </Link>
+                </ItemEdit>
               </Reveal>
             ))}
           </div>
@@ -304,7 +309,7 @@ export default function Home() {
 
       {/* ---------- Ministries ---------- */}
       {sec.ministries === true && (
-      <EditableBlock block={ministriesSec}>
+      <EditableBlock block={ministriesSec} adminHref="/admin/ministries" adminLabel="ministries">
       <CB block={ministriesSec}>
       <section className="py-20">
         <div className="mx-auto max-w-7xl px-4">
@@ -312,6 +317,7 @@ export default function Home() {
           <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {featuredMinistries.map((m, i) => (
               <Reveal key={m.id} delay={i * 0.06}>
+                <ItemEdit href={`/admin/ministries?edit=${m.id}`}>
                 <Link href={`/ministries/${m.id}`}>
                   <Card className="group overflow-hidden h-full border-border/60 hover:shadow-xl transition-all duration-300 gap-0">
                     <div className="relative h-44 overflow-hidden">
@@ -325,6 +331,7 @@ export default function Home() {
                     </div>
                   </Card>
                 </Link>
+                </ItemEdit>
               </Reveal>
             ))}
           </div>
@@ -337,7 +344,7 @@ export default function Home() {
 
       {/* ---------- Upcoming Events ---------- */}
       {sec.events === true && (
-      <EditableBlock block={eventsSec}>
+      <EditableBlock block={eventsSec} adminHref="/admin/events" adminLabel="events">
       <CB block={eventsSec}>
       <section className="py-20 bg-section">
         <div className="mx-auto max-w-7xl px-4">
@@ -345,6 +352,7 @@ export default function Home() {
           <div className="mt-12 grid gap-6 lg:grid-cols-2">
             {allEvents.slice(0, 2).map((e, i) => (
               <Reveal key={e.id} delay={i * 0.08}>
+                <ItemEdit href={`/admin/events?edit=${e.id}`}>
                 <Link href={`/events/${e.id}`}>
                   <Card className="group overflow-hidden h-full border-border/60 hover:shadow-xl transition-all sm:flex gap-0">
                     <div className="relative sm:w-2/5 h-48 sm:h-auto overflow-hidden">
@@ -366,6 +374,7 @@ export default function Home() {
                     </div>
                   </Card>
                 </Link>
+                </ItemEdit>
               </Reveal>
             ))}
           </div>
@@ -395,7 +404,7 @@ export default function Home() {
 
       {/* ---------- Notice Board ---------- */}
       {sec.notices === true && (
-      <EditableBlock block={noticeSec}>
+      <EditableBlock block={noticeSec} adminHref="/admin/notices" adminLabel="notices">
       <CB block={noticeSec}>
       <section className="py-20">
         <div className="mx-auto max-w-7xl px-4">
@@ -409,7 +418,7 @@ export default function Home() {
 
       {/* ---------- Testimonies ---------- */}
       {sec.testimonies === true && (
-      <EditableBlock block={testimoniesSec}>
+      <EditableBlock block={testimoniesSec} adminHref="/admin/testimonies" adminLabel="testimonies">
       <CB block={testimoniesSec}>
       <section className="py-20">
         <div className="mx-auto max-w-7xl px-4">
@@ -417,6 +426,7 @@ export default function Home() {
           <div className="mt-12 grid gap-6 md:grid-cols-3">
             {allTestimonies.map((tst, i) => (
               <Reveal key={tst.id} delay={i * 0.08}>
+                <ItemEdit href={`/admin/testimonies?edit=${tst.id}`}>
                 <Card className="p-6 h-full border-border/60 hover:shadow-xl transition-all">
                   <Quote className="size-8 text-gold/40" />
                   <p className="mt-3 text-foreground/80 leading-relaxed">"{tst.quote}"</p>
@@ -429,6 +439,7 @@ export default function Home() {
                     </div>
                   </div>
                 </Card>
+                </ItemEdit>
               </Reveal>
             ))}
           </div>
@@ -440,7 +451,7 @@ export default function Home() {
 
       {/* ---------- Church Members ---------- */}
       {sec.members === true && (
-      <EditableBlock block={membersSec}>
+      <EditableBlock block={membersSec} adminHref="/admin/members" adminLabel="members">
       <CB block={membersSec}>
       <section className="py-20 bg-section">
         <div className="mx-auto max-w-7xl px-4">
@@ -460,7 +471,7 @@ export default function Home() {
 
       {/* ---------- Gallery preview ---------- */}
       {sec.gallery === true && (
-      <EditableBlock block={gallerySec}>
+      <EditableBlock block={gallerySec} adminHref="/admin/gallery" adminLabel="gallery">
       <CB block={gallerySec}>
       <section className="py-20 bg-section">
         <div className="mx-auto max-w-7xl px-4">
@@ -468,10 +479,12 @@ export default function Home() {
           <div className="mt-12 grid grid-cols-2 md:grid-cols-4 gap-3">
             {allGallery.slice(0, 8).map((g, i) => (
               <Reveal key={g.id} delay={i * 0.04}>
-                <Link href="/gallery" className={`group relative block overflow-hidden rounded-2xl ${i % 5 === 0 ? "row-span-2 aspect-[3/4]" : "aspect-square"}`}>
+                <ItemEdit href={`/admin/gallery?edit=${g.id}`} className={i % 5 === 0 ? "row-span-2 aspect-[3/4]" : "aspect-square"}>
+                <Link href="/gallery" className="group relative block h-full w-full overflow-hidden rounded-2xl">
                   <ImageWithFallback src={g.image} alt={g.title} loading="lazy" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
                   <div className="absolute inset-0 bg-church-blue/0 group-hover:bg-church-blue/50 transition-colors grid place-items-end p-3"><span className="text-white text-sm opacity-0 group-hover:opacity-100 transition-opacity">{g.title}</span></div>
                 </Link>
+                </ItemEdit>
               </Reveal>
             ))}
           </div>
@@ -483,7 +496,7 @@ export default function Home() {
 
       {/* ---------- Verse of the day ---------- */}
       {sec.verses === true && (
-      <EditableBlock block={verseSec}>
+      <EditableBlock block={verseSec} adminHref="/admin/verses" adminLabel="verses">
       <CB block={verseSec}>
       <section className="py-20 bg-church-blue">
         <div className="mx-auto max-w-3xl px-4 text-center">
@@ -501,7 +514,7 @@ export default function Home() {
 
       {/* ---------- Donation ---------- */}
       {sec.campaigns === true && (
-      <EditableBlock block={donationSec}>
+      <EditableBlock block={donationSec} adminHref="/admin/campaigns" adminLabel="campaigns">
       <CB block={donationSec}>
       <section className="py-20">
         <div className="mx-auto max-w-7xl px-4 grid lg:grid-cols-2 gap-12 items-center">
@@ -521,7 +534,8 @@ export default function Home() {
               {allCampaigns.map((c) => {
                 const pct = Math.round((c.raised / c.goal) * 100);
                 return (
-                  <Card key={c.id} className="p-5 border-border/60">
+                  <ItemEdit key={c.id} href={`/admin/campaigns?edit=${c.id}`}>
+                  <Card className="p-5 border-border/60">
                     <div className="flex justify-between items-center">
                       <span className="text-church-blue" style={{ fontFamily: "var(--font-heading)", fontWeight: 600 }}>{c.title}</span>
                       <span className="text-sm text-gold">{pct}%</span>
@@ -529,6 +543,7 @@ export default function Home() {
                     <Progress value={pct} className="mt-3" />
                     <div className="mt-2 text-sm text-muted-foreground">Rs {c.raised.toLocaleString()} raised of Rs {c.goal.toLocaleString()}</div>
                   </Card>
+                  </ItemEdit>
                 );
               })}
             </div>
