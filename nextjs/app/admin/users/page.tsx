@@ -13,7 +13,7 @@ function RoleSelect({ user, onChangeRole }: { user: User; onChangeRole: (role: s
   const roles = ['viewer', 'editor', 'admin']
   return (
     <select
-      value={user.role}
+      value={user.role ?? 'viewer'}
       onChange={(e) => onChangeRole(e.target.value)}
       className="px-3 py-1 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
     >

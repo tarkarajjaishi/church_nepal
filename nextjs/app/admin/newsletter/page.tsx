@@ -1,21 +1,18 @@
 'use client'
 
 import { useQuery } from '@tanstack/react-query'
-import { Mail, Users, Trash2 } from 'lucide-react'
-
-const PYTHON_API = process.env.NEXT_PUBLIC_PYTHON_API || 'http://localhost:8000'
+import { Mail, Users } from 'lucide-react'
+import api from '@/lib/admin/api'
 
 export default function NewsletterAdminPage() {
   const { data: subscribers = [], isLoading } = useQuery({
-    queryKey: ['py', 'newsletter-subscribers'],
-    queryFn: () => fetch(`${PYTHON_API}/newsletter/subscribers`, {
-      headers: { Authorization: `Bearer ${localStorage.getItem('py_token') || ''}` },
-    }).then(r => r.ok ? r.json() : []),
+    queryKey: ['newsletter-subscribers'],
+    queryFn: () => api.get('/newsletter/subscribers').then(r => r.data ?? []),
   })
 
   const { data: countData } = useQuery({
-    queryKey: ['py', 'newsletter-count'],
-    queryFn: () => fetch(`${PYTHON_API}/newsletter/count`).then(r => r.json()),
+    queryKey: ['newsletter-count'],
+    queryFn: () => api.get('/newsletter/count').then(r => r.data),
   })
 
   return (
@@ -56,7 +53,7 @@ export default function NewsletterAdminPage() {
                 <tr key={sub.email || i} className="hover:bg-gray-50">
                   <td className="px-4 py-3 text-sm text-gray-500">{i + 1}</td>
                   <td className="px-4 py-3 text-sm text-gray-900">{sub.email}</td>
-                  <td className="px-4 py-3 text-sm text-gray-500">{sub.subscribed_at || '—'}</td>
+                  <td className="px-4 py-3 text-sm text-gray-500">{sub.subscribedAt || '—'}</td>
                 </tr>
               ))}
             </tbody>

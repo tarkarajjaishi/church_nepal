@@ -2,31 +2,48 @@
 
 import { useState, useEffect } from 'react'
 import { Save, CheckCircle, Building2, Globe, Search, Loader2 } from 'lucide-react'
-
-const PYTHON_API = process.env.NEXT_PUBLIC_PYTHON_API || 'http://localhost:8000'
+import api from '@/lib/admin/api'
 
 interface SiteSettings {
-  church_name: string
-  church_address: string
-  church_phone: string
-  church_email: string
-  church_hours: string
-  church_tagline: string
+  churchName: string
+  churchAddress: string
+  churchPhone: string
+  churchEmail: string
+  churchHours: string
+  churchTagline: string
   facebook: string
   instagram: string
   youtube: string
   twitter: string
-  website_url: string
-  meta_title: string
-  meta_description: string
-  site_url: string
+  websiteUrl: string
+  metaTitle: string
+  metaDescription: string
+  siteUrl: string
 }
 
 const defaults: SiteSettings = {
-  church_name: '', church_address: '', church_phone: '', church_email: '',
-  church_hours: '', church_tagline: '', facebook: '', instagram: '',
-  youtube: '', twitter: '', website_url: '', meta_title: '',
-  meta_description: '', site_url: '',
+  churchName: '', churchAddress: '', churchPhone: '', churchEmail: '',
+  churchHours: '', churchTagline: '', facebook: '', instagram: '',
+  youtube: '', twitter: '', websiteUrl: '', metaTitle: '',
+  metaDescription: '', siteUrl: '',
+}
+
+// Map between camelCase frontend keys and snake_case backend setting keys
+const keyMap: Record<keyof SiteSettings, string> = {
+  churchName: 'church_name',
+  churchAddress: 'church_address',
+  churchPhone: 'church_phone',
+  churchEmail: 'church_email',
+  churchHours: 'church_hours',
+  churchTagline: 'church_tagline',
+  facebook: 'facebook',
+  instagram: 'instagram',
+  youtube: 'youtube',
+  twitter: 'twitter',
+  websiteUrl: 'website_url',
+  metaTitle: 'meta_title',
+  metaDescription: 'meta_description',
+  siteUrl: 'site_url',
 }
 
 export default function SettingsPage() {
@@ -36,9 +53,19 @@ export default function SettingsPage() {
   const [saved, setSaved] = useState(false)
 
   useEffect(() => {
-    fetch(`${PYTHON_API}/site-settings`)
-      .then(r => r.json())
-      .then(data => { setSettings(data); setLoading(false) })
+    api.get('/settings')
+      .then(r => {
+        const pairs: { key: string; value: string }[] = r.data
+        const mapped = { ...defaults }
+        for (const pair of pairs) {
+          const camelKey = Object.entries(keyMap).find(([, v]) => v === pair.key)?.[0] as keyof SiteSettings | undefined
+          if (camelKey) {
+            mapped[camelKey] = pair.value ?? ''
+          }
+        }
+        setSettings(mapped)
+        setLoading(false)
+      })
       .catch(() => setLoading(false))
   }, [])
 
@@ -51,18 +78,16 @@ export default function SettingsPage() {
     setSaving(true)
     setSaved(false)
     try {
-      const token = localStorage.getItem('py_token')
-      const res = await fetch(`${PYTHON_API}/site-settings`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) },
-        body: JSON.stringify(settings),
-      })
-      if (res.ok) {
-        const data = await res.json()
-        setSettings(data)
-        setSaved(true)
-        setTimeout(() => setSaved(false), 3000)
-      }
+      // Save each setting individually via PUT /settings/{key}
+      const entries = Object.entries(settings) as [keyof SiteSettings, string][]
+      await Promise.all(
+        entries.map(([camelKey, value]) => {
+          const backendKey = keyMap[camelKey]
+          return api.put(`/settings/${backendKey}`, { value: value ?? '' })
+        })
+      )
+      setSaved(true)
+      setTimeout(() => setSaved(false), 3000)
     } catch (err) {
       console.error('Failed to save settings', err)
     } finally {
@@ -100,30 +125,30 @@ export default function SettingsPage() {
 
       {/* Church Info */}
       <Section icon={Building2} title="Church Information">
-        <Field label="Church Name" value={settings.church_name} onChange={v => update('church_name', v)} />
-        <Field label="Tagline" value={settings.church_tagline} onChange={v => update('church_tagline', v)} />
-        <Field label="Address" value={settings.church_address} onChange={v => update('church_address', v)} />
+        <Field label="Church Name" value={settings.churchName ?? ''} onChange={v => update('churchName', v)} />
+        <Field label="Tagline" value={settings.churchTagline ?? ''} onChange={v => update('churchTagline', v)} />
+        <Field label="Address" value={settings.churchAddress ?? ''} onChange={v => update('churchAddress', v)} />
         <div className="grid grid-cols-2 gap-4">
-          <Field label="Phone" value={settings.church_phone} onChange={v => update('church_phone', v)} />
-          <Field label="Email" value={settings.church_email} onChange={v => update('church_email', v)} />
+          <Field label="Phone" value={settings.churchPhone ?? ''} onChange={v => update('churchPhone', v)} />
+          <Field label="Email" value={settings.churchEmail ?? ''} onChange={v => update('churchEmail', v)} />
         </div>
-        <Field label="Service Hours" value={settings.church_hours} onChange={v => update('church_hours', v)} placeholder="e.g. Sun 9:00 AM, Wed 6:00 PM" />
+        <Field label="Service Hours" value={settings.churchHours ?? ''} onChange={v => update('churchHours', v)} placeholder="e.g. Sun 9:00 AM, Wed 6:00 PM" />
       </Section>
 
       {/* Social Links */}
       <Section icon={Globe} title="Social Links">
-        <Field label="Facebook URL" value={settings.facebook} onChange={v => update('facebook', v)} placeholder="https://facebook.com/..." />
-        <Field label="Instagram URL" value={settings.instagram} onChange={v => update('instagram', v)} placeholder="https://instagram.com/..." />
-        <Field label="YouTube URL" value={settings.youtube} onChange={v => update('youtube', v)} placeholder="https://youtube.com/..." />
-        <Field label="Twitter URL" value={settings.twitter} onChange={v => update('twitter', v)} placeholder="https://twitter.com/..." />
-        <Field label="Website URL" value={settings.website_url} onChange={v => update('website_url', v)} placeholder="https://..." />
+        <Field label="Facebook URL" value={settings.facebook ?? ''} onChange={v => update('facebook', v)} placeholder="https://facebook.com/..." />
+        <Field label="Instagram URL" value={settings.instagram ?? ''} onChange={v => update('instagram', v)} placeholder="https://instagram.com/..." />
+        <Field label="YouTube URL" value={settings.youtube ?? ''} onChange={v => update('youtube', v)} placeholder="https://youtube.com/..." />
+        <Field label="Twitter URL" value={settings.twitter ?? ''} onChange={v => update('twitter', v)} placeholder="https://twitter.com/..." />
+        <Field label="Website URL" value={settings.websiteUrl ?? ''} onChange={v => update('websiteUrl', v)} placeholder="https://..." />
       </Section>
 
       {/* SEO */}
       <Section icon={Search} title="SEO & Meta">
-        <Field label="Site URL" value={settings.site_url} onChange={v => update('site_url', v)} placeholder="https://churchnepal.com" />
-        <Field label="Meta Title" value={settings.meta_title} onChange={v => update('meta_title', v)} placeholder="Grace Nepal Church - Home" />
-        <Textarea label="Meta Description" value={settings.meta_description} onChange={v => update('meta_description', v)} placeholder="A brief description for search engines (150-160 chars recommended)" />
+        <Field label="Site URL" value={settings.siteUrl ?? ''} onChange={v => update('siteUrl', v)} placeholder="https://churchnepal.com" />
+        <Field label="Meta Title" value={settings.metaTitle ?? ''} onChange={v => update('metaTitle', v)} placeholder="Grace Nepal Church - Home" />
+        <Textarea label="Meta Description" value={settings.metaDescription ?? ''} onChange={v => update('metaDescription', v)} placeholder="A brief description for search engines (150-160 chars recommended)" />
       </Section>
 
       {/* Bottom save */}
@@ -161,7 +186,7 @@ function Field({ label, value, onChange, placeholder }: { label: string; value: 
       <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
       <input
         type="text"
-        value={value}
+        value={value ?? ''}
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0b3c5d] focus:border-transparent text-sm"
@@ -175,7 +200,7 @@ function Textarea({ label, value, onChange, placeholder }: { label: string; valu
     <div>
       <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
       <textarea
-        value={value}
+        value={value ?? ''}
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
         rows={3}

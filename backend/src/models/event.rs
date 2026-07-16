@@ -36,5 +36,4 @@ pub struct UpdateEvent {
     pub location: Option<String>,
     pub image: Option<String>,
     pub description: Option<String>,
-    pub sort_order: Option<i32>,
 }

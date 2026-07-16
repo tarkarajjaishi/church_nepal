@@ -22,9 +22,9 @@ pub fn build_payment_url(
     config: &EsewaConfig,
     donation_id: &str,
     amount: i64,
-    product_service: &str,
-    product_delivery_charge: i64,
-    product_tax_charge: i64,
+    _product_service: &str,
+    _product_delivery_charge: i64,
+    _product_tax_charge: i64,
 ) -> String {
     format!(
         "{}/epay/main?url=http://localhost:3000/give/success?donation_id={}&amt={}&pid={}&scd={}&su=http://localhost:3002/api/donations/callback/esewa?donation_id={}",
@@ -42,13 +42,15 @@ pub fn verify_signature(params: &EsewaCallback, secret: &str) -> bool {
     mac.update(msg.as_bytes());
     let result = mac.finalize();
     let computed = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &result.into_bytes());
-    computed == params.refId
+    computed == params.ref_id
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct EsewaCallback {
     pub oid: String,
     pub amt: String,
-    pub refId: String,
-    pub refId2: Option<String>,
+    #[serde(rename = "refId")]
+    pub ref_id: String,
+    #[serde(rename = "refId2")]
+    pub ref_id2: Option<String>,
 }

@@ -30,5 +30,4 @@ pub struct UpdateTestimony {
     pub quote: Option<String>,
     pub image: Option<String>,
     pub rating: Option<i32>,
-    pub sort_order: Option<i32>,
 }

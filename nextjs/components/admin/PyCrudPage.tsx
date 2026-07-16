@@ -4,23 +4,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Plus, Pencil, Trash2, X, Star } from 'lucide-react'
 import { RichTextEditor } from './RichTextEditor'
-
-const PYTHON_API = process.env.NEXT_PUBLIC_PYTHON_API || 'http://localhost:8000'
-
-function pyFetch(path: string, opts?: RequestInit) {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('py_token') : null
-  return fetch(`${PYTHON_API}${path}`, {
-    ...opts,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...opts?.headers,
-    },
-  }).then(async r => {
-    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || 'Request failed')
-    return r.json()
-  })
-}
+import api from '@/lib/admin/api'
 
 interface Field {
   key: string
@@ -38,30 +22,30 @@ export function PyCrudPage({ endpoint, title, fields }: { endpoint: string; titl
   const [error, setError] = useState('')
 
   const { data: items = [], isLoading } = useQuery({
-    queryKey: ['py', endpoint],
-    queryFn: () => pyFetch(`/${endpoint}`).then(r => Array.isArray(r) ? r : []),
+    queryKey: ['crud', endpoint],
+    queryFn: () => api.get(`/${endpoint}`).then(r => Array.isArray(r.data) ? r.data : []),
   })
 
   const createMut = useMutation({
-    mutationFn: (data: any) => pyFetch(`/${endpoint}`, { method: 'POST', body: JSON.stringify(data) }),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['py', endpoint] }); setShowForm(false); setForm({}); setError('') },
+    mutationFn: (data: any) => api.post(`/${endpoint}`, data).then(r => r.data),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['crud', endpoint] }); setShowForm(false); setForm({}); setError('') },
     onError: (e: Error) => setError(e.message),
   })
 
   const updateMut = useMutation({
-    mutationFn: ({ id, data }: any) => pyFetch(`/${endpoint}/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['py', endpoint] }); setShowForm(false); setEditing(null); setForm({}); setError('') },
+    mutationFn: ({ id, data }: any) => api.put(`/${endpoint}/${id}`, data).then(r => r.data),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['crud', endpoint] }); setShowForm(false); setEditing(null); setForm({}); setError('') },
     onError: (e: Error) => setError(e.message),
   })
 
   const deleteMut = useMutation({
-    mutationFn: (id: string) => pyFetch(`/${endpoint}/${id}`, { method: 'DELETE' }),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['py', endpoint] }); setConfirmDelete(null) },
+    mutationFn: (id: string) => api.delete(`/${endpoint}/${id}`),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['crud', endpoint] }); setConfirmDelete(null) },
   })
 
   const featuredMut = useMutation({
-    mutationFn: (id: string) => pyFetch(`/${endpoint}/${id}/featured`, { method: 'PUT' }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['py', endpoint] }),
+    mutationFn: (id: string) => api.put(`/${endpoint}/${id}/featured`, {}),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['crud', endpoint] }),
   })
 
   const openEdit = (item: any) => { setEditing(item); setForm(item); setShowForm(true); setError('') }

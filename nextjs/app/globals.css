@@ -13,6 +13,7 @@
 
   /* Church brand palette */
   --church-blue: #0b3c5d;
+  --church-blue-rgb: 11, 60, 93;
   --sky-blue: #1f6f8b;
   --gold: #d4a017;
   --gold-soft: #f3e2b3;
@@ -78,6 +79,16 @@
   --border: oklch(0.269 0 0);
   --input: oklch(0.269 0 0);
   --ring: oklch(0.439 0 0);
+
+  /* Brand palette tuned for dark mode: church-blue lightened so headings and
+     links stay readable; section backgrounds darkened. Overridden at runtime
+     by the Theme Customizer when the admin picks a custom colour. */
+  --church-blue: #5b9bd5;
+  --sky-blue: #7fb2e0;
+  --section-bg: #0f1a24;
+  --gold: #e0b34a;
+  --gold-soft: #33290f;
+  --success: #4ade80;
 }
 
 @layer base {
@@ -95,23 +106,73 @@
   }
 }
 
-/* Gradient overlays */
+/* Gradient overlays — follow the active brand colour via --church-blue-rgb */
 .gradient-hero {
-  background: linear-gradient(to right, rgba(11,60,93,0.9), rgba(11,60,93,0.75), rgba(11,60,93,0.4));
+  background: linear-gradient(to right, rgba(var(--church-blue-rgb), 0.9), rgba(var(--church-blue-rgb), 0.75), rgba(var(--church-blue-rgb), 0.4));
 }
 
 .gradient-hero-br {
-  background: linear-gradient(to bottom right, rgba(11,60,93,0.95), rgba(11,60,93,0.8), rgba(31,111,139,0.5));
+  background: linear-gradient(to bottom right, rgba(var(--church-blue-rgb), 0.95), rgba(var(--church-blue-rgb), 0.8), rgba(var(--church-blue-rgb), 0.55));
 }
 
 .gradient-card-hover {
-  background: rgba(11,60,93,0);
+  background: rgba(var(--church-blue-rgb), 0);
   transition: background 0.3s;
 }
 
 .gradient-card-hover:hover {
-  background: rgba(11,60,93,0.5);
+  background: rgba(var(--church-blue-rgb), 0.5);
 }
+
+/* Smooth transition when the brand colour / mode changes */
+body {
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+/* "Bordered" skin — defined outlines on card surfaces instead of relying on shadow */
+.skin-bordered .bg-card,
+.skin-bordered .bg-white {
+  border: 1px solid var(--border);
+}
+
+/* ---- Master-theme bridge --------------------------------------------------
+   ~30 files hard-code the brand navy (#0b3c5d / #0d4a6e), gold (#d4a843 /
+   #d4a017) and Tailwind blue/indigo (mostly in the admin panel). Remap those
+   exact utility classes to the live theme variables so the Theme Customizer
+   recolours the ENTIRE system — public site AND admin — from one place, and
+   automatically in dark mode (the variables carry dark values). */
+[class~="bg-[#0b3c5d]"],
+[class~="bg-[#0d4a6e]"],
+[class~="bg-blue-600"],
+[class~="bg-blue-700"],
+[class~="bg-indigo-600"] { background-color: var(--church-blue) !important; }
+
+[class~="hover:bg-[#0d4a6e]"]:hover,
+[class~="hover:bg-blue-700"]:hover { background-color: var(--church-blue) !important; }
+
+[class~="text-[#0b3c5d]"],
+[class~="text-blue-600"],
+[class~="text-blue-700"],
+[class~="text-indigo-600"] { color: var(--church-blue) !important; }
+
+[class~="border-[#0b3c5d]"],
+[class~="border-blue-600"] { border-color: var(--church-blue) !important; }
+
+[class~="ring-[#0b3c5d]"],
+[class~="focus:ring-[#0b3c5d]"]:focus { --tw-ring-color: var(--church-blue) !important; }
+
+[class~="from-[#0b3c5d]"],
+[class~="from-blue-600"] {
+  --tw-gradient-from: var(--church-blue) var(--tw-gradient-from-position) !important;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+}
+[class~="to-[#0d4a6e]"],
+[class~="to-indigo-600"] { --tw-gradient-to: var(--church-blue) var(--tw-gradient-to-position) !important; }
+
+[class~="bg-[#d4a843]"],
+[class~="bg-[#d4a017]"] { background-color: var(--gold) !important; }
+[class~="text-[#d4a843]"],
+[class~="text-[#d4a017]"] { color: var(--gold) !important; }
 
 /* TipTap Rich Text Editor */
 .tiptap {

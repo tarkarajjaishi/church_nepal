@@ -22,27 +22,6 @@ services:
     networks:
       - grace-network
 
-  # Python Auth Server
-  auth-server:
-    build:
-      context: .
-      dockerfile: Dockerfile.auth
-    container_name: grace-church-auth
-    environment:
-      JWT_SECRET: ${AUTH_JWT_SECRET:-dev_secret_change_in_production}
-      DATABASE_URL: ${DATABASE_URL:-postgres://postgres:password@postgres:5432/grace_church_dev}
-      PORT: 8000
-    ports:
-      - "8000:8000"
-    depends_on:
-      postgres:
-        condition: service_healthy
-    volumes:
-      - ./:/app
-    networks:
-      - grace-network
-    command: uvicorn server:app --host 0.0.0.0 --port 8000 --reload
-
   # Rust API Backend
   api:
     build:
@@ -70,12 +49,10 @@ services:
     container_name: grace-church-frontend
     environment:
       NEXT_PUBLIC_API_URL: http://localhost:3002
-      NEXT_PUBLIC_AUTH_URL: http://localhost:8000
       NEXT_PUBLIC_SITE_URL: http://localhost:3000
     ports:
       - "3000:3000"
     depends_on:
-      - auth-server
       - api
     networks:
       - grace-network

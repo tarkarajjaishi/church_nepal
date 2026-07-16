@@ -24,5 +24,4 @@ pub struct UpdateGalleryItem {
     pub title: Option<String>,
     pub category: Option<String>,
     pub image: Option<String>,
-    pub sort_order: Option<i32>,
 }

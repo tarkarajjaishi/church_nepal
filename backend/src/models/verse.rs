@@ -24,5 +24,4 @@ pub struct UpdateVerse {
     pub text: Option<String>,
     pub ref_text: Option<String>,
     pub ne: Option<String>,
-    pub sort_order: Option<i32>,
 }

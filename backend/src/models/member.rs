@@ -27,5 +27,4 @@ pub struct UpdateMember {
     pub role: Option<String>,
     pub since: Option<String>,
     pub image: Option<String>,
-    pub sort_order: Option<i32>,
 }

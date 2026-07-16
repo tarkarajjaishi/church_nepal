@@ -58,6 +58,10 @@ users.json
 # Claude Code local tooling
 .claude/
 
+# Bridge / agent tooling
+.bridge/
+*.bat
+
 # Misc
 *.local
 .cache/

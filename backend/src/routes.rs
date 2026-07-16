@@ -1,4 +1,4 @@
-use axum::routing::{get, post, put, delete};
+use axum::routing::{get, post, put};
 use axum::Router;
 use sqlx::PgPool;
 

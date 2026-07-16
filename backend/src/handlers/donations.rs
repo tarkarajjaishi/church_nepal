@@ -1,7 +1,6 @@
 use axum::extract::{Path, State, Query};
 use axum::Json;
 use sqlx::PgPool;
-use crate::auth::AuthUser;
 use crate::error::AppError;
 use crate::models::donation::{Donation, InitiateDonation};
 

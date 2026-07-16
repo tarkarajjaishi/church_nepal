@@ -24,5 +24,4 @@ pub struct UpdateCampaign {
     pub title: Option<String>,
     pub raised: Option<i64>,
     pub goal: Option<i64>,
-    pub sort_order: Option<i32>,
 }

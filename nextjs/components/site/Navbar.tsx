@@ -19,6 +19,7 @@ import {
 } from "../ui/dropdown-menu";
 import { useLang } from "@/lib/language";
 import { useContentBlock } from "@/lib/hooks";
+import { ThemeToggle } from "./ThemeToggle";
 
 const primary = [
   { to: "/about", key: "nav_about" },
@@ -59,7 +60,7 @@ export function Navbar() {
   return (
     <header
       className={`sticky top-0 z-50 transition-all duration-300 ${
-        scrolled ? "bg-white/95 backdrop-blur shadow-[0_4px_24px_rgba(11,60,93,0.08)]" : "bg-white/80 backdrop-blur"
+        scrolled ? "bg-background/95 backdrop-blur shadow-[0_4px_24px_rgba(var(--church-blue-rgb),0.08)]" : "bg-background/80 backdrop-blur"
       }`}
     >
       <nav className="mx-auto max-w-7xl px-4 h-16 flex items-center justify-between gap-4">
@@ -115,6 +116,8 @@ export function Navbar() {
           >
             <Search className="size-4" />
           </Link>
+
+          <ThemeToggle />
 
           <Link
             href="/bible"

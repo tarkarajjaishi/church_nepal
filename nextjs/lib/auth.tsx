@@ -3,7 +3,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import api from './api'
-import type { User, AuthToken } from './types'
+import type { User } from './types'
 
 interface AuthContextType {
   user: User | null
@@ -53,43 +53,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     initAuth()
   }, [])
 
-  // Setup automatic token refresh every 14 minutes (before 15-min expiration)
-  useEffect(() => {
-    if (!user) return
-
-    const refreshInterval = setInterval(async () => {
-      try {
-        await api.post('/auth/refresh')
-      } catch (err) {
-        console.error('Token refresh failed:', err)
-        logout()
-      }
-    }, 14 * 60 * 1000)
-
-    return () => clearInterval(refreshInterval)
-  }, [user])
+  // Note: the Rust backend issues a 24h bearer token and has no /auth/refresh
+  // route, so there is no refresh interval — the stored token is used directly.
 
   const login = useCallback(async (email: string, password: string) => {
     setError(null)
     setLoading(true)
 
     try {
-      const response = await api.post<AuthToken>('/auth/login', { email, password })
+      const response = await api.post('/auth/login', { email, password })
+      const data: any = response.data
 
-      if (response.data) {
-        const { access_token, refresh_token, user: userData } = response.data
-
-        // Store refresh token in sessionStorage (cleared on tab close)
+      if (data?.token) {
+        // Bearer token in localStorage drives every authenticated request
+        // (lib/api + lib/admin/api attach it) and admin-only UI (useIsAdmin).
         if (typeof window !== 'undefined') {
-          sessionStorage.setItem('refreshToken', refresh_token)
+          localStorage.setItem('admin_token', data.token)
         }
-
-        // Access token stored in HttpOnly cookie by server
-        setUser(userData)
+        setUser(data.user)
         router.push('/admin/dashboard')
       }
     } catch (err: any) {
-      const errorMessage = err?.response?.data?.detail || 'Login failed. Please try again.'
+      const errorMessage =
+        err?.response?.data?.error || err?.response?.data?.detail || 'Login failed. Please try again.'
       setError(errorMessage)
       throw err
     } finally {
@@ -98,19 +84,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [router])
 
   const logout = useCallback(async () => {
-    try {
-      // Notify server to invalidate tokens
-      await api.post('/auth/logout')
-    } catch (err) {
-      console.error('Logout error:', err)
-    } finally {
-      // Clear local state
-      setUser(null)
-      if (typeof window !== 'undefined') {
-        sessionStorage.removeItem('refreshToken')
-      }
-      router.push('/admin/login')
+    // Stateless JWT backend — clearing the local token is all that's needed.
+    setUser(null)
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('admin_token')
+      sessionStorage.removeItem('refreshToken')
     }
+    router.push('/admin/login')
   }, [router])
 
   const clearError = useCallback(() => {

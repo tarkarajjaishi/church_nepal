@@ -18,6 +18,16 @@ const api = axios.create({
   baseURL: 'http://localhost:3002/api',
 })
 
+// Attach the admin bearer token (stored at login) so authenticated endpoints
+// like /auth/me work. Harmless for public GETs (header simply omitted).
+api.interceptors.request.use((config) => {
+  if (typeof window !== 'undefined') {
+    const token = localStorage.getItem('admin_token')
+    if (token) config.headers.Authorization = `Bearer ${token}`
+  }
+  return config
+})
+
 // Normalize all API responses from snake_case to camelCase
 api.interceptors.response.use((res) => {
   res.data = toCamelCase(res.data)

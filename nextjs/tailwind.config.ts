@@ -49,6 +49,7 @@ const config: Config = {
         gold: 'var(--gold)',
         'gold-soft': 'var(--gold-soft)',
         success: 'var(--success)',
+        section: 'var(--section-bg)',
         'section-bg': 'var(--section-bg)',
       },
       borderRadius: {

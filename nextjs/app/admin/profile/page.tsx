@@ -2,9 +2,8 @@
 
 import { useState } from 'react'
 import { useAuth } from '@/lib/admin/auth'
+import api from '@/lib/admin/api'
 import { User, Lock, Save, CheckCircle, AlertCircle } from 'lucide-react'
-
-const PYTHON_API = process.env.NEXT_PUBLIC_PYTHON_API || 'http://localhost:8000'
 
 export default function ProfilePage() {
   const { user } = useAuth()
@@ -24,12 +23,7 @@ export default function ProfilePage() {
     setSaving(true)
     setSaved(false)
     try {
-      const token = localStorage.getItem('py_token')
-      await fetch(`${PYTHON_API}/me`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ name })
-      })
+      await api.put('/auth/me', { name })
       setSaved(true)
       setTimeout(() => setSaved(false), 3000)
     } catch (err) {
@@ -54,24 +48,17 @@ export default function ProfilePage() {
 
     setChangingPassword(true)
     try {
-      const token = localStorage.getItem('py_token')
-      const res = await fetch(`${PYTHON_API}/change-password`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ current_password: currentPassword, new_password: newPassword })
+      const res = await api.post('/auth/change-password', {
+        current_password: currentPassword,
+        new_password: newPassword,
       })
-      if (!res.ok) {
-        const data = await res.json()
-        setPasswordError(data.detail || 'Failed to change password')
-        return
-      }
       setPasswordSaved(true)
       setCurrentPassword('')
       setNewPassword('')
       setConfirmPassword('')
       setTimeout(() => setPasswordSaved(false), 3000)
-    } catch (err) {
-      setPasswordError('Failed to change password')
+    } catch (err: any) {
+      setPasswordError(err?.response?.data?.detail || 'Failed to change password')
     } finally {
       setChangingPassword(false)
     }

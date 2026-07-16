@@ -2,15 +2,24 @@
 
 import { useState, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { type ColumnDef } from '@tanstack/react-table'
 import api, { uploadFile } from '@/lib/admin/api'
-import { Plus, Pencil, Trash2, X, ChevronUp, ChevronDown, Upload } from 'lucide-react'
+import { Plus, Pencil, Trash2, Upload, ChevronUp, ChevronDown } from 'lucide-react'
+import { DataTable, Badge, Switch, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, Button } from '@/components/admin/DataTable'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { toast } from 'sonner'
 import { RichTextEditor } from './RichTextEditor'
 import { useSections, useToggleSection } from '@/lib/hooks'
 
 interface Field {
   key: string
   label: string
-  type: 'text' | 'textarea' | 'number' | 'checkbox'
+  type: 'text' | 'textarea' | 'number' | 'checkbox' | 'select'
+  options?: string[]
 }
 
 export function CrudPage({ endpoint, title, fields }: { endpoint: string; title: string; fields: Field[] }) {
@@ -22,7 +31,6 @@ export function CrudPage({ endpoint, title, fields }: { endpoint: string; title:
   const [uploadingField, setUploadingField] = useState<string | null>(null)
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
 
-  // Section master toggle
   const sectionApiKey = endpoint.replace(/-/g, '_')
   const sectionKey = endpoint.replace(/-([a-z])/g, (_, c) => c.toUpperCase())
   const { data: sections = {} } = useSections()
@@ -36,22 +44,25 @@ export function CrudPage({ endpoint, title, fields }: { endpoint: string; title:
 
   const createMut = useMutation({
     mutationFn: (data: any) => api.post(`/${endpoint}`, data),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: [endpoint] }); setShowForm(false); setForm({}) },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: [endpoint] }); setShowForm(false); setForm({}); toast.success(`${title.replace(/s$/, '')} created`) },
+    onError: () => toast.error(`Failed to create ${title.replace(/s$/, '').toLowerCase()}`),
   })
 
   const updateMut = useMutation({
     mutationFn: ({ id, data }: any) => api.put(`/${endpoint}/${id}`, data),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: [endpoint] }); setShowForm(false); setEditing(null); setForm({}) },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: [endpoint] }); setShowForm(false); setEditing(null); setForm({}); toast.success(`${title.replace(/s$/, '')} updated`) },
+    onError: () => toast.error(`Failed to update ${title.replace(/s$/, '').toLowerCase()}`),
   })
 
   const deleteMut = useMutation({
     mutationFn: (id: string) => api.delete(`/${endpoint}/${id}`),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: [endpoint] }); setConfirmDelete(null) },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: [endpoint] }); setConfirmDelete(null); toast.success('Deleted') },
+    onError: () => toast.error('Failed to delete'),
   })
 
   const toggleMut = useMutation({
     mutationFn: (id: string) => api.put(`/${endpoint}/${id}/toggle`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: [endpoint] }),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: [endpoint] }); toast.success('Toggled') },
   })
 
   const reorderMut = useMutation({
@@ -75,7 +86,7 @@ export function CrudPage({ endpoint, title, fields }: { endpoint: string; title:
       const result = await uploadFile(file)
       setForm(prev => ({ ...prev, [fieldKey]: result.url }))
     } catch (err: any) {
-      alert(`Upload failed: ${err.message}`)
+      toast.error(`Upload failed: ${err.message}`)
     } finally {
       setUploadingField(null)
     }
@@ -83,8 +94,15 @@ export function CrudPage({ endpoint, title, fields }: { endpoint: string; title:
 
   const isImageField = (key: string) => key === 'image' || key === 'thumbnail' || key === 'banner'
 
+  const getImageSrc = (url: string) => {
+    if (!url) return ''
+    if (url.startsWith('http')) return url
+    return `http://localhost:3002${url}`
+  }
+
   const openCreate = () => { setEditing(null); setForm({ sort_order: items.length }); setShowForm(true) }
   const openEdit = (item: any) => { setEditing(item); setForm(item); setShowForm(true) }
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (editing) {
@@ -94,263 +112,206 @@ export function CrudPage({ endpoint, title, fields }: { endpoint: string; title:
     }
   }
 
-  // Get image base URL for display
-  const getImageSrc = (url: string) => {
-    if (!url) return ''
-    if (url.startsWith('http')) return url
-    return `http://localhost:3002${url}`
-  }
+  const columns: ColumnDef<any, any>[] = [
+    {
+      id: 'order',
+      header: '#',
+      cell: ({ row }) => {
+        const idx = row.index
+        return (
+          <div className="flex flex-col items-center gap-0.5">
+            <button onClick={() => moveItem(idx, 'up')} disabled={idx === 0 || reorderMut.isPending} className="p-0.5 text-gray-400 hover:text-church-blue disabled:opacity-30"><ChevronUp className="size-3.5" /></button>
+            <span className="text-xs font-mono text-gray-500">{row.original.sort_order ?? idx}</span>
+            <button onClick={() => moveItem(idx, 'down')} disabled={idx === items.length - 1 || reorderMut.isPending} className="p-0.5 text-gray-400 hover:text-church-blue disabled:opacity-30"><ChevronDown className="size-3.5" /></button>
+          </div>
+        )
+      },
+      size: 60,
+    },
+    {
+      id: 'enabled',
+      header: 'Status',
+      cell: ({ row }) => (
+        <div className="flex items-center gap-2">
+          <Switch
+            checked={row.original.enabled ?? true}
+            onCheckedChange={() => toggleMut.mutate(row.original.id)}
+            disabled={toggleMut.isPending}
+          />
+          <Badge variant={row.original.enabled !== false ? 'default' : 'secondary'}>
+            {row.original.enabled !== false ? 'On' : 'Off'}
+          </Badge>
+        </div>
+      ),
+      size: 140,
+    },
+    ...fields.slice(0, 3).map(f => ({
+      accessorKey: f.key,
+      header: f.label,
+      cell: ({ row }: any) => {
+        const val = row.original[f.key]
+        if (isImageField(f.key) && val) {
+          return (
+            <div className="flex items-center gap-2">
+              <img src={getImageSrc(val)} alt="" className="size-8 rounded object-cover" onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
+              <span className="truncate max-w-[150px]">{val}</span>
+            </div>
+          )
+        }
+        if (f.type === 'checkbox') return val ? 'Yes' : 'No'
+        return <span className="truncate max-w-[200px] block">{String(val ?? '')}</span>
+      },
+    })),
+    {
+      id: 'actions',
+      header: '',
+      cell: ({ row }) => (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="sm" className="size-8 p-0">
+              <span className="sr-only">Actions</span>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-4"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => openEdit(row.original)}>
+              <Pencil className="mr-2 size-4" /> Edit
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setConfirmDelete(row.original.id)} className="text-destructive">
+              <Trash2 className="mr-2 size-4" /> Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ),
+      size: 60,
+    },
+  ]
 
   return (
-    <div>
+    <div className="space-y-6">
       {/* Master Section Toggle */}
-      <div className={`flex items-center justify-between p-4 mb-6 rounded-xl border-2 transition-colors ${
-        sectionEnabled
-          ? 'bg-green-50 border-green-200'
-          : 'bg-red-50 border-red-200'
+      <div className={`flex items-center justify-between p-4 rounded-xl border-2 transition-colors ${
+        sectionEnabled ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'
       }`}>
         <div className="flex items-center gap-3">
           <div className={`size-3 rounded-full ${sectionEnabled ? 'bg-green-500' : 'bg-red-500'}`} />
           <div>
-            <h2 className="text-sm font-semibold text-gray-900">
-              {title} Section — Homepage Visibility
-            </h2>
+            <h2 className="text-sm font-semibold text-gray-900">{title} Section — Homepage Visibility</h2>
             <p className="text-xs text-gray-500 mt-0.5">
-              {sectionEnabled
-                ? 'This section is VISIBLE on the homepage'
-                : 'This section is HIDDEN from the homepage'}
+              {sectionEnabled ? 'This section is VISIBLE on the homepage' : 'This section is HIDDEN from the homepage'}
             </p>
           </div>
         </div>
-        <button
-          onClick={() => toggleSection(sectionApiKey, {
-            onSuccess: () => queryClient.invalidateQueries({ queryKey: ["settings", "sections"] }),
+        <Switch
+          checked={sectionEnabled}
+          onCheckedChange={() => toggleSection(sectionApiKey, {
+            onSuccess: () => queryClient.invalidateQueries({ queryKey: ['settings', 'sections'] }),
           })}
           disabled={sectionToggling}
-          className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors ${
-            sectionEnabled ? 'bg-green-500' : 'bg-gray-300'
-          } ${sectionToggling ? 'opacity-50' : ''}`}
-        >
-          <span className={`inline-block size-6 transform rounded-full bg-white transition-transform shadow ${
-            sectionEnabled ? 'translate-x-7' : 'translate-x-1'
-          }`} />
-        </button>
+        />
       </div>
 
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-[#0b3c5d]">{title}</h1>
-        <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2 bg-[#0b3c5d] text-white rounded-lg text-sm font-medium hover:bg-[#0b3c5d]/90">
-          <Plus className="size-4" /> Add {title.replace(/s$/, '')}
-        </button>
-      </div>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0">
+          <CardTitle>{title}</CardTitle>
+          <Button onClick={openCreate} className="bg-church-blue hover:bg-church-blue/90">
+            <Plus className="mr-1 size-4" /> Add {title.replace(/s$/, '')}
+          </Button>
+        </CardHeader>
+        <CardContent>
+          <DataTable
+            data={items}
+            columns={columns}
+            searchKey={fields[0]?.key}
+            searchPlaceholder={`Search ${title.toLowerCase()}...`}
+            isLoading={isLoading}
+          />
+        </CardContent>
+      </Card>
 
-      {/* Table */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        {isLoading ? (
-          <div className="p-8 text-center text-gray-500">Loading...</div>
-        ) : items.length === 0 ? (
-          <div className="p-8 text-center text-gray-500">No items yet. Click "Add" to create one.</div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>
-                  <th className="px-3 py-3 text-center font-medium text-gray-600 w-16">#</th>
-                  <th className="px-4 py-3 text-center font-medium text-gray-600 w-20">Status</th>
-                  {fields.slice(0, 3).map(f => (
-                    <th key={f.key} className="px-4 py-3 text-left font-medium text-gray-600">{f.label}</th>
-                  ))}
-                  <th className="px-4 py-3 text-right font-medium text-gray-600">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {items.map((item: any, index: number) => (
-                  <tr key={item.id} className="hover:bg-gray-50">
-                    <td className="px-3 py-3 text-center">
-                      <div className="flex flex-col items-center gap-0.5">
-                        <button
-                          onClick={() => moveItem(index, 'up')}
-                          disabled={index === 0 || reorderMut.isPending}
-                          className="p-0.5 text-gray-400 hover:text-[#0b3c5d] disabled:opacity-30 disabled:cursor-not-allowed"
-                        >
-                          <ChevronUp className="size-3.5" />
-                        </button>
-                        <span className="text-xs font-mono text-gray-500">{item.sort_order ?? index}</span>
-                        <button
-                          onClick={() => moveItem(index, 'down')}
-                          disabled={index === items.length - 1 || reorderMut.isPending}
-                          className="p-0.5 text-gray-400 hover:text-[#0b3c5d] disabled:opacity-30 disabled:cursor-not-allowed"
-                        >
-                          <ChevronDown className="size-3.5" />
-                        </button>
+      {/* Form Dialog */}
+      <Dialog open={showForm} onOpenChange={setShowForm}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editing ? 'Edit' : 'Create'} {title.replace(/s$/, '')}</DialogTitle>
+            <DialogDescription>{editing ? 'Update the details below.' : 'Fill in the details to create a new item.'}</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {fields.map(f => (
+              <div key={f.key} className="space-y-2">
+                <Label>{f.label}</Label>
+                {f.type === 'textarea' ? (
+                  <RichTextEditor value={form[f.key] ?? ''} onChange={val => setForm({ ...form, [f.key]: val })} />
+                ) : f.type === 'checkbox' ? (
+                  <div className="flex items-center gap-2">
+                    <input type="checkbox" checked={form[f.key] ?? false} onChange={e => setForm({ ...form, [f.key]: e.target.checked })} className="size-4" />
+                    <Label className="font-normal">Enabled</Label>
+                  </div>
+                ) : f.type === 'select' && f.options ? (
+                  <Select value={form[f.key] ?? ''} onValueChange={val => setForm({ ...form, [f.key]: val })}>
+                    <SelectTrigger><SelectValue placeholder={`Select ${f.label.toLowerCase()}`} /></SelectTrigger>
+                    <SelectContent>
+                      {f.options.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                ) : isImageField(f.key) ? (
+                  <div className="space-y-2">
+                    {form[f.key] && (
+                      <div className="relative inline-block">
+                        <img src={getImageSrc(form[f.key])} alt="Preview" className="h-24 rounded-lg object-cover border"
+                          onError={e => { (e.target as HTMLImageElement).src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96"><rect fill="%23f3f4f6" width="96" height="96"/><text x="48" y="54" text-anchor="middle" fill="%239ca3af" font-size="12">No image</text></svg>' }} />
+                        <button type="button" onClick={() => setForm(prev => ({ ...prev, [f.key]: '' }))} className="absolute -top-2 -right-2 size-5 bg-destructive text-white rounded-full flex items-center justify-center text-xs">x</button>
                       </div>
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <button
-                        onClick={() => toggleMut.mutate(item.id)}
-                        disabled={toggleMut.isPending}
-                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                          item.enabled ? 'bg-green-500' : 'bg-gray-300'
-                        } ${toggleMut.isPending ? 'opacity-50' : ''}`}
-                      >
-                        <span className={`inline-block size-4 transform rounded-full bg-white transition-transform ${
-                          item.enabled ? 'translate-x-6' : 'translate-x-1'
-                        }`} />
-                      </button>
-                      <span className={`ml-2 text-xs font-medium ${item.enabled ? 'text-green-600' : 'text-gray-400'}`}>
-                        {item.enabled ? 'On' : 'Off'}
-                      </span>
-                    </td>
-                    {fields.slice(0, 3).map(f => (
-                      <td key={f.key} className="px-4 py-3 text-gray-700 max-w-[200px] truncate">
-                        {isImageField(f.key) && item[f.key] ? (
-                          <div className="flex items-center gap-2">
-                            <img src={getImageSrc(item[f.key])} alt="" className="size-8 rounded object-cover" onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
-                            <span className="truncate">{item[f.key]}</span>
-                          </div>
-                        ) : f.type === 'checkbox' ? (item[f.key] ? 'Yes' : 'No') : String(item[f.key] ?? '')}
-                      </td>
-                    ))}
-                    <td className="px-4 py-3 text-right">
-                      <button onClick={() => openEdit(item)} className="p-1.5 text-gray-400 hover:text-blue-600"><Pencil className="size-4" /></button>
-                      <button onClick={() => setConfirmDelete(item.id)} className="p-1.5 text-gray-400 hover:text-red-600 ml-1"><Trash2 className="size-4" /></button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      {/* Form Modal */}
-      {showForm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowForm(false)}>
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between p-5 border-b">
-              <h2 className="text-lg font-bold text-[#0b3c5d]">{editing ? 'Edit' : 'Create'} {title.replace(/s$/, '')}</h2>
-              <button onClick={() => setShowForm(false)} className="p-1 text-gray-400 hover:text-gray-600"><X className="size-5" /></button>
-            </div>
-            <form onSubmit={handleSubmit} className="p-5 space-y-4">
-              {fields.map(f => (
-                <div key={f.key}>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{f.label}</label>
-                  {f.type === 'textarea' ? (
-                    <RichTextEditor
-                      value={form[f.key] ?? ''}
-                      onChange={val => setForm({ ...form, [f.key]: val })}
-                    />
-                  ) : f.type === 'checkbox' ? (
-                    <input
-                      type="checkbox"
-                      checked={form[f.key] ?? false}
-                      onChange={e => setForm({ ...form, [f.key]: e.target.checked })}
-                      className="size-4"
-                    />
-                  ) : isImageField(f.key) ? (
-                    <div className="space-y-2">
-                      {/* Image preview */}
-                      {form[f.key] && (
-                        <div className="relative inline-block">
-                          <img
-                            src={getImageSrc(form[f.key])}
-                            alt="Preview"
-                            className="h-24 rounded-lg object-cover border border-gray-200"
-                            onError={e => { (e.target as HTMLImageElement).src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96"><rect fill="%23f3f4f6" width="96" height="96"/><text x="48" y="54" text-anchor="middle" fill="%239ca3af" font-size="12">No image</text></svg>' }}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setForm(prev => ({ ...prev, [f.key]: '' }))}
-                            className="absolute -top-2 -right-2 size-5 bg-red-500 text-white rounded-full flex items-center justify-center text-xs hover:bg-red-600"
-                          >
-                            x
-                          </button>
-                        </div>
-                      )}
-                      {/* Upload button */}
-                      <div className="flex gap-2">
-                        <input
-                          type="file"
-                          ref={el => { fileInputRefs.current[f.key] = el }}
-                          accept="image/*"
-                          className="hidden"
-                          onChange={e => {
-                            const file = e.target.files?.[0]
-                            if (file) handleUpload(f.key, file)
-                            e.target.value = ''
-                          }}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => fileInputRefs.current[f.key]?.click()}
-                          disabled={uploadingField === f.key}
-                          className="flex items-center gap-2 px-3 py-2 border border-dashed border-gray-300 rounded-lg text-sm text-gray-600 hover:border-[#0b3c5d] hover:text-[#0b3c5d] disabled:opacity-50"
-                        >
-                          {uploadingField === f.key ? (
-                            <span className="animate-spin size-4 border-2 border-gray-300 border-t-[#0b3c5d] rounded-full" />
-                          ) : (
-                            <Upload className="size-4" />
-                          )}
-                          {uploadingField === f.key ? 'Uploading...' : 'Upload Image'}
-                        </button>
-                        {/* Or enter URL manually */}
-                        <input
-                          type="text"
-                          value={form[f.key] ?? ''}
-                          onChange={e => setForm({ ...form, [f.key]: e.target.value })}
-                          placeholder="Or paste image URL"
-                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0b3c5d]"
-                        />
-                      </div>
+                    )}
+                    <div className="flex gap-2">
+                      <input type="file" ref={el => { fileInputRefs.current[f.key] = el }} accept="image/*" className="hidden"
+                        onChange={e => { const file = e.target.files?.[0]; if (file) handleUpload(f.key, file); e.target.value = '' }} />
+                      <Button type="button" variant="outline" size="sm" onClick={() => fileInputRefs.current[f.key]?.click()} disabled={uploadingField === f.key}>
+                        {uploadingField === f.key ? <span className="animate-spin size-4 border-2 border-gray-300 border-t-church-blue rounded-full mr-1" /> : <Upload className="size-4 mr-1" />}
+                        {uploadingField === f.key ? 'Uploading...' : 'Upload'}
+                      </Button>
+                      <Input value={form[f.key] ?? ''} onChange={e => setForm({ ...form, [f.key]: e.target.value })} placeholder="Or paste image URL" className="flex-1" />
                     </div>
-                  ) : (
-                    <input
-                      type={f.type === 'number' ? 'number' : 'text'}
-                      value={form[f.key] ?? ''}
-                      onChange={e => setForm({ ...form, [f.key]: f.type === 'number' ? Number(e.target.value) : e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0b3c5d]"
-                    />
-                  )}
-                </div>
-              ))}
-              {/* Sort order field */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Display Order</label>
-                <input
-                  type="number"
-                  min="0"
-                  value={form.sort_order ?? 0}
-                  onChange={e => setForm({ ...form, sort_order: Number(e.target.value) })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0b3c5d]"
-                />
-                <p className="text-xs text-gray-400 mt-1">Lower numbers appear first on homepage</p>
+                  </div>
+                ) : (
+                  <Input
+                    type={f.type === 'number' ? 'number' : 'text'}
+                    value={form[f.key] ?? ''}
+                    onChange={e => setForm({ ...form, [f.key]: f.type === 'number' ? Number(e.target.value) : e.target.value })}
+                  />
+                )}
               </div>
-              <div className="flex gap-3 pt-2">
-                <button type="submit" disabled={createMut.isPending || updateMut.isPending || uploadingField !== null} className="px-5 py-2 bg-[#0b3c5d] text-white rounded-lg text-sm font-medium hover:bg-[#0b3c5d]/90 disabled:opacity-50">
-                  {createMut.isPending || updateMut.isPending ? 'Saving...' : 'Save'}
-                </button>
-                <button type="button" onClick={() => setShowForm(false)} className="px-5 py-2 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50">Cancel</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Delete Confirmation */}
-      {confirmDelete && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setConfirmDelete(null)}>
-          <div className="bg-white rounded-2xl shadow-xl p-6 max-w-sm w-full" onClick={e => e.stopPropagation()}>
-            <h3 className="text-lg font-bold text-gray-900 mb-2">Delete item?</h3>
-            <p className="text-sm text-gray-500 mb-6">This action cannot be undone.</p>
-            <div className="flex gap-3 justify-end">
-              <button onClick={() => setConfirmDelete(null)} className="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50">Cancel</button>
-              <button onClick={() => deleteMut.mutate(confirmDelete)} className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700">
-                {deleteMut.isPending ? 'Deleting...' : 'Delete'}
-              </button>
+            ))}
+            <div className="space-y-2">
+              <Label>Display Order</Label>
+              <Input type="number" min="0" value={form.sort_order ?? 0} onChange={e => setForm({ ...form, sort_order: Number(e.target.value) })} />
+              <p className="text-xs text-muted-foreground">Lower numbers appear first on homepage</p>
             </div>
-          </div>
-        </div>
-      )}
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setShowForm(false)}>Cancel</Button>
+              <Button type="submit" disabled={createMut.isPending || updateMut.isPending || uploadingField !== null} className="bg-church-blue hover:bg-church-blue/90">
+                {createMut.isPending || updateMut.isPending ? 'Saving...' : 'Save'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={!!confirmDelete} onOpenChange={(open) => { if (!open) setConfirmDelete(null) }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Delete item?</DialogTitle>
+            <DialogDescription>This action cannot be undone.</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmDelete(null)}>Cancel</Button>
+            <Button variant="destructive" onClick={() => confirmDelete && deleteMut.mutate(confirmDelete)} disabled={deleteMut.isPending}>
+              {deleteMut.isPending ? 'Deleting...' : 'Delete'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

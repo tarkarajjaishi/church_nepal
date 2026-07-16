@@ -34,5 +34,4 @@ pub struct UpdateLeader {
     pub image: Option<String>,
     pub bio: Option<String>,
     pub social_links: Option<serde_json::Value>,
-    pub sort_order: Option<i32>,
 }

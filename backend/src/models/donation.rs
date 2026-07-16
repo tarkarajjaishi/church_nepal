@@ -32,8 +32,10 @@ pub struct InitiateDonation {
 pub struct EsewaCallback {
     pub oid: String,
     pub amt: String,
-    pub refId: String,
-    pub refId2: Option<String>,
+    #[serde(rename = "refId")]
+    pub ref_id: String,
+    #[serde(rename = "refId2")]
+    pub ref_id2: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]

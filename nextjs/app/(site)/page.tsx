@@ -24,6 +24,7 @@ import {
   useEnabledTestimonies, useEnabledGallery, useEnabledCampaigns, useEnabledVerses,
   useSections, useContentBlocks, ContentBlock,
 } from "@/lib/hooks";
+import { EditableBlock } from "@/components/site/EditableBlock";
 
 function CB({ block, children }: { block: ContentBlock | null | undefined, children: React.ReactNode }) {
   if (block?.enabled === false) return null
@@ -52,7 +53,7 @@ export default function Home() {
   const { data: allVerses = [] } = useEnabledVerses();
   const { data: contentBlocks = [] } = useContentBlocks();
 
-  const cb = (key: string) => contentBlocks.find((b: ContentBlock) => b.section_key === key)
+  const cb = (key: string) => contentBlocks.find((b: ContentBlock) => b.sectionKey === key)
   const hero = cb('hero')
   const whatToExpect = cb('what_to_expect')
   const welcome = cb('welcome')
@@ -69,6 +70,7 @@ export default function Home() {
   const donationSec = cb('donation_section')
   const noticeSec = cb('notice_board')
   const membersSec = cb('church_members')
+  const newsletterSec = cb('newsletter')
 
   const serviceTimes = allServiceTimes;
   const featuredSermons = allSermons.slice(0, 3);
@@ -80,6 +82,7 @@ export default function Home() {
     <div>
       {/* ---------- Hero ---------- */}
       {sec.hero !== false && (
+      <EditableBlock block={hero}>
       <section className="relative min-h-[88vh] flex items-center overflow-hidden">
         <div className="absolute inset-0">
           <ImageWithFallback src={hero?.image || images.hero} alt={hero?.title || "Church"} className="w-full h-full object-cover" />
@@ -87,25 +90,34 @@ export default function Home() {
         </div>
         <div className="relative mx-auto max-w-7xl px-4 py-24 w-full">
           <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }} className="max-w-2xl">
-            <Badge className="bg-gold/20 text-gold border-gold/30 mb-5">{t("tagline")}</Badge>
+            <Badge className="bg-gold/20 text-gold border-gold/30 mb-5">{hero?.items?.[0]?.eyebrow || t("tagline")}</Badge>
             <h1 className="text-white text-4xl sm:text-5xl lg:text-6xl" style={{ fontFamily: "var(--font-heading)", fontWeight: 800, lineHeight: 1.05 }}>{hero?.title || t("hero_welcome")}</h1>
             <p className="mt-5 text-lg text-white/85 max-w-xl">{hero?.subtitle || t("hero_sub")}</p>
             <div className="mt-8 flex flex-wrap gap-3">
-              <Button asChild size="lg" className="bg-gold text-church-blue hover:bg-gold/90"><Link href="/sermons"><Play className="size-4" /> {t("hero_watch")}</Link></Button>
-              <Button asChild size="lg" variant="ghost" className="text-white hover:bg-white/10 hover:text-white"><Link href="/prayer"><HandHeart className="size-4" /> {t("hero_pray")}</Link></Button>
+              {(hero?.items?.[0]?.ctaButtons?.length ? hero.items[0].ctaButtons : [
+                { label: t("hero_watch"), link: "/sermons" },
+                { label: t("hero_pray"), link: "/prayer" },
+              ]).map((cta: { label: string; link: string }, i: number) => (
+                <Button key={i} asChild size="lg" className={i === 0 ? "bg-gold text-church-blue hover:bg-gold/90" : "text-white hover:bg-white/10 hover:text-white"} variant={i === 0 ? "default" : "ghost"}>
+                  <Link href={cta.link}>
+                    {i === 0 ? <Play className="size-4" /> : <HandHeart className="size-4" />}
+                    {cta.label}
+                  </Link>
+                </Button>
+              ))}
             </div>
           </motion.div>
           <motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: 0.3 }} className="mt-14 max-w-md">
             <Card className="p-5 bg-white/95 backdrop-blur border-0 shadow-2xl">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-sm text-muted-foreground">{lang === "en" ? "Next Service" : "अर्को सेवा"}</span>
-                <Badge className="bg-success/10 text-success border-0">Live Soon</Badge>
+                <span className="text-sm text-muted-foreground">{hero?.items?.[0]?.serviceCardLabel || (lang === "en" ? "Next Service" : "अर्को सेवा")}</span>
+                <Badge className="bg-success/10 text-success border-0">{hero?.items?.[0]?.serviceCardBadge || "Live Soon"}</Badge>
               </div>
               <div className="flex items-center gap-3 mb-4">
                 <span className="grid place-items-center size-11 rounded-xl bg-church-blue text-white"><Icon name="Church" className="size-5" /></span>
                 <div>
-                  <div className="text-church-blue" style={{ fontFamily: "var(--font-heading)", fontWeight: 600 }}>{serviceTimes[0]?.name || "Sunday Worship"}</div>
-                  <div className="text-sm text-muted-foreground">{serviceTimes[0]?.day || "Sunday"} · {serviceTimes[0]?.time || "10:00 AM"} · Kathmandu</div>
+                  <div className="text-church-blue" style={{ fontFamily: "var(--font-heading)", fontWeight: 600 }}>{serviceTimes[0]?.name || hero?.items?.[0]?.serviceCardFallbackName || "Sunday Worship"}</div>
+                  <div className="text-sm text-muted-foreground">{serviceTimes[0]?.day || hero?.items?.[0]?.serviceCardFallbackDay || "Sunday"} · {serviceTimes[0]?.time || hero?.items?.[0]?.serviceCardFallbackTime || "10:00 AM"} · {hero?.items?.[0]?.serviceCardFallbackLocation || "Kathmandu"}</div>
                 </div>
               </div>
               <Countdown date={nextEvent.date} />
@@ -113,10 +125,11 @@ export default function Home() {
           </motion.div>
         </div>
       </section>
+      </EditableBlock>
       )}
-
       {/* ---------- Service Times ---------- */}
       {sec.serviceTimes === true && (
+      <EditableBlock block={serviceTimesSec}>
       <CB block={serviceTimesSec}>
       <section className="py-20 bg-section">
         <div className="mx-auto max-w-7xl px-4">
@@ -136,10 +149,12 @@ export default function Home() {
         </div>
       </section>
       </CB>
+      </EditableBlock>
       )}
 
       {/* ---------- What to Expect ---------- */}
       {sec.whatToExpect !== false && (
+      <EditableBlock block={whatToExpect}>
       <CB block={whatToExpect}>
       <section className="py-20 bg-section">
         <div className="mx-auto max-w-7xl px-4">
@@ -157,10 +172,12 @@ export default function Home() {
         </div>
       </section>
       </CB>
+      </EditableBlock>
       )}
 
       {/* ---------- Welcome / Pastor ---------- */}
       {sec.welcome !== false && (
+      <EditableBlock block={welcome}>
       <section className="py-20">
         <div className="mx-auto max-w-7xl px-4 grid lg:grid-cols-2 gap-12 items-center">
           <Reveal>
@@ -188,10 +205,12 @@ export default function Home() {
           </div>
         </div>
       </section>
+      </EditableBlock>
       )}
 
       {/* ---------- What We Believe ---------- */}
       {sec.whatWeBelieve !== false && (
+      <EditableBlock block={whatWeBelieve}>
       <CB block={whatWeBelieve}>
       <section className="py-20 bg-section">
         <div className="mx-auto max-w-7xl px-4">
@@ -211,27 +230,41 @@ export default function Home() {
         </div>
       </section>
       </CB>
+      </EditableBlock>
       )}
 
       {/* ---------- Watch Online ---------- */}
       {sec.watchOnline !== false && (
+      <EditableBlock block={watchOnline}>
       <CB block={watchOnline}>
       <section className="py-20">
         <div className="mx-auto max-w-7xl px-4 text-center">
           <SectionHeading eyebrow={<Eyebrow block={watchOnline} fallback="Live Stream" />} title={watchOnline?.title || "Watch Online"} subtitle={watchOnline?.subtitle || ""} />
           <Reveal delay={0.1}>
             <div className="mt-10 flex flex-wrap gap-4 justify-center">
-              <Button asChild size="lg" className="bg-red-600 hover:bg-red-700 text-white"><Link href="/sermons"><Play className="size-5" /> {lang === "en" ? "Watch Live" : "लाइभ हेर्नुहोस्"}</Link></Button>
-              <Button asChild size="lg" variant="outline" className="border-church-blue text-church-blue hover:bg-church-blue hover:text-white"><Link href="/sermons">{lang === "en" ? "All Sermons" : "सबै प्रचारहरू"} <ArrowRight className="size-4" /></Link></Button>
+              {(watchOnline?.items?.[0]?.ctaButtons?.length ? watchOnline.items[0].ctaButtons : [
+                { label: lang === "en" ? "Watch Live" : "लाइभ हेर्नुहोस्", link: "/sermons", style: "primary" },
+                { label: lang === "en" ? "All Sermons" : "सबै प्रचारहरू", link: "/sermons", style: "outline" },
+              ]).map((cta: { label: string; link: string; style?: string }, i: number) => (
+                <Button key={i} asChild size="lg" className={cta.style === 'outline' ? "border-church-blue text-church-blue hover:bg-church-blue hover:text-white" : "bg-red-600 hover:bg-red-700 text-white"} variant={cta.style === 'outline' ? "outline" : "default"}>
+                  <Link href={cta.link}>
+                    {i === 0 ? <Play className="size-5" /> : null}
+                    {cta.label}
+                    {i !== 0 ? <ArrowRight className="size-4" /> : null}
+                  </Link>
+                </Button>
+              ))}
             </div>
           </Reveal>
         </div>
       </section>
       </CB>
+      </EditableBlock>
       )}
 
       {/* ---------- Featured Sermons ---------- */}
       {sec.sermons === true && allSermons.length > 0 && (
+      <EditableBlock block={sermonsSec}>
       <CB block={sermonsSec}>
       <section className="py-20 bg-section">
         <div className="mx-auto max-w-7xl px-4">
@@ -266,10 +299,12 @@ export default function Home() {
         </div>
       </section>
       </CB>
+      </EditableBlock>
       )}
 
       {/* ---------- Ministries ---------- */}
       {sec.ministries === true && (
+      <EditableBlock block={ministriesSec}>
       <CB block={ministriesSec}>
       <section className="py-20">
         <div className="mx-auto max-w-7xl px-4">
@@ -297,10 +332,12 @@ export default function Home() {
         </div>
       </section>
       </CB>
+      </EditableBlock>
       )}
 
       {/* ---------- Upcoming Events ---------- */}
       {sec.events === true && (
+      <EditableBlock block={eventsSec}>
       <CB block={eventsSec}>
       <section className="py-20 bg-section">
         <div className="mx-auto max-w-7xl px-4">
@@ -335,10 +372,12 @@ export default function Home() {
         </div>
       </section>
       </CB>
+      </EditableBlock>
       )}
 
       {/* ---------- Prayer CTA ---------- */}
       {sec.prayerCta !== false && (
+      <EditableBlock block={prayerCta}>
       <CB block={prayerCta}>
       <section className="relative py-24">
         <div className="absolute inset-0">
@@ -351,10 +390,12 @@ export default function Home() {
         </div>
       </section>
       </CB>
+      </EditableBlock>
       )}
 
       {/* ---------- Notice Board ---------- */}
       {sec.notices === true && (
+      <EditableBlock block={noticeSec}>
       <CB block={noticeSec}>
       <section className="py-20">
         <div className="mx-auto max-w-7xl px-4">
@@ -363,10 +404,12 @@ export default function Home() {
         </div>
       </section>
       </CB>
+      </EditableBlock>
       )}
 
       {/* ---------- Testimonies ---------- */}
       {sec.testimonies === true && (
+      <EditableBlock block={testimoniesSec}>
       <CB block={testimoniesSec}>
       <section className="py-20">
         <div className="mx-auto max-w-7xl px-4">
@@ -392,10 +435,12 @@ export default function Home() {
         </div>
       </section>
       </CB>
+      </EditableBlock>
       )}
 
       {/* ---------- Church Members ---------- */}
       {sec.members === true && (
+      <EditableBlock block={membersSec}>
       <CB block={membersSec}>
       <section className="py-20 bg-section">
         <div className="mx-auto max-w-7xl px-4">
@@ -410,10 +455,12 @@ export default function Home() {
         </div>
       </section>
       </CB>
+      </EditableBlock>
       )}
 
       {/* ---------- Gallery preview ---------- */}
       {sec.gallery === true && (
+      <EditableBlock block={gallerySec}>
       <CB block={gallerySec}>
       <section className="py-20 bg-section">
         <div className="mx-auto max-w-7xl px-4">
@@ -431,10 +478,12 @@ export default function Home() {
         </div>
       </section>
       </CB>
+      </EditableBlock>
       )}
 
       {/* ---------- Verse of the day ---------- */}
       {sec.verses === true && (
+      <EditableBlock block={verseSec}>
       <CB block={verseSec}>
       <section className="py-20 bg-church-blue">
         <div className="mx-auto max-w-3xl px-4 text-center">
@@ -447,10 +496,12 @@ export default function Home() {
         </div>
       </section>
       </CB>
+      </EditableBlock>
       )}
 
       {/* ---------- Donation ---------- */}
       {sec.campaigns === true && (
+      <EditableBlock block={donationSec}>
       <CB block={donationSec}>
       <section className="py-20">
         <div className="mx-auto max-w-7xl px-4 grid lg:grid-cols-2 gap-12 items-center">
@@ -485,15 +536,18 @@ export default function Home() {
         </div>
       </section>
       </CB>
+      </EditableBlock>
       )}
 
       {/* ---------- Newsletter Signup ---------- */}
-      <NewsletterSignup />
+      <EditableBlock block={newsletterSec}>
+      <NewsletterSignup block={newsletterSec} />
+      </EditableBlock>
     </div>
   );
 }
 
-function NewsletterSignup() {
+function NewsletterSignup({ block }: { block: ContentBlock | null | undefined }) {
   const [email, setEmail] = useState('');
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [message, setMessage] = useState('');
@@ -504,24 +558,23 @@ function NewsletterSignup() {
     if (!email) return;
     setStatus('loading');
     try {
-      const PYTHON_API = process.env.NEXT_PUBLIC_PYTHON_API || 'http://localhost:8000';
-      const res = await fetch(`${PYTHON_API}/newsletter/subscribe`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002'}/api/newsletter/subscribe`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
       });
       if (res.ok) {
         setStatus('success');
-        setMessage(lang === 'en' ? 'Thank you for subscribing!' : 'सदस्यता लिनुभएकोमा धन्यवाद!');
+        setMessage(block?.items?.[0]?.successMessage || (lang === 'en' ? 'Thank you for subscribing!' : 'सदस्यता लिनुभएकोमा धन्यवाद!'));
         setEmail('');
       } else {
         const data = await res.json();
         setStatus('error');
-        setMessage(data.detail || 'Already subscribed or invalid email');
+        setMessage(data.detail || (block?.items?.[0]?.errorMessage || 'Already subscribed or invalid email'));
       }
     } catch {
       setStatus('error');
-      setMessage('Something went wrong. Please try again.');
+      setMessage(block?.items?.[0]?.errorMessage || 'Something went wrong. Please try again.');
     }
     setTimeout(() => { setStatus('idle'); setMessage(''); }, 5000);
   };
@@ -532,24 +585,26 @@ function NewsletterSignup() {
         <Reveal>
           <Mail className="size-10 text-gold mx-auto" />
           <h2 className="mt-4 text-white text-3xl" style={{ fontFamily: "var(--font-heading)", fontWeight: 700 }}>
-            {lang === 'en' ? 'Stay Connected' : 'जोडिएर रहनुहोस्'}
+            {block?.title || (lang === 'en' ? 'Stay Connected' : 'जोडिएर रहनुहोस्')}
           </h2>
           <p className="mt-3 text-white/70 max-w-md mx-auto">
-            {lang === 'en'
+            {block?.subtitle || (lang === 'en'
               ? 'Subscribe to our newsletter for updates, events, and encouragement delivered to your inbox.'
-              : 'हाम्रो न्यूजलेटरका लागि सदस्यता लिनुहोस् — अपडेट, कार्यक्रम र प्रोत्साहन तपाईंको इनबक्समा।'}
+              : 'हाम्रो न्यूजलेटरका लागि सदस्यता लिनुहोस् — अपडेट, कार्यक्रम र प्रोत्साहन तपाईंको इनबक्समा।')}
           </p>
           <form onSubmit={handleSubmit} className="mt-8 flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
             <input
               type="email"
               value={email}
               onChange={e => setEmail(e.target.value)}
-              placeholder={lang === 'en' ? 'Enter your email' : 'तपाईंको इमेल राख्नुहोस्'}
+              placeholder={block?.items?.[0]?.emailPlaceholder || (lang === 'en' ? 'Enter your email' : 'तपाईंको इमेल राख्नुहोस्')}
               required
               className="flex-1 px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-gold focus:border-transparent"
             />
             <Button type="submit" disabled={status === 'loading'} size="lg" className="bg-gold text-church-blue hover:bg-gold/90 shrink-0">
-              {status === 'loading' ? (lang === 'en' ? 'Subscribing...' : 'सदस्यता लिइँदै...') : (lang === 'en' ? 'Subscribe' : 'सदस्यता लिनुहोस्')}
+              {status === 'loading'
+                ? (block?.items?.[0]?.loadingLabel || (lang === 'en' ? 'Subscribing...' : 'सदस्यता लिइँदै...'))
+                : (block?.items?.[0]?.buttonLabel || (lang === 'en' ? 'Subscribe' : 'सदस्यता लिनुहोस्'))}
             </Button>
           </form>
           {status === 'success' && (

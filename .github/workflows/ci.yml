@@ -35,30 +35,6 @@ jobs:
       - run: cd nextjs && npm ci
       - run: cd nextjs && npm run build
 
-  # Test Python Auth Server
-  auth-test:
-    runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: grace_church_test
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
-      - run: pip install -r requirements.txt
-      - run: pytest test_auth.py -v
-
   # Check Rust Backend
   backend-check:
     runs-on: ubuntu-latest
@@ -90,7 +66,7 @@ jobs:
   # Build and Push Docker Images
   docker-build:
     runs-on: ubuntu-latest
-    needs: [ frontend-build, auth-test, backend-check ]
+    needs: [ frontend-build, backend-check ]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     permissions:
       contents: read
@@ -103,15 +79,6 @@ jobs:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-      - uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./Dockerfile.auth
-          push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/auth:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
 
       - uses: docker/build-push-action@v5
         with:

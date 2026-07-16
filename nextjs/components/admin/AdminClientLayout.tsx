@@ -3,6 +3,7 @@
 import { AuthProvider } from '@/lib/auth'
 import { Providers } from '@/lib/providers'
 import { Layout as AdminLayoutComponent } from '@/components/admin/Layout'
+import { ThemeCustomizer } from '@/components/theme/ThemeCustomizer'
 import { usePathname, useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth'
 import { useEffect } from 'react'
@@ -45,6 +46,7 @@ export function AdminClientLayout({ children }: { children: React.ReactNode }) {
         ) : (
           <AuthGuard>
             <AdminLayoutComponent>{children}</AdminLayoutComponent>
+            <ThemeCustomizer />
           </AuthGuard>
         )}
       </AuthProvider>
