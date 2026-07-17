@@ -21,6 +21,7 @@ export const dict: Dict = {
   nav_pastor: { en: "Our Pastor", ne: "हाम्रा पास्टर" },
   nav_leadership: { en: "Leadership", ne: "नेतृत्व" },
   nav_ministries: { en: "Ministries", ne: "सेवाकार्य" },
+  nav_groups: { en: "Groups", ne: "समूह" },
   nav_sermons: { en: "Sermons", ne: "प्रवचन" },
   nav_events: { en: "Events", ne: "कार्यक्रम" },
   nav_gallery: { en: "Gallery", ne: "ग्यालरी" },

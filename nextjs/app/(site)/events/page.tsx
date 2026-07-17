@@ -10,10 +10,11 @@ import { PageHero } from "@/components/site/PageHero";
 import { Reveal } from "@/components/site/Reveal";
 import { Countdown } from "@/components/site/Countdown";
 import { ImageWithFallback } from "@/components/figma/ImageWithFallback";
+import { EditableBlock } from "@/components/site/EditableBlock";
 import { images } from "@/lib/data";
 import { useLang } from "@/lib/language";
 import { toBS } from "@/lib/nepaliDate";
-import { useEvents } from "@/lib/hooks";
+import { useEvents, useContentBlock } from "@/lib/hooks";
 import { CardSkeleton } from "@/components/site/LoadingSpinner";
 import { ErrorDisplay } from "@/components/site/ErrorDisplay";
 
@@ -61,10 +62,25 @@ export default function Events() {
     .filter((e) => new Date(e.date).getTime() >= now)
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
+  const hero = useContentBlock('events_hero');
+  const heading = useContentBlock('events_heading');
+  const errorBlock = useContentBlock('events_error');
+  const emptyState = useContentBlock('events_empty_state');
+
+  const heroTitle = hero?.title || "Events";
+  const heroSubtitle = hero?.subtitle || "Gather, grow and celebrate together. There's always something happening at Grace.";
+  const heroCrumb = hero?.items?.[0]?.crumb || "Events";
+  const heroImage = hero?.image || images.worship2;
+  const headingTitle = heading?.title || "Events";
+  const errorMsg = errorBlock?.title || "Failed to load events.";
+  const emptyMsg = emptyState?.title || "No upcoming events right now — check back soon!";
+
   return (
     <div>
-      <PageHero title="Events" crumb="Events" image={images.worship2}
-        subtitle="Gather, grow and celebrate together. There's always something happening at Grace." />
+      <EditableBlock block={hero}>
+        <PageHero title={heroTitle} crumb={heroCrumb} image={heroImage}
+          subtitle={heroSubtitle} />
+      </EditableBlock>
 
       <section className="py-16">
         <div className="mx-auto max-w-7xl px-4">
@@ -78,7 +94,7 @@ export default function Events() {
               {isLoading ? (
                 <CardSkeleton count={3} />
               ) : error ? (
-                <ErrorDisplay message="Failed to load events." onRetry={() => refetch()} />
+                <ErrorDisplay message={errorMsg} onRetry={() => refetch()} />
               ) : upcomingEvents.length ? (
                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                   {upcomingEvents.map((e, i) => (
@@ -86,7 +102,7 @@ export default function Events() {
                   ))}
                 </div>
               ) : (
-                <p className="text-center text-muted-foreground py-12">No upcoming events right now — check back soon!</p>
+                <p className="text-center text-muted-foreground py-12">{emptyMsg}</p>
               )}
             </TabsContent>
 
@@ -103,4 +119,3 @@ export default function Events() {
     </div>
   );
 }
-

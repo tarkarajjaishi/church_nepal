@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 import { useIsAdmin } from '@/lib/useIsAdmin'
 import api from '@/lib/admin/api'
+import { ItemsEditor } from '@/components/admin/ItemsEditor'
 import type { ContentBlock } from '@/lib/hooks'
 
 interface EditableBlockProps {
@@ -34,6 +35,7 @@ export function EditableBlock({ block, children, adminHref, adminLabel }: Editab
     body: '',
     eyebrow: '',
   })
+  const [items, setItems] = useState<Record<string, any>[]>([])
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Populate form when block changes or popover opens
@@ -46,6 +48,7 @@ export function EditableBlock({ block, children, adminHref, adminLabel }: Editab
         body: block.body ?? '',
         eyebrow: firstItem?.eyebrow ?? '',
       })
+      setItems(Array.isArray(block.items) ? block.items : (block.items ? [block.items] : []))
     }
   }, [open, block])
 
@@ -88,8 +91,8 @@ export function EditableBlock({ block, children, adminHref, adminLabel }: Editab
       const payload: Record<string, any> = {}
       if (key === 'eyebrow') {
         // Eyebrow lives inside items[0]
-        const firstItem = Array.isArray(block?.items) ? block?.items[0] : (block?.items || {})
-        const updatedItems = [{ ...(firstItem || {}), eyebrow: value }]
+        const firstItem = items[0] || {}
+        const updatedItems = [{ ...firstItem, eyebrow: value }]
         payload.items = updatedItems
       } else {
         payload[key] = value
@@ -97,6 +100,11 @@ export function EditableBlock({ block, children, adminHref, adminLabel }: Editab
       debouncedSave(payload)
       return next
     })
+  }
+
+  const handleItemsChange = (newItems: Record<string, any>[]) => {
+    setItems(newItems)
+    debouncedSave({ items: newItems })
   }
 
   if (!isAdmin) return <>{children}</>
@@ -115,7 +123,7 @@ export function EditableBlock({ block, children, adminHref, adminLabel }: Editab
             <Pencil className="size-3.5" /> Edit
           </button>
         </PopoverTrigger>
-        <PopoverContent className="w-80 p-4" align="end" side="bottom">
+        <PopoverContent className="w-80 p-4 max-h-[80vh] overflow-y-auto" align="end" side="bottom">
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold text-church-blue">Edit Section</h3>
@@ -161,6 +169,14 @@ export function EditableBlock({ block, children, adminHref, adminLabel }: Editab
                 className="text-sm"
               />
             </div>
+
+            {/* Nested items editor */}
+            <div className="space-y-2">
+              <Label className="text-xs font-semibold">Items</Label>
+              <p className="text-xs text-muted-foreground">Add, remove, reorder, or edit fields for each item.</p>
+              <ItemsEditor items={items} onChange={handleItemsChange} />
+            </div>
+
             {adminHref && (
               <Link
                 href={adminHref}

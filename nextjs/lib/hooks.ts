@@ -230,6 +230,21 @@ export function useEnabledCampaigns() {
   const q = useCampaigns()
   return { ...q, data: (q.data ?? []).filter((c: any) => c.enabled !== false) }
 }
+
+// Groups
+export function useGroups() {
+  const query = useQuery({
+    queryKey: ["groups"],
+    queryFn: () => api.get("/groups").then(r => r.data),
+  })
+  return wrapQuery(query)
+}
+
+export function useEnabledGroups() {
+  const q = useGroups()
+  return { ...q, data: (q.data ?? []).filter((g: any) => g.enabled !== false) }
+}
+
 export function useEnabledVerses() {
   const q = useVerses()
   return { ...q, data: (q.data ?? []).filter((v: any) => v.enabled !== false) }
@@ -285,6 +300,23 @@ export function useContentBlocks() {
 export function useContentBlock(key: string) {
   const { data: blocks = [] } = useContentBlocks()
   return blocks.find((b: ContentBlock) => b.sectionKey === key) ?? null
+}
+
+// Contact Info hook
+export interface ContactInfo {
+  id: string
+  address: string
+  phone: string
+  email: string
+  hours: string
+  mapUrl: string
+}
+
+export function useContactInfo() {
+  return useQuery({
+    queryKey: ["contact-info"],
+    queryFn: () => fetchAll<ContactInfo>("contact-info"),
+  })
 }
 
 

@@ -37,11 +37,11 @@ export default function AdminNav() {
   ]
 
   return (
-    <nav className="bg-white shadow-sm border-b border-gray-200">
+    <nav className="bg-card shadow-sm border-b border-border">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
-          <Link href="/admin/dashboard" className="font-bold text-xl text-blue-600 hover:text-blue-700 transition">
+          <Link href="/admin/dashboard" className="font-bold text-xl text-primary hover:text-primary/80 transition">
             Grace Admin
           </Link>
 
@@ -51,7 +51,7 @@ export default function AdminNav() {
               <Link
                 key={item.href}
                 href={item.href}
-                className="text-gray-700 hover:text-blue-600 transition-colors text-sm font-medium"
+                className="text-muted-foreground hover:text-primary transition-colors text-sm font-medium"
               >
                 {item.label}
               </Link>
@@ -64,13 +64,13 @@ export default function AdminNav() {
             <div className="relative hidden sm:block">
               <button
                 onClick={() => setProfileMenuOpen(!profileMenuOpen)}
-                className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 transition"
+                className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-muted transition"
               >
-                <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-sm font-bold">
+                <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-sm font-bold">
                   {user?.name?.[0]?.toUpperCase() || 'A'}
                 </div>
-                <span className="text-sm font-medium text-gray-700 hidden sm:inline">{user?.name}</span>
-                <ChevronDown className="w-4 h-4 text-gray-500" />
+                <span className="text-sm font-medium text-muted-foreground hidden sm:inline">{user?.name}</span>
+                <ChevronDown className="w-4 h-4 text-muted-foreground" />
               </button>
 
               {profileMenuOpen && (
@@ -78,21 +78,21 @@ export default function AdminNav() {
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
-                  className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-50"
+                  className="absolute right-0 mt-2 w-48 bg-popover rounded-lg shadow-lg border border-border z-50"
                 >
-                  <div className="px-4 py-3 border-b border-gray-200">
-                    <p className="text-sm font-medium text-gray-900">{user?.name}</p>
-                    <p className="text-xs text-gray-500">{user?.email}</p>
+                  <div className="px-4 py-3 border-b border-border">
+                    <p className="text-sm font-medium text-foreground">{user?.name}</p>
+                    <p className="text-xs text-muted-foreground">{user?.email}</p>
                   </div>
                   <Link
                     href="/admin/profile"
-                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                    className="block px-4 py-2 text-sm text-muted-foreground hover:bg-accent"
                   >
                     Profile Settings
                   </Link>
                   <button
                     onClick={handleLogout}
-                    className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                    className="w-full text-left px-4 py-2 text-sm text-destructive hover:bg-destructive/10 flex items-center gap-2"
                   >
                     <LogOut className="w-4 h-4" />
                     Logout
@@ -104,7 +104,7 @@ export default function AdminNav() {
             {/* Mobile Menu Button */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="md:hidden p-2 rounded-lg hover:bg-gray-100"
+              className="md:hidden p-2 rounded-lg hover:bg-muted"
             >
               {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </button>
@@ -117,21 +117,21 @@ export default function AdminNav() {
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="md:hidden border-t border-gray-200 py-4"
+            className="md:hidden border-t border-border py-4"
           >
             <div className="space-y-2">
               {navItems.map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}
-                  className="block px-4 py-2 text-gray-700 hover:bg-gray-100 rounded transition"
+                  className="block px-4 py-2 text-muted-foreground hover:bg-muted rounded transition"
                 >
                   {item.label}
                 </Link>
               ))}
               <button
                 onClick={handleLogout}
-                className="w-full text-left px-4 py-2 text-red-600 hover:bg-red-50 rounded flex items-center gap-2"
+                className="w-full text-left px-4 py-2 text-destructive hover:bg-destructive/10 rounded flex items-center gap-2"
               >
                 <LogOut className="w-4 h-4" />
                 Logout

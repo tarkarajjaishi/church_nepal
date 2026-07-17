@@ -11,25 +11,27 @@ pub struct ReorderRequest {
 }
 
 pub async fn list(State(pool): State<PgPool>) -> Result<Json<Vec<ContentBlock>>, AppError> {
-    let rows = sqlx::query_as!(ContentBlock, "SELECT * FROM content_blocks ORDER BY sort_order ASC")
+    let rows = sqlx::query_as::<_, ContentBlock>("SELECT * FROM content_blocks ORDER BY sort_order ASC")
         .fetch_all(&pool).await?;
     Ok(Json(rows))
 }
 
 pub async fn list_enabled(State(pool): State<PgPool>) -> Result<Json<Vec<ContentBlock>>, AppError> {
-    let rows = sqlx::query_as!(ContentBlock, "SELECT * FROM content_blocks WHERE enabled = TRUE ORDER BY sort_order ASC")
+    let rows = sqlx::query_as::<_, ContentBlock>("SELECT * FROM content_blocks WHERE enabled = TRUE ORDER BY sort_order ASC")
         .fetch_all(&pool).await?;
     Ok(Json(rows))
 }
 
 pub async fn get_by_key(State(pool): State<PgPool>, Path(key): Path<String>) -> Result<Json<ContentBlock>, AppError> {
-    let row = sqlx::query_as!(ContentBlock, "SELECT * FROM content_blocks WHERE section_key = $1", key)
+    let row = sqlx::query_as::<_, ContentBlock>("SELECT * FROM content_blocks WHERE section_key = $1")
+        .bind(&key)
         .fetch_optional(&pool).await?.ok_or_else(|| AppError::not_found("Content block not found"))?;
     Ok(Json(row))
 }
 
 pub async fn get(State(pool): State<PgPool>, Path(id): Path<uuid::Uuid>) -> Result<Json<ContentBlock>, AppError> {
-    let row = sqlx::query_as!(ContentBlock, "SELECT * FROM content_blocks WHERE id = $1", id)
+    let row = sqlx::query_as::<_, ContentBlock>("SELECT * FROM content_blocks WHERE id = $1")
+        .bind(id)
         .fetch_optional(&pool).await?.ok_or_else(|| AppError::not_found("Content block not found"))?;
     Ok(Json(row))
 }
@@ -45,7 +47,8 @@ pub async fn create(_auth: AuthUser, State(pool): State<PgPool>, Json(input): Js
 }
 
 pub async fn update(_auth: AuthUser, State(pool): State<PgPool>, Path(id): Path<uuid::Uuid>, Json(input): Json<UpdateContentBlock>) -> Result<Json<ContentBlock>, AppError> {
-    let existing = sqlx::query_as!(ContentBlock, "SELECT * FROM content_blocks WHERE id = $1", id)
+    let existing = sqlx::query_as::<_, ContentBlock>("SELECT * FROM content_blocks WHERE id = $1")
+        .bind(id)
         .fetch_optional(&pool).await?.ok_or_else(|| AppError::not_found("Content block not found"))?;
     let row = sqlx::query_as::<_, ContentBlock>(
         "UPDATE content_blocks SET title=COALESCE($2,title), subtitle=COALESCE($3,subtitle), body=COALESCE($4,body), image=COALESCE($5,image), icon=COALESCE($6,icon), items=COALESCE($7,items), sort_order=COALESCE($8,sort_order), updated_at=NOW() WHERE id=$1 RETURNING *"
@@ -63,7 +66,9 @@ pub async fn update(_auth: AuthUser, State(pool): State<PgPool>, Path(id): Path<
 }
 
 pub async fn delete(_auth: AuthUser, State(pool): State<PgPool>, Path(id): Path<uuid::Uuid>) -> Result<Json<serde_json::Value>, AppError> {
-    sqlx::query!("DELETE FROM content_blocks WHERE id = $1", id).execute(&pool).await?;
+    sqlx::query("DELETE FROM content_blocks WHERE id = $1")
+        .bind(id)
+        .execute(&pool).await?;
     Ok(Json(serde_json::json!({ "deleted": true })))
 }
 

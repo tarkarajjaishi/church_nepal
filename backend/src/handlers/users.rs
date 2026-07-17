@@ -11,9 +11,8 @@ pub async fn list(
     _auth: AuthUser,
     State(pool): State<PgPool>,
 ) -> Result<Json<Vec<UserPublic>>, AppError> {
-    let users = sqlx::query_as!(
-        UserPublic,
-        r#"SELECT id, email, name, role FROM users ORDER BY created_at DESC"#
+    let users = sqlx::query_as::<_, UserPublic>(
+        r#"SELECT id, email, name, role FROM users ORDER BY created_at DESC"#,
     )
     .fetch_all(&pool)
     .await?;
@@ -26,11 +25,10 @@ pub async fn get(
     Path(id): Path<uuid::Uuid>,
     State(pool): State<PgPool>,
 ) -> Result<Json<UserPublic>, AppError> {
-    let user = sqlx::query_as!(
-        UserPublic,
+    let user = sqlx::query_as::<_, UserPublic>(
         r#"SELECT id, email, name, role FROM users WHERE id = $1"#,
-        id
     )
+    .bind(id)
     .fetch_optional(&pool)
     .await?
     .ok_or_else(|| AppError::not_found("User not found"))?;
@@ -45,11 +43,10 @@ pub async fn update(
     Json(input): Json<UpdateUser>,
 ) -> Result<Json<UserPublic>, AppError> {
     // Fetch existing user to preserve non-updated fields
-    let existing = sqlx::query_as!(
-        UserPublic,
+    let existing = sqlx::query_as::<_, UserPublic>(
         r#"SELECT id, email, name, role FROM users WHERE id = $1"#,
-        id
     )
+    .bind(id)
     .fetch_optional(&pool)
     .await?
     .ok_or_else(|| AppError::not_found("User not found"))?;
@@ -67,23 +64,26 @@ pub async fn update(
     };
 
     let user = if let Some(h) = password_hash {
-        sqlx::query_as!(
-            UserPublic,
+        sqlx::query_as::<_, UserPublic>(
             r#"UPDATE users SET name = $2, role = $3, password_hash = $4, updated_at = NOW()
                WHERE id = $1
                RETURNING id, email, name, role"#,
-            id, name, role, h
         )
+        .bind(id)
+        .bind(&name)
+        .bind(&role)
+        .bind(&h)
         .fetch_optional(&pool)
         .await?
     } else {
-        sqlx::query_as!(
-            UserPublic,
+        sqlx::query_as::<_, UserPublic>(
             r#"UPDATE users SET name = $2, role = $3, updated_at = NOW()
                WHERE id = $1
                RETURNING id, email, name, role"#,
-            id, name, role
         )
+        .bind(id)
+        .bind(&name)
+        .bind(&role)
         .fetch_optional(&pool)
         .await?
     };
@@ -96,7 +96,8 @@ pub async fn delete(
     Path(id): Path<uuid::Uuid>,
     State(pool): State<PgPool>,
 ) -> Result<Json<serde_json::Value>, AppError> {
-    let result = sqlx::query!("DELETE FROM users WHERE id = $1", id)
+    let result = sqlx::query("DELETE FROM users WHERE id = $1")
+        .bind(id)
         .execute(&pool)
         .await?;
 
@@ -113,7 +114,8 @@ pub async fn create(
     Json(input): Json<crate::models::CreateUser>,
 ) -> Result<Json<UserPublic>, AppError> {
     // Check if email already exists
-    let existing = sqlx::query_scalar!("SELECT id FROM users WHERE email = $1", input.email)
+    let existing: Option<uuid::Uuid> = sqlx::query_scalar("SELECT id FROM users WHERE email = $1")
+        .bind(&input.email)
         .fetch_optional(&pool)
         .await?;
     if existing.is_some() {
@@ -122,13 +124,12 @@ pub async fn create(
 
     let password_hash = hash(&input.password, DEFAULT_COST)?;
 
-    let user = sqlx::query_as!(
-        UserPublic,
+    let user = sqlx::query_as::<_, UserPublic>(
         r#"INSERT INTO users (email, password_hash, name) VALUES ($1, $2, $3) RETURNING id, email, name, role"#,
-        input.email,
-        password_hash,
-        input.name
     )
+    .bind(&input.email)
+    .bind(&password_hash)
+    .bind(&input.name)
     .fetch_one(&pool)
     .await?;
 

@@ -6,7 +6,8 @@ import { PageHero } from "@/components/site/PageHero";
 import { SectionHeading } from "@/components/site/SectionHeading";
 import { Reveal } from "@/components/site/Reveal";
 import { ImageWithFallback } from "@/components/figma/ImageWithFallback";
-import { images } from "@/lib/data";
+import { EditableBlock } from "@/components/site/EditableBlock";
+import { useContentBlock } from "@/lib/hooks";
 import { useLeaders } from "@/lib/hooks";
 import { CardSkeleton } from "@/components/site/LoadingSpinner";
 import { ErrorDisplay } from "@/components/site/ErrorDisplay";
@@ -14,18 +15,31 @@ import { ErrorDisplay } from "@/components/site/ErrorDisplay";
 const categories = ["All", "Pastors", "Elders", "Deacons", "Ministry Leaders"];
 
 export default function Leadership() {
+  const hero = useContentBlock('leadership_hero');
+  const team = useContentBlock('leadership_team');
   const { data: leaders = [], isLoading, error, refetch } = useLeaders();
   const [filter, setFilter] = useState("All");
   const shown = filter === "All" ? leaders : leaders.filter((l) => l.category === filter);
 
+  const teamHeading = team?.items?.[0]?.heading || "Meet Our Leaders";
+
   return (
     <div>
-      <PageHero title="Our Leadership" crumb="Leadership" image={images.study2}
-        subtitle="Servant-hearted leaders committed to shepherding God's people with humility and love." />
+      {/* Hero */}
+      <EditableBlock block={hero}>
+        <PageHero
+          title={hero?.title || "Our Leadership"}
+          subtitle={hero?.subtitle || "Servant-hearted leaders committed to shepherding God's people with humility and love."}
+          image={hero?.image || ''}
+          crumb={hero?.title || "Leadership"}
+        />
+      </EditableBlock>
 
       <section className="py-20">
         <div className="mx-auto max-w-7xl px-4">
-          <SectionHeading eyebrow="The Team" title="Meet Our Leaders" />
+          <EditableBlock block={team}>
+            <SectionHeading eyebrow="The Team" title={teamHeading} />
+          </EditableBlock>
 
           <div className="mt-10 flex flex-wrap justify-center gap-2">
             {categories.map((c) => (
@@ -72,4 +86,3 @@ export default function Leadership() {
     </div>
   );
 }
-

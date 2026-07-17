@@ -97,7 +97,7 @@ export default function LoginPage() {
   const displayError = localError || error
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4 py-12">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-secondary to-muted px-4 py-12">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -105,9 +105,9 @@ export default function LoginPage() {
         className="w-full max-w-sm"
       >
         {/* Card Container */}
-        <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
+        <div className="bg-card rounded-2xl shadow-xl overflow-hidden border border-border">
           {/* Header */}
-          <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-8 py-12 text-center">
+          <div className="bg-gradient-to-r from-primary to-primary/80 px-8 py-12 text-center">
             <motion.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
@@ -118,7 +118,7 @@ export default function LoginPage() {
             </motion.div>
 
             <h1 className="text-2xl font-bold text-white mb-2">Grace Nepal Church</h1>
-            <p className="text-blue-100 text-sm">Admin Dashboard</p>
+            <p className="text-primary-foreground/70 text-sm">Admin Dashboard</p>
           </div>
 
           {/* Form Container */}
@@ -138,7 +138,7 @@ export default function LoginPage() {
                         setLocalError(null)
                         clearError()
                       }}
-                      className="text-sm text-red-700 hover:text-red-800 font-medium"
+                      className="text-sm text-destructive hover:text-destructive/80 font-medium"
                     >
                       Dismiss
                     </button>
@@ -154,7 +154,7 @@ export default function LoginPage() {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.1 }}
               >
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="email" className="block text-sm font-medium text-foreground mb-2">
                   Email Address
                 </label>
                 <input
@@ -166,16 +166,16 @@ export default function LoginPage() {
                   onBlur={handleBlur}
                   placeholder="admin@gracenepal.org"
                   disabled={loading}
-                  className={`w-full px-4 py-2.5 border rounded-lg transition-colors focus:outline-none focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed ${
+                  className={`w-full px-4 py-2.5 border rounded-lg transition-colors focus:outline-none focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed bg-card text-foreground ${
                     getFieldError('email')
-                      ? 'border-red-500 focus:ring-red-500/50'
-                      : 'border-gray-300 focus:ring-blue-500/50'
+                      ? 'border-destructive focus:ring-destructive/50'
+                      : 'border-border focus:ring-primary/50'
                   }`}
                   aria-invalid={!!getFieldError('email')}
                   aria-describedby={getFieldError('email') ? 'email-error' : undefined}
                 />
                 {getFieldError('email') && (
-                  <p id="email-error" className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                  <p id="email-error" className="mt-1 text-sm text-destructive flex items-center gap-1">
                     <AlertCircle className="w-4 h-4" />
                     {getFieldError('email')}
                   </p>
@@ -188,7 +188,7 @@ export default function LoginPage() {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.15 }}
               >
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="password" className="block text-sm font-medium text-foreground mb-2">
                   Password
                 </label>
                 <div className="relative">
@@ -201,10 +201,10 @@ export default function LoginPage() {
                     onBlur={handleBlur}
                     placeholder="••••••••"
                     disabled={loading}
-                    className={`w-full px-4 py-2.5 border rounded-lg transition-colors focus:outline-none focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed pr-10 ${
+                    className={`w-full px-4 py-2.5 border rounded-lg transition-colors focus:outline-none focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed pr-10 bg-card text-foreground ${
                       getFieldError('password')
-                        ? 'border-red-500 focus:ring-red-500/50'
-                        : 'border-gray-300 focus:ring-blue-500/50'
+                        ? 'border-destructive focus:ring-destructive/50'
+                        : 'border-border focus:ring-primary/50'
                     }`}
                     aria-invalid={!!getFieldError('password')}
                     aria-describedby={getFieldError('password') ? 'password-error' : undefined}
@@ -212,14 +212,14 @@ export default function LoginPage() {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-2.5 text-gray-500 hover:text-gray-700 transition-colors"
+                    className="absolute right-3 top-2.5 text-muted-foreground hover:text-foreground transition-colors"
                     aria-label={showPassword ? 'Hide password' : 'Show password'}
                   >
                     {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                   </button>
                 </div>
                 {getFieldError('password') && (
-                  <p id="password-error" className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                  <p id="password-error" className="mt-1 text-sm text-destructive flex items-center gap-1">
                     <AlertCircle className="w-4 h-4" />
                     {getFieldError('password')}
                   </p>
@@ -233,7 +233,7 @@ export default function LoginPage() {
                 transition={{ delay: 0.25 }}
                 type="submit"
                 disabled={loading || !isFormValid}
-                className="w-full py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg font-medium hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                className="w-full py-2.5 bg-gradient-to-r from-primary to-primary/80 text-primary-foreground rounded-lg font-medium hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
               >
                 {loading ? (
                   <div className="flex items-center justify-center gap-2">
@@ -251,7 +251,7 @@ export default function LoginPage() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.3 }}
-              className="text-center text-xs text-gray-500 mt-6"
+              className="text-center text-xs text-muted-foreground mt-6"
             >
               Secure login for authorized administrators only
             </motion.p>

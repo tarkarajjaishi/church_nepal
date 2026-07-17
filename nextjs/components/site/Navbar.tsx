@@ -24,6 +24,7 @@ import { ThemeToggle } from "./ThemeToggle";
 const primary = [
   { to: "/about", key: "nav_about" },
   { to: "/ministries", key: "nav_ministries" },
+  { to: "/groups", key: "nav_groups" },
   { to: "/sermons", key: "nav_sermons" },
   { to: "/events", key: "nav_events" },
   { to: "/gallery", key: "nav_gallery" },

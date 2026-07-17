@@ -67,8 +67,8 @@ export function CrudPage({ endpoint, title, fields }: { endpoint: string; title:
   })
 
   const reorderMut = useMutation({
-    mutationFn: ({ id, sort_order }: { id: string; sort_order: number }) =>
-      api.put(`/${endpoint}/${id}/reorder`, { sort_order }),
+    mutationFn: ({ id, sortOrder }: { id: string; sortOrder: number }) =>
+      api.put(`/${endpoint}/${id}/reorder`, { sortOrder }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [endpoint] }),
   })
 
@@ -77,8 +77,8 @@ export function CrudPage({ endpoint, title, fields }: { endpoint: string; title:
     const swapIndex = direction === 'up' ? index - 1 : index + 1
     if (swapIndex < 0 || swapIndex >= items.length) return
     const swapItem = items[swapIndex]
-    reorderMut.mutate({ id: item.id, sort_order: swapItem.sort_order ?? swapIndex })
-    reorderMut.mutate({ id: swapItem.id, sort_order: item.sort_order ?? index })
+    reorderMut.mutate({ id: item.id, sortOrder: swapItem.sortOrder ?? swapIndex })
+    reorderMut.mutate({ id: swapItem.id, sortOrder: item.sortOrder ?? index })
   }
 
   const handleUpload = async (fieldKey: string, file: File) => {
@@ -101,7 +101,7 @@ export function CrudPage({ endpoint, title, fields }: { endpoint: string; title:
     return `http://localhost:3002${url}`
   }
 
-  const openCreate = () => { setEditing(null); setForm({ sort_order: items.length }); setShowForm(true) }
+  const openCreate = () => { setEditing(null); setForm({ sortOrder: items.length }); setShowForm(true) }
   const openEdit = (item: any) => { setEditing(item); setForm(item); setShowForm(true) }
 
   // Deep link: /admin/<resource>?edit=<id> opens that exact item's editor once.
@@ -137,7 +137,7 @@ export function CrudPage({ endpoint, title, fields }: { endpoint: string; title:
         return (
           <div className="flex flex-col items-center gap-0.5">
             <button onClick={() => moveItem(idx, 'up')} disabled={idx === 0 || reorderMut.isPending} className="p-0.5 text-gray-400 hover:text-church-blue disabled:opacity-30"><ChevronUp className="size-3.5" /></button>
-            <span className="text-xs font-mono text-gray-500">{row.original.sort_order ?? idx}</span>
+            <span className="text-xs font-mono text-gray-500">{row.original.sortOrder ?? idx}</span>
             <button onClick={() => moveItem(idx, 'down')} disabled={idx === items.length - 1 || reorderMut.isPending} className="p-0.5 text-gray-400 hover:text-church-blue disabled:opacity-30"><ChevronDown className="size-3.5" /></button>
           </div>
         )
@@ -300,7 +300,7 @@ export function CrudPage({ endpoint, title, fields }: { endpoint: string; title:
             ))}
             <div className="space-y-2">
               <Label>Display Order</Label>
-              <Input type="number" min="0" value={form.sort_order ?? 0} onChange={e => setForm({ ...form, sort_order: Number(e.target.value) })} />
+              <Input type="number" min="0" value={form.sortOrder ?? 0} onChange={e => setForm({ ...form, sortOrder: Number(e.target.value) })} />
               <p className="text-xs text-muted-foreground">Lower numbers appear first on homepage</p>
             </div>
             <DialogFooter>

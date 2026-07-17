@@ -95,4 +95,38 @@ pub fn api_routes() -> Router<PgPool> {
         .route("/todos/{id}", get(todos::get).put(todos::update).delete(todos::delete))
         .route("/todos/{id}/toggle", put(todos::toggle_status))
         .route("/todos/{id}/reorder", put(todos::reorder))
+        // Blog
+        .route("/blog", get(blog::list).post(blog::create))
+        .route("/blog/published", get(blog::list_published))
+        .route("/blog/{id}", get(blog::get).put(blog::update).delete(blog::delete))
+        // Services
+        .route("/services", get(services::list).post(services::create))
+        .route("/services/{id}", get(services::get).put(services::update).delete(services::delete).patch(services::update))
+        .route("/services/{id}/toggle", put(services::toggle))
+        .route("/services/{id}/reorder", put(services::reorder))
+        // Team
+        .route("/team", get(team::list).post(team::create))
+        .route("/team/{id}", get(team::get).put(team::update).delete(team::delete))
+        .route("/team/{id}/toggle", put(team::toggle))
+        .route("/team/{id}/reorder", put(team::reorder))
+        // Newsletter
+        .route("/newsletter/subscribers", get(newsletter::list_subscribers))
+        .route("/newsletter/count", get(newsletter::count))
+        .route("/newsletter/subscribe", post(newsletter::subscribe))
+        .route("/newsletter/unsubscribe/{email}", post(newsletter::unsubscribe))
+        // Portfolio
+        .route("/portfolio", get(portfolio::list).post(portfolio::create))
+        .route("/portfolio/{id}", get(portfolio::get).put(portfolio::update).delete(portfolio::delete))
+        .route("/portfolio/{id}/toggle", put(portfolio::toggle))
+        .route("/portfolio/{id}/reorder", put(portfolio::reorder))
+        // Contact Info
+        .route("/contact-info", get(contact_info::list).post(contact_info::create))
+        .route("/contact-info/{id}", get(contact_info::get).put(contact_info::update).delete(contact_info::delete))
+        // Groups
+        .route("/groups", get(groups::list).post(groups::create))
+        .route("/groups/{id}", get(groups::get).put(groups::update).delete(groups::delete))
+        .route("/groups/{id}/toggle", put(groups::toggle))
+        .route("/groups/{id}/reorder", put(groups::reorder))
+        // Dashboard
+        .route("/dashboard/stats", get(dashboard::stats))
 }

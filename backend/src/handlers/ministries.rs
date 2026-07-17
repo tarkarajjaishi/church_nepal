@@ -6,30 +6,56 @@ use crate::error::AppError;
 use crate::models::{CreateMinistry, Ministry, UpdateMinistry};
 
 pub async fn list(State(pool): State<PgPool>) -> Result<Json<Vec<Ministry>>, AppError> {
-    let rows = sqlx::query_as!(Ministry, "SELECT * FROM ministries ORDER BY created_at DESC").fetch_all(&pool).await?;
+    let rows = sqlx::query_as::<_, Ministry>("SELECT * FROM ministries ORDER BY created_at DESC")
+        .fetch_all(&pool).await?;
     Ok(Json(rows))
 }
 
 pub async fn get(State(pool): State<PgPool>, Path(id): Path<uuid::Uuid>) -> Result<Json<Ministry>, AppError> {
-    let row = sqlx::query_as!(Ministry, "SELECT * FROM ministries WHERE id = $1", id).fetch_optional(&pool).await?.ok_or_else(|| AppError::not_found("Ministry not found"))?;
+    let row = sqlx::query_as::<_, Ministry>("SELECT * FROM ministries WHERE id = $1")
+        .bind(id)
+        .fetch_optional(&pool).await?.ok_or_else(|| AppError::not_found("Ministry not found"))?;
     Ok(Json(row))
 }
 
 pub async fn create(_auth: AuthUser, State(pool): State<PgPool>, Json(input): Json<CreateMinistry>) -> Result<Json<Ministry>, AppError> {
-    let row = sqlx::query_as!(Ministry, r#"INSERT INTO ministries (name, name_ne, description, leader, meeting, image, icon) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *"#,
-        input.name, input.name_ne, input.description, input.leader, input.meeting, input.image, input.icon).fetch_one(&pool).await?;
+    let row = sqlx::query_as::<_, Ministry>(
+        r#"INSERT INTO ministries (name, name_ne, description, leader, meeting, image, icon) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *"#,
+    )
+    .bind(&input.name)
+    .bind(&input.name_ne)
+    .bind(&input.description)
+    .bind(&input.leader)
+    .bind(&input.meeting)
+    .bind(&input.image)
+    .bind(&input.icon)
+    .fetch_one(&pool).await?;
     Ok(Json(row))
 }
 
 pub async fn update(_auth: AuthUser, State(pool): State<PgPool>, Path(id): Path<uuid::Uuid>, Json(input): Json<UpdateMinistry>) -> Result<Json<Ministry>, AppError> {
-    let existing = sqlx::query_as!(Ministry, "SELECT * FROM ministries WHERE id = $1", id).fetch_optional(&pool).await?.ok_or_else(|| AppError::not_found("Ministry not found"))?;
-    let row = sqlx::query_as!(Ministry, r#"UPDATE ministries SET name=COALESCE($2,name), name_ne=COALESCE($3,name_ne), description=COALESCE($4,description), leader=COALESCE($5,leader), meeting=COALESCE($6,meeting), image=COALESCE($7,image), icon=COALESCE($8,icon) WHERE id=$1 RETURNING *"#,
-        id, input.name.as_deref().unwrap_or(&existing.name), input.name_ne.as_deref().unwrap_or(&existing.name_ne), input.description.as_deref().unwrap_or(&existing.description), input.leader.as_deref().unwrap_or(&existing.leader), input.meeting.as_deref().unwrap_or(&existing.meeting), input.image.as_deref().unwrap_or(&existing.image), input.icon.as_deref().unwrap_or(&existing.icon)).fetch_one(&pool).await?;
+    let existing = sqlx::query_as::<_, Ministry>("SELECT * FROM ministries WHERE id = $1")
+        .bind(id)
+        .fetch_optional(&pool).await?.ok_or_else(|| AppError::not_found("Ministry not found"))?;
+    let row = sqlx::query_as::<_, Ministry>(
+        r#"UPDATE ministries SET name=COALESCE($2,name), name_ne=COALESCE($3,name_ne), description=COALESCE($4,description), leader=COALESCE($5,leader), meeting=COALESCE($6,meeting), image=COALESCE($7,image), icon=COALESCE($8,icon) WHERE id=$1 RETURNING *"#,
+    )
+    .bind(id)
+    .bind(input.name.as_deref().unwrap_or(&existing.name))
+    .bind(input.name_ne.as_deref().unwrap_or(&existing.name_ne))
+    .bind(input.description.as_deref().unwrap_or(&existing.description))
+    .bind(input.leader.as_deref().unwrap_or(&existing.leader))
+    .bind(input.meeting.as_deref().unwrap_or(&existing.meeting))
+    .bind(input.image.as_deref().unwrap_or(&existing.image))
+    .bind(input.icon.as_deref().unwrap_or(&existing.icon))
+    .fetch_one(&pool).await?;
     Ok(Json(row))
 }
 
 pub async fn delete(_auth: AuthUser, State(pool): State<PgPool>, Path(id): Path<uuid::Uuid>) -> Result<Json<serde_json::Value>, AppError> {
-    sqlx::query!("DELETE FROM ministries WHERE id = $1", id).execute(&pool).await?;
+    sqlx::query("DELETE FROM ministries WHERE id = $1")
+        .bind(id)
+        .execute(&pool).await?;
     Ok(Json(serde_json::json!({ "deleted": true })))
 }
 pub async fn toggle(

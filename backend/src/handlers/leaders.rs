@@ -6,12 +6,15 @@ use crate::error::AppError;
 use crate::models::{CreateLeader, Leader, UpdateLeader};
 
 pub async fn list(State(pool): State<PgPool>) -> Result<Json<Vec<Leader>>, AppError> {
-    let rows = sqlx::query_as!(Leader, "SELECT * FROM leaders ORDER BY created_at DESC").fetch_all(&pool).await?;
+    let rows = sqlx::query_as::<_, Leader>("SELECT * FROM leaders ORDER BY created_at DESC")
+        .fetch_all(&pool).await?;
     Ok(Json(rows))
 }
 
 pub async fn get(State(pool): State<PgPool>, Path(id): Path<uuid::Uuid>) -> Result<Json<Leader>, AppError> {
-    let row = sqlx::query_as!(Leader, "SELECT * FROM leaders WHERE id = $1", id).fetch_optional(&pool).await?.ok_or_else(|| AppError::not_found("Leader not found"))?;
+    let row = sqlx::query_as::<_, Leader>("SELECT * FROM leaders WHERE id = $1")
+        .bind(id)
+        .fetch_optional(&pool).await?.ok_or_else(|| AppError::not_found("Leader not found"))?;
     Ok(Json(row))
 }
 
@@ -27,7 +30,9 @@ pub async fn create(_auth: AuthUser, State(pool): State<PgPool>, Json(input): Js
 }
 
 pub async fn update(_auth: AuthUser, State(pool): State<PgPool>, Path(id): Path<uuid::Uuid>, Json(input): Json<UpdateLeader>) -> Result<Json<Leader>, AppError> {
-    let existing = sqlx::query_as!(Leader, "SELECT * FROM leaders WHERE id = $1", id).fetch_optional(&pool).await?.ok_or_else(|| AppError::not_found("Leader not found"))?;
+    let existing = sqlx::query_as::<_, Leader>("SELECT * FROM leaders WHERE id = $1")
+        .bind(id)
+        .fetch_optional(&pool).await?.ok_or_else(|| AppError::not_found("Leader not found"))?;
     let row = sqlx::query_as::<_, Leader>(
         "UPDATE leaders SET name=COALESCE($2,name), role=COALESCE($3,role), category=COALESCE($4,category), image=COALESCE($5,image), bio=COALESCE($6,bio), social_links=COALESCE($7,social_links) WHERE id=$1 RETURNING *"
     )
@@ -43,7 +48,9 @@ pub async fn update(_auth: AuthUser, State(pool): State<PgPool>, Path(id): Path<
 }
 
 pub async fn delete(_auth: AuthUser, State(pool): State<PgPool>, Path(id): Path<uuid::Uuid>) -> Result<Json<serde_json::Value>, AppError> {
-    sqlx::query!("DELETE FROM leaders WHERE id = $1", id).execute(&pool).await?;
+    sqlx::query("DELETE FROM leaders WHERE id = $1")
+        .bind(id)
+        .execute(&pool).await?;
     Ok(Json(serde_json::json!({ "deleted": true })))
 }
 pub async fn toggle(

@@ -13,6 +13,8 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { toast } from 'sonner'
 import { RichTextEditor } from '@/components/admin/RichTextEditor'
+import { ItemsEditor } from '@/components/admin/ItemsEditor'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 interface ContentBlock {
   id: string
@@ -27,7 +29,7 @@ interface ContentBlock {
   sortOrder: number | null
 }
 
-const emptyForm = { section_key: '', title: '', subtitle: '', body: '', image: '', icon: '', eyebrow: '', cta_buttons: [] as { label: string; link: string }[] }
+const emptyForm = { section_key: '', title: '', subtitle: '', body: '', image: '', icon: '', eyebrow: '', cta_buttons: [] as { label: string; link: string }[], items: [] as Record<string, any>[] }
 
 export default function ContentBlocksPage() {
   const queryClient = useQueryClient()
@@ -36,10 +38,26 @@ export default function ContentBlocksPage() {
   const [form, setForm] = useState<Record<string, any>>(emptyForm)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const [uploadingField, setUploadingField] = useState<string | null>(null)
+  const [sectionFilter, setSectionFilter] = useState<string>('all')
+
+  const sectionGroups = [
+    { key: 'all', label: 'All Sections' },
+    { key: 'homepage', label: 'Homepage', prefixes: ['hero', 'welcome', 'what_to_expect', 'testimonies_heading', 'events_heading', 'sermons_heading', 'gallery_heading', 'cta_heading'] },
+    { key: 'ministries', label: 'Ministries Page', prefixes: ['ministries_'] },
+    { key: 'sermons', label: 'Sermons Page', prefixes: ['sermons_hero', 'sermons_heading', 'sermons_description', 'sermons_recent_heading', 'sermons_empty_state'] },
+    { key: 'events', label: 'Events Page', prefixes: ['events_'] },
+  ]
 
   const { data: items = [], isLoading } = useQuery({
     queryKey: ['content-blocks'],
     queryFn: () => api.get('/content-blocks').then(r => r.data),
+  })
+
+  const filteredItems = items.filter((item: ContentBlock) => {
+    if (sectionFilter === 'all') return true
+    const group = sectionGroups.find(g => g.key === sectionFilter)
+    if (!group || !group.prefixes) return true
+    return group.prefixes.some(p => item.sectionKey.startsWith(p))
   })
 
   const createMut = useMutation({
@@ -109,17 +127,25 @@ export default function ContentBlocksPage() {
       icon: item.icon || '',
       eyebrow: firstItem?.eyebrow || '',
       cta_buttons: firstItem?.ctaButtons || [],
+      items: Array.isArray(item.items) ? item.items : (item.items ? [item.items] : []),
     })
   }
 
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault()
     if (!form.section_key || !form.title) return
-    const itemsArr: Record<string, any>[] = []
-    const itemsObj: Record<string, any> = {}
-    if (form.eyebrow) itemsObj.eyebrow = form.eyebrow
-    if (form.cta_buttons?.length) itemsObj.ctaButtons = form.cta_buttons
-    if (Object.keys(itemsObj).length > 0) itemsArr.push(itemsObj)
+    // Build items from form: merge eyebrow/cta_buttons into items[0] or use the items editor data
+    let itemsArr: Record<string, any>[] = [...(form.items || [])]
+    if (itemsArr.length === 0) {
+      const itemsObj: Record<string, any> = {}
+      if (form.eyebrow) itemsObj.eyebrow = form.eyebrow
+      if (form.cta_buttons?.length) itemsObj.ctaButtons = form.cta_buttons
+      if (Object.keys(itemsObj).length > 0) itemsArr.push(itemsObj)
+    } else {
+      // Merge eyebrow/cta_buttons into the first item
+      if (form.eyebrow) itemsArr[0] = { ...itemsArr[0], eyebrow: form.eyebrow }
+      if (form.cta_buttons?.length) itemsArr[0] = { ...itemsArr[0], ctaButtons: form.cta_buttons }
+    }
     createMut.mutate({
       section_key: form.section_key,
       title: form.title,
@@ -134,11 +160,16 @@ export default function ContentBlocksPage() {
   const handleUpdate = (e: React.FormEvent) => {
     e.preventDefault()
     if (!editing) return
-    const itemsArr: Record<string, any>[] = []
-    const itemsObj: Record<string, any> = {}
-    if (form.eyebrow) itemsObj.eyebrow = form.eyebrow
-    if (form.cta_buttons?.length) itemsObj.ctaButtons = form.cta_buttons
-    if (Object.keys(itemsObj).length > 0) itemsArr.push(itemsObj)
+    let itemsArr: Record<string, any>[] = [...(form.items || [])]
+    if (itemsArr.length === 0) {
+      const itemsObj: Record<string, any> = {}
+      if (form.eyebrow) itemsObj.eyebrow = form.eyebrow
+      if (form.cta_buttons?.length) itemsObj.ctaButtons = form.cta_buttons
+      if (Object.keys(itemsObj).length > 0) itemsArr.push(itemsObj)
+    } else {
+      if (form.eyebrow) itemsArr[0] = { ...itemsArr[0], eyebrow: form.eyebrow }
+      if (form.cta_buttons?.length) itemsArr[0] = { ...itemsArr[0], ctaButtons: form.cta_buttons }
+    }
     updateMut.mutate({
       id: editing.id,
       data: { ...form, items: itemsArr.length > 0 ? itemsArr : undefined },
@@ -227,17 +258,29 @@ export default function ContentBlocksPage() {
           <div className="flex items-center gap-2">
             <LayoutGrid className="size-5 text-church-blue" />
             <div>
-              <CardTitle>Homepage Content Sections</CardTitle>
-              <CardDescription>Edit, create, toggle visibility, and reorder sections on the homepage.</CardDescription>
+              <CardTitle>Content Sections</CardTitle>
+              <CardDescription>Edit, create, toggle visibility, and reorder sections across the website.</CardDescription>
             </div>
           </div>
-          <Button onClick={openCreate} className="bg-church-blue hover:bg-church-blue/90">
-            <Plus className="mr-1 size-4" /> New Section
-          </Button>
+          <div className="flex items-center gap-3">
+            <Select value={sectionFilter} onValueChange={setSectionFilter}>
+              <SelectTrigger className="w-[180px] h-8 text-sm">
+                <SelectValue placeholder="Filter by page" />
+              </SelectTrigger>
+              <SelectContent>
+                {sectionGroups.map(g => (
+                  <SelectItem key={g.key} value={g.key}>{g.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button onClick={openCreate} className="bg-church-blue hover:bg-church-blue/90">
+              <Plus className="mr-1 size-4" /> New Section
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <DataTable
-            data={items}
+            data={filteredItems}
             columns={columns}
             searchKey="title"
             searchPlaceholder="Search sections..."
@@ -322,6 +365,14 @@ export default function ContentBlocksPage() {
               <Button type="button" variant="outline" size="sm" onClick={() => setForm({ ...form, cta_buttons: [...(form.cta_buttons || []), { label: '', link: '/' }] })}>
                 <Plus className="size-3.5 mr-1" /> Add Button
               </Button>
+            </div>
+            <div className="space-y-2">
+              <Label>Items (Nested Data)</Label>
+              <p className="text-xs text-muted-foreground">Add, remove, reorder, or edit fields for each item. Field keys are inferred from existing items.</p>
+              <ItemsEditor
+                items={form.items || []}
+                onChange={(newItems) => setForm({ ...form, items: newItems })}
+              />
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => { setCreating(false); setEditing(null); setForm(emptyForm) }}>Cancel</Button>

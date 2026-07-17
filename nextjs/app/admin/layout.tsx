@@ -28,8 +28,8 @@ function AuthGuard({ children }: { children: ReactNode }) {
 
   if (loading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-gray-50">
-        <div className="size-8 animate-spin rounded-full border-4 border-[#0b3c5d] border-t-transparent" />
+      <div className="flex h-screen items-center justify-center bg-background">
+        <div className="size-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
       </div>
     )
   }
@@ -58,7 +58,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       <ErrorBoundary>
         <AuthProvider>
           {isLogin ? (
-            <div className="min-h-screen bg-gray-50">
+            <div className="min-h-screen bg-background">
               <AdminNav />
               <main className="container mx-auto py-8 px-4">
                 {children}

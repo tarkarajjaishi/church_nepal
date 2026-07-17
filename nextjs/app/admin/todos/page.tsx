@@ -12,7 +12,7 @@ interface Todo {
   priority: string
   status: string
   due_date: string
-  sort_order: number | null
+  sortOrder: number | null
 }
 
 const priorityColors: Record<string, string> = {
@@ -67,7 +67,7 @@ export default function TodosPage() {
   })
 
   const reorderMut = useMutation({
-    mutationFn: ({ id, sort_order }: { id: string; sort_order: number }) => api.put(`/todos/${id}/reorder`, { sort_order }),
+    mutationFn: ({ id, sortOrder }: { id: string; sortOrder: number }) => api.put(`/todos/${id}/reorder`, { sortOrder }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['todos'] }),
   })
 
@@ -76,8 +76,8 @@ export default function TodosPage() {
     const swapIndex = direction === 'up' ? index - 1 : index + 1
     if (swapIndex < 0 || swapIndex >= filteredItems.length) return
     const swapItem = filteredItems[swapIndex]
-    reorderMut.mutate({ id: item.id, sort_order: swapItem.sort_order ?? swapIndex })
-    reorderMut.mutate({ id: swapItem.id, sort_order: item.sort_order ?? index })
+    reorderMut.mutate({ id: item.id, sortOrder: swapItem.sortOrder ?? swapIndex })
+    reorderMut.mutate({ id: swapItem.id, sortOrder: item.sortOrder ?? index })
   }
 
   const filteredItems = filterStatus === 'all' ? items : items.filter((t: Todo) => t.status === filterStatus)
@@ -142,7 +142,7 @@ export default function TodosPage() {
                       <td className="px-3 py-3 text-center">
                         <div className="flex flex-col items-center gap-0.5">
                           <button onClick={() => moveItem(index, 'up')} disabled={index === 0} className="p-0.5 text-gray-400 hover:text-[#0b3c5d] disabled:opacity-30"><ChevronUp className="size-3.5" /></button>
-                          <span className="text-xs font-mono text-gray-500">{item.sort_order ?? index}</span>
+                          <span className="text-xs font-mono text-gray-500">{item.sortOrder ?? index}</span>
                           <button onClick={() => moveItem(index, 'down')} disabled={index === filteredItems.length - 1} className="p-0.5 text-gray-400 hover:text-[#0b3c5d] disabled:opacity-30"><ChevronDown className="size-3.5" /></button>
                         </div>
                       </td>

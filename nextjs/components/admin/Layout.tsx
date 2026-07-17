@@ -12,6 +12,7 @@ const navItems = [
   { to: '/admin/sermons', icon: BookOpen, label: 'Sermons' },
   { to: '/admin/events', icon: Calendar, label: 'Events' },
   { to: '/admin/ministries', icon: Users, label: 'Ministries' },
+  { to: '/admin/groups', icon: Users, label: 'Groups' },
   { to: '/admin/leaders', icon: UserCheck, label: 'Leaders' },
   { to: '/admin/gallery', icon: Image, label: 'Gallery' },
   { to: '/admin/testimonies', icon: Quote, label: 'Testimonies' },
@@ -45,11 +46,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="flex h-screen">
-      <aside className="w-64 bg-[#0b3c5d] text-white flex flex-col shrink-0">
+    <div className="flex h-screen bg-background">
+      <aside className="w-64 bg-church-blue text-white flex flex-col shrink-0">
         <div className="p-4 border-b border-white/10">
           <div className="flex items-center gap-2">
-            <Church className="size-6 text-[#d4a843]" />
+            <Church className="size-6 text-gold" />
             <div>
               <div className="font-bold text-sm">Grace Nepal Church</div>
               <div className="text-[11px] text-white/60">Admin Panel</div>
@@ -88,7 +89,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </button>
         </div>
       </aside>
-      <main className="flex-1 overflow-y-auto">
+      <main className="flex-1 overflow-y-auto bg-background">
         <div className="p-6">{children}</div>
       </main>
     </div>

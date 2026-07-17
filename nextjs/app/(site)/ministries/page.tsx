@@ -10,40 +10,67 @@ import { SectionHeading } from "@/components/site/SectionHeading";
 import { Reveal } from "@/components/site/Reveal";
 import { Icon } from "@/components/site/Icon";
 import { ImageWithFallback } from "@/components/figma/ImageWithFallback";
-import { images } from "@/lib/data";
+import { EditableBlock } from "@/components/site/EditableBlock";
 import { useLang } from "@/lib/language";
-import { useMinistries } from "@/lib/hooks";
+import { useMinistries, useContentBlock } from "@/lib/hooks";
 import { CardSkeleton } from "@/components/site/LoadingSpinner";
 import { ErrorDisplay } from "@/components/site/ErrorDisplay";
 
-const filters = [
-  { key: "all", label: "All" },
-  { key: "children", label: "Children & Youth", ids: ["children", "youth"] },
-  { key: "fellowship", label: "Fellowship", ids: ["women", "men"] },
-  { key: "worship", label: "Worship & Media", ids: ["worship", "media"] },
-  { key: "outreach", label: "Outreach & Mission", ids: ["outreach", "mission"] },
-  { key: "teaching", label: "Prayer & Teaching", ids: ["prayer", "bibleschool"] },
+const filterKeys = [
+  { key: "all", ids: [] },
+  { key: "children", ids: ["children", "youth"] },
+  { key: "fellowship", ids: ["women", "men"] },
+  { key: "worship", ids: ["worship", "media"] },
+  { key: "outreach", ids: ["outreach", "mission"] },
+  { key: "teaching", ids: ["prayer", "bibleschool"] },
 ];
+
+const fallbackLabels = ["All", "Children & Youth", "Fellowship", "Worship & Media", "Outreach & Mission", "Prayer & Teaching"];
 
 export default function Ministries() {
   const { lang } = useLang();
   const { data: ministries = [], isLoading, error, refetch } = useMinistries();
   const [active, setActive] = useState("all");
+  const hero = useContentBlock('ministries_hero');
+  const heading = useContentBlock('ministries_heading');
+  const errorBlock = useContentBlock('ministries_error');
+  const ctaBlock = useContentBlock('ministries_cta');
+
+  const filterLabels = heading?.items?.[0]?.filters ?? fallbackLabels;
+
+  const filters = useMemo(() => filterKeys.map((fk, i) => ({
+    ...fk,
+    label: filterLabels[i] ?? fallbackLabels[i] ?? fk.key,
+  })), [filterLabels]);
 
   const shown = useMemo(() => {
     if (active === "all") return ministries;
     const ids = filters.find((f) => f.key === active)?.ids ?? [];
     return ministries.filter((m) => ids.includes(m.id));
-  }, [active, ministries]);
+  }, [active, ministries, filters]);
+
+  const errorMessage = errorBlock?.title || "Failed to load ministries.";
+  const ctaLabel = ctaBlock?.title || "Join Ministry";
 
   return (
     <div>
-      <PageHero title="Our Ministries" crumb="Ministries" image={images.band}
-        subtitle="However God has gifted you, there is a place to serve, grow and belong." />
+      <EditableBlock block={hero}>
+        <PageHero
+          title={hero?.title || "Our Ministries"}
+          crumb={hero?.items?.[0]?.crumb || "Ministries"}
+          image={hero?.image || ''}
+          subtitle={hero?.subtitle || ""}
+        />
+      </EditableBlock>
 
       <section className="py-20">
         <div className="mx-auto max-w-7xl px-4">
-          <SectionHeading eyebrow="Get Involved" title="Find Your Place" />
+          <EditableBlock block={heading}>
+            <SectionHeading
+              eyebrow={heading?.items?.[0]?.eyebrow || "Get Involved"}
+              title={heading?.title || "Find Your Place"}
+            />
+          </EditableBlock>
 
           <div className="mt-8 flex flex-wrap justify-center gap-2">
             {filters.map((f) => (
@@ -61,7 +88,7 @@ export default function Ministries() {
             {isLoading ? (
               <CardSkeleton count={6} />
             ) : error ? (
-              <ErrorDisplay message="Failed to load ministries." onRetry={() => refetch()} />
+              <ErrorDisplay message={errorMessage} onRetry={() => refetch()} />
             ) : (
               <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                 {shown.map((m, i) => (
@@ -80,7 +107,7 @@ export default function Ministries() {
                       <div className="flex items-center gap-2"><User className="size-4 text-gold" /> {m.leader}</div>
                       <div className="flex items-center gap-2"><Clock className="size-4 text-gold" /> {m.meeting}</div>
                     </div>
-                    <Button asChild size="sm" className="mt-4 bg-church-blue hover:bg-church-blue/90"><Link href="/contact">Join Ministry <ArrowRight className="size-4" /></Link></Button>
+                    <Button asChild size="sm" className="mt-4 bg-church-blue hover:bg-church-blue/90"><Link href="/contact">{ctaLabel} <ArrowRight className="size-4" /></Link></Button>
                   </div>
                 </Card>
               </Reveal>
@@ -93,4 +120,3 @@ export default function Ministries() {
     </div>
   );
 }
-

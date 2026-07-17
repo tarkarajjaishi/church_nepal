@@ -37,7 +37,7 @@ pub struct AuthResponse {
     pub user: UserPublic,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, FromRow)]
 pub struct UserPublic {
     pub id: uuid::Uuid,
     pub email: String,
