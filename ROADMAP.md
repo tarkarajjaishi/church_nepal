@@ -50,6 +50,6 @@
 - Anything in a language other than Next.js/Rust.
 
 ## Execution / revive notes
-- Revive stack: reboot if Postgres won't start -> `Start-Service postgresql-x64-18` -> backend `backend/target/release/grace-church-backend.exe` -> frontend `bun --bun next dev --port 3000 --webpack`.
+- Revive stack: Postgres runs in **Docker** (not the Windows service) -> `docker ps` to confirm the postgres container is up (start it via its compose/`docker start` if not) -> backend `backend/target/release/grace-church-backend.exe` -> frontend `bun --bun next dev --port 3000 --webpack`.
 - Loop = `boss.bat` + `worker.bat` (via `run_boss.ps1` / `run_worker.ps1`). Steer with `tell-boss.bat`; Claude steers via `.bridge/claude_msg.txt`.
 - Testing cadence: ~hourly, run `cargo build`+`cargo test` and `bun run build`+`typecheck`+`lint`; when the stack is up, curl endpoints + load pages. Fix regressions before new features.

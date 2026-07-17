@@ -10,6 +10,17 @@ pub struct ReorderRequest {
     pub sort_order: i32,
 }
 
+#[derive(serde::Deserialize)]
+pub struct ReorderItem {
+    pub id: uuid::Uuid,
+    pub sort_order: i32,
+}
+
+#[derive(serde::Deserialize)]
+pub struct BatchReorderRequest {
+    pub items: Vec<ReorderItem>,
+}
+
 pub async fn list(State(pool): State<PgPool>) -> Result<Json<Vec<ContentBlock>>, AppError> {
     let rows = sqlx::query_as::<_, ContentBlock>("SELECT * FROM content_blocks ORDER BY sort_order ASC")
         .fetch_all(&pool).await?;
@@ -82,4 +93,20 @@ pub async fn reorder(_auth: AuthUser, State(pool): State<PgPool>, Path(id): Path
     let row = sqlx::query_as::<_, ContentBlock>("UPDATE content_blocks SET sort_order = $2 WHERE id = $1 RETURNING *")
         .bind(id).bind(input.sort_order).fetch_optional(&pool).await?.ok_or_else(|| AppError::not_found("Content block not found"))?;
     Ok(Json(row))
+}
+
+pub async fn batch_reorder(_auth: AuthUser, State(pool): State<PgPool>, Json(input): Json<BatchReorderRequest>) -> Result<Json<Vec<ContentBlock>>, AppError> {
+    let mut tx = pool.begin().await.map_err(|e| AppError::internal(&e.to_string()))?;
+    for item in &input.items {
+        sqlx::query("UPDATE content_blocks SET sort_order = $2, updated_at = NOW() WHERE id = $1")
+            .bind(item.id)
+            .bind(item.sort_order)
+            .execute(&mut *tx)
+            .await
+            .map_err(|e| AppError::internal(&e.to_string()))?;
+    }
+    tx.commit().await.map_err(|e| AppError::internal(&e.to_string()))?;
+    let rows = sqlx::query_as::<_, ContentBlock>("SELECT * FROM content_blocks ORDER BY sort_order ASC")
+        .fetch_all(&pool).await?;
+    Ok(Json(rows))
 }

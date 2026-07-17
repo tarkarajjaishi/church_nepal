@@ -4,10 +4,12 @@ import { useState } from "react";
 import { X, ChevronLeft, ChevronRight, ZoomIn } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { PageHero } from "@/components/site/PageHero";
+import { SectionHeading } from "@/components/site/SectionHeading";
 import { Reveal } from "@/components/site/Reveal";
 import { ImageWithFallback } from "@/components/figma/ImageWithFallback";
+import { EditableBlock } from "@/components/site/EditableBlock";
 import { images, galleryCategories } from "@/lib/data";
-import { useGallery } from "@/lib/hooks";
+import { useGallery, useContentBlock } from "@/lib/hooks";
 import { CardSkeleton } from "@/components/site/LoadingSpinner";
 import { ErrorDisplay } from "@/components/site/ErrorDisplay";
 
@@ -15,6 +17,20 @@ export default function Gallery() {
   const { data: gallery = [], isLoading, error, refetch } = useGallery();
   const [filter, setFilter] = useState("All");
   const [active, setActive] = useState<number | null>(null);
+
+  const hero = useContentBlock('gallery_hero');
+  const heading = useContentBlock('gallery_heading');
+  const errorBlock = useContentBlock('gallery_error');
+
+  const heroTitle = hero?.title || "Gallery";
+  const heroSubtitle = hero?.subtitle || "Snapshots of God's faithfulness — worship, fellowship, mission and celebration.";
+  const heroCrumb = hero?.items?.[0]?.crumb || "Gallery";
+  const heroImage = hero?.image || images.crowd;
+  const errorMsg = errorBlock?.title || "Failed to load gallery.";
+
+  const categories = hero?.items && hero.items.length > 0
+    ? ["All", ...hero.items.map((item: { title?: string }) => item.title).filter(Boolean)]
+    : galleryCategories;
 
   const shown = filter === "All" ? gallery : gallery.filter((g) => g.category === filter);
   const current = active !== null ? shown[active] : null;
@@ -24,13 +40,23 @@ export default function Gallery() {
 
   return (
     <div>
-      <PageHero title="Gallery" crumb="Gallery" image={images.crowd}
-        subtitle="Snapshots of God's faithfulness — worship, fellowship, mission and celebration." />
+      <EditableBlock block={hero}>
+        <PageHero title={heroTitle} crumb={heroCrumb} image={heroImage}
+          subtitle={heroSubtitle} />
+      </EditableBlock>
 
       <section className="py-16">
         <div className="mx-auto max-w-7xl px-4">
-          <div className="flex flex-wrap justify-center gap-2">
-            {galleryCategories.map((c) => (
+          <EditableBlock block={heading}>
+            <SectionHeading
+              eyebrow={heading?.items?.[0]?.eyebrow || "Browse"}
+              title={heading?.title || "Gallery"}
+              subtitle={heading?.subtitle || ""}
+            />
+          </EditableBlock>
+
+          <div className="mt-8 flex flex-wrap justify-center gap-2">
+            {categories.map((c: string) => (
               <button
                 key={c}
                 onClick={() => { setFilter(c); setActive(null); }}
@@ -47,7 +73,7 @@ export default function Gallery() {
             {isLoading ? (
               <CardSkeleton count={9} />
             ) : error ? (
-              <ErrorDisplay message="Failed to load gallery." onRetry={() => refetch()} />
+              <ErrorDisplay message={errorMsg} onRetry={() => refetch()} />
             ) : (
               <div className="columns-1 sm:columns-2 lg:columns-3 gap-4 [column-fill:_balance]">
                 {shown.map((g, i) => (
@@ -87,4 +113,3 @@ export default function Gallery() {
     </div>
   );
 }
-

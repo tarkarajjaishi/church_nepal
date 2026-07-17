@@ -1,7 +1,9 @@
 'use client'
 
+import Link from "next/link";
 import { Target, Eye, Heart, Milestone, CheckCircle2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { PageHero } from "@/components/site/PageHero";
 import { SectionHeading } from "@/components/site/SectionHeading";
@@ -20,31 +22,35 @@ export default function About() {
   const mission = useContentBlock('about_mission');
   const values = useContentBlock('about_values');
   const faq = useContentBlock('about_faq');
+  const cta = useContentBlock('about_cta');
 
   return (
     <div>
+      {/* Hero — fully from CMS */}
+      {hero && (
       <EditableBlock block={hero}>
-        <PageHero title={hero?.title || "About Our Church"} crumb="About" image={hero?.items?.[0]?.image || ''}
-          subtitle={hero?.subtitle || ""} />
+        <PageHero title={hero.title} crumb="About" image={hero.items?.[0]?.image || ''}
+          subtitle={hero.subtitle || ""} />
       </EditableBlock>
+      )}
 
-      {/* History */}
+      {/* History — fully from CMS */}
       {history && (
       <EditableBlock block={history}>
         <section className="py-20">
           <div className="mx-auto max-w-7xl px-4 grid lg:grid-cols-2 gap-12 items-center">
             <Reveal>
-              <ImageWithFallback src={history.items?.[0]?.image || ''} alt="Our church family" className="rounded-3xl w-full aspect-[4/3] object-cover shadow-xl" />
+              <ImageWithFallback src={history.items?.[0]?.image || ''} alt={history.title} className="rounded-3xl w-full aspect-[4/3] object-cover shadow-xl" />
             </Reveal>
             <div>
-              <SectionHeading center={false} eyebrow={history.items?.[0]?.eyebrow || "Our Story"} title={history.title || "Church History"} subtitle={history.subtitle || ""} />
+              <SectionHeading center={false} eyebrow={history.items?.[0]?.eyebrow || ""} title={history.title} subtitle={history.subtitle || ""} />
             </div>
           </div>
         </section>
       </EditableBlock>
       )}
 
-      {/* Mission / Vision */}
+      {/* Mission / Vision — fully from CMS */}
       {mission && (
       <EditableBlock block={mission}>
         <section className="py-16 bg-section">
@@ -66,12 +72,12 @@ export default function About() {
       </EditableBlock>
       )}
 
-      {/* Core Values */}
+      {/* Core Values — fully from CMS */}
       {values && (
       <EditableBlock block={values}>
         <section className="py-20">
           <div className="mx-auto max-w-7xl px-4">
-            <SectionHeading eyebrow={values.items?.[0]?.eyebrow || "What Drives Us"} title={values.title || "Core Values"} />
+            <SectionHeading eyebrow={values.items?.[0]?.eyebrow || ""} title={values.title} />
             <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
               {(values.items || []).map((v: any, i: number) => {
                 const Icon = iconMap[v.icon] || Heart;
@@ -91,12 +97,12 @@ export default function About() {
       </EditableBlock>
       )}
 
-      {/* Timeline */}
+      {/* Timeline — fully from CMS, driven by history block's timeline data */}
       {history && history.items?.[0]?.timeline && (
       <EditableBlock block={history}>
         <section className="py-20 bg-section">
           <div className="mx-auto max-w-4xl px-4">
-            <SectionHeading eyebrow="Our Journey" title="Milestones" />
+            <SectionHeading eyebrow={history.items?.[0]?.timelineEyebrow || ""} title={history.items?.[0]?.timelineTitle || ""} />
             <div className="mt-12 relative pl-8 sm:pl-0">
               <div className="absolute left-2 sm:left-1/2 top-0 bottom-0 w-px bg-border sm:-translate-x-1/2" />
               {history.items[0].timeline.map((item: any, i: number) => (
@@ -116,12 +122,12 @@ export default function About() {
       </EditableBlock>
       )}
 
-      {/* FAQ */}
+      {/* FAQ — fully from CMS */}
       {faq && (
       <EditableBlock block={faq}>
         <section className="py-20">
           <div className="mx-auto max-w-4xl px-4">
-            <SectionHeading eyebrow={faq.items?.[0]?.eyebrow || "Questions"} title={faq.title || "Frequently Asked"} />
+            <SectionHeading eyebrow={faq.items?.[0]?.eyebrow || ""} title={faq.title} />
             <Reveal delay={0.1}>
               <Accordion type="single" collapsible className="mt-10">
                 {(faq.items || []).map((f: any, i: number) => (
@@ -131,6 +137,24 @@ export default function About() {
                   </AccordionItem>
                 ))}
               </Accordion>
+            </Reveal>
+          </div>
+        </section>
+      </EditableBlock>
+      )}
+
+      {/* CTA — fully from CMS */}
+      {cta && (
+      <EditableBlock block={cta}>
+        <section className="py-20 bg-church-blue">
+          <div className="mx-auto max-w-3xl px-4 text-center">
+            <Reveal>
+              <SectionHeading light eyebrow={cta.items?.[0]?.eyebrow || ""} title={cta.title} subtitle={cta.subtitle || ""} />
+              {(cta.items || []).filter((b: any) => b.link).map((btn: any, i: number) => (
+                <Button key={i} asChild size="lg" className={btn.style === 'outline' ? "mt-4 ml-3 border-white/30 text-white hover:bg-white/10" : "mt-8 bg-gold text-church-blue hover:bg-gold/90"} variant={btn.style === 'outline' ? "ghost" : "default"}>
+                  <Link href={btn.link}>{btn.label}</Link>
+                </Button>
+              ))}
             </Reveal>
           </div>
         </section>

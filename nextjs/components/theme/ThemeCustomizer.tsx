@@ -13,9 +13,16 @@ import {
   THEME_SETTING_KEYS,
   DEFAULT_PRIMARY,
   DEFAULT_SKIN,
+  DEFAULT_HEADING_FONT,
+  DEFAULT_BODY_FONT,
   applyPrimaryColor,
   applySkin,
+  applyFonts,
+  applyPreset,
+  loadGoogleFont,
+  findPresetByName,
   isValidHex,
+  type ThemePreset,
   type ThemeSkin,
 } from '@/lib/theme'
 
@@ -38,6 +45,7 @@ export function ThemeCustomizer() {
   const [open, setOpen] = useState(false)
   const [primary, setPrimary] = useState<string>(DEFAULT_PRIMARY)
   const [skin, setSkin] = useState<ThemeSkin>(DEFAULT_SKIN)
+  const [activePreset, setActivePreset] = useState<string | null>(null)
   const [savingKey, setSavingKey] = useState<string | null>(null)
   const saveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
 
@@ -55,6 +63,24 @@ export function ThemeCustomizer() {
         if (p && isValidHex(p)) setPrimary(p)
         const s = map.get(THEME_SETTING_KEYS.skin)
         if (s === 'bordered' || s === 'default') setSkin(s)
+
+        const presetName = map.get(THEME_SETTING_KEYS.theme_preset)
+        if (presetName) {
+          const preset = findPresetByName(presetName)
+          if (preset) {
+            setActivePreset(preset.name)
+            applyPreset(preset)
+          }
+        } else {
+          // No preset — load saved fonts if any
+          const hFont = map.get(THEME_SETTING_KEYS.heading_font)
+          const bFont = map.get(THEME_SETTING_KEYS.body_font)
+          if (hFont && bFont) {
+            applyFonts(hFont, bFont)
+            loadGoogleFont(hFont)
+            loadGoogleFont(bFont)
+          }
+        }
       })
       .catch(() => {})
   }, [isAdmin])
@@ -72,10 +98,12 @@ export function ThemeCustomizer() {
 
   const changePrimary = (hex: string) => {
     setPrimary(hex)
+    setActivePreset(null)
     if (isValidHex(hex)) {
       applyPrimaryColor(hex)
       saveSetting(THEME_SETTING_KEYS.primary, hex)
     }
+    saveSetting(THEME_SETTING_KEYS.theme_preset, '')
   }
   const changeSkin = (s: ThemeSkin) => {
     setSkin(s)
@@ -86,10 +114,31 @@ export function ThemeCustomizer() {
     setTheme(m)
     saveSetting(THEME_SETTING_KEYS.mode, m)
   }
+  const selectPreset = (preset: ThemePreset) => {
+    applyPreset(preset)
+    setActivePreset(preset.name)
+    setPrimary(preset.primary)
+    saveSetting(THEME_SETTING_KEYS.primary, preset.primary)
+    saveSetting(THEME_SETTING_KEYS.heading_font, preset.headingFont)
+    saveSetting(THEME_SETTING_KEYS.body_font, preset.bodyFont)
+    saveSetting(THEME_SETTING_KEYS.theme_preset, preset.name)
+    saveSetting(THEME_SETTING_KEYS.homepage_layout, preset.layout)
+  }
+  const clearPreset = () => {
+    setActivePreset(null)
+    saveSetting(THEME_SETTING_KEYS.theme_preset, '')
+    saveSetting(THEME_SETTING_KEYS.homepage_layout, '')
+  }
   const reset = () => {
     changePrimary(DEFAULT_PRIMARY)
     changeSkin(DEFAULT_SKIN)
     changeMode('system')
+    applyFonts(DEFAULT_HEADING_FONT, DEFAULT_BODY_FONT)
+    setActivePreset(null)
+    saveSetting(THEME_SETTING_KEYS.heading_font, '')
+    saveSetting(THEME_SETTING_KEYS.body_font, '')
+    saveSetting(THEME_SETTING_KEYS.theme_preset, '')
+    saveSetting(THEME_SETTING_KEYS.homepage_layout, '')
   }
 
   // Clean up pending debounced saves on unmount.
@@ -142,6 +191,57 @@ export function ThemeCustomizer() {
         </div>
 
         <div className="flex-1 space-y-7 overflow-y-auto px-5 py-6">
+          {/* Theme Presets */}
+          <section className="space-y-3">
+            <Label className="text-sm font-medium">Theme Presets</Label>
+            <div className="grid grid-cols-2 gap-2">
+              {THEME_PRESETS.map(p => (
+                <button
+                  key={p.name}
+                  onClick={() => selectPreset(p)}
+                  className={`flex items-start gap-2.5 rounded-lg border p-3 text-left transition ${
+                    activePreset === p.name
+                      ? 'border-church-blue ring-2 ring-church-blue bg-church-blue/5'
+                      : 'border-border hover:border-church-blue/40'
+                  }`}
+                >
+                  <span
+                    className="mt-0.5 size-5 shrink-0 rounded-full ring-1 ring-black/10"
+                    style={{ backgroundColor: p.primary }}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1">
+                      <span className="text-xs font-medium text-foreground truncate">{p.label}</span>
+                      {activePreset === p.name && <Check className="size-3 shrink-0 text-church-blue" />}
+                    </div>
+                    <p className="text-[10px] text-muted-foreground truncate">{p.headingFont.split(',')[0].replace(/'/g, '')}</p>
+                    <p className="text-[10px] text-muted-foreground truncate">{p.bodyFont.split(',')[0].replace(/'/g, '')}</p>
+                  </div>
+                </button>
+              ))}
+              {/* Custom card */}
+              <button
+                onClick={clearPreset}
+                className={`flex items-start gap-2.5 rounded-lg border p-3 text-left transition ${
+                  activePreset === null
+                    ? 'border-church-blue ring-2 ring-church-blue bg-church-blue/5'
+                    : 'border-border hover:border-church-blue/40'
+                }`}
+              >
+                <span className="mt-0.5 size-5 shrink-0 rounded-full bg-gradient-to-br from-red-500 via-green-500 to-blue-500 ring-1 ring-black/10" />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1">
+                    <span className="text-xs font-medium text-foreground">Custom</span>
+                    {activePreset === null && <Check className="size-3 shrink-0 text-church-blue" />}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">Manual controls</p>
+                </div>
+              </button>
+            </div>
+          </section>
+
+          <Separator />
+
           {/* Primary colour */}
           <section className="space-y-3">
             <div className="flex items-center justify-between">

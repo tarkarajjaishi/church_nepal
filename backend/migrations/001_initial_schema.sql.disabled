@@ -1,4 +1,4 @@
-"""Database schema and migrations setup."""
+-- Database schema and migrations setup.
 -- Initial schema for multi-tenant architecture
 
 -- Tenants table

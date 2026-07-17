@@ -13,6 +13,7 @@ import { SectionHeading } from "@/components/site/SectionHeading";
 import { Reveal } from "@/components/site/Reveal";
 import { EditableBlock } from "@/components/site/EditableBlock";
 import { useContentBlock, useCampaigns } from "@/lib/hooks";
+import { images } from "@/lib/data";
 
 const defaultMethods = [
   { id: "esewa", label: "eSewa" },
@@ -50,7 +51,7 @@ export default function Give() {
         <PageHero
           title={hero?.title || "Give"}
           crumb={heroItems.crumb || "Give"}
-          image={heroItems.image || ''}
+          image={hero?.items?.[0]?.image || images.worship1}
           subtitle={hero?.subtitle || "Every gift is an act of worship that helps us reach Nepal with the hope of Christ."}
         />
       </EditableBlock>
@@ -112,7 +113,7 @@ export default function Give() {
                 <Button
                   size="lg"
                   className="mt-6 w-full bg-gold text-church-blue hover:bg-gold/90"
-                  onClick={() => toast.success(`Thank you for your ${freq === "one" ? "gift" : "monthly pledge"}!`, { description: `Rs ${amount || 0} via ${methods.find((m: any) => m.id === method)?.label}` })}
+                  onClick={() => toast.success(formData.successMessage || `Thank you for your ${freq === "one" ? "gift" : "monthly pledge"}!`, { description: `Rs ${amount || 0} via ${methods.find((m: any) => m.id === method)?.label}` })}
                 >
                   {formData.submitLabel?.replace('{amount}', String(amount || 0)) || `Give Rs ${amount || 0} ${freq === "monthly" ? "/ month" : ""}`}
                 </Button>

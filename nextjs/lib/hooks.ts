@@ -291,8 +291,8 @@ export interface ContentBlock {
 
 export function useContentBlocks() {
   return useQuery({
-    queryKey: ["content-blocks", "enabled"],
-    queryFn: () => api.get("/content-blocks/enabled").then(r => r.data as ContentBlock[]),
+    queryKey: ["content-blocks"],
+    queryFn: () => api.get("/content-blocks").then(r => r.data as ContentBlock[]),
     placeholderData: [] as ContentBlock[],
   })
 }

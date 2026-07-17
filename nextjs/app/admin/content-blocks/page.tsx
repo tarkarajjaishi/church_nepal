@@ -1,20 +1,40 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { type ColumnDef } from '@tanstack/react-table'
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import api, { uploadFile } from '@/lib/admin/api'
-import { Plus, Pencil, Trash2, Upload, ChevronUp, ChevronDown, LayoutGrid } from 'lucide-react'
-import { DataTable, Badge, Switch, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, Button } from '@/components/admin/DataTable'
+import { Plus, Pencil, Trash2, Upload, GripVertical, LayoutGrid } from 'lucide-react'
+import { Badge, Switch, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, Button } from '@/components/admin/DataTable'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { toast } from 'sonner'
 import { RichTextEditor } from '@/components/admin/RichTextEditor'
 import { ItemsEditor } from '@/components/admin/ItemsEditor'
+import { MediaPicker } from '@/components/admin/MediaPicker'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Search } from 'lucide-react'
 
 interface ContentBlock {
   id: string
@@ -31,6 +51,63 @@ interface ContentBlock {
 
 const emptyForm = { section_key: '', title: '', subtitle: '', body: '', image: '', icon: '', eyebrow: '', cta_buttons: [] as { label: string; link: string }[], items: [] as Record<string, any>[] }
 
+const sectionGroups = [
+  { key: 'all', label: 'All Pages' },
+  { key: 'home', label: 'Home', prefixes: ['hero', 'welcome', 'what_to_expect', 'what_we_believe', 'watch_online', 'prayer_cta', 'service_times_section', 'featured_sermons', 'ministries_section', 'events_section', 'notice_board', 'testimonies_section', 'gallery_section', 'verse_section', 'donation_section', 'newsletter', 'church_members', 'footer', 'site_brand', 'social_links'] },
+  { key: 'about', label: 'About', prefixes: ['about_'] },
+  { key: 'visit', label: 'Visit', prefixes: ['visit_'] },
+  { key: 'pastor', label: 'Pastor', prefixes: ['pastor_'] },
+  { key: 'leadership', label: 'Leadership', prefixes: ['leadership_'] },
+  { key: 'groups', label: 'Groups', prefixes: ['groups_'] },
+  { key: 'prayer', label: 'Prayer', prefixes: ['prayer_'] },
+  { key: 'give', label: 'Give', prefixes: ['give_'] },
+  { key: 'ministries', label: 'Ministries', prefixes: ['ministries_'] },
+  { key: 'sermons', label: 'Sermons', prefixes: ['sermons_'] },
+  { key: 'events', label: 'Events', prefixes: ['events_'] },
+  { key: 'gallery', label: 'Gallery', prefixes: ['gallery_'] },
+  { key: 'contact', label: 'Contact', prefixes: ['contact_'] },
+  { key: 'live', label: 'Live', prefixes: ['live_'] },
+  { key: 'privacy', label: 'Privacy', prefixes: ['privacy_'] },
+  { key: 'terms', label: 'Terms', prefixes: ['terms_'] },
+]
+
+function getPageLabel(sectionKey: string): string {
+  for (const group of sectionGroups) {
+    if (group.prefixes?.some(p => sectionKey.startsWith(p))) {
+      return group.label
+    }
+  }
+  return 'Home'
+}
+
+function SortableRow({ row, children }: { row: any; children: React.ReactNode }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: row.original.id })
+  const isEnabled = row.original.enabled ?? true
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : (isEnabled ? 1 : 0.5),
+    position: 'relative' as const,
+    zIndex: isDragging ? 50 : 'auto',
+  }
+
+  return (
+    <TableRow ref={setNodeRef} style={style}>
+      {children}
+    </TableRow>
+  )
+}
+
+function DragHandle({ id }: { id: string }) {
+  const { attributes, listeners } = useSortable({ id })
+  return (
+    <button className="cursor-grab active:cursor-grabbing p-1 text-gray-400 hover:text-church-blue" {...attributes} {...listeners}>
+      <GripVertical className="size-4" />
+    </button>
+  )
+}
+
 export default function ContentBlocksPage() {
   const queryClient = useQueryClient()
   const [editing, setEditing] = useState<ContentBlock | null>(null)
@@ -39,26 +116,40 @@ export default function ContentBlocksPage() {
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const [uploadingField, setUploadingField] = useState<string | null>(null)
   const [sectionFilter, setSectionFilter] = useState<string>('all')
-
-  const sectionGroups = [
-    { key: 'all', label: 'All Sections' },
-    { key: 'homepage', label: 'Homepage', prefixes: ['hero', 'welcome', 'what_to_expect', 'testimonies_heading', 'events_heading', 'sermons_heading', 'gallery_heading', 'cta_heading'] },
-    { key: 'ministries', label: 'Ministries Page', prefixes: ['ministries_'] },
-    { key: 'sermons', label: 'Sermons Page', prefixes: ['sermons_hero', 'sermons_heading', 'sermons_description', 'sermons_recent_heading', 'sermons_empty_state'] },
-    { key: 'events', label: 'Events Page', prefixes: ['events_'] },
-  ]
+  const [searchTerm, setSearchTerm] = useState('')
 
   const { data: items = [], isLoading } = useQuery({
     queryKey: ['content-blocks'],
     queryFn: () => api.get('/content-blocks').then(r => r.data),
   })
 
-  const filteredItems = items.filter((item: ContentBlock) => {
-    if (sectionFilter === 'all') return true
-    const group = sectionGroups.find(g => g.key === sectionFilter)
-    if (!group || !group.prefixes) return true
-    return group.prefixes.some(p => item.sectionKey.startsWith(p))
-  })
+  const sortedItems = useMemo(() => {
+    return [...items].sort((a: ContentBlock, b: ContentBlock) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+  }, [items])
+
+  const filteredItems = useMemo(() => {
+    let result = sortedItems
+    if (sectionFilter !== 'all') {
+      const group = sectionGroups.find(g => g.key === sectionFilter)
+      if (group?.prefixes) {
+        result = result.filter((item: ContentBlock) => group.prefixes.some(p => item.sectionKey.startsWith(p)))
+      }
+    }
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase()
+      result = result.filter((item: ContentBlock) =>
+        item.sectionKey.toLowerCase().includes(term) ||
+        item.title.toLowerCase().includes(term) ||
+        (item.subtitle && item.subtitle.toLowerCase().includes(term))
+      )
+    }
+    return result
+  }, [sortedItems, sectionFilter, searchTerm])
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
 
   const createMut = useMutation({
     mutationFn: (data: any) => api.post('/content-blocks', data),
@@ -84,17 +175,24 @@ export default function ContentBlocksPage() {
   })
 
   const reorderMut = useMutation({
-    mutationFn: ({ id, sortOrder }: { id: string; sortOrder: number }) => api.put(`/content-blocks/${id}/reorder`, { sort_order: sortOrder }),
+    mutationFn: (items: { id: string; sort_order: number }[]) => api.patch('/content-blocks/reorder', { items }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['content-blocks'] }),
   })
 
-  const moveItem = (index: number, direction: 'up' | 'down') => {
-    const item = items[index]
-    const swapIndex = direction === 'up' ? index - 1 : index + 1
-    if (swapIndex < 0 || swapIndex >= items.length) return
-    const swapItem = items[swapIndex]
-    reorderMut.mutate({ id: item.id, sortOrder: swapItem.sortOrder ?? swapIndex })
-    reorderMut.mutate({ id: swapItem.id, sortOrder: item.sortOrder ?? index })
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+
+    const oldIndex = filteredItems.findIndex(item => item.id === active.id)
+    const newIndex = filteredItems.findIndex(item => item.id === over.id)
+    if (oldIndex === -1 || newIndex === -1) return
+
+    const reordered = arrayMove(filteredItems, oldIndex, newIndex)
+    const items = reordered.map((item, index) => ({
+      id: item.id,
+      sort_order: (index + 1) * 10,
+    }))
+    reorderMut.mutate(items)
   }
 
   const handleUpload = async (fieldKey: string, file: File) => {
@@ -134,7 +232,6 @@ export default function ContentBlocksPage() {
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault()
     if (!form.section_key || !form.title) return
-    // Build items from form: merge eyebrow/cta_buttons into items[0] or use the items editor data
     let itemsArr: Record<string, any>[] = [...(form.items || [])]
     if (itemsArr.length === 0) {
       const itemsObj: Record<string, any> = {}
@@ -142,7 +239,6 @@ export default function ContentBlocksPage() {
       if (form.cta_buttons?.length) itemsObj.ctaButtons = form.cta_buttons
       if (Object.keys(itemsObj).length > 0) itemsArr.push(itemsObj)
     } else {
-      // Merge eyebrow/cta_buttons into the first item
       if (form.eyebrow) itemsArr[0] = { ...itemsArr[0], eyebrow: form.eyebrow }
       if (form.cta_buttons?.length) itemsArr[0] = { ...itemsArr[0], ctaButtons: form.cta_buttons }
     }
@@ -176,79 +272,6 @@ export default function ContentBlocksPage() {
     })
   }
 
-  const columns: ColumnDef<ContentBlock, any>[] = [
-    {
-      id: 'order',
-      header: '#',
-      cell: ({ row }) => {
-        const idx = row.index
-        return (
-          <div className="flex flex-col items-center gap-0.5">
-            <button onClick={() => moveItem(idx, 'up')} disabled={idx === 0} className="p-0.5 text-gray-400 hover:text-church-blue disabled:opacity-30"><ChevronUp className="size-3.5" /></button>
-            <span className="text-xs font-mono text-gray-500">{row.original.sortOrder ?? idx}</span>
-            <button onClick={() => moveItem(idx, 'down')} disabled={idx === items.length - 1} className="p-0.5 text-gray-400 hover:text-church-blue disabled:opacity-30"><ChevronDown className="size-3.5" /></button>
-          </div>
-        )
-      },
-      size: 60,
-    },
-    {
-      id: 'enabled',
-      header: 'Status',
-      cell: ({ row }) => (
-        <div className="flex items-center gap-2">
-          <Switch
-            checked={row.original.enabled ?? true}
-            onCheckedChange={() => toggleMut.mutate(row.original.id)}
-            disabled={toggleMut.isPending}
-          />
-          <Badge variant={row.original.enabled ? 'default' : 'secondary'}>
-            {row.original.enabled ? 'Visible' : 'Hidden'}
-          </Badge>
-        </div>
-      ),
-      size: 140,
-    },
-    {
-      accessorKey: 'sectionKey',
-      header: 'Section Key',
-      cell: ({ row }) => <span className="font-mono text-xs text-gray-500">{row.original.sectionKey}</span>,
-    },
-    {
-      accessorKey: 'title',
-      header: 'Title',
-      cell: ({ row }) => <span className="font-medium">{row.original.title}</span>,
-    },
-    {
-      accessorKey: 'subtitle',
-      header: 'Subtitle',
-      cell: ({ row }) => <span className="text-muted-foreground max-w-[300px] truncate block">{row.original.subtitle || '—'}</span>,
-    },
-    {
-      id: 'actions',
-      header: '',
-      cell: ({ row }) => (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="sm" className="size-8 p-0">
-              <span className="sr-only">Actions</span>
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-4"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => openEdit(row.original)}>
-              <Pencil className="mr-2 size-4" /> Edit
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setConfirmDelete(row.original.id)} className="text-destructive">
-              <Trash2 className="mr-2 size-4" /> Delete
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      ),
-      size: 60,
-    },
-  ]
-
   const isModalOpen = creating || !!editing
 
   return (
@@ -259,7 +282,7 @@ export default function ContentBlocksPage() {
             <LayoutGrid className="size-5 text-church-blue" />
             <div>
               <CardTitle>Content Sections</CardTitle>
-              <CardDescription>Edit, create, toggle visibility, and reorder sections across the website.</CardDescription>
+              <CardDescription>Edit, create, toggle visibility, and reorder sections across the website. Drag rows to reorder.</CardDescription>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -273,19 +296,119 @@ export default function ContentBlocksPage() {
                 ))}
               </SelectContent>
             </Select>
+            <div className="relative max-w-xs">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
+              <Input
+                placeholder="Search sections..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9 h-8 text-sm"
+              />
+            </div>
             <Button onClick={openCreate} className="bg-church-blue hover:bg-church-blue/90">
               <Plus className="mr-1 size-4" /> New Section
             </Button>
           </div>
         </CardHeader>
         <CardContent>
-          <DataTable
-            data={filteredItems}
-            columns={columns}
-            searchKey="title"
-            searchPlaceholder="Search sections..."
-            isLoading={isLoading}
-          />
+          {isLoading ? (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100">
+              <div className="p-8 text-center text-gray-500">
+                <div className="animate-pulse space-y-3">
+                  <div className="h-4 bg-gray-200 rounded w-1/4 mx-auto" />
+                  <div className="h-4 bg-gray-200 rounded w-1/3 mx-auto" />
+                  <div className="h-4 bg-gray-200 rounded w-1/2 mx-auto" />
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="text-sm text-muted-foreground">
+                {filteredItems.length} of {items.length} sections
+              </div>
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[50px]"></TableHead>
+                      <TableHead className="w-[180px]">Status</TableHead>
+                      <TableHead className="w-[120px]">Page</TableHead>
+                      <TableHead>Section Key</TableHead>
+                      <TableHead>Title</TableHead>
+                      <TableHead>Subtitle</TableHead>
+                      <TableHead className="w-[60px]"></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                    <SortableContext items={filteredItems.map(i => i.id)} strategy={verticalListSortingStrategy}>
+                      <TableBody>
+                        {filteredItems.length > 0 ? (
+                          filteredItems.map((item: ContentBlock, idx: number) => (
+                            <SortableRow key={item.id} row={{ original: item }}>
+                              <TableCell>
+                                <div className="flex items-center gap-2">
+                                  <DragHandle id={item.id} />
+                                  <span className="text-xs font-mono text-gray-500">{item.sortOrder ?? idx}</span>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-2">
+                                  <Switch
+                                    checked={item.enabled ?? true}
+                                    onCheckedChange={() => toggleMut.mutate(item.id)}
+                                    disabled={toggleMut.isPending}
+                                  />
+                                  <Badge variant={item.enabled ? 'default' : 'secondary'}>
+                                    {item.enabled ? 'Visible' : 'Hidden'}
+                                  </Badge>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant="outline" className="text-xs">{getPageLabel(item.sectionKey)}</Badge>
+                              </TableCell>
+                              <TableCell>
+                                <span className="font-mono text-xs text-gray-500">{item.sectionKey}</span>
+                              </TableCell>
+                              <TableCell>
+                                <span className="font-medium">{item.title}</span>
+                              </TableCell>
+                              <TableCell>
+                                <span className="text-muted-foreground max-w-[300px] truncate block">{item.subtitle || '\u2014'}</span>
+                              </TableCell>
+                              <TableCell>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="sm" className="size-8 p-0">
+                                      <span className="sr-only">Actions</span>
+                                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-4"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuItem onClick={() => openEdit(item)}>
+                                      <Pencil className="mr-2 size-4" /> Edit
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => setConfirmDelete(item.id)} className="text-destructive">
+                                      <Trash2 className="mr-2 size-4" /> Delete
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </TableCell>
+                            </SortableRow>
+                          ))
+                        ) : (
+                          <TableRow>
+                            <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
+                              No sections found.
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </SortableContext>
+                  </DndContext>
+                </Table>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -330,6 +453,7 @@ export default function ContentBlocksPage() {
                   {uploadingField === 'image' ? <span className="animate-spin size-4 border-2 border-gray-300 border-t-church-blue rounded-full mr-1" /> : <Upload className="size-4 mr-1" />}
                   {uploadingField === 'image' ? 'Uploading...' : 'Upload Image'}
                 </Button>
+                <MediaPicker value={form.image ?? ''} onSelect={(url) => setForm(prev => ({ ...prev, image: url }))} />
                 <Input value={form.image ?? ''} onChange={e => setForm({ ...form, image: e.target.value })} placeholder="Or paste URL" className="flex-1" />
               </div>
             </div>
