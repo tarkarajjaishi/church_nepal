@@ -1,3 +1,4 @@
+use crate::tenant::Db;
 use axum::extract::{Path, State};
 use axum::Json;
 use sqlx::PgPool;
@@ -11,7 +12,7 @@ pub struct ReorderRequest {
     pub sort_order: i32,
 }
 
-pub async fn list(State(pool): State<PgPool>) -> Result<Json<Vec<PortfolioProject>>, AppError> {
+pub async fn list(Db(pool): Db) -> Result<Json<Vec<PortfolioProject>>, AppError> {
     let rows = sqlx::query_as::<_, PortfolioProject>("SELECT * FROM portfolio ORDER BY sort_order ASC, created_at DESC")
         .fetch_all(&pool)
         .await?;
@@ -19,7 +20,7 @@ pub async fn list(State(pool): State<PgPool>) -> Result<Json<Vec<PortfolioProjec
 }
 
 pub async fn get(
-    State(pool): State<PgPool>,
+    Db(pool): Db,
     Path(id): Path<uuid::Uuid>,
 ) -> Result<Json<PortfolioProject>, AppError> {
     let row = sqlx::query_as::<_, PortfolioProject>("SELECT * FROM portfolio WHERE id = $1")
@@ -32,7 +33,7 @@ pub async fn get(
 
 pub async fn create(
     _auth: AuthUser,
-    State(pool): State<PgPool>,
+    Db(pool): Db,
     Json(input): Json<CreatePortfolioProject>,
 ) -> Result<Json<PortfolioProject>, AppError> {
     let row = sqlx::query_as::<_, PortfolioProject>(
@@ -54,7 +55,7 @@ pub async fn create(
 
 pub async fn update(
     _auth: AuthUser,
-    State(pool): State<PgPool>,
+    Db(pool): Db,
     Path(id): Path<uuid::Uuid>,
     Json(input): Json<UpdatePortfolioProject>,
 ) -> Result<Json<PortfolioProject>, AppError> {
@@ -97,7 +98,7 @@ pub async fn update(
 
 pub async fn toggle(
     _auth: AuthUser,
-    State(pool): State<PgPool>,
+    Db(pool): Db,
     Path(id): Path<uuid::Uuid>,
 ) -> Result<Json<PortfolioProject>, AppError> {
     let row = sqlx::query_as::<_, PortfolioProject>(
@@ -112,7 +113,7 @@ pub async fn toggle(
 
 pub async fn reorder(
     _auth: AuthUser,
-    State(pool): State<PgPool>,
+    Db(pool): Db,
     Path(id): Path<uuid::Uuid>,
     Json(input): Json<ReorderRequest>,
 ) -> Result<Json<PortfolioProject>, AppError> {
@@ -129,7 +130,7 @@ pub async fn reorder(
 
 pub async fn delete(
     _auth: AuthUser,
-    State(pool): State<PgPool>,
+    Db(pool): Db,
     Path(id): Path<uuid::Uuid>,
 ) -> Result<Json<serde_json::Value>, AppError> {
     sqlx::query("DELETE FROM portfolio WHERE id = $1")

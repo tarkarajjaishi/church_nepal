@@ -1,11 +1,13 @@
+use crate::tenant::Db;
 use axum::extract::{Path, State};
 use axum::Json;
 use sqlx::PgPool;
 
+use crate::auth::AuthUser;
 use crate::error::AppError;
 use crate::models::{ContactInfo, CreateContactInfo, UpdateContactInfo};
 
-pub async fn list(State(pool): State<PgPool>) -> Result<Json<Vec<ContactInfo>>, AppError> {
+pub async fn list(Db(pool): Db) -> Result<Json<Vec<ContactInfo>>, AppError> {
     let rows = sqlx::query_as::<_, ContactInfo>("SELECT * FROM contact_info ORDER BY created_at DESC")
         .fetch_all(&pool)
         .await?;
@@ -13,7 +15,7 @@ pub async fn list(State(pool): State<PgPool>) -> Result<Json<Vec<ContactInfo>>, 
 }
 
 pub async fn get(
-    State(pool): State<PgPool>,
+    Db(pool): Db,
     Path(id): Path<uuid::Uuid>,
 ) -> Result<Json<ContactInfo>, AppError> {
     let row = sqlx::query_as::<_, ContactInfo>("SELECT * FROM contact_info WHERE id = $1")
@@ -25,7 +27,8 @@ pub async fn get(
 }
 
 pub async fn create(
-    State(pool): State<PgPool>,
+    _auth: AuthUser,
+    Db(pool): Db,
     Json(input): Json<CreateContactInfo>,
 ) -> Result<Json<ContactInfo>, AppError> {
     let row = sqlx::query_as::<_, ContactInfo>(
@@ -43,7 +46,8 @@ pub async fn create(
 }
 
 pub async fn update(
-    State(pool): State<PgPool>,
+    _auth: AuthUser,
+    Db(pool): Db,
     Path(id): Path<uuid::Uuid>,
     Json(input): Json<UpdateContactInfo>,
 ) -> Result<Json<ContactInfo>, AppError> {
@@ -75,7 +79,8 @@ pub async fn update(
 }
 
 pub async fn delete(
-    State(pool): State<PgPool>,
+    _auth: AuthUser,
+    Db(pool): Db,
     Path(id): Path<uuid::Uuid>,
 ) -> Result<Json<serde_json::Value>, AppError> {
     sqlx::query("DELETE FROM contact_info WHERE id = $1")

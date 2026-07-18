@@ -18,12 +18,6 @@ import { useEvents, useContentBlock } from "@/lib/hooks";
 import { CardSkeleton } from "@/components/site/LoadingSpinner";
 import { ErrorDisplay } from "@/components/site/ErrorDisplay";
 
-const pastEvents = [
-  { id: "p1", title: "Christmas Celebration 2025", displayDate: "Dec 25, 2025", location: "Main Sanctuary", image: images.crowd },
-  { id: "p2", title: "Easter Sunrise Service", displayDate: "Apr 20, 2025", location: "Nagarkot Hill", image: images.praise },
-  { id: "p3", title: "Village Outreach", displayDate: "Mar 8, 2025", location: "Sindhupalchok", image: images.village },
-];
-
 function EventCard({ e, upcoming }: { e: any; upcoming?: boolean }) {
   const { lang } = useLang();
   const bs = e.date ? toBS(e.date, lang) : "";
@@ -61,6 +55,9 @@ export default function Events() {
   const upcomingEvents = events
     .filter((e) => new Date(e.date).getTime() >= now)
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  const pastEvents = events
+    .filter((e) => new Date(e.date).getTime() < now)
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   const hero = useContentBlock('events_hero');
   const heading = useContentBlock('events_heading');

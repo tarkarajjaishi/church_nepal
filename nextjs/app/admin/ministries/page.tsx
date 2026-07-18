@@ -4,7 +4,7 @@ import { CrudPage } from '@/components/admin/CrudPage'
 
 const fields = [
       { key: "name", label: "Name (EN)", type: "text" as const },
-      { key: "name_ne", label: "Name (NE)", type: "text" as const },
+      { key: "nameNe", label: "Name (NE)", type: "text" as const },
       { key: "description", label: "Description", type: "textarea" as const },
       { key: "leader", label: "Leader", type: "text" as const },
       { key: "meeting", label: "Meeting", type: "text" as const },

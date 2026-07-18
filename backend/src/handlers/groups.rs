@@ -1,3 +1,4 @@
+use crate::tenant::Db;
 use axum::extract::{Path, State};
 use axum::Json;
 use sqlx::PgPool;
@@ -5,14 +6,14 @@ use crate::auth::AuthUser;
 use crate::error::AppError;
 use crate::models::{CreateGroup, Group, UpdateGroup};
 
-pub async fn list(State(pool): State<PgPool>) -> Result<Json<Vec<Group>>, AppError> {
+pub async fn list(Db(pool): Db) -> Result<Json<Vec<Group>>, AppError> {
     let rows = sqlx::query_as::<_, Group>("SELECT * FROM groups ORDER BY sort_order ASC, created_at ASC")
         .fetch_all(&pool)
         .await?;
     Ok(Json(rows))
 }
 
-pub async fn get(State(pool): State<PgPool>, Path(id): Path<i32>) -> Result<Json<Group>, AppError> {
+pub async fn get(Db(pool): Db, Path(id): Path<i32>) -> Result<Json<Group>, AppError> {
     let row = sqlx::query_as::<_, Group>("SELECT * FROM groups WHERE id = $1")
         .bind(id)
         .fetch_optional(&pool)
@@ -23,7 +24,7 @@ pub async fn get(State(pool): State<PgPool>, Path(id): Path<i32>) -> Result<Json
 
 pub async fn create(
     _auth: AuthUser,
-    State(pool): State<PgPool>,
+    Db(pool): Db,
     Json(input): Json<CreateGroup>,
 ) -> Result<Json<Group>, AppError> {
     let row = sqlx::query_as::<_, Group>(
@@ -49,7 +50,7 @@ pub async fn create(
 
 pub async fn update(
     _auth: AuthUser,
-    State(pool): State<PgPool>,
+    Db(pool): Db,
     Path(id): Path<i32>,
     Json(input): Json<UpdateGroup>,
 ) -> Result<Json<Group>, AppError> {
@@ -97,7 +98,7 @@ pub async fn update(
 
 pub async fn delete(
     _auth: AuthUser,
-    State(pool): State<PgPool>,
+    Db(pool): Db,
     Path(id): Path<i32>,
 ) -> Result<Json<serde_json::Value>, AppError> {
     sqlx::query("DELETE FROM groups WHERE id = $1")
@@ -109,7 +110,7 @@ pub async fn delete(
 
 pub async fn toggle(
     _auth: AuthUser,
-    State(pool): State<PgPool>,
+    Db(pool): Db,
     Path(id): Path<i32>,
 ) -> Result<Json<Group>, AppError> {
     let row = sqlx::query_as::<_, Group>(
@@ -129,7 +130,7 @@ pub struct ReorderRequest {
 
 pub async fn reorder(
     _auth: AuthUser,
-    State(pool): State<PgPool>,
+    Db(pool): Db,
     Path(id): Path<i32>,
     Json(input): Json<ReorderRequest>,
 ) -> Result<Json<Group>, AppError> {

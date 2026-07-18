@@ -28,6 +28,7 @@ const primary = [
   { to: "/sermons", key: "nav_sermons" },
   { to: "/events", key: "nav_events" },
   { to: "/gallery", key: "nav_gallery" },
+  { to: "/membership", key: "nav_membership" },
   { to: "/contact", key: "nav_contact" },
 ];
 
@@ -68,7 +69,7 @@ export function Navbar() {
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2.5 shrink-0">
           {logoImage ? (
-            <img src={logoImage.startsWith('http') ? logoImage : `http://localhost:3002${logoImage}`} alt={churchName} className="size-10 rounded-xl object-cover" />
+            <img src={logoImage.startsWith('http') ? logoImage : `${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3002'}${logoImage}`} alt={churchName} className="size-10 rounded-xl object-cover" />
           ) : (
             <span className="grid place-items-center size-10 rounded-xl bg-church-blue text-white">
               <Church className="size-5" />

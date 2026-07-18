@@ -1,3 +1,4 @@
+use crate::tenant::Db;
 use axum::extract::{Path, State};
 use axum::Json;
 use sqlx::PgPool;
@@ -21,33 +22,33 @@ pub struct BatchReorderRequest {
     pub items: Vec<ReorderItem>,
 }
 
-pub async fn list(State(pool): State<PgPool>) -> Result<Json<Vec<ContentBlock>>, AppError> {
+pub async fn list(Db(pool): Db) -> Result<Json<Vec<ContentBlock>>, AppError> {
     let rows = sqlx::query_as::<_, ContentBlock>("SELECT * FROM content_blocks ORDER BY sort_order ASC")
         .fetch_all(&pool).await?;
     Ok(Json(rows))
 }
 
-pub async fn list_enabled(State(pool): State<PgPool>) -> Result<Json<Vec<ContentBlock>>, AppError> {
+pub async fn list_enabled(Db(pool): Db) -> Result<Json<Vec<ContentBlock>>, AppError> {
     let rows = sqlx::query_as::<_, ContentBlock>("SELECT * FROM content_blocks WHERE enabled = TRUE ORDER BY sort_order ASC")
         .fetch_all(&pool).await?;
     Ok(Json(rows))
 }
 
-pub async fn get_by_key(State(pool): State<PgPool>, Path(key): Path<String>) -> Result<Json<ContentBlock>, AppError> {
+pub async fn get_by_key(Db(pool): Db, Path(key): Path<String>) -> Result<Json<ContentBlock>, AppError> {
     let row = sqlx::query_as::<_, ContentBlock>("SELECT * FROM content_blocks WHERE section_key = $1")
         .bind(&key)
         .fetch_optional(&pool).await?.ok_or_else(|| AppError::not_found("Content block not found"))?;
     Ok(Json(row))
 }
 
-pub async fn get(State(pool): State<PgPool>, Path(id): Path<uuid::Uuid>) -> Result<Json<ContentBlock>, AppError> {
+pub async fn get(Db(pool): Db, Path(id): Path<uuid::Uuid>) -> Result<Json<ContentBlock>, AppError> {
     let row = sqlx::query_as::<_, ContentBlock>("SELECT * FROM content_blocks WHERE id = $1")
         .bind(id)
         .fetch_optional(&pool).await?.ok_or_else(|| AppError::not_found("Content block not found"))?;
     Ok(Json(row))
 }
 
-pub async fn create(_auth: AuthUser, State(pool): State<PgPool>, Json(input): Json<CreateContentBlock>) -> Result<Json<ContentBlock>, AppError> {
+pub async fn create(_auth: AuthUser, Db(pool): Db, Json(input): Json<CreateContentBlock>) -> Result<Json<ContentBlock>, AppError> {
     let row = sqlx::query_as::<_, ContentBlock>(
         "INSERT INTO content_blocks (section_key, title, subtitle, body, image, icon, items) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *"
     )
@@ -57,7 +58,7 @@ pub async fn create(_auth: AuthUser, State(pool): State<PgPool>, Json(input): Js
     Ok(Json(row))
 }
 
-pub async fn update(_auth: AuthUser, State(pool): State<PgPool>, Path(id): Path<uuid::Uuid>, Json(input): Json<UpdateContentBlock>) -> Result<Json<ContentBlock>, AppError> {
+pub async fn update(_auth: AuthUser, Db(pool): Db, Path(id): Path<uuid::Uuid>, Json(input): Json<UpdateContentBlock>) -> Result<Json<ContentBlock>, AppError> {
     let existing = sqlx::query_as::<_, ContentBlock>("SELECT * FROM content_blocks WHERE id = $1")
         .bind(id)
         .fetch_optional(&pool).await?.ok_or_else(|| AppError::not_found("Content block not found"))?;
@@ -76,26 +77,26 @@ pub async fn update(_auth: AuthUser, State(pool): State<PgPool>, Path(id): Path<
     Ok(Json(row))
 }
 
-pub async fn delete(_auth: AuthUser, State(pool): State<PgPool>, Path(id): Path<uuid::Uuid>) -> Result<Json<serde_json::Value>, AppError> {
+pub async fn delete(_auth: AuthUser, Db(pool): Db, Path(id): Path<uuid::Uuid>) -> Result<Json<serde_json::Value>, AppError> {
     sqlx::query("DELETE FROM content_blocks WHERE id = $1")
         .bind(id)
         .execute(&pool).await?;
     Ok(Json(serde_json::json!({ "deleted": true })))
 }
 
-pub async fn toggle(_auth: AuthUser, State(pool): State<PgPool>, Path(id): Path<uuid::Uuid>) -> Result<Json<ContentBlock>, AppError> {
+pub async fn toggle(_auth: AuthUser, Db(pool): Db, Path(id): Path<uuid::Uuid>) -> Result<Json<ContentBlock>, AppError> {
     let row = sqlx::query_as::<_, ContentBlock>("UPDATE content_blocks SET enabled = NOT enabled WHERE id = $1 RETURNING *")
         .bind(id).fetch_optional(&pool).await?.ok_or_else(|| AppError::not_found("Content block not found"))?;
     Ok(Json(row))
 }
 
-pub async fn reorder(_auth: AuthUser, State(pool): State<PgPool>, Path(id): Path<uuid::Uuid>, Json(input): Json<ReorderRequest>) -> Result<Json<ContentBlock>, AppError> {
+pub async fn reorder(_auth: AuthUser, Db(pool): Db, Path(id): Path<uuid::Uuid>, Json(input): Json<ReorderRequest>) -> Result<Json<ContentBlock>, AppError> {
     let row = sqlx::query_as::<_, ContentBlock>("UPDATE content_blocks SET sort_order = $2 WHERE id = $1 RETURNING *")
         .bind(id).bind(input.sort_order).fetch_optional(&pool).await?.ok_or_else(|| AppError::not_found("Content block not found"))?;
     Ok(Json(row))
 }
 
-pub async fn batch_reorder(_auth: AuthUser, State(pool): State<PgPool>, Json(input): Json<BatchReorderRequest>) -> Result<Json<Vec<ContentBlock>>, AppError> {
+pub async fn batch_reorder(_auth: AuthUser, Db(pool): Db, Json(input): Json<BatchReorderRequest>) -> Result<Json<Vec<ContentBlock>>, AppError> {
     let mut tx = pool.begin().await.map_err(|e| AppError::internal(&e.to_string()))?;
     for item in &input.items {
         sqlx::query("UPDATE content_blocks SET sort_order = $2, updated_at = NOW() WHERE id = $1")

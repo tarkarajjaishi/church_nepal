@@ -1,15 +1,17 @@
-use axum::routing::{get, patch, post, put};
+use axum::routing::{delete, get, patch, post, put};
 use axum::Router;
-use sqlx::PgPool;
 
 use crate::handlers::*;
 
-pub fn api_routes() -> Router<PgPool> {
+// State-agnostic: handlers resolve their per-tenant DB pool via the `Db`
+// extractor (populated by tenant middleware), so the router needs no state.
+pub fn api_routes() -> Router {
     Router::new()
         // Auth
         .route("/auth/login", post(auth::login))
         .route("/auth/register", post(auth::register))
-        .route("/auth/me", get(auth::me))
+        .route("/auth/me", get(auth::me).put(auth::update_me))
+        .route("/auth/change-password", post(auth::change_password))
         // Users (admin only)
         .route("/users", get(users::list).post(users::create))
         .route("/users/{id}", get(users::get).put(users::update).delete(users::delete))
@@ -76,21 +78,24 @@ pub fn api_routes() -> Router<PgPool> {
         // Upload
         .route("/upload", post(upload::upload))
         .route("/uploads", get(upload::list_uploads))
-        // Content Blocks
+        // Content Blocks — static paths MUST come before /{id} in Axum 0.8
         .route("/content-blocks", get(content_blocks::list).post(content_blocks::create))
+        .route("/content-blocks/reorder", patch(content_blocks::batch_reorder))
+        .route("/content-blocks/enabled", get(content_blocks::list_enabled))
+        .route("/content-blocks/key/{key}", get(content_blocks::get_by_key))
         .route("/content-blocks/{id}", get(content_blocks::get).put(content_blocks::update).delete(content_blocks::delete))
         .route("/content-blocks/{id}/toggle", put(content_blocks::toggle))
         .route("/content-blocks/{id}/reorder", put(content_blocks::reorder))
-        .route("/content-blocks/reorder", patch(content_blocks::batch_reorder))
-        .route("/content-blocks/key/{key}", get(content_blocks::get_by_key))
-        .route("/content-blocks/enabled", get(content_blocks::list_enabled))
         // Donations
         .route("/donations/initiate", post(donations::initiate))
         .route("/donations/callback/esewa", get(donations::callback_esewa))
         .route("/donations/callback/khalti/{id}", post(donations::callback_khalti))
         .route("/donations/status", get(donations::status))
-        .route("/donations", get(donations::list))
         .route("/donations/stats", get(donations::stats))
+        .route("/donations/statements", get(donations::statements))
+        .route("/donations/by-donor", get(donations::by_donor))
+        .route("/donations/donor-history", get(donations::donor_history))
+        .route("/donations", get(donations::list))
         .route("/donations/{id}", get(donations::get))
         // Todos
         .route("/todos", get(todos::list).post(todos::create))
@@ -124,6 +129,10 @@ pub fn api_routes() -> Router<PgPool> {
         // Contact Info
         .route("/contact-info", get(contact_info::list).post(contact_info::create))
         .route("/contact-info/{id}", get(contact_info::get).put(contact_info::update).delete(contact_info::delete))
+        // Contact Messages (prayer requests, visit inquiries)
+        .route("/contact-messages", get(contact_messages::list).post(contact_messages::create))
+        .route("/contact-messages/{id}", get(contact_messages::get).delete(contact_messages::delete))
+        .route("/contact-messages/{id}/read", put(contact_messages::mark_read))
         // Groups
         .route("/groups", get(groups::list).post(groups::create))
         .route("/groups/{id}", get(groups::get).put(groups::update).delete(groups::delete))
@@ -131,4 +140,66 @@ pub fn api_routes() -> Router<PgPool> {
         .route("/groups/{id}/reorder", put(groups::reorder))
         // Dashboard
         .route("/dashboard/stats", get(dashboard::stats))
+        // People (CRM)
+        .route("/people", get(people::list).post(people::create))
+        .route("/people/stats", get(people::stats))
+        .route("/people/{id}", get(people::get).put(people::update).delete(people::delete))
+        .route("/people/{id}/toggle", put(people::toggle))
+        .route("/people/{id}/reorder", put(people::reorder))
+        .route("/people/{id}/tags", get(people::get_person_tags))
+        .route("/people/{id}/tags/{tag_id}", post(people::add_person_tag).delete(people::remove_person_tag))
+        .route("/people/{id}/notes", get(people::list_person_notes).post(people::create_person_note))
+        .route("/people/{id}/notes/{note_id}", delete(people::delete_person_note))
+        // Households
+        .route("/households", get(people::list_households).post(people::create_household))
+        .route("/households/{id}", get(people::get_household).put(people::update_household).delete(people::delete_household))
+        // Tags
+        .route("/tags", get(people::list_tags).post(people::create_tag))
+        .route("/tags/{id}", delete(people::delete_tag))
+        // Group memberships
+        .route("/groups/{id}/members", get(people::list_group_members).post(people::add_group_member))
+        .route("/groups/{group_id}/members/{person_id}", delete(people::remove_group_member))
+        // Offerings
+        .route("/offerings", get(offerings::list).post(offerings::create))
+        .route("/offerings/stats", get(offerings::stats))
+        .route("/offerings/{id}", get(offerings::get).put(offerings::update).delete(offerings::delete))
+        // === NEW FEATURES ===
+        // Event RSVPs
+        .route("/events/{id}/rsvps", get(event_rsvps::list_by_event).post(event_rsvps::create_public))
+        .route("/rsvps/{id}", delete(event_rsvps::delete))
+        // Attendance
+        .route("/attendance", get(attendance::list).post(attendance::check_in))
+        .route("/attendance/stats", get(attendance::stats))
+        // Broadcasts
+        .route("/broadcasts", get(broadcasts::list).post(broadcasts::create))
+        .route("/broadcasts/{id}", get(broadcasts::get).delete(broadcasts::delete))
+        .route("/broadcasts/{id}/send", post(broadcasts::send))
+        // Forms
+        .route("/forms", get(forms::list).post(forms::create))
+        .route("/forms/{id}", get(forms::get).put(forms::update).delete(forms::delete))
+        .route("/forms/{id}/submit", post(forms::submit_public))
+        .route("/forms/{id}/submissions", get(forms::list_submissions))
+        // Volunteers
+        .route("/volunteer-teams", get(volunteers::list_teams).post(volunteers::create_team))
+        .route("/volunteer-teams/{id}", get(volunteers::get_team).put(volunteers::update_team).delete(volunteers::delete_team))
+        .route("/volunteer-shifts", get(volunteers::list_shifts).post(volunteers::create_shift))
+        .route("/volunteer-shifts/{id}", get(volunteers::get_shift).put(volunteers::update_shift).delete(volunteers::delete_shift))
+        .route("/volunteer-shifts/{id}/assignments", get(volunteers::list_assignments).post(volunteers::create_assignment))
+        // Audit Log
+        .route("/audit-log", get(audit::list))
+        // Funds
+        .route("/funds", get(funds::list).post(funds::create))
+        .route("/funds/{id}", get(funds::get).put(funds::update).delete(funds::delete))
+        .route("/recurring-donations", get(funds::list_recurring).post(funds::create_recurring))
+        // Pledges
+        .route("/pledges", get(pledges::list_all).post(pledges::create))
+        .route("/pledges/{id}", get(pledges::get).put(pledges::update).delete(pledges::delete))
+        .route("/campaigns/{id}/pledges", get(pledges::list_by_campaign))
+        // Reports
+        .route("/reports/giving-summary", get(reports::giving_summary))
+        .route("/reports/people-summary", get(reports::people_summary))
+        // Member Applications
+        .route("/member-applications", get(member_applications::list).post(member_applications::create))
+        .route("/member-applications/stats", get(member_applications::stats))
+        .route("/member-applications/{id}", get(member_applications::get).put(member_applications::update).delete(member_applications::delete))
 }

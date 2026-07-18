@@ -137,3 +137,22 @@ CREATE TABLE IF NOT EXISTS settings (
     value TEXT NOT NULL,
     updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
+
+-- Content Blocks (CMS core)
+CREATE TABLE IF NOT EXISTS content_blocks (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    section_key VARCHAR(255) UNIQUE NOT NULL,
+    title TEXT NOT NULL DEFAULT '',
+    subtitle TEXT,
+    body TEXT,
+    image TEXT,
+    icon TEXT,
+    items JSONB,
+    enabled BOOLEAN DEFAULT TRUE,
+    sort_order INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_content_blocks_section_key ON content_blocks (section_key);
+CREATE INDEX IF NOT EXISTS idx_content_blocks_sort_order ON content_blocks (sort_order);

@@ -3,10 +3,12 @@
 import { useState } from 'react'
 import { motion } from 'motion/react'
 import { Trash2, Check, X } from 'lucide-react'
-import { useUsers } from '@/lib/hooks'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import api from '@/lib/admin/api'
 import { SkeletonLoader, ErrorState } from '@/components/LoadingStates'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
+import { toast } from 'sonner'
 import type { User } from '@/lib/types'
 
 function RoleSelect({ user, onChangeRole }: { user: User; onChangeRole: (role: string) => void }) {
@@ -27,16 +29,33 @@ function RoleSelect({ user, onChangeRole }: { user: User; onChangeRole: (role: s
 }
 
 function UsersTable({ users }: { users: User[] }) {
+  const queryClient = useQueryClient()
   const [sortBy, setSortBy] = useState<'email' | 'name' | 'role'>('email')
+
+  const roleMut = useMutation({
+    mutationFn: ({ id, role }: { id: string; role: string }) =>
+      api.put(`/users/${id}`, { role }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] })
+      toast.success('Role updated')
+    },
+    onError: () => toast.error('Failed to update role'),
+  })
+
+  const deleteMut = useMutation({
+    mutationFn: (id: string) => api.delete(`/users/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] })
+      toast.success('User deleted')
+    },
+    onError: () => toast.error('Failed to delete user'),
+  })
 
   const sortedUsers = [...users].sort((a, b) => {
     switch (sortBy) {
-      case 'email':
-        return a.email.localeCompare(b.email)
-      case 'name':
-        return (a.name || '').localeCompare(b.name || '')
-      case 'role':
-        return a.role.localeCompare(b.role)
+      case 'email': return a.email.localeCompare(b.email)
+      case 'name':  return (a.name || '').localeCompare(b.name || '')
+      case 'role':  return a.role.localeCompare(b.role)
     }
   })
 
@@ -58,7 +77,6 @@ function UsersTable({ users }: { users: User[] }) {
                 onClick={() => setSortBy('role')}>
                 Role {sortBy === 'role' && '↓'}
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">Verified</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase">Actions</th>
             </tr>
           </thead>
@@ -68,30 +86,19 @@ function UsersTable({ users }: { users: User[] }) {
                 <td className="px-6 py-4 font-medium text-gray-900">{user.email}</td>
                 <td className="px-6 py-4 text-gray-700">{user.name || '—'}</td>
                 <td className="px-6 py-4">
-                  <RoleSelect user={user} onChangeRole={(role) => console.log(`Change ${user.email} to ${role}`)} />
+                  <RoleSelect
+                    user={user}
+                    onChangeRole={(role) => roleMut.mutate({ id: user.id, role })}
+                  />
                 </td>
                 <td className="px-6 py-4">
-                  {user.verified ? (
-                    <span className="flex items-center gap-1 text-green-600 text-sm font-medium">
-                      <Check className="w-4 h-4" /> Verified
-                    </span>
-                  ) : (
-                    <span className="flex items-center gap-1 text-orange-600 text-sm font-medium">
-                      <X className="w-4 h-4" /> Pending
-                    </span>
-                  )}
-                </td>
-                <td className="px-6 py-4">
-                  <div className="flex items-center gap-2">
-                    {!user.verified && (
-                      <button className="px-3 py-1 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded text-sm font-medium transition">
-                        Resend
-                      </button>
-                    )}
-                    <button className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
+                  <button
+                    onClick={() => { if (confirm(`Delete user ${user.email}?`)) deleteMut.mutate(user.id) }}
+                    disabled={deleteMut.isPending}
+                    className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition disabled:opacity-50"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
                 </td>
               </motion.tr>
             ))}
@@ -104,7 +111,10 @@ function UsersTable({ users }: { users: User[] }) {
 }
 
 function UsersPageContent() {
-  const { data: users, loading, error } = useUsers()
+  const { data: users = [], isLoading, error } = useQuery({
+    queryKey: ['users'],
+    queryFn: () => api.get('/users').then(r => r.data),
+  })
 
   return (
     <div className="space-y-6">
@@ -113,7 +123,7 @@ function UsersPageContent() {
         <p className="text-gray-600 mt-2">Manage team members and their access roles</p>
       </div>
 
-      {!loading && users && (
+      {!isLoading && users.length > 0 && (
         <div className="grid grid-cols-3 gap-4">
           <div className="bg-white rounded-lg shadow p-4">
             <p className="text-sm text-gray-600">Total Users</p>
@@ -124,13 +134,18 @@ function UsersPageContent() {
             <p className="text-2xl font-bold text-gray-900 mt-2">{users.filter((u: User) => u.role === 'admin').length}</p>
           </div>
           <div className="bg-white rounded-lg shadow p-4">
-            <p className="text-sm text-gray-600">Verified</p>
-            <p className="text-2xl font-bold text-gray-900 mt-2">{users.filter((u: User) => u.verified).length}</p>
+            <p className="text-sm text-gray-600">Editors</p>
+            <p className="text-2xl font-bold text-gray-900 mt-2">{users.filter((u: User) => u.role === 'editor').length}</p>
           </div>
         </div>
       )}
 
-      {loading ? <SkeletonLoader count={5} height="h-20" /> : error ? <ErrorState message={(error as any)?.detail || 'Failed to load users'} /> : users ? <UsersTable users={users} /> : null}
+      {isLoading
+        ? <SkeletonLoader count={5} height="h-20" />
+        : error
+        ? <ErrorState message={(error as any)?.message || 'Failed to load users'} />
+        : <UsersTable users={users} />
+      }
     </div>
   )
 }

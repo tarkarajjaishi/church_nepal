@@ -25,6 +25,7 @@ export const dict: Dict = {
   nav_sermons: { en: "Sermons", ne: "प्रवचन" },
   nav_events: { en: "Events", ne: "कार्यक्रम" },
   nav_gallery: { en: "Gallery", ne: "ग्यालरी" },
+  nav_membership: { en: "Become a Member", ne: "सदस्य बन्नुहोस्" },
   nav_prayer: { en: "Prayer Request", ne: "प्रार्थना अनुरोध" },
   nav_contact: { en: "Contact", ne: "सम्पर्क" },
 

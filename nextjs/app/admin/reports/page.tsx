@@ -1,0 +1,237 @@
+'use client'
+
+import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import api from '@/lib/admin/api'
+import { DollarSign, Users, TrendingUp, BarChart3, ArrowUpRight, ArrowDownRight } from 'lucide-react'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts'
+
+const COLORS = ['#3B82F6', '#10B981', '#8B5CF6', '#F59E0B', '#EF4444', '#EC4899', '#06B6D4', '#84CC16']
+
+export default function ReportsPage() {
+  const [tab, setTab] = useState<'giving' | 'people'>('giving')
+
+  const { data: givingSummary = {}, isLoading: givingLoading } = useQuery({
+    queryKey: ['reports-giving-summary'],
+    queryFn: () => api.get('/reports/giving-summary').then(r => r.data),
+  })
+
+  const { data: peopleSummary = {}, isLoading: peopleLoading } = useQuery({
+    queryKey: ['reports-people-summary'],
+    queryFn: () => api.get('/reports/people-summary').then(r => r.data),
+  })
+
+  const monthlyData = givingSummary.monthlyTrend || []
+  const byTypeData = givingSummary.byType || []
+  const topDonors = givingSummary.topDonors || []
+  const statusDistribution = peopleSummary.statusDistribution || []
+  const membershipSummary = peopleSummary.membership || {}
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-[#0b3c5d]">Reports</h1>
+      </div>
+
+      {/* Tab Bar */}
+      <div className="flex gap-2 border-b pb-2">
+        {[
+          { key: 'giving' as const, label: 'Giving', icon: DollarSign },
+          { key: 'people' as const, label: 'People', icon: Users },
+        ].map(t => (
+          <button key={t.key} onClick={() => setTab(t.key)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-t-lg text-sm font-medium transition-colors ${
+              tab === t.key ? 'bg-church-blue text-white' : 'text-gray-600 hover:bg-gray-100'
+            }`}>
+            <t.icon className="size-4" /> {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Giving Tab */}
+      {tab === 'giving' && (
+        <div className="space-y-6">
+          {/* Summary Cards */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {[
+              { label: 'Total Giving', value: `Rs ${(givingSummary.totalGiving || 0).toLocaleString()}`, change: givingSummary.givingChange, icon: DollarSign, color: 'bg-green-500' },
+              { label: 'Total Donors', value: givingSummary.totalDonors || 0, change: givingSummary.donorChange, icon: Users, color: 'bg-blue-500' },
+              { label: 'Average Gift', value: `Rs ${(givingSummary.averageGift || 0).toLocaleString()}`, icon: TrendingUp, color: 'bg-purple-500' },
+              { label: 'This Month', value: `Rs ${(givingSummary.thisMonth || 0).toLocaleString()}`, icon: BarChart3, color: 'bg-orange-500' },
+            ].map(({ label, value, change, icon: Icon, color }) => (
+              <Card key={label}>
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className={`size-10 rounded-lg ${color} flex items-center justify-center text-white`}>
+                      <Icon className="size-5" />
+                    </div>
+                    <div>
+                      <div className="text-xl font-bold">{value}</div>
+                      <div className="text-xs text-muted-foreground flex items-center gap-1">
+                        {label}
+                        {change !== undefined && (
+                          <span className={change >= 0 ? 'text-green-600' : 'text-red-600'}>
+                            {change >= 0 ? <ArrowUpRight className="size-3" /> : <ArrowDownRight className="size-3" />}
+                            {Math.abs(change)}%
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          <div className="grid lg:grid-cols-2 gap-6">
+            {/* Monthly Trend Chart */}
+            <Card>
+              <CardHeader><CardTitle className="text-base">Monthly Giving Trend</CardTitle></CardHeader>
+              <CardContent>
+                {givingLoading ? (
+                  <div className="h-64 flex items-center justify-center text-muted-foreground">Loading...</div>
+                ) : monthlyData.length === 0 ? (
+                  <div className="h-64 flex items-center justify-center text-muted-foreground">No data available</div>
+                ) : (
+                  <ResponsiveContainer width="100%" height={280}>
+                    <LineChart data={monthlyData}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="month" tick={{ fontSize: 12 }} />
+                      <YAxis tick={{ fontSize: 12 }} />
+                      <Tooltip formatter={(val: number) => [`Rs ${val.toLocaleString()}`, 'Amount']} />
+                      <Line type="monotone" dataKey="total" stroke="#3B82F6" strokeWidth={2} dot={{ r: 4 }} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* By Type Pie Chart */}
+            <Card>
+              <CardHeader><CardTitle className="text-base">Giving by Type</CardTitle></CardHeader>
+              <CardContent>
+                {givingLoading ? (
+                  <div className="h-64 flex items-center justify-center text-muted-foreground">Loading...</div>
+                ) : byTypeData.length === 0 ? (
+                  <div className="h-64 flex items-center justify-center text-muted-foreground">No data available</div>
+                ) : (
+                  <ResponsiveContainer width="100%" height={280}>
+                    <PieChart>
+                      <Pie data={byTypeData} dataKey="total" nameKey="type" cx="50%" cy="50%" outerRadius={90} label={({ type, percent }) => `${type} (${(percent * 100).toFixed(0)}%)`}>
+                        {byTypeData.map((_: any, i: number) => (
+                          <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(val: number) => `Rs ${val.toLocaleString()}`} />
+                      <Legend />
+                    </PieChart>
+                  </ResponsiveContainer>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Top Donors */}
+          <Card>
+            <CardHeader><CardTitle className="text-base">Top Donors</CardTitle></CardHeader>
+            <CardContent>
+              {topDonors.length === 0 ? (
+                <p className="text-muted-foreground text-sm">No donor data available</p>
+              ) : (
+                <div className="space-y-3">
+                  {topDonors.map((d: any, i: number) => (
+                    <div key={i} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <span className="text-sm font-bold text-muted-foreground w-6">{i + 1}.</span>
+                        <div>
+                          <div className="font-medium text-sm">{d.name || d.donorName || 'Anonymous'}</div>
+                          <div className="text-xs text-muted-foreground">{d.count || d.donationCount || 0} donations</div>
+                        </div>
+                      </div>
+                      <span className="font-semibold text-sm">Rs {(d.total || d.totalGiven || 0).toLocaleString()}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* People Tab */}
+      {tab === 'people' && (
+        <div className="space-y-6">
+          {/* Summary Cards */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {[
+              { label: 'Total People', value: membershipSummary.total ?? peopleSummary.totalPeople ?? 0, icon: Users, color: 'bg-blue-500' },
+              { label: 'Active Members', value: membershipSummary.members ?? peopleSummary.activeMembers ?? 0, icon: Users, color: 'bg-green-500' },
+              { label: 'Visitors', value: membershipSummary.visitors ?? peopleSummary.visitors ?? 0, icon: Users, color: 'bg-yellow-500' },
+              { label: 'Inactive', value: membershipSummary.inactive ?? peopleSummary.inactive ?? 0, icon: Users, color: 'bg-gray-500' },
+            ].map(({ label, value, icon: Icon, color }) => (
+              <Card key={label}>
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className={`size-10 rounded-lg ${color} flex items-center justify-center text-white`}>
+                      <Icon className="size-5" />
+                    </div>
+                    <div>
+                      <div className="text-xl font-bold">{value}</div>
+                      <div className="text-xs text-muted-foreground">{label}</div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          <div className="grid lg:grid-cols-2 gap-6">
+            {/* Status Distribution Pie Chart */}
+            <Card>
+              <CardHeader><CardTitle className="text-base">Status Distribution</CardTitle></CardHeader>
+              <CardContent>
+                {peopleLoading ? (
+                  <div className="h-64 flex items-center justify-center text-muted-foreground">Loading...</div>
+                ) : statusDistribution.length === 0 ? (
+                  <div className="h-64 flex items-center justify-center text-muted-foreground">No data available</div>
+                ) : (
+                  <ResponsiveContainer width="100%" height={280}>
+                    <PieChart>
+                      <Pie data={statusDistribution} dataKey="count" nameKey="status" cx="50%" cy="50%" outerRadius={90} label={({ status, percent }) => `${status} (${(percent * 100).toFixed(0)}%)`}>
+                        {statusDistribution.map((_: any, i: number) => (
+                          <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                      <Legend />
+                    </PieChart>
+                  </ResponsiveContainer>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Membership Summary */}
+            <Card>
+              <CardHeader><CardTitle className="text-base">Membership Summary</CardTitle></CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {Object.entries(membershipSummary).filter(([k]) => k !== 'total').map(([key, val]) => (
+                    <div key={key} className="flex items-center justify-between">
+                      <span className="text-sm capitalize text-muted-foreground">{key.replace(/([A-Z])/g, ' $1')}</span>
+                      <span className="font-semibold">{val as number}</span>
+                    </div>
+                  ))}
+                  {Object.keys(membershipSummary).length === 0 && (
+                    <p className="text-muted-foreground text-sm">No membership data available</p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}

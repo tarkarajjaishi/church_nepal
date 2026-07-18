@@ -7,7 +7,7 @@ const fields = [
   { key: 'phone', label: 'Phone', type: 'text' as const },
   { key: 'email', label: 'Email', type: 'text' as const },
   { key: 'hours', label: 'Hours', type: 'text' as const, placeholder: 'Sun 9:00 AM, Wed 6:00 PM' },
-  { key: 'map_url', label: 'Map URL', type: 'text' as const },
+  { key: 'mapUrl', label: 'Map URL', type: 'text' as const },
 ]
 
 export default function ContactInfoAdminPage() {

@@ -1,3 +1,4 @@
+use crate::tenant::Db;
 use axum::extract::State;
 use axum::Json;
 use bcrypt::{hash, verify, DEFAULT_COST};
@@ -8,7 +9,7 @@ use crate::error::AppError;
 use crate::models::{AuthResponse, CreateUser, LoginRequest, UserPublic};
 
 pub async fn register(
-    State(pool): State<PgPool>,
+    Db(pool): Db,
     Json(input): Json<CreateUser>,
 ) -> Result<Json<AuthResponse>, AppError> {
     // Check if email already exists
@@ -37,7 +38,7 @@ pub async fn register(
 }
 
 pub async fn login(
-    State(pool): State<PgPool>,
+    Db(pool): Db,
     Json(input): Json<LoginRequest>,
 ) -> Result<Json<AuthResponse>, AppError> {
     let user = sqlx::query_as::<_, crate::models::User>(
@@ -70,7 +71,7 @@ pub async fn login(
 
 pub async fn me(
     auth: AuthUser,
-    State(pool): State<PgPool>,
+    Db(pool): Db,
 ) -> Result<Json<UserPublic>, AppError> {
     let user = sqlx::query_as::<_, UserPublic>(
         r#"SELECT id, email, name, role FROM users WHERE id = $1"#,
@@ -81,4 +82,71 @@ pub async fn me(
     .ok_or_else(|| anyhow::anyhow!("User not found"))?;
 
     Ok(Json(user))
+}
+
+#[derive(serde::Deserialize)]
+pub struct UpdateProfileRequest {
+    pub name: Option<String>,
+}
+
+pub async fn update_me(
+    auth: AuthUser,
+    Db(pool): Db,
+    Json(input): Json<UpdateProfileRequest>,
+) -> Result<Json<UserPublic>, AppError> {
+    let id = auth.user_id.parse::<uuid::Uuid>()?;
+    let user = sqlx::query_as::<_, UserPublic>(
+        r#"UPDATE users SET name = COALESCE($2, name), updated_at = NOW() WHERE id = $1
+           RETURNING id, email, name, role"#,
+    )
+    .bind(id)
+    .bind(input.name.as_deref())
+    .fetch_optional(&pool)
+    .await?
+    .ok_or_else(|| AppError::not_found("User not found"))?;
+    Ok(Json(user))
+}
+
+#[derive(serde::Deserialize)]
+pub struct ChangePasswordRequest {
+    pub current_password: String,
+    pub new_password: String,
+}
+
+pub async fn change_password(
+    auth: AuthUser,
+    Db(pool): Db,
+    Json(input): Json<ChangePasswordRequest>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    use bcrypt::{hash, verify, DEFAULT_COST};
+    let id = auth.user_id.parse::<uuid::Uuid>()?;
+
+    let current_hash: Option<String> = sqlx::query_scalar(
+        "SELECT password_hash FROM users WHERE id = $1"
+    )
+    .bind(id)
+    .fetch_optional(&pool)
+    .await?;
+
+    let current_hash = current_hash.ok_or_else(|| AppError::not_found("User not found"))?;
+
+    let valid = verify(&input.current_password, &current_hash)
+        .map_err(|_| AppError::internal("Password check failed"))?;
+    if !valid {
+        return Err(AppError::bad_request("Current password is incorrect"));
+    }
+    if input.new_password.len() < 6 {
+        return Err(AppError::bad_request("New password must be at least 6 characters"));
+    }
+
+    let new_hash = hash(&input.new_password, DEFAULT_COST)
+        .map_err(|_| AppError::internal("Failed to hash password"))?;
+
+    sqlx::query("UPDATE users SET password_hash = $2, updated_at = NOW() WHERE id = $1")
+        .bind(id)
+        .bind(&new_hash)
+        .execute(&pool)
+        .await?;
+
+    Ok(Json(serde_json::json!({ "success": true })))
 }

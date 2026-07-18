@@ -1,11 +1,13 @@
+use crate::tenant::Db;
 use axum::extract::{Path, State, Query};
 use axum::Json;
+use chrono::NaiveDateTime;
 use sqlx::PgPool;
 use crate::error::AppError;
 use crate::models::donation::{Donation, InitiateDonation};
 
 pub async fn initiate(
-    State(pool): State<PgPool>,
+    Db(pool): Db,
     Json(input): Json<InitiateDonation>,
 ) -> Result<Json<serde_json::Value>, AppError> {
     let row = sqlx::query_as::<_, Donation>(
@@ -22,7 +24,7 @@ pub async fn initiate(
     .fetch_one(&pool).await?;
 
     let domain = std::env::var("SITE_DOMAIN")
-        .unwrap_or_else(|_| "http://104.248.63.47".to_string());
+        .unwrap_or_else(|_| "http://localhost:3000".to_string());
 
     let payment_url = match input.payment_method.as_str() {
         "esewa" => {
@@ -38,7 +40,6 @@ pub async fn initiate(
             let config = crate::payment::khalti::KhaltiConfig::from_env();
             let public_key = crate::payment::khalti::get_public_key();
             let domain_clone = domain.clone();
-            let donation_id_clone = row.id.to_string();
 
             // Call Khalti API to initiate payment
             let client = reqwest::Client::new();
@@ -62,12 +63,10 @@ pub async fn initiate(
                 Ok(resp) => {
                     let status = resp.status();
                     let body = resp.text().await.unwrap_or_default();
-                    eprintln!("Khalti initiate failed: {} - {}", status, body);
-                    format!("{}/give/success?donation_id={}", domain_clone, donation_id_clone)
+                    return Err(AppError::internal(format!("Khalti initiate failed: {} - {}", status, body)));
                 }
                 Err(e) => {
-                    eprintln!("Khalti API error: {}", e);
-                    format!("{}/give/success?donation_id={}", domain_clone, donation_id_clone)
+                    return Err(AppError::internal(format!("Khalti API error: {}", e)));
                 }
             }
         }
@@ -83,17 +82,37 @@ pub async fn initiate(
 }
 
 pub async fn callback_esewa(
-    State(pool): State<PgPool>,
+    Db(pool): Db,
     Query(params): Query<std::collections::HashMap<String, String>>,
 ) -> Result<Json<serde_json::Value>, AppError> {
     let donation_id_str = params.get("donation_id").ok_or_else(|| AppError::bad_request("Missing donation_id"))?;
     let donation_id: uuid::Uuid = donation_id_str.parse().map_err(|_| AppError::bad_request("Invalid donation_id"))?;
 
+    // Verify eSewa signature before accepting the payment.
+    // eSewa sends oid, amt, refId (HMAC-SHA256) in the callback query.
+    let oid    = params.get("oid").map(String::as_str).unwrap_or("");
+    let amt    = params.get("amt").map(String::as_str).unwrap_or("");
+    let ref_id = params.get("refId").map(String::as_str).unwrap_or("");
+
+    // If eSewa params are present, verify the signature.
+    if !oid.is_empty() && !amt.is_empty() && !ref_id.is_empty() {
+        let secret = std::env::var("ESEWA_SECRET_KEY").unwrap_or_default();
+        let callback_params = crate::payment::esewa::EsewaCallback {
+            oid: oid.to_string(),
+            amt: amt.to_string(),
+            ref_id: ref_id.to_string(),
+            ref_id2: params.get("refId2").cloned(),
+        };
+        if !crate::payment::esewa::verify_signature(&callback_params, &secret) {
+            return Err(AppError::bad_request("eSewa signature verification failed"));
+        }
+    }
+
     sqlx::query("UPDATE donations SET status = 'completed', updated_at = NOW() WHERE id = $1")
         .bind(donation_id).execute(&pool).await?;
 
     let domain = std::env::var("SITE_DOMAIN")
-        .unwrap_or_else(|_| "http://104.248.63.47".to_string());
+        .unwrap_or_else(|_| "http://localhost:3000".to_string());
 
     Ok(Json(serde_json::json!({
         "status": "completed",
@@ -103,7 +122,7 @@ pub async fn callback_esewa(
 }
 
 pub async fn callback_khalti(
-    State(pool): State<PgPool>,
+    Db(pool): Db,
     Path(donation_id): Path<uuid::Uuid>,
 ) -> Result<Json<serde_json::Value>, AppError> {
     sqlx::query("UPDATE donations SET status = 'completed', updated_at = NOW() WHERE id = $1")
@@ -121,7 +140,7 @@ pub struct StatusQuery {
 }
 
 pub async fn status(
-    State(pool): State<PgPool>,
+    Db(pool): Db,
     Query(q): Query<StatusQuery>,
 ) -> Result<Json<serde_json::Value>, AppError> {
     let row = sqlx::query_as::<_, Donation>("SELECT * FROM donations WHERE id = $1")
@@ -135,7 +154,7 @@ pub async fn status(
 }
 
 pub async fn list(
-    State(pool): State<PgPool>,
+    Db(pool): Db,
 ) -> Result<Json<Vec<Donation>>, AppError> {
     let rows = sqlx::query_as::<_, Donation>("SELECT * FROM donations ORDER BY created_at DESC")
         .fetch_all(&pool).await?;
@@ -143,7 +162,7 @@ pub async fn list(
 }
 
 pub async fn get(
-    State(pool): State<PgPool>,
+    Db(pool): Db,
     Path(id): Path<uuid::Uuid>,
 ) -> Result<Json<Donation>, AppError> {
     let row = sqlx::query_as::<_, Donation>("SELECT * FROM donations WHERE id = $1")
@@ -153,7 +172,7 @@ pub async fn get(
 }
 
 pub async fn stats(
-    State(pool): State<PgPool>,
+    Db(pool): Db,
 ) -> Result<Json<serde_json::Value>, AppError> {
     let total: (i64,) = sqlx::query_as("SELECT COALESCE(SUM(amount)::bigint, 0) FROM donations WHERE status = 'completed'")
         .fetch_one(&pool).await?;
@@ -173,4 +192,120 @@ pub async fn stats(
         "esewa_total": esewa.0,
         "khalti_total": khalti.0,
     })))
+}
+
+#[derive(serde::Deserialize)]
+pub struct DateRangeQuery {
+    pub start_date: Option<String>,
+    pub end_date: Option<String>,
+}
+
+pub async fn statements(
+    Db(pool): Db,
+    Query(q): Query<DateRangeQuery>,
+) -> Result<Json<Vec<serde_json::Value>>, AppError> {
+    let start = q.start_date.unwrap_or_else(|| "1970-01-01".to_string());
+    let end = q.end_date.unwrap_or_else(|| "2099-12-31".to_string());
+
+    let rows: Vec<(Option<String>, Option<String>, Option<String>, i64, i64)> = sqlx::query_as(
+        r#"SELECT donor_email, donor_name, donor_phone,
+                  COALESCE(SUM(amount), 0) AS total_amount,
+                  COUNT(*) AS donation_count
+           FROM donations
+           WHERE status = 'completed'
+             AND created_at::date >= $1::date
+             AND created_at::date <= $2::date
+           GROUP BY donor_email, donor_name, donor_phone
+           ORDER BY total_amount DESC"#,
+    )
+    .bind(&start)
+    .bind(&end)
+    .fetch_all(&pool)
+    .await?;
+
+    let result: Vec<serde_json::Value> = rows
+        .into_iter()
+        .map(|(email, name, phone, total, count)| {
+            serde_json::json!({
+                "donor_email": email.as_deref().unwrap_or(""),
+                "donor_name": name.as_deref().unwrap_or("Anonymous"),
+                "donor_phone": phone.as_deref().unwrap_or(""),
+                "total_amount": total,
+                "donation_count": count,
+                "start_date": start,
+                "end_date": end,
+            })
+        })
+        .collect();
+
+    Ok(Json(result))
+}
+
+pub async fn by_donor(
+    Db(pool): Db,
+) -> Result<Json<Vec<serde_json::Value>>, AppError> {
+    let rows: Vec<(
+        Option<String>, Option<String>, Option<String>,
+        i64, i64, Option<NaiveDateTime>, Option<NaiveDateTime>,
+    )> = sqlx::query_as(
+        r#"SELECT donor_email, donor_name, donor_phone,
+                  COALESCE(SUM(amount), 0) AS total_amount,
+                  COUNT(*) AS donation_count,
+                  MIN(created_at) AS first_donation,
+                  MAX(created_at) AS last_donation
+           FROM donations
+           WHERE status = 'completed'
+           GROUP BY donor_email, donor_name, donor_phone
+           ORDER BY total_amount DESC"#,
+    )
+    .fetch_all(&pool)
+    .await?;
+
+    let result: Vec<serde_json::Value> = rows
+        .into_iter()
+        .map(|(email, name, phone, total, count, first, last)| {
+            serde_json::json!({
+                "donor_email": email.as_deref().unwrap_or(""),
+                "donor_name": name.as_deref().unwrap_or("Anonymous"),
+                "donor_phone": phone.as_deref().unwrap_or(""),
+                "total_amount": total,
+                "donation_count": count,
+                "first_donation": first.map(|d| d.to_string()),
+                "last_donation": last.map(|d| d.to_string()),
+            })
+        })
+        .collect();
+
+    Ok(Json(result))
+}
+
+#[derive(serde::Deserialize)]
+pub struct DonorHistoryQuery {
+    pub email: String,
+    pub start_date: Option<String>,
+    pub end_date: Option<String>,
+}
+
+pub async fn donor_history(
+    Db(pool): Db,
+    Query(q): Query<DonorHistoryQuery>,
+) -> Result<Json<Vec<Donation>>, AppError> {
+    let start = q.start_date.unwrap_or_else(|| "1970-01-01".to_string());
+    let end = q.end_date.unwrap_or_else(|| "2099-12-31".to_string());
+
+    let rows = sqlx::query_as::<_, Donation>(
+        r#"SELECT * FROM donations
+           WHERE donor_email = $1
+             AND status = 'completed'
+             AND created_at::date >= $2::date
+             AND created_at::date <= $3::date
+           ORDER BY created_at DESC"#,
+    )
+    .bind(&q.email)
+    .bind(&start)
+    .bind(&end)
+    .fetch_all(&pool)
+    .await?;
+
+    Ok(Json(rows))
 }

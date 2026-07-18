@@ -32,7 +32,7 @@ where
 
         let token = auth_header.strip_prefix("Bearer ").ok_or(StatusCode::UNAUTHORIZED)?;
 
-        let secret = std::env::var("JWT_SECRET").expect("JWT_SECRET must be set");
+        let secret = std::env::var("JWT_SECRET").map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
         let token_data = decode::<Claims>(
             token,
             &DecodingKey::from_secret(secret.as_bytes()),
@@ -48,7 +48,7 @@ where
 }
 
 pub fn create_token(user_id: &str, email: &str) -> Result<String, jsonwebtoken::errors::Error> {
-    let secret = std::env::var("JWT_SECRET").expect("JWT_SECRET must be set");
+    let secret = std::env::var("JWT_SECRET").unwrap_or_default();
     let exp = chrono::Utc::now()
         .checked_add_signed(chrono::Duration::hours(24))
         .expect("valid timestamp")

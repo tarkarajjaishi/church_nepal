@@ -1,3 +1,4 @@
+use crate::tenant::Db;
 use axum::extract::{Path, State};
 use axum::Json;
 use sqlx::PgPool;
@@ -6,14 +7,14 @@ use crate::auth::AuthUser;
 use crate::error::AppError;
 use crate::models::{BlogPost, CreateBlogPost, UpdateBlogPost};
 
-pub async fn list(State(pool): State<PgPool>) -> Result<Json<Vec<BlogPost>>, AppError> {
+pub async fn list(Db(pool): Db) -> Result<Json<Vec<BlogPost>>, AppError> {
     let rows = sqlx::query_as::<_, BlogPost>("SELECT * FROM blog_posts ORDER BY created_at DESC")
         .fetch_all(&pool)
         .await?;
     Ok(Json(rows))
 }
 
-pub async fn list_published(State(pool): State<PgPool>) -> Result<Json<Vec<BlogPost>>, AppError> {
+pub async fn list_published(Db(pool): Db) -> Result<Json<Vec<BlogPost>>, AppError> {
     let rows = sqlx::query_as::<_, BlogPost>("SELECT * FROM blog_posts WHERE published = true ORDER BY created_at DESC")
         .fetch_all(&pool)
         .await?;
@@ -21,7 +22,7 @@ pub async fn list_published(State(pool): State<PgPool>) -> Result<Json<Vec<BlogP
 }
 
 pub async fn get(
-    State(pool): State<PgPool>,
+    Db(pool): Db,
     Path(id): Path<uuid::Uuid>,
 ) -> Result<Json<BlogPost>, AppError> {
     let row = sqlx::query_as::<_, BlogPost>("SELECT * FROM blog_posts WHERE id = $1")
@@ -34,7 +35,7 @@ pub async fn get(
 
 pub async fn create(
     _auth: AuthUser,
-    State(pool): State<PgPool>,
+    Db(pool): Db,
     Json(input): Json<CreateBlogPost>,
 ) -> Result<Json<BlogPost>, AppError> {
     let row = sqlx::query_as::<_, BlogPost>(
@@ -57,7 +58,7 @@ pub async fn create(
 
 pub async fn update(
     _auth: AuthUser,
-    State(pool): State<PgPool>,
+    Db(pool): Db,
     Path(id): Path<uuid::Uuid>,
     Json(input): Json<UpdateBlogPost>,
 ) -> Result<Json<BlogPost>, AppError> {
@@ -98,7 +99,7 @@ pub async fn update(
 
 pub async fn delete(
     _auth: AuthUser,
-    State(pool): State<PgPool>,
+    Db(pool): Db,
     Path(id): Path<uuid::Uuid>,
 ) -> Result<Json<serde_json::Value>, AppError> {
     sqlx::query("DELETE FROM blog_posts WHERE id = $1")

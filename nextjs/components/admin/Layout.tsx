@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/lib/auth'
-import { LayoutDashboard, BookOpen, Calendar, Users, Image, Quote, Bell, UserCheck, Clock, BookMarked, DollarSign, Settings, LogOut, Church, Shield, LayoutGrid, Heart, CheckSquare, UserCircle, Newspaper, Briefcase, Globe, Mail, Contact, Palette } from 'lucide-react'
+import { LayoutDashboard, BookOpen, Calendar, Users, Image, Quote, Bell, UserCheck, Clock, BookMarked, DollarSign, Settings, LogOut, Church, Shield, LayoutGrid, Heart, CheckSquare, UserCircle, Newspaper, Briefcase, Globe, Mail, Contact, Palette, Receipt, HandHelping, TrendingUp, Wallet, Target, ClipboardCheck, Radio, FileText, BarChart3 } from 'lucide-react'
 
 const navItems = [
   { to: '/admin/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -20,10 +20,23 @@ const navItems = [
   { to: '/admin/members', icon: Users, label: 'Members' },
   { to: '/admin/service-times', icon: Clock, label: 'Service Times' },
   { to: '/admin/verses', icon: BookMarked, label: 'Verses' },
-  { to: '/admin/campaigns', icon: DollarSign, label: 'Campaigns' },
+  { divider: true, label: 'CRM & Finance' },
+  { to: '/admin/people', icon: Users, label: 'People' },
+  { to: '/admin/offerings', icon: DollarSign, label: 'Offerings' },
+  { to: '/admin/giving', icon: Receipt, label: 'Giving Dashboard' },
+  { to: '/admin/funds', icon: Wallet, label: 'Funds' },
+  { to: '/admin/campaigns', icon: Target, label: 'Campaigns' },
+  { to: '/admin/pledges', icon: Target, label: 'Pledges' },
   { to: '/admin/donations', icon: Heart, label: 'Donations' },
+  { to: '/admin/member-applications', icon: Users, label: 'Member Applications' },
   { to: '/admin/todos', icon: CheckSquare, label: 'Todos' },
+  { divider: true, label: 'Operations' },
+  { to: '/admin/attendance', icon: ClipboardCheck, label: 'Attendance' },
+  { to: '/admin/volunteers', icon: HandHelping, label: 'Volunteers' },
+  { to: '/admin/broadcasts', icon: Radio, label: 'Broadcasts' },
+  { to: '/admin/forms', icon: FileText, label: 'Forms' },
   { divider: true, label: 'Website CMS' },
+  { to: '/admin/images', icon: Image, label: 'Image Manager' },
   { to: '/admin/blog', icon: Newspaper, label: 'Blog Posts' },
   { to: '/admin/team', icon: UserCheck, label: 'Team Members' },
   { to: '/admin/services', icon: Briefcase, label: 'Services' },
@@ -31,10 +44,12 @@ const navItems = [
   { to: '/admin/contact-info', icon: Contact, label: 'Contact Info' },
   { to: '/admin/newsletter', icon: Mail, label: 'Newsletter' },
   { divider: true, label: 'Management' },
-  { to: '/admin/users', icon: Shield, label: 'User Management' },
+  { to: '/admin/reports', icon: BarChart3, label: 'Reports' },
+  { to: '/admin/audit-log', icon: Shield, label: 'Audit Log' },
+  { to: '/admin/users', icon: Shield, label: 'Users' },
   { to: '/admin/theme', icon: Palette, label: 'Theme & Layout' },
   { to: '/admin/settings', icon: Settings, label: 'Settings' },
-  { to: '/admin/profile', icon: UserCircle, label: 'My Profile' },
+  { to: '/admin/profile', icon: UserCircle, label: 'Profile' },
 ]
 
 export function Layout({ children }: { children: React.ReactNode }) {

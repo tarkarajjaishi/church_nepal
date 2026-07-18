@@ -1,3 +1,4 @@
+use crate::tenant::Db;
 use axum::extract::{Path, State};
 use axum::Json;
 use sqlx::PgPool;
@@ -5,20 +6,20 @@ use crate::auth::AuthUser;
 use crate::error::AppError;
 use crate::models::{CreateVerse, UpdateVerse, Verse};
 
-pub async fn list(State(pool): State<PgPool>) -> Result<Json<Vec<Verse>>, AppError> {
+pub async fn list(Db(pool): Db) -> Result<Json<Vec<Verse>>, AppError> {
     let rows = sqlx::query_as::<_, Verse>("SELECT * FROM verses ORDER BY created_at DESC")
         .fetch_all(&pool).await?;
     Ok(Json(rows))
 }
 
-pub async fn get(State(pool): State<PgPool>, Path(id): Path<uuid::Uuid>) -> Result<Json<Verse>, AppError> {
+pub async fn get(Db(pool): Db, Path(id): Path<uuid::Uuid>) -> Result<Json<Verse>, AppError> {
     let row = sqlx::query_as::<_, Verse>("SELECT * FROM verses WHERE id = $1")
         .bind(id)
         .fetch_optional(&pool).await?.ok_or_else(|| AppError::not_found("Verse not found"))?;
     Ok(Json(row))
 }
 
-pub async fn create(_auth: AuthUser, State(pool): State<PgPool>, Json(input): Json<CreateVerse>) -> Result<Json<Verse>, AppError> {
+pub async fn create(_auth: AuthUser, Db(pool): Db, Json(input): Json<CreateVerse>) -> Result<Json<Verse>, AppError> {
     let row = sqlx::query_as::<_, Verse>(
         r#"INSERT INTO verses (text, ref_text, ne) VALUES ($1,$2,$3) RETURNING *"#,
     )
@@ -29,7 +30,7 @@ pub async fn create(_auth: AuthUser, State(pool): State<PgPool>, Json(input): Js
     Ok(Json(row))
 }
 
-pub async fn update(_auth: AuthUser, State(pool): State<PgPool>, Path(id): Path<uuid::Uuid>, Json(input): Json<UpdateVerse>) -> Result<Json<Verse>, AppError> {
+pub async fn update(_auth: AuthUser, Db(pool): Db, Path(id): Path<uuid::Uuid>, Json(input): Json<UpdateVerse>) -> Result<Json<Verse>, AppError> {
     let existing = sqlx::query_as::<_, Verse>("SELECT * FROM verses WHERE id = $1")
         .bind(id)
         .fetch_optional(&pool).await?.ok_or_else(|| AppError::not_found("Verse not found"))?;
@@ -44,7 +45,7 @@ pub async fn update(_auth: AuthUser, State(pool): State<PgPool>, Path(id): Path<
     Ok(Json(row))
 }
 
-pub async fn delete(_auth: AuthUser, State(pool): State<PgPool>, Path(id): Path<uuid::Uuid>) -> Result<Json<serde_json::Value>, AppError> {
+pub async fn delete(_auth: AuthUser, Db(pool): Db, Path(id): Path<uuid::Uuid>) -> Result<Json<serde_json::Value>, AppError> {
     sqlx::query("DELETE FROM verses WHERE id = $1")
         .bind(id)
         .execute(&pool).await?;
@@ -52,7 +53,7 @@ pub async fn delete(_auth: AuthUser, State(pool): State<PgPool>, Path(id): Path<
 }
 pub async fn toggle(
     _auth: AuthUser,
-    State(pool): State<PgPool>,
+    Db(pool): Db,
     Path(id): Path<uuid::Uuid>,
 ) -> Result<Json<Verse>, AppError> {
     let row = sqlx::query_as::<_, Verse>(
@@ -72,7 +73,7 @@ pub struct ReorderRequest {
 
 pub async fn reorder(
     _auth: AuthUser,
-    State(pool): State<PgPool>,
+    Db(pool): Db,
     Path(id): Path<uuid::Uuid>,
     Json(input): Json<ReorderRequest>,
 ) -> Result<Json<Verse>, AppError> {

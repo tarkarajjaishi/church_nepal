@@ -70,17 +70,17 @@ export default function DonationsPage() {
                 {donations.map((d: any) => (
                   <tr key={d.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3">
-                      <div className="font-medium text-gray-900">{d.donor_name || 'Anonymous'}</div>
-                      <div className="text-xs text-gray-500">{d.donor_email}</div>
+                      <div className="font-medium text-gray-900">{d.donorName || 'Anonymous'}</div>
+                      <div className="text-xs text-gray-500">{d.donorEmail}</div>
                     </td>
                     <td className="px-4 py-3 font-medium text-gray-900">Rs {d.amount.toLocaleString()}</td>
-                    <td className="px-4 py-3 text-gray-600 capitalize">{d.payment_method}</td>
+                    <td className="px-4 py-3 text-gray-600 capitalize">{d.paymentMethod}</td>
                     <td className="px-4 py-3">
                       <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[d.status] || 'bg-gray-100 text-gray-700'}`}>
                         {d.status}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-gray-500">{new Date(d.created_at).toLocaleDateString()}</td>
+                    <td className="px-4 py-3 text-gray-500">{new Date(d.createdAt).toLocaleDateString()}</td>
                   </tr>
                 ))}
               </tbody>

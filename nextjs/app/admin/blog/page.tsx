@@ -4,23 +4,35 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { motion } from 'motion/react'
 import { Plus, Edit, Trash2, Eye, EyeOff } from 'lucide-react'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useBlogPosts } from '@/lib/hooks'
+import api from '@/lib/admin/api'
 import { SkeletonLoader, ErrorState } from '@/components/LoadingStates'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
+import { toast } from 'sonner'
 import type { BlogPost } from '@/lib/types'
 
 function BlogTable({ posts }: { posts: BlogPost[] }) {
+  const queryClient = useQueryClient()
   const [sortBy, setSortBy] = useState<'title' | 'author' | 'date'>('date')
+
+  const deleteMut = useMutation({
+    mutationFn: (id: string) => api.delete(`/blog/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['blog'] })
+      toast.success('Post deleted')
+    },
+    onError: () => toast.error('Failed to delete post'),
+  })
 
   const sortedPosts = [...posts].sort((a, b) => {
     switch (sortBy) {
-      case 'title':
-        return a.title.localeCompare(b.title)
-      case 'author':
-        return (a.author || '').localeCompare(b.author || '')
+      case 'title':  return a.title.localeCompare(b.title)
+      case 'author': return (a.author || '').localeCompare(b.author || '')
       case 'date':
-        return new Date(b.created_at || '').getTime() - new Date(a.created_at || '').getTime()
+        // camelCase from API interceptor: createdAt (not created_at)
+        return new Date((b as any).createdAt || '').getTime() - new Date((a as any).createdAt || '').getTime()
     }
   })
 
@@ -77,7 +89,12 @@ function BlogTable({ posts }: { posts: BlogPost[] }) {
                     <Link href={`/admin/blog/${post.id}`} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition" title="Edit">
                       <Edit className="w-4 h-4" />
                     </Link>
-                    <button className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition" title="Delete">
+                    <button
+                      onClick={() => { if (confirm('Delete this post?')) deleteMut.mutate(post.id) }}
+                      disabled={deleteMut.isPending}
+                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition disabled:opacity-50"
+                      title="Delete"
+                    >
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>

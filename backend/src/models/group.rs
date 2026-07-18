@@ -16,8 +16,8 @@ pub struct Group {
     pub max_members: Option<i32>,
     pub enabled: Option<bool>,
     pub sort_order: Option<i32>,
-    pub created_at: Option<chrono::NaiveDateTime>,
-    pub updated_at: Option<chrono::NaiveDateTime>,
+    pub created_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub updated_at: Option<chrono::DateTime<chrono::Utc>>,
 }
 
 #[derive(Debug, Deserialize)]

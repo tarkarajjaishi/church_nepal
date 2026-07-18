@@ -1,11 +1,13 @@
+use crate::tenant::Db;
 use axum::extract::{Path, State};
 use axum::Json;
 use sqlx::PgPool;
 
+use crate::auth::AuthUser;
 use crate::error::AppError;
 use crate::models::{CreateSubscriber, NewsletterSubscriber};
 
-pub async fn list_subscribers(State(pool): State<PgPool>) -> Result<Json<Vec<NewsletterSubscriber>>, AppError> {
+pub async fn list_subscribers(_auth: AuthUser, Db(pool): Db) -> Result<Json<Vec<NewsletterSubscriber>>, AppError> {
     let rows = sqlx::query_as::<_, NewsletterSubscriber>(
         "SELECT * FROM newsletter_subscribers WHERE active = true ORDER BY subscribed_at DESC",
     )
@@ -14,7 +16,7 @@ pub async fn list_subscribers(State(pool): State<PgPool>) -> Result<Json<Vec<New
     Ok(Json(rows))
 }
 
-pub async fn count(State(pool): State<PgPool>) -> Result<Json<serde_json::Value>, AppError> {
+pub async fn count(_auth: AuthUser, Db(pool): Db) -> Result<Json<serde_json::Value>, AppError> {
     let row: (i64,) = sqlx::query_as(
         "SELECT COUNT(*) FROM newsletter_subscribers WHERE active = true",
     )
@@ -24,7 +26,7 @@ pub async fn count(State(pool): State<PgPool>) -> Result<Json<serde_json::Value>
 }
 
 pub async fn subscribe(
-    State(pool): State<PgPool>,
+    Db(pool): Db,
     Json(input): Json<CreateSubscriber>,
 ) -> Result<Json<NewsletterSubscriber>, AppError> {
     let row = sqlx::query_as::<_, NewsletterSubscriber>(
@@ -41,7 +43,8 @@ pub async fn subscribe(
 }
 
 pub async fn unsubscribe(
-    State(pool): State<PgPool>,
+    _auth: AuthUser,
+    Db(pool): Db,
     Path(email): Path<String>,
 ) -> Result<Json<serde_json::Value>, AppError> {
     sqlx::query("UPDATE newsletter_subscribers SET active = false WHERE email = $1")

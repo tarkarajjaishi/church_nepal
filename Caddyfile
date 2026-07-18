@@ -1,0 +1,32 @@
+# Reverse proxy + automatic HTTPS for the multi-tenant church platform.
+# Caddy preserves the incoming Host header on reverse_proxy by default, so the
+# church backend can read the subdomain and route to that church's database.
+#
+# Ports:  control UI 3200 · control API 3100 · church UI 3000 · church API 3002
+#
+# Wildcard TLS (*.churchnepal.com) requires a DNS-challenge cert. Add a DNS
+# provider block (e.g. `tls { dns cloudflare {env.CF_API_TOKEN} }`) for your
+# registrar, or use on-demand TLS. See MULTI_TENANT_SETUP.md.
+
+# ── Master control (apex) ─────────────────────────────────────────────
+churchnepal.com, www.churchnepal.com {
+	handle /api/* {
+		reverse_proxy localhost:3100
+	}
+	handle {
+		reverse_proxy localhost:3200
+	}
+}
+
+# ── Every church, on its own subdomain ───────────────────────────────
+*.churchnepal.com {
+	handle /api/* {
+		reverse_proxy localhost:3002
+	}
+	handle /uploads/* {
+		reverse_proxy localhost:3002
+	}
+	handle {
+		reverse_proxy localhost:3000
+	}
+}

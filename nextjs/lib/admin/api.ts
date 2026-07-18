@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { API_ORIGIN } from '../apiBase'
 
 function toCamelCase(obj: unknown): unknown {
   if (Array.isArray(obj)) return obj.map(toCamelCase)
@@ -27,11 +28,11 @@ function toSnakeCase(obj: unknown): unknown {
 }
 
 const api = axios.create({
-  baseURL: 'http://localhost:3002/api',
+  baseURL: `${API_ORIGIN}/api`,
 })
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('admin_token')
+  const token = typeof window !== 'undefined' ? localStorage.getItem('admin_token') : null
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
   }
@@ -79,8 +80,8 @@ export function createCrudHooks<T extends { id: string }>(endpoint: string) {
 export async function uploadFile(file: File): Promise<{ url: string; filename: string; original_name: string; content_type: string; size: number }> {
   const formData = new FormData()
   formData.append('file', file)
-  const token = localStorage.getItem('admin_token')
-  const res = await fetch('http://localhost:3002/api/upload', {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('admin_token') : null
+  const res = await fetch(`${API_ORIGIN}/api/upload`, {
     method: 'POST',
     headers: token ? { Authorization: `Bearer ${token}` } : {},
     body: formData,

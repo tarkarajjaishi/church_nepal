@@ -238,7 +238,7 @@ function HeroSection({ hero, serviceTimes, nextEvent, lang, t }: {
     <EditableBlock block={hero}>
       <section className="relative min-h-[88vh] flex items-center overflow-hidden">
         <div className="absolute inset-0">
-          <ImageWithFallback src={hero?.image || images.hero} alt={hero?.title || "Church"} className="w-full h-full object-cover" />
+          <ImageWithFallback src={hero?.image || ''} alt={hero?.title || "Church"} className="w-full h-full object-cover" fallbackClassName="bg-church-blue" />
           <div className="absolute inset-0 gradient-hero-br" />
         </div>
         <div className="relative mx-auto max-w-7xl px-4 py-24 w-full">
@@ -342,7 +342,7 @@ function WelcomeSection({ block, t }: { block: ContentBlock | null; t: (k: strin
         <div className="mx-auto max-w-7xl px-4 grid lg:grid-cols-2 gap-12 items-center">
           <Reveal>
             <div className="relative">
-              <ImageWithFallback src={block?.image || images.pastor} alt="Senior Pastor" loading="lazy" className="rounded-3xl w-full aspect-[4/5] object-cover shadow-xl" />
+              <ImageWithFallback src={block?.image || ''} alt="Senior Pastor" loading="lazy" className="rounded-3xl w-full aspect-[4/5] object-cover shadow-xl" fallbackClassName="bg-church-blue/10" />
               <Card className="absolute -bottom-6 -right-2 sm:right-6 p-4 max-w-[220px] shadow-xl border-0">
                 <div className="text-church-blue" style={{ fontFamily: "var(--font-heading)", fontWeight: 600 }}>Ps. Bishal Rai</div>
                 <div className="text-sm text-muted-foreground">Senior Pastor</div>
@@ -556,7 +556,7 @@ function PrayerCtaSection({ block, t }: { block: ContentBlock | null; t: (k: str
     <EditableBlock block={block}>
       <section className="relative py-24">
         <div className="absolute inset-0">
-          <ImageWithFallback src={block?.image || images.worship3} alt="Prayer" loading="lazy" className="w-full h-full object-cover" />
+          <ImageWithFallback src={block?.image || ''} alt="Prayer" loading="lazy" className="w-full h-full object-cover" fallbackClassName="bg-church-blue/20" />
           <div className="absolute inset-0 bg-church-blue/85" />
         </div>
         <div className="relative mx-auto max-w-3xl px-4 text-center">

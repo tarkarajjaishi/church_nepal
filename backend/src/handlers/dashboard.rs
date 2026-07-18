@@ -1,10 +1,12 @@
+use crate::tenant::Db;
 use axum::extract::State;
 use axum::Json;
 use sqlx::PgPool;
 
+use crate::auth::AuthUser;
 use crate::error::AppError;
 
-pub async fn stats(State(pool): State<PgPool>) -> Result<Json<serde_json::Value>, AppError> {
+pub async fn stats(_auth: AuthUser, Db(pool): Db) -> Result<Json<serde_json::Value>, AppError> {
     let users: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM users").fetch_one(&pool).await?;
     let blog_posts: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM blog_posts").fetch_one(&pool).await?;
     let published_posts: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM blog_posts WHERE published = true").fetch_one(&pool).await?;

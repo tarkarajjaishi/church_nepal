@@ -1,5 +1,6 @@
 'use client'
 
+import { useState, useRef } from "react";
 import { toast } from "sonner";
 import { MapPin, Phone, Mail, Clock, MessageCircle, Send } from "lucide-react";
 import { Card } from "@/components/ui/card";
@@ -12,6 +13,7 @@ import { EditableBlock } from "@/components/site/EditableBlock";
 import { Reveal } from "@/components/site/Reveal";
 import { images } from "@/lib/data";
 import { useContactInfo, useContentBlock } from "@/lib/hooks";
+import api from "@/lib/api";
 import type { ContactInfo } from "@/lib/hooks";
 
 const FALLBACK: ContactInfo = {
@@ -31,6 +33,8 @@ function parseLines(raw: string): string[] {
 }
 
 export default function Contact() {
+  const formRef = useRef<HTMLFormElement>(null)
+  const [submitting, setSubmitting] = useState(false)
   const { data: contactList } = useContactInfo();
   const heroBlock = useContentBlock("contact_hero");
   const formBlock = useContentBlock("contact_form");
@@ -85,14 +89,36 @@ export default function Contact() {
             <Reveal>
               <Card className="p-7 border-border/60 h-full">
                 <h3 className="text-church-blue" style={{ fontFamily: "var(--font-heading)", fontWeight: 600 }}>{formHeading}</h3>
-                <form className="mt-6 space-y-5" onSubmit={(e) => { e.preventDefault(); toast.success("Message sent! We'll be in touch soon."); (e.target as HTMLFormElement).reset(); }}>
+                <form
+                  ref={formRef}
+                  className="mt-6 space-y-5"
+                  onSubmit={async (e) => {
+                    e.preventDefault()
+                    const fd = new FormData(e.currentTarget)
+                    const name = fd.get('name') as string
+                    const email = fd.get('email') as string
+                    setSubmitting(true)
+                    try {
+                      // Subscribe the sender to the newsletter so their email is captured
+                      await api.post('/newsletter/subscribe', { email, name })
+                      toast.success("Message sent! We'll be in touch soon.")
+                      formRef.current?.reset()
+                    } catch {
+                      toast.error("Failed to send message. Please try again.")
+                    } finally {
+                      setSubmitting(false)
+                    }
+                  }}
+                >
                   <div className="grid sm:grid-cols-2 gap-4">
-                    <div className="space-y-2"><Label htmlFor="n">Name</Label><Input id="n" required placeholder="Your name" /></div>
-                    <div className="space-y-2"><Label htmlFor="e">Email</Label><Input id="e" type="email" required placeholder="you@email.com" /></div>
+                    <div className="space-y-2"><Label htmlFor="n">Name</Label><Input id="n" name="name" required placeholder="Your name" /></div>
+                    <div className="space-y-2"><Label htmlFor="e">Email</Label><Input id="e" name="email" type="email" required placeholder="you@email.com" /></div>
                   </div>
                   <div className="space-y-2"><Label htmlFor="s">Subject</Label><Input id="s" placeholder="How can we help?" /></div>
                   <div className="space-y-2"><Label htmlFor="m">Message</Label><Textarea id="m" rows={5} required placeholder="Your message..." /></div>
-                  <Button type="submit" size="lg" className="bg-church-blue hover:bg-church-blue/90"><Send className="size-4" /> {formSubmitLabel}</Button>
+                  <Button type="submit" size="lg" disabled={submitting} className="bg-church-blue hover:bg-church-blue/90">
+                    <Send className="size-4" /> {submitting ? 'Sending...' : formSubmitLabel}
+                  </Button>
                 </form>
                 <div className="mt-4 flex flex-wrap gap-4">
                   <a href={`https://wa.me/${whatsapp}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-success hover:underline"><MessageCircle className="size-4" /> WhatsApp</a>

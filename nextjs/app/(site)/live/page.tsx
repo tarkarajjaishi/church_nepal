@@ -73,12 +73,24 @@ export default function Live() {
             <Reveal className="lg:col-span-2">
               <Card className="overflow-hidden border-border/60">
                 <div className="relative aspect-video bg-church-blue grid place-items-center">
-                  <img src={streamBlock?.image || images.praise} alt="Live worship" className="absolute inset-0 w-full h-full object-cover opacity-40" />
-                  <div className="relative text-center text-white">
-                    <Badge className="bg-red-600 text-white border-0 mb-3"><span className="mr-1.5 inline-block size-2 rounded-full bg-white animate-pulse" /> {streamItems.badge || "LIVE"}</Badge>
-                    <h3 className="text-white" style={{ fontFamily: "var(--font-heading)", fontWeight: 700, fontSize: "1.5rem" }}>{streamBlock?.title || "Sunday Celebration Service"}</h3>
-                    <p className="text-white/70 mt-1 flex items-center justify-center gap-2"><Users className="size-4" /> {viewers} watching now</p>
-                  </div>
+                  {streamItems.youtubeUrl ? (
+                    <iframe
+                      className="absolute inset-0 w-full h-full"
+                      src={`https://www.youtube.com/embed/${streamItems.youtubeUrl.includes('v=') ? new URLSearchParams(streamItems.youtubeUrl.split('?')[1]).get('v') : streamItems.youtubeUrl.split('/').pop()}?autoplay=0&rel=0`}
+                      title={streamBlock?.title || "Sunday Celebration Service"}
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    />
+                  ) : (
+                    <>
+                      <img src={streamBlock?.image || images.praise} alt="Live worship" className="absolute inset-0 w-full h-full object-cover opacity-40" />
+                      <div className="relative text-center text-white">
+                        <Badge className="bg-red-600 text-white border-0 mb-3"><span className="mr-1.5 inline-block size-2 rounded-full bg-white animate-pulse" /> {streamItems.badge || "LIVE"}</Badge>
+                        <h3 className="text-white" style={{ fontFamily: "var(--font-heading)", fontWeight: 700, fontSize: "1.5rem" }}>{streamBlock?.title || "Sunday Celebration Service"}</h3>
+                        <p className="text-white/70 mt-1 flex items-center justify-center gap-2"><Users className="size-4" /> {viewers} watching now</p>
+                      </div>
+                    </>
+                  )}
                 </div>
                 <div className="p-5">
                   <h3 className="text-church-blue" style={{ fontFamily: "var(--font-heading)", fontWeight: 600 }}>{streamBlock?.title || "Sunday Celebration Service"}</h3>

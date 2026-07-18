@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Heart, QrCode, Building2, Smartphone, Check } from "lucide-react";
 import { Card } from "@/components/ui/card";
@@ -27,10 +28,12 @@ const defaultAmounts = [500, 1000, 2500, 5000];
 const methodIconMap: Record<string, any> = { esewa: Smartphone, khalti: Smartphone, bank: Building2, qr: QrCode };
 
 export default function Give() {
+  const router = useRouter();
   const { data: campaigns = [] } = useCampaigns();
   const [freq, setFreq] = useState("one");
   const [amount, setAmount] = useState<number | "">(1000);
   const [method, setMethod] = useState("esewa");
+  const [donating, setDonating] = useState(false);
 
   // CMS content blocks
   const hero = useContentBlock('give_hero');
@@ -112,10 +115,39 @@ export default function Give() {
 
                 <Button
                   size="lg"
+                  disabled={donating || !amount}
                   className="mt-6 w-full bg-gold text-church-blue hover:bg-gold/90"
-                  onClick={() => toast.success(formData.successMessage || `Thank you for your ${freq === "one" ? "gift" : "monthly pledge"}!`, { description: `Rs ${amount || 0} via ${methods.find((m: any) => m.id === method)?.label}` })}
+                  onClick={async () => {
+                    if (!amount) return;
+                    setDonating(true);
+                    try {
+                      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002'}/api/donations/initiate`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          amount: Number(amount),
+                          payment_method: method,
+                          frequency: freq,
+                        }),
+                      });
+                      const data = await res.json();
+                      if (res.ok && data.redirect_url) {
+                        router.push(data.redirect_url);
+                      } else if (res.ok) {
+                        toast.success(formData.successMessage || `Thank you for your ${freq === "one" ? "gift" : "monthly pledge"}!`, {
+                          description: `Rs ${amount} via ${methods.find((m: any) => m.id === method)?.label}`,
+                        });
+                      } else {
+                        toast.error(data.error || "Could not initiate payment. Please try again.");
+                      }
+                    } catch {
+                      toast.error("Network error. Please try again.");
+                    } finally {
+                      setDonating(false);
+                    }
+                  }}
                 >
-                  {formData.submitLabel?.replace('{amount}', String(amount || 0)) || `Give Rs ${amount || 0} ${freq === "monthly" ? "/ month" : ""}`}
+                  {donating ? "Processing..." : formData.submitLabel?.replace('{amount}', String(amount || 0)) || `Give Rs ${amount || 0} ${freq === "monthly" ? "/ month" : ""}`}
                 </Button>
                 <p className="mt-3 text-xs text-center text-muted-foreground">{formData.secureNote || "Secure giving · You will be redirected to complete payment."}</p>
               </Card>

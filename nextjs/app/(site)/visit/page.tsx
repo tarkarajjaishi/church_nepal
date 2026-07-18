@@ -114,17 +114,36 @@ export default function PlanVisit() {
                 </p>
                 <form
                   className="mt-6 space-y-4"
-                  onSubmit={(e) => {
+                  onSubmit={async (e) => {
                     e.preventDefault();
-                    toast.success(lang === "en" ? (ctaData.successMessage || "Thank you! We look forward to meeting you.") : (ctaData.successMessageNe || ctaData.successMessage || "धन्यवाद! हामी तपाईंलाई भेट्न उत्सुक छौं।"));
-                    (e.target as HTMLFormElement).reset();
+                    const fd = new FormData(e.currentTarget);
+                    try {
+                      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002'}/api/contact-messages`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          message_type: 'visit',
+                          name: fd.get('vn') as string || '',
+                          phone: fd.get('vp') as string || '',
+                          visit_date: fd.get('vd') as string || '',
+                        }),
+                      });
+                      if (res.ok) {
+                        toast.success(lang === "en" ? (ctaData.successMessage || "Thank you! We look forward to meeting you.") : (ctaData.successMessageNe || ctaData.successMessage || "धन्यवाद! हामी तपाईंलाई भेट्न उत्सुक छौं।"));
+                        (e.target as HTMLFormElement).reset();
+                      } else {
+                        toast.error(lang === "en" ? "Could not submit. Please try again." : "पेश गर्न सकिएन।");
+                      }
+                    } catch {
+                      toast.error(lang === "en" ? "Network error. Please try again." : "नेटवर्क त्रुटि।");
+                    }
                   }}
                 >
                   <div className="grid sm:grid-cols-2 gap-4">
-                    <div className="space-y-2"><Label htmlFor="vn" className="text-white/90">{lang === "en" ? (ctaData.nameLabel || "Name") : (ctaData.nameLabelNe || ctaData.nameLabel || "नाम")}</Label><Input id="vn" required placeholder={lang === "en" ? (ctaData.namePlaceholder || "Your name") : (ctaData.namePlaceholderNe || ctaData.namePlaceholder || "तपाईंको नाम")} className="bg-white/10 border-white/20 text-white placeholder:text-white/50" /></div>
-                    <div className="space-y-2"><Label htmlFor="vp" className="text-white/90">{lang === "en" ? (ctaData.phoneLabel || "Phone / Viber") : (ctaData.phoneLabelNe || ctaData.phoneLabel || "फोन / भाइबर")}</Label><Input id="vp" required placeholder="+977 ..." className="bg-white/10 border-white/20 text-white placeholder:text-white/50" /></div>
+                    <div className="space-y-2"><Label htmlFor="vn" className="text-white/90">{lang === "en" ? (ctaData.nameLabel || "Name") : (ctaData.nameLabelNe || ctaData.nameLabel || "नाम")}</Label><Input id="vn" name="vn" required placeholder={lang === "en" ? (ctaData.namePlaceholder || "Your name") : (ctaData.namePlaceholderNe || ctaData.namePlaceholder || "तपाईंको नाम")} className="bg-white/10 border-white/20 text-white placeholder:text-white/50" /></div>
+                    <div className="space-y-2"><Label htmlFor="vp" className="text-white/90">{lang === "en" ? (ctaData.phoneLabel || "Phone / Viber") : (ctaData.phoneLabelNe || ctaData.phoneLabel || "फोन / भाइबर")}</Label><Input id="vp" name="vp" required placeholder="+977 ..." className="bg-white/10 border-white/20 text-white placeholder:text-white/50" /></div>
                   </div>
-                  <div className="space-y-2"><Label htmlFor="vd" className="text-white/90">{lang === "en" ? (ctaData.dateLabel || "Which Sunday?") : (ctaData.dateLabelNe || ctaData.dateLabel || "कुन आइतबार?")}</Label><Input id="vd" type="date" className="bg-white/10 border-white/20 text-white [color-scheme:dark]" /></div>
+                  <div className="space-y-2"><Label htmlFor="vd" className="text-white/90">{lang === "en" ? (ctaData.dateLabel || "Which Sunday?") : (ctaData.dateLabelNe || ctaData.dateLabel || "कुन आइतबार?")}</Label><Input id="vd" name="vd" type="date" className="bg-white/10 border-white/20 text-white [color-scheme:dark]" /></div>
                   <Button type="submit" size="lg" className="bg-gold text-church-blue hover:bg-gold/90"><Calendar className="size-4" /> {lang === "en" ? (ctaData.submitLabel || "I'm Planning to Visit") : (ctaData.submitLabelNe || ctaData.submitLabel || "म भ्रमण गर्ने योजनामा छु")}</Button>
                 </form>
                 <a href={ctaData.whatsappUrl || "https://wa.me/9771400000"} className="mt-4 inline-flex items-center gap-2 text-gold hover:underline"><MessageCircle className="size-4" /> {lang === "en" ? (ctaData.whatsappLabel || "Or message us on WhatsApp / Viber") : (ctaData.whatsappLabelNe || ctaData.whatsappLabel || "वा WhatsApp / Viber मा सन्देश पठाउनुहोस्")}</a>

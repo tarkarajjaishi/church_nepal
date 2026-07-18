@@ -2,7 +2,8 @@ import { NextRequest } from 'next/server'
 import { appendFile, mkdir } from 'fs/promises'
 import path from 'path'
 
-const LOG_FILE = path.resolve('C:/churchnepal.com/FullProductionSetup-main/.bridge/client-errors.log')
+// Use a path relative to the project root so this works on any OS / Docker
+const LOG_FILE = path.resolve(process.cwd(), '.bridge', 'client-errors.log')
 
 export async function POST(request: NextRequest) {
   try {

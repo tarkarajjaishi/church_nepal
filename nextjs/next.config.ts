@@ -24,6 +24,17 @@ const nextConfig: NextConfig = {
         protocol: 'https',
         hostname: '**.unsplash.com',
       },
+      // Allow uploaded images served from the Rust API backend
+      {
+        protocol: 'https',
+        hostname: '*.churchnepal.com',
+      },
+      {
+        protocol: 'http',
+        hostname: 'localhost',
+        port: '3002',
+        pathname: '/api/uploads/**',
+      },
     ],
     // Explicit qualities when components pass quality props
     qualities: [50, 75, 90, 100],

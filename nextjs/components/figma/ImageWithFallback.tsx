@@ -2,28 +2,32 @@
 
 import React, { useState } from 'react'
 
-const ERROR_IMG_SRC =
-  'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODgiIGhlaWdodD0iODgiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgc3Ryb2tlPSIjMDAwIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBvcGFjaXR5PSIuMyIgZmlsbD0ibm9uZSIgc3Ryb2tlLXdpZHRoPSIzLjciPjxyZWN0IHg9IjE2IiB5PSIxNiIgd2lkdGg9IjU2IiBoZWlnaHQ9IjU2IiByeD0iNiIvPjxwYXRoIGQ9Im0xNiA1OCAxNi0xOCAzMiAzMiIvPjxjaXJjbGUgY3g9IjUzIiBjeT0iMzUiIHI9IjciLz48L3N2Zz4KCg=='
+const ChurchPlaceholder = ({ className }: { className?: string }) => (
+  <div className={`flex items-center justify-center bg-church-blue/10 ${className ?? ''}`}>
+    <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-church-blue/30">
+      <path d="M10 9h4"/>
+      <path d="M12 7v5"/>
+      <path d="M14 22v-4a2 2 0 0 0-4 0v4"/>
+      <path d="M18 22V5.618a1 1 0 0 0-.553-.894l-4.553-2.277a2 2 0 0 0-1.788 0L6.553 4.724A1 1 0 0 0 6 5.618V22"/>
+      <path d="m18 7 3.447 1.724a1 1 0 0 1 .553.894V20a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9.618a1 1 0 0 1 .553-.894L6 7"/>
+    </svg>
+  </div>
+)
 
-export function ImageWithFallback(props: React.ImgHTMLAttributes<HTMLImageElement>) {
+export function ImageWithFallback(props: React.ImgHTMLAttributes<HTMLImageElement> & { fallbackClassName?: string }) {
   const [didError, setDidError] = useState(false)
 
   const handleError = () => {
     setDidError(true)
   }
 
-  const { src, alt, style, className, ...rest } = props
+  const { src, alt, style, className, fallbackClassName, ...rest } = props
 
-  return didError ? (
-    <div
-      className={`inline-block bg-gray-100 text-center align-middle ${className ?? ''}`}
-      style={style}
-    >
-      <div className="flex items-center justify-center w-full h-full">
-        <img src={ERROR_IMG_SRC} alt="Error loading image" {...rest} data-original-url={src} />
-      </div>
-    </div>
-  ) : (
+  if (!src || didError) {
+    return <ChurchPlaceholder className={`${className ?? ''} ${fallbackClassName ?? ''}`} />
+  }
+
+  return (
     <img src={src} alt={alt} className={className} style={style} {...rest} onError={handleError} />
   )
 }

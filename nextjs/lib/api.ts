@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { API_ORIGIN } from './apiBase'
 
 // Convert snake_case keys to camelCase for a single object
 function toCamelCase(obj: unknown): unknown {
@@ -15,7 +16,7 @@ function toCamelCase(obj: unknown): unknown {
 }
 
 const api = axios.create({
-  baseURL: 'http://localhost:3002/api',
+  baseURL: `${API_ORIGIN}/api`,
 })
 
 // Attach the admin bearer token (stored at login) so authenticated endpoints

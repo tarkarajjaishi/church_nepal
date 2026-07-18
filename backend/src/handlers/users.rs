@@ -1,3 +1,4 @@
+use crate::tenant::Db;
 use axum::extract::{Path, State};
 use axum::Json;
 use bcrypt::{hash, DEFAULT_COST};
@@ -9,7 +10,7 @@ use crate::models::{UpdateUser, UserPublic};
 
 pub async fn list(
     _auth: AuthUser,
-    State(pool): State<PgPool>,
+    Db(pool): Db,
 ) -> Result<Json<Vec<UserPublic>>, AppError> {
     let users = sqlx::query_as::<_, UserPublic>(
         r#"SELECT id, email, name, role FROM users ORDER BY created_at DESC"#,
@@ -23,7 +24,7 @@ pub async fn list(
 pub async fn get(
     _auth: AuthUser,
     Path(id): Path<uuid::Uuid>,
-    State(pool): State<PgPool>,
+    Db(pool): Db,
 ) -> Result<Json<UserPublic>, AppError> {
     let user = sqlx::query_as::<_, UserPublic>(
         r#"SELECT id, email, name, role FROM users WHERE id = $1"#,
@@ -39,7 +40,7 @@ pub async fn get(
 pub async fn update(
     _auth: AuthUser,
     Path(id): Path<uuid::Uuid>,
-    State(pool): State<PgPool>,
+    Db(pool): Db,
     Json(input): Json<UpdateUser>,
 ) -> Result<Json<UserPublic>, AppError> {
     // Fetch existing user to preserve non-updated fields
@@ -94,7 +95,7 @@ pub async fn update(
 pub async fn delete(
     _auth: AuthUser,
     Path(id): Path<uuid::Uuid>,
-    State(pool): State<PgPool>,
+    Db(pool): Db,
 ) -> Result<Json<serde_json::Value>, AppError> {
     let result = sqlx::query("DELETE FROM users WHERE id = $1")
         .bind(id)
@@ -110,7 +111,7 @@ pub async fn delete(
 
 pub async fn create(
     _auth: AuthUser,
-    State(pool): State<PgPool>,
+    Db(pool): Db,
     Json(input): Json<crate::models::CreateUser>,
 ) -> Result<Json<UserPublic>, AppError> {
     // Check if email already exists

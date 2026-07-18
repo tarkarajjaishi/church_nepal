@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { HandHeart, ShieldCheck, CheckCircle2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
@@ -19,7 +19,10 @@ import { useLang } from "@/lib/language";
 export default function Prayer() {
   const { lang } = useLang();
   const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [anon, setAnon] = useState(false);
+  const [category, setCategory] = useState('');
+  const formRef = useRef<HTMLFormElement>(null);
 
   // CMS content blocks — NO hardcoded content
   const hero = useContentBlock('prayer_hero');
@@ -29,7 +32,7 @@ export default function Prayer() {
   const formData = formBlock?.items?.[0] || {};
   const categories = formData.categories?.length
     ? formData.categories
-    : ["Healing", "Family", "Finances", "Guidance", "Salvation", "Thanksgiving", "Other"];
+    : ["Health", "Family", "Financial", "Spiritual", "Other"];
   const wallItems = wallBlock?.items?.length ? wallBlock.items : [];
 
   return (
@@ -59,13 +62,46 @@ export default function Prayer() {
                         ? (formBlock?.body || "Your prayer request has been received. Our prayer team will faithfully lift you up before God.")
                         : "तपाईंको प्रार्थना अनुरोध प्राप्त भयो। हाम्रो प्रार्थना समूहले तपाईंका लागि प्रार्थना गर्नेछ।"}
                     </p>
-                    <Button className="mt-6 bg-church-blue hover:bg-church-blue/90" onClick={() => setSubmitted(false)}>Submit Another</Button>
+                    {category && (
+                      <p className="mt-2 text-sm text-muted-foreground">Category: <span className="font-medium text-church-blue">{category}</span></p>
+                    )}
+                    <Button className="mt-6 bg-church-blue hover:bg-church-blue/90" onClick={() => { setSubmitted(false); setCategory(''); formRef.current?.reset(); }}>Submit Another</Button>
                   </div>
                 ) : (
                   <EditableBlock block={formBlock}>
                     <form
+                      ref={formRef}
                       className="space-y-5"
-                      onSubmit={(e) => { e.preventDefault(); setSubmitted(true); toast.success("Prayer request submitted"); }}
+                      onSubmit={async (e) => {
+                        e.preventDefault();
+                        const fd = new FormData(e.currentTarget);
+                        setLoading(true);
+                        try {
+                          const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002'}/api/contact-messages`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              message_type: 'prayer',
+                              name: anon ? '' : (fd.get('name') as string || ''),
+                              email: anon ? '' : (fd.get('email') as string || ''),
+                              phone: anon ? '' : (fd.get('phone') as string || ''),
+                              message: fd.get('req') as string || '',
+                              category,
+                              anonymous: anon,
+                            }),
+                          });
+                          if (res.ok) {
+                            setSubmitted(true);
+                            toast.success("Prayer request submitted");
+                          } else {
+                            toast.error("Failed to submit. Please try again.");
+                          }
+                        } catch {
+                          toast.error("Network error. Please try again.");
+                        } finally {
+                          setLoading(false);
+                        }
+                      }}
                     >
                       <div className="flex items-center gap-2 text-church-blue">
                         <HandHeart className="size-5 text-gold" />
@@ -73,30 +109,30 @@ export default function Prayer() {
                       </div>
                       {!anon && (
                         <div className="grid sm:grid-cols-2 gap-4">
-                          <div className="space-y-2"><Label htmlFor="name">Name</Label><Input id="name" placeholder="Your name" required={!anon} /></div>
-                          <div className="space-y-2"><Label htmlFor="phone">Phone</Label><Input id="phone" placeholder="+977 ..." /></div>
+                          <div className="space-y-2"><Label htmlFor="name">Name</Label><Input id="name" name="name" placeholder="Your name" required={!anon} /></div>
+                          <div className="space-y-2"><Label htmlFor="phone">Phone</Label><Input id="phone" name="phone" placeholder="+977 ..." /></div>
                         </div>
                       )}
                       {!anon && (
-                        <div className="space-y-2"><Label htmlFor="email">Email</Label><Input id="email" type="email" placeholder="you@email.com" /></div>
+                        <div className="space-y-2"><Label htmlFor="email">Email</Label><Input id="email" name="email" type="email" placeholder="you@email.com" /></div>
                       )}
                       <div className="space-y-2">
                         <Label>Prayer Category</Label>
-                        <Select>
+                        <Select value={category} onValueChange={setCategory}>
                           <SelectTrigger><SelectValue placeholder="Select a category" /></SelectTrigger>
                           <SelectContent>{categories.map((c: string) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
                         </Select>
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="req">Prayer Request</Label>
-                        <Textarea id="req" rows={5} placeholder="Share what's on your heart..." required />
+                        <Textarea id="req" name="req" rows={5} placeholder="Share what's on your heart..." required />
                       </div>
                       <div className="flex items-center gap-2">
                         <Checkbox id="anon" checked={anon} onCheckedChange={(v) => setAnon(!!v)} />
                         <Label htmlFor="anon" className="cursor-pointer">Submit anonymously</Label>
                       </div>
                       <div className="flex items-center gap-2 text-sm text-success"><ShieldCheck className="size-4" /> {formBlock?.body || "Every request is kept strictly confidential."}</div>
-                      <Button type="submit" size="lg" className="w-full bg-gold text-church-blue hover:bg-gold/90">Submit Prayer Request</Button>
+                      <Button type="submit" size="lg" disabled={loading} className="w-full bg-gold text-church-blue hover:bg-gold/90">{loading ? "Submitting..." : "Submit Prayer Request"}</Button>
                     </form>
                   </EditableBlock>
                 )}

@@ -210,7 +210,7 @@ export default function ContentBlocksPage() {
   const getImageSrc = (url: string) => {
     if (!url) return ''
     if (url.startsWith('http')) return url
-    return `http://localhost:3002${url}`
+    return `${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3002'}${url}`
   }
 
   const openCreate = () => { setForm(emptyForm); setCreating(true) }

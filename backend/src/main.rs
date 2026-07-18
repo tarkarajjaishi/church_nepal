@@ -6,33 +6,38 @@ mod handlers;
 mod models;
 mod payment;
 mod routes;
+mod tenant;
 
-use axum::http::header;
-use axum::http::Method;
+use axum::http::{header, Method};
+use axum::middleware::from_fn_with_state;
+use axum::routing::get;
+use tenant::TenantRegistry;
 use tower_http::cors::{Any, CorsLayer};
-use tower_http::services::ServeDir;
 
 #[tokio::main]
 async fn main() {
-    let config = config::Config::from_env();
-    let pool = db::new_pool(&config).await;
+    dotenvy::dotenv().ok();
 
-    // Ensure uploads directory exists
-    std::fs::create_dir_all("uploads").ok();
+    // Multi-tenant: no single DB pool. Each request is routed to the church's
+    // own database by subdomain (see tenant.rs). Databases are created and
+    // migrated by the control plane at provisioning time.
+    let registry = TenantRegistry::from_env();
 
     let cors = CorsLayer::new()
         .allow_origin(Any)
-        .allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE, Method::OPTIONS])
+        .allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE, Method::PATCH, Method::OPTIONS])
         .allow_headers([header::CONTENT_TYPE, header::AUTHORIZATION]);
 
     let app = axum::Router::new()
         .nest("/api", routes::api_routes())
-        .nest_service("/api/uploads", ServeDir::new("uploads"))
-        .layer(cors)
-        .with_state(pool);
+        // Per-church file serving: /uploads/<file> -> <STORAGE_ROOT>/<slug>/<file>
+        .route("/uploads/{filename}", get(handlers::upload::serve_upload))
+        .layer(from_fn_with_state(registry.clone(), tenant::tenant_mw))
+        .layer(cors);
 
-    let addr = format!("0.0.0.0:{}", config.port);
-    println!("Server running on http://{}", addr);
+    let port = std::env::var("PORT").unwrap_or_else(|_| "3002".into());
+    let addr = format!("0.0.0.0:{}", port);
+    println!("Church app (multi-tenant) running on http://{}", addr);
 
     let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
     axum::serve(listener, app).await.unwrap();

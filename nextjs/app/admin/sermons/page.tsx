@@ -11,7 +11,7 @@ const fields = [
   { key: 'topic', label: 'Topic', type: 'text' as const },
   { key: 'image', label: 'Image URL', type: 'text' as const },
   { key: 'description', label: 'Description', type: 'textarea' as const },
-  { key: 'video_url', label: 'Video URL', type: 'text' as const },
+  { key: 'videoUrl', label: 'Video URL', type: 'text' as const },
 ]
 
 export default function SermonsPage() {

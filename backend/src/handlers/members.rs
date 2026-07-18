@@ -1,3 +1,4 @@
+use crate::tenant::Db;
 use axum::extract::{Path, State};
 use axum::Json;
 use sqlx::PgPool;
@@ -5,20 +6,20 @@ use crate::auth::AuthUser;
 use crate::error::AppError;
 use crate::models::{CreateMember, Member, UpdateMember};
 
-pub async fn list(State(pool): State<PgPool>) -> Result<Json<Vec<Member>>, AppError> {
+pub async fn list(Db(pool): Db) -> Result<Json<Vec<Member>>, AppError> {
     let rows = sqlx::query_as::<_, Member>("SELECT * FROM members ORDER BY created_at DESC")
         .fetch_all(&pool).await?;
     Ok(Json(rows))
 }
 
-pub async fn get(State(pool): State<PgPool>, Path(id): Path<uuid::Uuid>) -> Result<Json<Member>, AppError> {
+pub async fn get(Db(pool): Db, Path(id): Path<uuid::Uuid>) -> Result<Json<Member>, AppError> {
     let row = sqlx::query_as::<_, Member>("SELECT * FROM members WHERE id = $1")
         .bind(id)
         .fetch_optional(&pool).await?.ok_or_else(|| AppError::not_found("Member not found"))?;
     Ok(Json(row))
 }
 
-pub async fn create(_auth: AuthUser, State(pool): State<PgPool>, Json(input): Json<CreateMember>) -> Result<Json<Member>, AppError> {
+pub async fn create(_auth: AuthUser, Db(pool): Db, Json(input): Json<CreateMember>) -> Result<Json<Member>, AppError> {
     let row = sqlx::query_as::<_, Member>(
         r#"INSERT INTO members (name, role, since, image) VALUES ($1,$2,$3,$4) RETURNING *"#,
     )
@@ -30,7 +31,7 @@ pub async fn create(_auth: AuthUser, State(pool): State<PgPool>, Json(input): Js
     Ok(Json(row))
 }
 
-pub async fn update(_auth: AuthUser, State(pool): State<PgPool>, Path(id): Path<uuid::Uuid>, Json(input): Json<UpdateMember>) -> Result<Json<Member>, AppError> {
+pub async fn update(_auth: AuthUser, Db(pool): Db, Path(id): Path<uuid::Uuid>, Json(input): Json<UpdateMember>) -> Result<Json<Member>, AppError> {
     let existing = sqlx::query_as::<_, Member>("SELECT * FROM members WHERE id = $1")
         .bind(id)
         .fetch_optional(&pool).await?.ok_or_else(|| AppError::not_found("Member not found"))?;
@@ -46,7 +47,7 @@ pub async fn update(_auth: AuthUser, State(pool): State<PgPool>, Path(id): Path<
     Ok(Json(row))
 }
 
-pub async fn delete(_auth: AuthUser, State(pool): State<PgPool>, Path(id): Path<uuid::Uuid>) -> Result<Json<serde_json::Value>, AppError> {
+pub async fn delete(_auth: AuthUser, Db(pool): Db, Path(id): Path<uuid::Uuid>) -> Result<Json<serde_json::Value>, AppError> {
     sqlx::query("DELETE FROM members WHERE id = $1")
         .bind(id)
         .execute(&pool).await?;
@@ -54,7 +55,7 @@ pub async fn delete(_auth: AuthUser, State(pool): State<PgPool>, Path(id): Path<
 }
 pub async fn toggle(
     _auth: AuthUser,
-    State(pool): State<PgPool>,
+    Db(pool): Db,
     Path(id): Path<uuid::Uuid>,
 ) -> Result<Json<Member>, AppError> {
     let row = sqlx::query_as::<_, Member>(
@@ -74,7 +75,7 @@ pub struct ReorderRequest {
 
 pub async fn reorder(
     _auth: AuthUser,
-    State(pool): State<PgPool>,
+    Db(pool): Db,
     Path(id): Path<uuid::Uuid>,
     Json(input): Json<ReorderRequest>,
 ) -> Result<Json<Member>, AppError> {

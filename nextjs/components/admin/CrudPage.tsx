@@ -98,7 +98,7 @@ export function CrudPage({ endpoint, title, fields }: { endpoint: string; title:
   const getImageSrc = (url: string) => {
     if (!url) return ''
     if (url.startsWith('http')) return url
-    return `http://localhost:3002${url}`
+    return `${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3002'}${url}`
   }
 
   const openCreate = () => { setEditing(null); setForm({ sortOrder: items.length }); setShowForm(true) }

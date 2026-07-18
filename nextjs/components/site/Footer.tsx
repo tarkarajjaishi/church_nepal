@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { toast } from "sonner";
 import { Church, Facebook, Youtube, Instagram, Mail, MapPin, Phone, Send, MessageCircle } from "lucide-react";
@@ -16,6 +17,8 @@ const fallbackSocials = [
 
 export function Footer() {
   const { t, lang } = useLang();
+  const [newsletterEmail, setNewsletterEmail] = useState('');
+  const [newsletterLoading, setNewsletterLoading] = useState(false);
   const footer = useContentBlock('footer');
   const brand = useContentBlock('site_brand');
   const socialBlock = useContentBlock('social_links');
@@ -96,9 +99,40 @@ export function Footer() {
             ))}
           </ul>
           <p className="mt-4 text-sm">{lang === "en" ? "Newsletter" : "न्यूजलेटर"}</p>
-          <form className="mt-2 flex gap-2" onSubmit={(e) => { e.preventDefault(); toast.success(lang === "en" ? "Subscribed! Thank you." : "सदस्यता लिनुभयो! धन्यवाद।"); (e.target as HTMLFormElement).reset(); }}>
-            <Input type="email" required placeholder={lang === "en" ? "Your email" : "इमेल"} className="bg-white/10 border-white/20 text-white placeholder:text-white/50" />
-            <Button type="submit" size="icon" className="bg-gold text-church-blue hover:bg-gold/90 shrink-0"><Send className="size-4" /></Button>
+          <form
+            className="mt-2 flex gap-2"
+            onSubmit={async (e) => {
+              e.preventDefault();
+              if (!newsletterEmail) return;
+              setNewsletterLoading(true);
+              try {
+                const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002'}/api/newsletter/subscribe`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ email: newsletterEmail }),
+                });
+                if (res.ok) {
+                  toast.success(lang === "en" ? "Subscribed! Thank you." : "सदस्यता लिनुभयो! धन्यवाद।");
+                  setNewsletterEmail('');
+                } else {
+                  toast.error(lang === "en" ? "Could not subscribe. Please try again." : "सदस्यता लिन सकिएन।");
+                }
+              } catch {
+                toast.error(lang === "en" ? "Network error. Please try again." : "नेटवर्क त्रुटि।");
+              } finally {
+                setNewsletterLoading(false);
+              }
+            }}
+          >
+            <Input
+              type="email"
+              required
+              value={newsletterEmail}
+              onChange={(e) => setNewsletterEmail(e.target.value)}
+              placeholder={lang === "en" ? "Your email" : "इमेल"}
+              className="bg-white/10 border-white/20 text-white placeholder:text-white/50"
+            />
+            <Button type="submit" size="icon" disabled={newsletterLoading} className="bg-gold text-church-blue hover:bg-gold/90 shrink-0"><Send className="size-4" /></Button>
           </form>
         </div>
       </div>

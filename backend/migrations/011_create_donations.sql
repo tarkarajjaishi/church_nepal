@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS donations (
     updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_donations_status ON donations(status);
-CREATE INDEX idx_donations_payment_method ON donations(payment_method);
-CREATE INDEX idx_donations_created_at ON donations(created_at DESC);
-CREATE INDEX idx_donations_campaign_id ON donations(campaign_id);
+CREATE INDEX IF NOT EXISTS idx_donations_status ON donations(status);
+CREATE INDEX IF NOT EXISTS idx_donations_payment_method ON donations(payment_method);
+CREATE INDEX IF NOT EXISTS idx_donations_created_at ON donations(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_donations_campaign_id ON donations(campaign_id);

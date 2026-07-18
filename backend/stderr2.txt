@@ -1,0 +1,4 @@
+
+thread 'main' (36800) panicked at src\db.rs:9:10:
+Failed to connect to database: Database(PgDatabaseError { severity: Fatal, code: "28P01", message: "password authentication failed for user \"postgres\"", detail: None, hint: None, position: None, where: None, schema: None, table: None, column: None, data_type: None, constraint: None, file: Some("auth.c"), line: Some(331), routine: Some("auth_failed") })
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
