@@ -47,7 +47,7 @@
     "@tiptap/extension-text-style": "^3.27.4",
     "@tiptap/extension-underline": "^3.27.4",
     "@tiptap/pm": "^3.27.4",
-    "@tiptap/react": "^3.27.4",
+    "@tiptap/react": "^3.28.0",
     "@tiptap/starter-kit": "^3.27.4",
     "axios": "^1.11.0",
     "canvas-confetti": "^1.9.3",
