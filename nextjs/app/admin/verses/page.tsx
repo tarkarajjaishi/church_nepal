@@ -9,5 +9,5 @@ const fields = [
     ]
 
 export default function VersesPage() {
-  return <CrudPage endpoint="verses" title="verses" fields={fields} />
+  return <CrudPage endpoint="verses" title="verses" fields={fields} enablePin />
 }

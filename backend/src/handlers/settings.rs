@@ -6,13 +6,13 @@ use crate::auth::AuthUser;
 use crate::error::AppError;
 use crate::models::{Setting, UpdateSetting};
 
-pub async fn list(_auth: AuthUser, Db(pool): Db) -> Result<Json<Vec<Setting>>, AppError> {
+pub async fn list(Db(pool): Db) -> Result<Json<Vec<Setting>>, AppError> {
     let rows = sqlx::query_as::<_, Setting>("SELECT * FROM settings ORDER BY key ASC")
         .fetch_all(&pool).await?;
     Ok(Json(rows))
 }
 
-pub async fn get(_auth: AuthUser, Db(pool): Db, Path(key): Path<String>) -> Result<Json<Setting>, AppError> {
+pub async fn get(Db(pool): Db, Path(key): Path<String>) -> Result<Json<Setting>, AppError> {
     let row = sqlx::query_as::<_, Setting>("SELECT * FROM settings WHERE key = $1")
         .bind(&key)
         .fetch_optional(&pool).await?.ok_or_else(|| AppError::not_found("Setting not found"))?;
@@ -48,7 +48,6 @@ pub async fn toggle_section(
 }
 
 pub async fn get_sections(
-    _auth: AuthUser,
     Db(pool): Db,
 ) -> Result<Json<serde_json::Value>, AppError> {
     let rows = sqlx::query_as::<_, Setting>(

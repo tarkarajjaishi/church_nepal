@@ -1,17 +1,16 @@
 use crate::tenant::Db;
-use axum::extract::{Path, State};
+use axum::extract::{Path, Query};
 use axum::Json;
-use sqlx::PgPool;
 
 use crate::auth::AuthUser;
 use crate::error::AppError;
-use crate::models::{BlogPost, CreateBlogPost, UpdateBlogPost};
+use crate::models::{BlogPost, CreateBlogPost, Paginated, Pagination, UpdateBlogPost};
 
-pub async fn list(Db(pool): Db) -> Result<Json<Vec<BlogPost>>, AppError> {
-    let rows = sqlx::query_as::<_, BlogPost>("SELECT * FROM blog_posts ORDER BY created_at DESC")
-        .fetch_all(&pool)
-        .await?;
-    Ok(Json(rows))
+pub async fn list(Db(pool): Db, Query(p): Query<Pagination>) -> Result<Json<Paginated<BlogPost>>, AppError> {
+    let total: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM blog_posts").fetch_one(&pool).await?;
+    let rows = sqlx::query_as::<_, BlogPost>("SELECT * FROM blog_posts ORDER BY created_at DESC LIMIT $1 OFFSET $2")
+        .bind(p.limit()).bind(p.offset()).fetch_all(&pool).await?;
+    Ok(Json(Paginated::new(rows, total, &p)))
 }
 
 pub async fn list_published(Db(pool): Db) -> Result<Json<Vec<BlogPost>>, AppError> {

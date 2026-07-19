@@ -1,4 +1,4 @@
-import { useQuery, useMutation } from "@tanstack/react-query"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { fetchAll, fetchOne } from "./api"
 import api from "./admin/api"
 import {
@@ -317,6 +317,114 @@ export function useContactInfo() {
     queryKey: ["contact-info"],
     queryFn: () => fetchAll<ContactInfo>("contact-info"),
   })
+}
+
+// ── Admin dashboard list hooks (authenticated reads) ────────────────────────
+function useDashboardList(endpoint: string) {
+  const query = useQuery({
+    queryKey: ["dashboard", endpoint],
+    queryFn: () => api.get(`/${endpoint}`).then(r => r.data),
+  })
+  return wrapQuery(query)
+}
+export function useDashboardSermons() { return useDashboardList("sermons") }
+export function useDashboardEvents() { return useDashboardList("events") }
+export function useDashboardMinistries() { return useDashboardList("ministries") }
+export function useDashboardNotices() { return useDashboardList("notices") }
+export function useDashboardLeaders() { return useDashboardList("leaders") }
+export function useDashboardGallery() { return useDashboardList("gallery") }
+export function useDashboardTestimonies() { return useDashboardList("testimonies") }
+export function useDashboardMembers() { return useDashboardList("members") }
+export function useDashboardServiceTimes() { return useDashboardList("service-times") }
+export function useDashboardVerses() { return useDashboardList("verses") }
+export function useDashboardCampaigns() { return useDashboardList("campaigns") }
+
+// ── Settings ────────────────────────────────────────────────────────────────
+export function useSettings() {
+  const query = useQuery({
+    queryKey: ["settings"],
+    queryFn: () => api.get("/settings").then(r => r.data),
+  })
+  return wrapQuery(query)
+}
+export function useUpsertSetting() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (payload: { key: string; value: string }) =>
+      api.put(`/settings/${payload.key}`, { value: payload.value }).then(r => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["settings"] }),
+  })
+}
+
+// ── Report summaries ─────────────────────────────────────────────────────────
+export function useGivingSummary() {
+  return useQuery({
+    queryKey: ["reports", "giving-summary"],
+    queryFn: () => api.get("/reports/giving-summary").then(r => r.data),
+  })
+}
+export function usePeopleSummary() {
+  return useQuery({
+    queryKey: ["reports", "people-summary"],
+    queryFn: () => api.get("/reports/people-summary").then(r => r.data),
+  })
+}
+
+// ── Generic CRUD hook factory (used by admin CrudPage) ──────────────────────
+export function createResourceHooks<T = any>(endpoint: string) {
+  const base = `/${endpoint}`
+  const key = [endpoint]
+  const invalidate = (qc: ReturnType<typeof useQueryClient>) =>
+    qc.invalidateQueries({ queryKey: key })
+
+  return {
+    useList: () =>
+      wrapQuery(useQuery({ queryKey: key, queryFn: () => api.get(base).then(r => r.data) })),
+    useCreate: () => {
+      const qc = useQueryClient()
+      return useMutation({
+        mutationFn: (data: Partial<T>) => api.post(base, data).then(r => r.data),
+        onSuccess: () => invalidate(qc),
+      })
+    },
+    useUpdate: () => {
+      const qc = useQueryClient()
+      return useMutation({
+        mutationFn: (vars: { id: string; data: Partial<T> }) =>
+          api.put(`${base}/${vars.id}`, vars.data).then(r => r.data),
+        onSuccess: () => invalidate(qc),
+      })
+    },
+    useDelete: () => {
+      const qc = useQueryClient()
+      return useMutation({
+        mutationFn: (id: string) => api.delete(`${base}/${id}`).then(r => r.data),
+        onSuccess: () => invalidate(qc),
+      })
+    },
+    useToggle: () => {
+      const qc = useQueryClient()
+      return useMutation({
+        mutationFn: (id: string) => api.put(`${base}/${id}/toggle`).then(r => r.data),
+        onSuccess: () => invalidate(qc),
+      })
+    },
+    useReorder: () => {
+      const qc = useQueryClient()
+      return useMutation({
+        mutationFn: (vars: { id: string; sort_order: number }) =>
+          api.put(`${base}/${vars.id}/reorder`, { sort_order: vars.sort_order }).then(r => r.data),
+        onSuccess: () => invalidate(qc),
+      })
+    },
+    usePin: () => {
+      const qc = useQueryClient()
+      return useMutation({
+        mutationFn: (id: string) => api.put(`${base}/${id}/pin`).then(r => r.data),
+        onSuccess: () => invalidate(qc),
+      })
+    },
+  }
 }
 
 

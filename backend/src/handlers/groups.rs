@@ -1,16 +1,15 @@
 use crate::tenant::Db;
-use axum::extract::{Path, State};
+use axum::extract::{Path, Query};
 use axum::Json;
-use sqlx::PgPool;
 use crate::auth::AuthUser;
 use crate::error::AppError;
-use crate::models::{CreateGroup, Group, UpdateGroup};
+use crate::models::{CreateGroup, Group, Paginated, Pagination, UpdateGroup};
 
-pub async fn list(Db(pool): Db) -> Result<Json<Vec<Group>>, AppError> {
-    let rows = sqlx::query_as::<_, Group>("SELECT * FROM groups ORDER BY sort_order ASC, created_at ASC")
-        .fetch_all(&pool)
-        .await?;
-    Ok(Json(rows))
+pub async fn list(Db(pool): Db, Query(p): Query<Pagination>) -> Result<Json<Paginated<Group>>, AppError> {
+    let total: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM groups").fetch_one(&pool).await?;
+    let rows = sqlx::query_as::<_, Group>("SELECT * FROM groups ORDER BY sort_order ASC, created_at ASC LIMIT $1 OFFSET $2")
+        .bind(p.limit()).bind(p.offset()).fetch_all(&pool).await?;
+    Ok(Json(Paginated::new(rows, total, &p)))
 }
 
 pub async fn get(Db(pool): Db, Path(id): Path<i32>) -> Result<Json<Group>, AppError> {

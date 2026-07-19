@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
+import { Loading, TableSkeleton, TableEmpty } from '@/components/LoadingStates'
 
 const offeringTypes = ['general', 'tithe', 'building', 'missions', 'special', 'thanksgiving']
 
@@ -224,9 +225,9 @@ export default function OfferingsPage() {
                 </thead>
                 <tbody>
                   {isLoading ? (
-                    <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">Loading...</td></tr>
+                    <TableSkeleton rows={5} cols={6} />
                   ) : offerings.length === 0 ? (
-                    <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">No offerings recorded yet</td></tr>
+                    <TableEmpty colSpan={6} message="No offerings recorded yet" />
                   ) : offerings.map((o: any) => (
                     <tr key={o.id} className="border-b hover:bg-muted/50">
                       <td className="p-2">{o.serviceDate}</td>

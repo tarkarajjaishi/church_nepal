@@ -1,10 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQueryClient } from '@tanstack/react-query'
 import { Plus, Pencil, Trash2, X, Star } from 'lucide-react'
 import { RichTextEditor } from './RichTextEditor'
-import api from '@/lib/admin/api'
+import { createResourceHooks } from '@/lib/hooks'
 
 interface Field {
   key: string
@@ -15,38 +15,17 @@ interface Field {
 
 export function PyCrudPage({ endpoint, title, fields }: { endpoint: string; title: string; fields: Field[] }) {
   const queryClient = useQueryClient()
+  const { useList, useCreate, useUpdate, useDelete, usePin } = createResourceHooks<any>(endpoint)
+  const { data: items = [], isLoading } = useList()
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<any>(null)
   const [form, setForm] = useState<Record<string, any>>({})
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const [error, setError] = useState('')
-
-  const { data: items = [], isLoading } = useQuery({
-    queryKey: ['crud', endpoint],
-    queryFn: () => api.get(`/${endpoint}`).then(r => Array.isArray(r.data) ? r.data : []),
-  })
-
-  const createMut = useMutation({
-    mutationFn: (data: any) => api.post(`/${endpoint}`, data).then(r => r.data),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['crud', endpoint] }); setShowForm(false); setForm({}); setError('') },
-    onError: (e: Error) => setError(e.message),
-  })
-
-  const updateMut = useMutation({
-    mutationFn: ({ id, data }: any) => api.put(`/${endpoint}/${id}`, data).then(r => r.data),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['crud', endpoint] }); setShowForm(false); setEditing(null); setForm({}); setError('') },
-    onError: (e: Error) => setError(e.message),
-  })
-
-  const deleteMut = useMutation({
-    mutationFn: (id: string) => api.delete(`/${endpoint}/${id}`),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['crud', endpoint] }); setConfirmDelete(null) },
-  })
-
-  const featuredMut = useMutation({
-    mutationFn: (id: string) => api.put(`/${endpoint}/${id}/featured`, {}),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['crud', endpoint] }),
-  })
+  const createMut = useCreate()
+  const updateMut = useUpdate()
+  const deleteMut = useDelete()
+  const featuredMut = usePin()
 
   const openEdit = (item: any) => { setEditing(item); setForm(item); setShowForm(true); setError('') }
   const openCreate = () => { setEditing(null); setForm({}); setShowForm(true); setError('') }

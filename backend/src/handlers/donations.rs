@@ -209,7 +209,7 @@ pub async fn statements(
 
     let rows: Vec<(Option<String>, Option<String>, Option<String>, i64, i64)> = sqlx::query_as(
         r#"SELECT donor_email, donor_name, donor_phone,
-                  COALESCE(SUM(amount), 0) AS total_amount,
+                  COALESCE(SUM(amount), 0)::bigint AS total_amount,
                   COUNT(*) AS donation_count
            FROM donations
            WHERE status = 'completed'
@@ -249,7 +249,7 @@ pub async fn by_donor(
         i64, i64, Option<NaiveDateTime>, Option<NaiveDateTime>,
     )> = sqlx::query_as(
         r#"SELECT donor_email, donor_name, donor_phone,
-                  COALESCE(SUM(amount), 0) AS total_amount,
+                  COALESCE(SUM(amount), 0)::bigint AS total_amount,
                   COUNT(*) AS donation_count,
                   MIN(created_at) AS first_donation,
                   MAX(created_at) AS last_donation

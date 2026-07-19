@@ -65,7 +65,7 @@ export function Navbar() {
         scrolled ? "bg-background/95 backdrop-blur shadow-[0_4px_24px_rgba(var(--church-blue-rgb),0.08)]" : "bg-background/80 backdrop-blur"
       }`}
     >
-      <nav className="mx-auto max-w-7xl px-4 h-16 flex items-center justify-between gap-4">
+      <nav className="mx-auto max-w-7xl px-4 h-16 flex items-center justify-between gap-4" aria-label="Main navigation">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2.5 shrink-0">
           {logoImage ? (
@@ -129,10 +129,11 @@ export function Navbar() {
             पवित्र बाइबल (NE)
           </Link>
 
-          <div className="hidden sm:flex items-center rounded-full bg-secondary p-0.5 text-xs">
+          <div className="hidden sm:flex items-center rounded-full bg-secondary p-0.5 text-xs" role="group" aria-label="Language selection">
             <button
               onClick={() => setLang("en")}
               className={`px-2.5 py-1 rounded-full transition ${lang === "en" ? "bg-church-blue text-white" : "text-church-blue"}`}
+              aria-pressed={lang === "en"}
             >
               EN
             </button>
@@ -140,6 +141,7 @@ export function Navbar() {
               onClick={() => setLang("ne")}
               className={`px-2.5 py-1 rounded-full transition ${lang === "ne" ? "bg-church-blue text-white" : "text-church-blue"}`}
               style={{ fontFamily: "var(--font-heading)" }}
+              aria-pressed={lang === "ne"}
             >
               नेपाली
             </button>
@@ -186,13 +188,16 @@ export function Navbar() {
               </div>
               <div className="mt-6 flex items-center gap-2">
                 <span className="text-sm text-muted-foreground">{lang === "en" ? "Language" : "भाषा"}:</span>
-                <div className="flex items-center rounded-full bg-secondary p-0.5 text-xs">
-                  <button onClick={() => setLang("en")} className={`px-3 py-1 rounded-full ${lang === "en" ? "bg-church-blue text-white" : "text-church-blue"}`}>EN</button>
-                  <button onClick={() => setLang("ne")} className={`px-3 py-1 rounded-full ${lang === "ne" ? "bg-church-blue text-white" : "text-church-blue"}`}>नेपाली</button>
+                <div className="flex items-center rounded-full bg-secondary p-0.5 text-xs" role="group" aria-label="Language selection">
+                  <button onClick={() => setLang("en")} className={`px-3 py-1 rounded-full transition ${lang === "en" ? "bg-church-blue text-white" : "text-church-blue"}`} aria-pressed={lang === "en"}>EN</button>
+                  <button onClick={() => setLang("ne")} className={`px-3 py-1 rounded-full transition ${lang === "ne" ? "bg-church-blue text-white" : "text-church-blue"}`} style={{ fontFamily: "var(--font-heading)" }} aria-pressed={lang === "ne"}>नेपाली</button>
                 </div>
               </div>
               <Button asChild className="mt-4 w-full bg-gold text-church-blue hover:bg-gold/90">
                 <Link href="/live"><Radio className="size-4" /> {t("joinLive")}</Link>
+              </Button>
+              <Button asChild variant="outline" className="mt-2 w-full border-church-blue text-church-blue hover:bg-church-blue hover:text-white">
+                <Link href="/give">{t("give")}</Link>
               </Button>
             </SheetContent>
           </Sheet>

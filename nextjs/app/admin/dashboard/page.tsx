@@ -1,7 +1,6 @@
 'use client'
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api from "@/lib/admin/api"
+import { useQueryClient } from '@tanstack/react-query'
 import { useAuth } from "@/lib/admin/auth"
 import Link from 'next/link'
 import {
@@ -9,7 +8,8 @@ import {
   BookMarked, DollarSign, Settings, Shield, ArrowRight, Activity,
   Globe, Briefcase, Star, Mail, Heart
 } from 'lucide-react'
-import { useSections, useToggleSection } from '@/lib/hooks'
+import { useSections, useToggleSection, useDashboardSermons, useDashboardEvents, useDashboardMinistries, useDashboardNotices, useDashboardLeaders, useDashboardGallery, useDashboardTestimonies, useDashboardMembers, useDashboardServiceTimes, useDashboardVerses, useDashboardCampaigns, useSettings, useUsers } from '@/lib/hooks'
+import { Loading } from '@/components/LoadingStates'
 
 export default function Dashboard() {
   const { user } = useAuth()
@@ -18,19 +18,19 @@ export default function Dashboard() {
   const { toggleSection } = useToggleSection()
   const sec = sections as Record<string, boolean>
 
-  const sermons = useQuery({ queryKey: ['sermons'], queryFn: () => api.get('/sermons').then(r => r.data) })
-  const events = useQuery({ queryKey: ['events'], queryFn: () => api.get('/events').then(r => r.data) })
-  const ministries = useQuery({ queryKey: ['ministries'], queryFn: () => api.get('/ministries').then(r => r.data) })
-  const notices = useQuery({ queryKey: ['notices'], queryFn: () => api.get('/notices').then(r => r.data) })
-  const leaders = useQuery({ queryKey: ['leaders'], queryFn: () => api.get('/leaders').then(r => r.data) })
-  const gallery = useQuery({ queryKey: ['gallery'], queryFn: () => api.get('/gallery').then(r => r.data) })
-  const testimonies = useQuery({ queryKey: ['testimonies'], queryFn: () => api.get('/testimonies').then(r => r.data) })
-  const members = useQuery({ queryKey: ['members'], queryFn: () => api.get('/members').then(r => r.data) })
-  const serviceTimes = useQuery({ queryKey: ['service-times'], queryFn: () => api.get('/service-times').then(r => r.data) })
-  const verses = useQuery({ queryKey: ['verses'], queryFn: () => api.get('/verses').then(r => r.data) })
-  const campaigns = useQuery({ queryKey: ['campaigns'], queryFn: () => api.get('/campaigns').then(r => r.data) })
-  const settings = useQuery({ queryKey: ['settings'], queryFn: () => api.get('/settings').then(r => r.data) })
-  const users = useQuery({ queryKey: ['users'], queryFn: () => api.get('/users').then(r => r.data) })
+  const sermons = useDashboardSermons()
+  const events = useDashboardEvents()
+  const ministries = useDashboardMinistries()
+  const notices = useDashboardNotices()
+  const leaders = useDashboardLeaders()
+  const gallery = useDashboardGallery()
+  const testimonies = useDashboardTestimonies()
+  const members = useDashboardMembers()
+  const serviceTimes = useDashboardServiceTimes()
+  const verses = useDashboardVerses()
+  const campaigns = useDashboardCampaigns()
+  const settings = useSettings()
+  const users = useUsers()
 
   const allLoading = [sermons, events, ministries, notices, leaders, gallery, testimonies, members, serviceTimes, verses, campaigns, settings, users].some(q => q.isLoading)
 
@@ -138,7 +138,7 @@ export default function Dashboard() {
       </div>
 
       {allLoading ? (
-        <div className="text-center py-12 text-gray-500">Loading dashboard...</div>
+        <Loading message="Loading dashboard…" />
       ) : (
         <>
           {/* Stats Grid */}

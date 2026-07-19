@@ -1,15 +1,15 @@
 use crate::tenant::Db;
-use axum::extract::{Path, State};
+use axum::extract::{Path, Query};
 use axum::Json;
-use sqlx::PgPool;
 use crate::auth::AuthUser;
 use crate::error::AppError;
-use crate::models::{CreateNotice, Notice, UpdateNotice};
+use crate::models::{CreateNotice, Notice, Paginated, Pagination, UpdateNotice};
 
-pub async fn list(Db(pool): Db) -> Result<Json<Vec<Notice>>, AppError> {
-    let rows = sqlx::query_as::<_, Notice>("SELECT * FROM notices ORDER BY created_at DESC")
-        .fetch_all(&pool).await?;
-    Ok(Json(rows))
+pub async fn list(Db(pool): Db, Query(p): Query<Pagination>) -> Result<Json<Paginated<Notice>>, AppError> {
+    let total: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM notices").fetch_one(&pool).await?;
+    let rows = sqlx::query_as::<_, Notice>("SELECT * FROM notices ORDER BY created_at DESC LIMIT $1 OFFSET $2")
+        .bind(p.limit()).bind(p.offset()).fetch_all(&pool).await?;
+    Ok(Json(Paginated::new(rows, total, &p)))
 }
 
 pub async fn get(Db(pool): Db, Path(id): Path<uuid::Uuid>) -> Result<Json<Notice>, AppError> {

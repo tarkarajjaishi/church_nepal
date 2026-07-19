@@ -3,6 +3,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Mail, Users } from 'lucide-react'
 import api from '@/lib/admin/api'
+import { Loading, EmptyState } from '@/components/LoadingStates'
 
 export default function NewsletterAdminPage() {
   const { data: subscribers = [], isLoading } = useQuery({
@@ -32,12 +33,9 @@ export default function NewsletterAdminPage() {
       </div>
 
       {isLoading ? (
-        <div className="text-center py-12 text-gray-500">Loading...</div>
+        <Loading />
       ) : subscribers.length === 0 ? (
-        <div className="text-center py-12 bg-white rounded-xl border border-gray-100">
-          <Mail className="size-12 text-gray-300 mx-auto mb-3" />
-          <p className="text-gray-500">No subscribers yet.</p>
-        </div>
+        <EmptyState icon={<Mail className="size-10" />} title="No subscribers yet" description="Subscribers will appear here when people sign up." />
       ) : (
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
           <table className="w-full">

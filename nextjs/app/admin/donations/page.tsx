@@ -3,6 +3,7 @@
 import { useQuery } from '@tanstack/react-query'
 import api from '@/lib/admin/api'
 import { DollarSign, TrendingUp, CreditCard, Clock } from 'lucide-react'
+import { Loading, EmptyState } from '@/components/LoadingStates'
 
 export default function DonationsPage() {
   const { data: donations = [], isLoading } = useQuery({
@@ -51,9 +52,9 @@ export default function DonationsPage() {
       {/* Table */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         {isLoading ? (
-          <div className="p-8 text-center text-gray-500">Loading...</div>
+          <Loading />
         ) : donations.length === 0 ? (
-          <div className="p-8 text-center text-gray-500">No donations yet.</div>
+          <EmptyState icon={<DollarSign className="size-10" />} title="No donations yet" description="Donations will appear here once they are recorded." />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">

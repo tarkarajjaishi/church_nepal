@@ -1,148 +1,203 @@
 use axum::routing::{delete, get, patch, post, put};
 use axum::Router;
 
+use crate::auth::{AdminGuard, AuthUser};
 use crate::handlers::*;
 
-// State-agnostic: handlers resolve their per-tenant DB pool via the `Db`
-// extractor (populated by tenant middleware), so the router needs no state.
-pub fn api_routes() -> Router {
+/// Public + read-only routes (no auth required).
+fn public_routes() -> Router {
     Router::new()
-        // Auth
+        // Auth (public)
         .route("/auth/login", post(auth::login))
-        .route("/auth/register", post(auth::register))
-        .route("/auth/me", get(auth::me).put(auth::update_me))
-        .route("/auth/change-password", post(auth::change_password))
-        // Users (admin only)
-        .route("/users", get(users::list).post(users::create))
-        .route("/users/{id}", get(users::get).put(users::update).delete(users::delete))
-        // Sermons
-        .route("/sermons", get(sermons::list).post(sermons::create))
-        .route("/sermons/{id}", get(sermons::get).put(sermons::update).delete(sermons::delete))
-        .route("/sermons/{id}/toggle", put(sermons::toggle))
-        .route("/sermons/{id}/reorder", put(sermons::reorder))
-        // Ministries
-        .route("/ministries", get(ministries::list).post(ministries::create))
-        .route("/ministries/{id}", get(ministries::get).put(ministries::update).delete(ministries::delete))
-        .route("/ministries/{id}/toggle", put(ministries::toggle))
-        .route("/ministries/{id}/reorder", put(ministries::reorder))
-        // Events
-        .route("/events", get(events::list).post(events::create))
-        .route("/events/{id}", get(events::get).put(events::update).delete(events::delete))
-        .route("/events/{id}/toggle", put(events::toggle))
-        .route("/events/{id}/reorder", put(events::reorder))
-        // Leaders
-        .route("/leaders", get(leaders::list).post(leaders::create))
-        .route("/leaders/{id}", get(leaders::get).put(leaders::update).delete(leaders::delete))
-        .route("/leaders/{id}/toggle", put(leaders::toggle))
-        .route("/leaders/{id}/reorder", put(leaders::reorder))
-        // Gallery
-        .route("/gallery", get(gallery::list).post(gallery::create))
-        .route("/gallery/{id}", get(gallery::get).put(gallery::update).delete(gallery::delete))
-        .route("/gallery/{id}/toggle", put(gallery::toggle))
-        .route("/gallery/{id}/reorder", put(gallery::reorder))
-        // Testimonies
-        .route("/testimonies", get(testimonies::list).post(testimonies::create))
-        .route("/testimonies/{id}", get(testimonies::get).put(testimonies::update).delete(testimonies::delete))
-        .route("/testimonies/{id}/toggle", put(testimonies::toggle))
-        .route("/testimonies/{id}/reorder", put(testimonies::reorder))
-        // Notices
-        .route("/notices", get(notices::list).post(notices::create))
-        .route("/notices/{id}", get(notices::get).put(notices::update).delete(notices::delete))
-        .route("/notices/{id}/toggle", put(notices::toggle))
-        .route("/notices/{id}/reorder", put(notices::reorder))
-        // Members
-        .route("/members", get(members::list).post(members::create))
-        .route("/members/{id}", get(members::get).put(members::update).delete(members::delete))
-        .route("/members/{id}/toggle", put(members::toggle))
-        .route("/members/{id}/reorder", put(members::reorder))
-        // Service Times
-        .route("/service-times", get(service_times::list).post(service_times::create))
-        .route("/service-times/{id}", get(service_times::get).put(service_times::update).delete(service_times::delete))
-        .route("/service-times/{id}/toggle", put(service_times::toggle))
-        .route("/service-times/{id}/reorder", put(service_times::reorder))
-        // Verses
-        .route("/verses", get(verses::list).post(verses::create))
-        .route("/verses/{id}", get(verses::get).put(verses::update).delete(verses::delete))
-        .route("/verses/{id}/toggle", put(verses::toggle))
-        .route("/verses/{id}/reorder", put(verses::reorder))
-        // Campaigns
-        .route("/campaigns", get(campaigns::list).post(campaigns::create))
-        .route("/campaigns/{id}", get(campaigns::get).put(campaigns::update).delete(campaigns::delete))
-        .route("/campaigns/{id}/toggle", put(campaigns::toggle))
-        .route("/campaigns/{id}/reorder", put(campaigns::reorder))
-        // Settings
+        // Content (public reads)
+        .route("/sermons", get(sermons::list))
+        .route("/sermons/{id}", get(sermons::get))
+        .route("/ministries", get(ministries::list))
+        .route("/ministries/{id}", get(ministries::get))
+        .route("/events", get(events::list))
+        .route("/events/{id}", get(events::get))
+        .route("/leaders", get(leaders::list))
+        .route("/leaders/{id}", get(leaders::get))
+        .route("/gallery", get(gallery::list))
+        .route("/gallery/{id}", get(gallery::get))
+        .route("/testimonies", get(testimonies::list))
+        .route("/testimonies/{id}", get(testimonies::get))
+        .route("/notices", get(notices::list))
+        .route("/notices/{id}", get(notices::get))
+        .route("/members", get(members::list))
+        .route("/members/{id}", get(members::get))
+        .route("/service-times", get(service_times::list))
+        .route("/service-times/{id}", get(service_times::get))
+        .route("/verses", get(verses::list))
+        .route("/verses/{id}", get(verses::get))
+        .route("/campaigns", get(campaigns::list))
+        .route("/campaigns/{id}", get(campaigns::get))
         .route("/settings", get(settings::list))
-        .route("/settings/{key}", get(settings::get).put(settings::upsert))
+        .route("/settings/{key}", get(settings::get))
         .route("/settings/sections", get(settings::get_sections))
-        .route("/settings/sections/{section}/toggle", put(settings::toggle_section))
-        // Upload
-        .route("/upload", post(upload::upload))
-        .route("/uploads", get(upload::list_uploads))
-        // Content Blocks — static paths MUST come before /{id} in Axum 0.8
-        .route("/content-blocks", get(content_blocks::list).post(content_blocks::create))
-        .route("/content-blocks/reorder", patch(content_blocks::batch_reorder))
+        .route("/uploads/{filename}", get(upload::serve_upload))
         .route("/content-blocks/enabled", get(content_blocks::list_enabled))
         .route("/content-blocks/key/{key}", get(content_blocks::get_by_key))
-        .route("/content-blocks/{id}", get(content_blocks::get).put(content_blocks::update).delete(content_blocks::delete))
-        .route("/content-blocks/{id}/toggle", put(content_blocks::toggle))
-        .route("/content-blocks/{id}/reorder", put(content_blocks::reorder))
-        // Donations
+        .route("/blog", get(blog::list))
+        .route("/blog/published", get(blog::list_published))
+        .route("/blog/{id}", get(blog::get))
+        .route("/services", get(services::list))
+        .route("/services/{id}", get(services::get))
+        .route("/team", get(team::list))
+        .route("/team/{id}", get(team::get))
+        .route("/newsletter/subscribe", post(newsletter::subscribe))
+        .route("/newsletter/count", get(newsletter::count))
+        .route("/portfolio", get(portfolio::list))
+        .route("/portfolio/{id}", get(portfolio::get))
+        .route("/contact-info", get(contact_info::list))
+        .route("/contact-info/{id}", get(contact_info::get))
+        .route("/contact-messages", post(contact_messages::create))
+        .route("/groups", get(groups::list))
+        .route("/groups/{id}", get(groups::get))
+        .route("/dashboard/stats", get(dashboard::stats))
+        .route("/people/stats", get(people::stats))
+        .route("/offerings/stats", get(offerings::stats))
         .route("/donations/initiate", post(donations::initiate))
         .route("/donations/callback/esewa", get(donations::callback_esewa))
         .route("/donations/callback/khalti/{id}", post(donations::callback_khalti))
         .route("/donations/status", get(donations::status))
         .route("/donations/stats", get(donations::stats))
+        .route("/events/{id}/rsvps", get(event_rsvps::list_by_event))
+        .route("/forms/{id}/submit", post(forms::submit_public))
+        .route("/reports/giving-summary", get(reports::giving_summary))
+        .route("/reports/people-summary", get(reports::people_summary))
+        .route("/member-applications", post(member_applications::create))
+}
+
+/// Authenticated user routes (any valid JWT, any role).
+fn auth_routes() -> Router {
+    Router::new()
+        .route("/auth/me", get(auth::me).put(auth::update_me))
+        .route("/auth/change-password", post(auth::change_password))
+        .route("/auth/refresh", post(auth::refresh))
+}
+
+/// Admin-only routes (require role='admin').
+/// These routes are protected by the AdminGuard extractor.
+fn admin_routes() -> Router {
+    Router::new()
+        // Users (admin only)
+        .route("/users", get(users::list).post(users::create))
+        .route("/users/{id}", get(users::get).put(users::update).delete(users::delete))
+        // Sermons
+        .route("/sermons", post(sermons::create))
+        .route("/sermons/{id}", put(sermons::update).delete(sermons::delete))
+        .route("/sermons/{id}/toggle", put(sermons::toggle))
+        .route("/sermons/{id}/reorder", put(sermons::reorder))
+        // Ministries
+        .route("/ministries", post(ministries::create))
+        .route("/ministries/{id}", put(ministries::update).delete(ministries::delete))
+        .route("/ministries/{id}/toggle", put(ministries::toggle))
+        .route("/ministries/{id}/reorder", put(ministries::reorder))
+        // Events
+        .route("/events", post(events::create))
+        .route("/events/{id}", put(events::update).delete(events::delete))
+        .route("/events/{id}/toggle", put(events::toggle))
+        .route("/events/{id}/reorder", put(events::reorder))
+        // Leaders
+        .route("/leaders", post(leaders::create))
+        .route("/leaders/{id}", put(leaders::update).delete(leaders::delete))
+        .route("/leaders/{id}/toggle", put(leaders::toggle))
+        .route("/leaders/{id}/reorder", put(leaders::reorder))
+        // Gallery
+        .route("/gallery", post(gallery::create))
+        .route("/gallery/{id}", put(gallery::update).delete(gallery::delete))
+        .route("/gallery/{id}/toggle", put(gallery::toggle))
+        .route("/gallery/{id}/reorder", put(gallery::reorder))
+        // Testimonies
+        .route("/testimonies", post(testimonies::create))
+        .route("/testimonies/{id}", put(testimonies::update).delete(testimonies::delete))
+        .route("/testimonies/{id}/toggle", put(testimonies::toggle))
+        .route("/testimonies/{id}/reorder", put(testimonies::reorder))
+        // Notices
+        .route("/notices", post(notices::create))
+        .route("/notices/{id}", put(notices::update).delete(notices::delete))
+        .route("/notices/{id}/toggle", put(notices::toggle))
+        .route("/notices/{id}/reorder", put(notices::reorder))
+        // Members
+        .route("/members", post(members::create))
+        .route("/members/{id}", put(members::update).delete(members::delete))
+        .route("/members/{id}/toggle", put(members::toggle))
+        .route("/members/{id}/reorder", put(members::reorder))
+        // Service Times
+        .route("/service-times", post(service_times::create))
+        .route("/service-times/{id}", put(service_times::update).delete(service_times::delete))
+        .route("/service-times/{id}/toggle", put(service_times::toggle))
+        .route("/service-times/{id}/reorder", put(service_times::reorder))
+        // Verses
+        .route("/verses", post(verses::create))
+        .route("/verses/{id}", put(verses::update).delete(verses::delete))
+        .route("/verses/{id}/toggle", put(verses::toggle))
+        .route("/verses/{id}/reorder", put(verses::reorder))
+        .route("/verses/{id}/pin", put(verses::pin))
+        // Campaigns
+        .route("/campaigns", post(campaigns::create))
+        .route("/campaigns/{id}", put(campaigns::update).delete(campaigns::delete))
+        .route("/campaigns/{id}/toggle", put(campaigns::toggle))
+        .route("/campaigns/{id}/reorder", put(campaigns::reorder))
+        // Settings (writes)
+        .route("/settings/{key}", put(settings::upsert))
+        .route("/settings/sections/{section}/toggle", put(settings::toggle_section))
+        // Upload
+        .route("/upload", post(upload::upload))
+        .route("/uploads", get(upload::list_uploads))
+        // Content Blocks
+        .route("/content-blocks", get(content_blocks::list).post(content_blocks::create))
+        .route("/content-blocks/reorder", patch(content_blocks::batch_reorder))
+        .route("/content-blocks/{id}", get(content_blocks::get).put(content_blocks::update).delete(content_blocks::delete))
+        .route("/content-blocks/{id}/toggle", put(content_blocks::toggle))
+        .route("/content-blocks/{id}/reorder", put(content_blocks::reorder))
+        // Donations (admin reads)
+        .route("/donations", get(donations::list))
+        .route("/donations/{id}", get(donations::get))
         .route("/donations/statements", get(donations::statements))
         .route("/donations/by-donor", get(donations::by_donor))
         .route("/donations/donor-history", get(donations::donor_history))
-        .route("/donations", get(donations::list))
-        .route("/donations/{id}", get(donations::get))
         // Todos
         .route("/todos", get(todos::list).post(todos::create))
         .route("/todos/{id}", get(todos::get).put(todos::update).delete(todos::delete))
         .route("/todos/{id}/toggle", put(todos::toggle_status))
         .route("/todos/{id}/reorder", put(todos::reorder))
-        // Blog
-        .route("/blog", get(blog::list).post(blog::create))
-        .route("/blog/published", get(blog::list_published))
-        .route("/blog/{id}", get(blog::get).put(blog::update).delete(blog::delete))
-        // Services
-        .route("/services", get(services::list).post(services::create))
-        .route("/services/{id}", get(services::get).put(services::update).delete(services::delete).patch(services::update))
+        // Blog (admin writes)
+        .route("/blog", post(blog::create))
+        .route("/blog/{id}", put(blog::update).delete(blog::delete))
+        // Services (admin writes)
+        .route("/services", post(services::create))
+        .route("/services/{id}", put(services::update).delete(services::delete).patch(services::update))
         .route("/services/{id}/toggle", put(services::toggle))
         .route("/services/{id}/reorder", put(services::reorder))
-        // Team
-        .route("/team", get(team::list).post(team::create))
-        .route("/team/{id}", get(team::get).put(team::update).delete(team::delete))
+        // Team (admin writes)
+        .route("/team", post(team::create))
+        .route("/team/{id}", put(team::update).delete(team::delete))
         .route("/team/{id}/toggle", put(team::toggle))
         .route("/team/{id}/reorder", put(team::reorder))
-        // Newsletter
+        // Newsletter (admin)
         .route("/newsletter/subscribers", get(newsletter::list_subscribers))
-        .route("/newsletter/count", get(newsletter::count))
-        .route("/newsletter/subscribe", post(newsletter::subscribe))
         .route("/newsletter/unsubscribe/{email}", post(newsletter::unsubscribe))
-        // Portfolio
-        .route("/portfolio", get(portfolio::list).post(portfolio::create))
-        .route("/portfolio/{id}", get(portfolio::get).put(portfolio::update).delete(portfolio::delete))
+        // Portfolio (admin writes)
+        .route("/portfolio", post(portfolio::create))
+        .route("/portfolio/{id}", put(portfolio::update).delete(portfolio::delete))
         .route("/portfolio/{id}/toggle", put(portfolio::toggle))
         .route("/portfolio/{id}/reorder", put(portfolio::reorder))
-        // Contact Info
-        .route("/contact-info", get(contact_info::list).post(contact_info::create))
-        .route("/contact-info/{id}", get(contact_info::get).put(contact_info::update).delete(contact_info::delete))
-        // Contact Messages (prayer requests, visit inquiries)
-        .route("/contact-messages", get(contact_messages::list).post(contact_messages::create))
+        // Contact Info (admin writes)
+        .route("/contact-info", post(contact_info::create))
+        .route("/contact-info/{id}", put(contact_info::update).delete(contact_info::delete))
+        // Contact Messages (admin reads + management)
+        .route("/contact-messages", get(contact_messages::list))
         .route("/contact-messages/{id}", get(contact_messages::get).delete(contact_messages::delete))
         .route("/contact-messages/{id}/read", put(contact_messages::mark_read))
-        // Groups
-        .route("/groups", get(groups::list).post(groups::create))
-        .route("/groups/{id}", get(groups::get).put(groups::update).delete(groups::delete))
+        // Groups (admin writes)
+        .route("/groups", post(groups::create))
+        .route("/groups/{id}", put(groups::update).delete(groups::delete))
         .route("/groups/{id}/toggle", put(groups::toggle))
         .route("/groups/{id}/reorder", put(groups::reorder))
-        // Dashboard
-        .route("/dashboard/stats", get(dashboard::stats))
         // People (CRM)
         .route("/people", get(people::list).post(people::create))
-        .route("/people/stats", get(people::stats))
         .route("/people/{id}", get(people::get).put(people::update).delete(people::delete))
         .route("/people/{id}/toggle", put(people::toggle))
         .route("/people/{id}/reorder", put(people::reorder))
@@ -161,11 +216,9 @@ pub fn api_routes() -> Router {
         .route("/groups/{group_id}/members/{person_id}", delete(people::remove_group_member))
         // Offerings
         .route("/offerings", get(offerings::list).post(offerings::create))
-        .route("/offerings/stats", get(offerings::stats))
         .route("/offerings/{id}", get(offerings::get).put(offerings::update).delete(offerings::delete))
-        // === NEW FEATURES ===
-        // Event RSVPs
-        .route("/events/{id}/rsvps", get(event_rsvps::list_by_event).post(event_rsvps::create_public))
+        // Event RSVPs (admin)
+        .route("/events/{id}/rsvps", post(event_rsvps::create_public))
         .route("/rsvps/{id}", delete(event_rsvps::delete))
         // Attendance
         .route("/attendance", get(attendance::list).post(attendance::check_in))
@@ -177,7 +230,6 @@ pub fn api_routes() -> Router {
         // Forms
         .route("/forms", get(forms::list).post(forms::create))
         .route("/forms/{id}", get(forms::get).put(forms::update).delete(forms::delete))
-        .route("/forms/{id}/submit", post(forms::submit_public))
         .route("/forms/{id}/submissions", get(forms::list_submissions))
         // Volunteers
         .route("/volunteer-teams", get(volunteers::list_teams).post(volunteers::create_team))
@@ -195,11 +247,21 @@ pub fn api_routes() -> Router {
         .route("/pledges", get(pledges::list_all).post(pledges::create))
         .route("/pledges/{id}", get(pledges::get).put(pledges::update).delete(pledges::delete))
         .route("/campaigns/{id}/pledges", get(pledges::list_by_campaign))
-        // Reports
-        .route("/reports/giving-summary", get(reports::giving_summary))
-        .route("/reports/people-summary", get(reports::people_summary))
-        // Member Applications
-        .route("/member-applications", get(member_applications::list).post(member_applications::create))
+        // Member Applications (admin management)
+        .route("/member-applications", get(member_applications::list))
         .route("/member-applications/stats", get(member_applications::stats))
         .route("/member-applications/{id}", get(member_applications::get).put(member_applications::update).delete(member_applications::delete))
+}
+
+/// State-agnostic: handlers resolve their per-tenant DB pool via the `Db`
+/// extractor (populated by tenant middleware), so the router needs no state.
+pub fn api_routes() -> Router {
+    // Admin routes wrapped with AdminGuard middleware
+    let guarded_admin = admin_routes()
+        .layer(axum::middleware::from_extractor::<AdminGuard>());
+
+    Router::new()
+        .merge(public_routes())
+        .merge(auth_routes())
+        .merge(guarded_admin)
 }

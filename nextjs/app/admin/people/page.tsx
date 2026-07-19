@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
+import { Loading, TableSkeleton, TableEmpty } from '@/components/LoadingStates'
 
 const statusColors: Record<string, string> = {
   visitor: 'bg-yellow-100 text-yellow-800',
@@ -244,9 +245,9 @@ export default function PeoplePage() {
                 </thead>
                 <tbody>
                   {isLoading ? (
-                    <tr><td colSpan={7} className="p-8 text-center text-muted-foreground">Loading...</td></tr>
+                    <TableSkeleton rows={5} cols={7} />
                   ) : people.length === 0 ? (
-                    <tr><td colSpan={7} className="p-8 text-center text-muted-foreground">No people found</td></tr>
+                    <TableEmpty colSpan={7} message="No people found" />
                   ) : people.map((p: any) => {
                     const hh = households.find((h: any) => h.id === p.householdId)
                     return (

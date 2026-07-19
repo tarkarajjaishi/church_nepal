@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog'
 import { toast } from 'sonner'
+import { Loading, EmptyState } from '@/components/LoadingStates'
 
 interface FormField {
   id: string
@@ -131,9 +132,9 @@ export default function FormsPage() {
       {/* Forms List */}
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
         {isLoading ? (
-          <Card><CardContent className="p-8 text-center text-muted-foreground">Loading...</CardContent></Card>
+          <div className="md:col-span-2 lg:col-span-3"><Loading /></div>
         ) : forms.length === 0 ? (
-          <Card><CardContent className="p-8 text-center text-muted-foreground">No forms yet. Create one to get started.</CardContent></Card>
+          <div className="md:col-span-2 lg:col-span-3"><EmptyState icon={<FileText className="size-10" />} title="No forms yet" description="Create a form to start collecting submissions." /></div>
         ) : forms.map((f: any) => (
           <Card key={f.id} className="hover:shadow-md transition-shadow">
             <CardContent className="p-4">

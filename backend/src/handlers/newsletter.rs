@@ -16,7 +16,7 @@ pub async fn list_subscribers(_auth: AuthUser, Db(pool): Db) -> Result<Json<Vec<
     Ok(Json(rows))
 }
 
-pub async fn count(_auth: AuthUser, Db(pool): Db) -> Result<Json<serde_json::Value>, AppError> {
+pub async fn count(Db(pool): Db) -> Result<Json<serde_json::Value>, AppError> {
     let row: (i64,) = sqlx::query_as(
         "SELECT COUNT(*) FROM newsletter_subscribers WHERE active = true",
     )

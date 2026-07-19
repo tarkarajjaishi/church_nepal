@@ -1,0 +1,277 @@
+### ============================================================================
+### Smoke tests — every public + admin GET endpoint against the seeded church.
+###
+### Base URL: http://localhost:3002/api
+### Tenant: the seeded church is resolved via Host header. We send
+###   Host: grace_church_dev.localhost   (subdomain == DB name)
+### DEFAULT_TENANT in .env is the same slug, so plain `localhost` also works.
+###
+### Run in VS Code with the "REST Client" extension (send each request), or
+### adapt the URL list into curl / the Rust test (tests/smoke.rs) and run
+###   cargo test --test smoke
+###
+### Admin endpoints need a Bearer token. Mint one (HS256, secret = JWT_SECRET)
+### or log in via POST /api/auth/login and paste it below.
+### ============================================================================
+
+@base = http://localhost:3002/api
+@host = grace_church_dev.localhost
+@token = <PASTE_ADMIN_JWT_HERE>
+
+### ===================== CONTENT (public) =====================
+GET {{base}}/sermons
+Host: {{host}}
+
+###
+GET {{base}}/sermons/00000000-0000-0000-0000-000000000001
+Host: {{host}}
+
+###
+GET {{base}}/ministries
+Host: {{host}}
+
+###
+GET {{base}}/events
+Host: {{host}}
+
+###
+GET {{base}}/leaders
+Host: {{host}}
+
+###
+GET {{base}}/gallery
+Host: {{host}}
+
+###
+GET {{base}}/testimonies
+Host: {{host}}
+
+###
+GET {{base}}/notices
+Host: {{host}}
+
+###
+GET {{base}}/members
+Host: {{host}}
+
+###
+GET {{base}}/service-times
+Host: {{host}}
+
+###
+GET {{base}}/verses
+Host: {{host}}
+
+###
+GET {{base}}/campaigns
+Host: {{host}}
+
+###
+GET {{base}}/blog
+Host: {{host}}
+
+###
+GET {{base}}/blog/published
+Host: {{host}}
+
+###
+GET {{base}}/services
+Host: {{host}}
+
+###
+GET {{base}}/team
+Host: {{host}}
+
+###
+GET {{base}}/portfolio
+Host: {{host}}
+
+###
+GET {{base}}/contact-info
+Host: {{host}}
+
+###
+GET {{base}}/groups
+Host: {{host}}
+
+### ===================== SETTINGS & CMS (public) =====================
+GET {{base}}/settings
+Host: {{host}}
+
+###
+GET {{base}}/settings/theme_primary
+Host: {{host}}
+
+###
+GET {{base}}/settings/sections
+Host: {{host}}
+
+###
+GET {{base}}/content-blocks/enabled
+Host: {{host}}
+
+###
+GET {{base}}/content-blocks/key/hero
+Host: {{host}}
+
+### ===================== STATS / DASHBOARD / REPORTS (public) =====================
+GET {{base}}/dashboard/stats
+Host: {{host}}
+
+###
+GET {{base}}/people/stats
+Host: {{host}}
+
+###
+GET {{base}}/offerings/stats
+Host: {{host}}
+
+###
+GET {{base}}/donations/status
+Host: {{host}}
+
+###
+GET {{base}}/donations/stats
+Host: {{host}}
+
+###
+GET {{base}}/reports/giving-summary
+Host: {{host}}
+
+###
+GET {{base}}/reports/people-summary
+Host: {{host}}
+
+###
+GET {{base}}/newsletter/count
+Host: {{host}}
+
+###
+GET {{base}}/auth/me
+Host: {{host}}
+Authorization: Bearer {{token}}
+
+### ===================== ADMIN (require role=admin) =====================
+GET {{base}}/users
+Host: {{host}}
+Authorization: Bearer {{token}}
+
+###
+GET {{base}}/content-blocks
+Host: {{host}}
+Authorization: Bearer {{token}}
+
+###
+GET {{base}}/donations
+Host: {{host}}
+Authorization: Bearer {{token}}
+
+###
+GET {{base}}/donations/statements
+Host: {{host}}
+Authorization: Bearer {{token}}
+
+###
+GET {{base}}/donations/by-donor
+Host: {{host}}
+Authorization: Bearer {{token}}
+
+###
+GET {{base}}/donations/donor-history
+Host: {{host}}
+Authorization: Bearer {{token}}
+
+###
+GET {{base}}/todos
+Host: {{host}}
+Authorization: Bearer {{token}}
+
+###
+GET {{base}}/newsletter/subscribers
+Host: {{host}}
+Authorization: Bearer {{token}}
+
+###
+GET {{base}}/contact-messages
+Host: {{host}}
+Authorization: Bearer {{token}}
+
+###
+GET {{base}}/people
+Host: {{host}}
+Authorization: Bearer {{token}}
+
+###
+GET {{base}}/households
+Host: {{host}}
+Authorization: Bearer {{token}}
+
+###
+GET {{base}}/tags
+Host: {{host}}
+Authorization: Bearer {{token}}
+
+###
+GET {{base}}/offerings
+Host: {{host}}
+Authorization: Bearer {{token}}
+
+###
+GET {{base}}/attendance
+Host: {{host}}
+Authorization: Bearer {{token}}
+
+###
+GET {{base}}/attendance/stats
+Host: {{host}}
+Authorization: Bearer {{token}}
+
+###
+GET {{base}}/broadcasts
+Host: {{host}}
+Authorization: Bearer {{token}}
+
+###
+GET {{base}}/forms
+Host: {{host}}
+Authorization: Bearer {{token}}
+
+###
+GET {{base}}/volunteer-teams
+Host: {{host}}
+Authorization: Bearer {{token}}
+
+###
+GET {{base}}/volunteer-shifts
+Host: {{host}}
+Authorization: Bearer {{token}}
+
+###
+GET {{base}}/audit-log
+Host: {{host}}
+Authorization: Bearer {{token}}
+
+###
+GET {{base}}/funds
+Host: {{host}}
+Authorization: Bearer {{token}}
+
+###
+GET {{base}}/recurring-donations
+Host: {{host}}
+Authorization: Bearer {{token}}
+
+###
+GET {{base}}/pledges
+Host: {{host}}
+Authorization: Bearer {{token}}
+
+###
+GET {{base}}/member-applications
+Host: {{host}}
+Authorization: Bearer {{token}}
+
+###
+GET {{base}}/member-applications/stats
+Host: {{host}}
+Authorization: Bearer {{token}}

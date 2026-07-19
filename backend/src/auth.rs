@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 pub struct Claims {
     pub sub: String,
     pub email: String,
+    pub role: String,
     pub exp: usize,
 }
 
@@ -15,6 +16,17 @@ pub struct Claims {
 pub struct AuthUser {
     pub user_id: String,
     pub email: String,
+    pub role: String,
+}
+
+impl AuthUser {
+    pub fn require_admin(&self) -> Result<(), StatusCode> {
+        if self.role == "admin" {
+            Ok(())
+        } else {
+            Err(StatusCode::FORBIDDEN)
+        }
+    }
 }
 
 impl<S> FromRequestParts<S> for AuthUser
@@ -43,11 +55,29 @@ where
         Ok(AuthUser {
             user_id: token_data.claims.sub,
             email: token_data.claims.email,
+            role: token_data.claims.role,
         })
     }
 }
 
-pub fn create_token(user_id: &str, email: &str) -> Result<String, jsonwebtoken::errors::Error> {
+/// Extractor that requires a valid JWT + role='admin'. Returns 401 if
+/// unauthenticated or 403 if the user is not an admin.
+pub struct AdminGuard(pub AuthUser);
+
+impl<S> FromRequestParts<S> for AdminGuard
+where
+    S: Send + Sync,
+{
+    type Rejection = StatusCode;
+
+    async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
+        let auth = AuthUser::from_request_parts(parts, state).await?;
+        auth.require_admin()?;
+        Ok(AdminGuard(auth))
+    }
+}
+
+pub fn create_token(user_id: &str, email: &str, role: &str) -> Result<String, jsonwebtoken::errors::Error> {
     let secret = std::env::var("JWT_SECRET").unwrap_or_default();
     let exp = chrono::Utc::now()
         .checked_add_signed(chrono::Duration::hours(24))
@@ -57,6 +87,7 @@ pub fn create_token(user_id: &str, email: &str) -> Result<String, jsonwebtoken::
     let claims = Claims {
         sub: user_id.to_string(),
         email: email.to_string(),
+        role: role.to_string(),
         exp,
     };
 

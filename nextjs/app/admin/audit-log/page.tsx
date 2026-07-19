@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Loading, EmptyState } from '@/components/LoadingStates'
 
 const entityColors: Record<string, string> = {
   user: 'bg-blue-100 text-blue-800',
@@ -93,9 +94,9 @@ export default function AuditLogPage() {
       <Card>
         <CardContent>
           {isLoading ? (
-            <div className="p-8 text-center text-muted-foreground">Loading...</div>
+            <Loading />
           ) : filtered.length === 0 ? (
-            <div className="p-8 text-center text-muted-foreground">No audit entries found.</div>
+            <EmptyState icon={<Shield className="size-10" />} title="No audit entries found" description="Actions performed in the admin will appear here." />
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">

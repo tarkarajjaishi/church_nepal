@@ -77,12 +77,13 @@ export default function Give() {
                   </TabsList>
                 </Tabs>
 
-                <div className="mt-6 grid grid-cols-4 gap-2">
+                <div className="mt-6 grid grid-cols-4 gap-2" role="group" aria-label="Amount presets">
                   {amounts.map((a: number) => (
                     <button
                       key={a}
                       onClick={() => setAmount(a)}
                       className={`py-3 rounded-xl text-sm transition-colors ${amount === a ? "bg-church-blue text-white" : "bg-secondary text-church-blue hover:bg-gold hover:text-church-blue"}`}
+                      aria-pressed={amount === a}
                     >
                       Rs {a}
                     </button>
@@ -94,9 +95,10 @@ export default function Give() {
                   placeholder={formData.otherAmountPlaceholder || "Other amount"}
                   value={amount}
                   onChange={(e) => setAmount(e.target.value ? Number(e.target.value) : "")}
+                  aria-label={formData.otherAmountPlaceholder || "Other amount"}
                 />
 
-                <div className="mt-6 grid grid-cols-2 gap-3">
+                <div className="mt-6 grid grid-cols-2 gap-3" role="group" aria-label="Payment method">
                   {methods.map((m: any) => {
                     const Icon = methodIconMap[m.id] || Smartphone;
                     return (
@@ -104,6 +106,7 @@ export default function Give() {
                         key={m.id}
                         onClick={() => setMethod(m.id)}
                         className={`flex items-center gap-2 p-3 rounded-xl border transition-colors ${method === m.id ? "border-gold bg-gold-soft/40" : "border-border hover:border-gold"}`}
+                        aria-pressed={method === m.id}
                       >
                         <Icon className="size-5 text-church-blue" />
                         <span className="text-sm text-church-blue">{m.label}</span>

@@ -1,3 +1,4 @@
+pub mod pagination;
 pub mod user;
 pub mod sermon;
 pub mod ministry;
@@ -34,6 +35,7 @@ pub mod fund;
 pub mod pledge;
 pub mod member_application;
 
+pub use pagination::*;
 pub use user::*;
 pub use sermon::*;
 pub use ministry::*;

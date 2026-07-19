@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { SkeletonLoader } from '@/components/LoadingStates'
 
 export interface DataTableProps<TData> {
   data: TData[]
@@ -57,14 +58,8 @@ export function DataTable<TData>({
 
   if (isLoading) {
     return (
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-        <div className="p-8 text-center text-gray-500">
-          <div className="animate-pulse space-y-3">
-            <div className="h-4 bg-gray-200 rounded w-1/4 mx-auto" />
-            <div className="h-4 bg-gray-200 rounded w-1/3 mx-auto" />
-            <div className="h-4 bg-gray-200 rounded w-1/2 mx-auto" />
-          </div>
-        </div>
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <SkeletonLoader count={5} />
       </div>
     )
   }

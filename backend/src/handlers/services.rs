@@ -1,22 +1,21 @@
 use crate::tenant::Db;
-use axum::extract::{Path, State};
+use axum::extract::{Path, Query};
 use axum::Json;
-use sqlx::PgPool;
 
 use crate::auth::AuthUser;
 use crate::error::AppError;
-use crate::models::{CreateService, Service, UpdateService};
+use crate::models::{CreateService, Paginated, Pagination, Service, UpdateService};
 
 #[derive(serde::Deserialize)]
 pub struct ReorderRequest {
     pub sort_order: i32,
 }
 
-pub async fn list(Db(pool): Db) -> Result<Json<Vec<Service>>, AppError> {
-    let rows = sqlx::query_as::<_, Service>("SELECT * FROM services ORDER BY sort_order ASC, created_at DESC")
-        .fetch_all(&pool)
-        .await?;
-    Ok(Json(rows))
+pub async fn list(Db(pool): Db, Query(p): Query<Pagination>) -> Result<Json<Paginated<Service>>, AppError> {
+    let total: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM services").fetch_one(&pool).await?;
+    let rows = sqlx::query_as::<_, Service>("SELECT * FROM services ORDER BY sort_order ASC, created_at DESC LIMIT $1 OFFSET $2")
+        .bind(p.limit()).bind(p.offset()).fetch_all(&pool).await?;
+    Ok(Json(Paginated::new(rows, total, &p)))
 }
 
 pub async fn get(

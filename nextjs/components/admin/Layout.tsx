@@ -73,7 +73,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             </div>
           </div>
         </div>
-        <nav className="flex-1 overflow-y-auto py-2">
+        <nav className="flex-1 overflow-y-auto py-2" aria-label="Admin navigation">
           {navItems.map((item, i) => {
             if ('divider' in item && item.divider) {
               return (
@@ -100,7 +100,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </nav>
         <div className="p-4 border-t border-white/10">
           <div className="text-sm text-white/70 mb-2">{user?.name}</div>
-          <button onClick={handleLogout} className="flex items-center gap-2 text-sm text-white/60 hover:text-white">
+          <button onClick={handleLogout} className="flex items-center gap-2 text-sm text-white/60 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-white" aria-label="Log out">
             <LogOut className="size-4" /> Logout
           </button>
         </div>

@@ -16,6 +16,10 @@ pub struct CreateUser {
     pub email: String,
     pub password: String,
     pub name: String,
+    /// Optional role. Only honored by the admin-gated `POST /users` endpoint;
+    /// public/self-service paths force a non-privileged role regardless.
+    #[serde(default)]
+    pub role: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]

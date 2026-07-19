@@ -125,12 +125,18 @@ pub async fn create(
 
     let password_hash = hash(&input.password, DEFAULT_COST)?;
 
+    // Admin-gated endpoint: honor the requested role, defaulting to 'admin'
+    // (this is the church admin-user creation path). Set explicitly rather than
+    // relying on the DB column default.
+    let role = input.role.clone().unwrap_or_else(|| "admin".to_string());
+
     let user = sqlx::query_as::<_, UserPublic>(
-        r#"INSERT INTO users (email, password_hash, name) VALUES ($1, $2, $3) RETURNING id, email, name, role"#,
+        r#"INSERT INTO users (email, password_hash, name, role) VALUES ($1, $2, $3, $4) RETURNING id, email, name, role"#,
     )
     .bind(&input.email)
     .bind(&password_hash)
     .bind(&input.name)
+    .bind(&role)
     .fetch_one(&pool)
     .await?;
 

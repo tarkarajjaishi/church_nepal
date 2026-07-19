@@ -38,3 +38,17 @@ CREATE TABLE IF NOT EXISTS volunteer_assignments (
 
 CREATE INDEX IF NOT EXISTS idx_volunteer_assignments_shift ON volunteer_assignments(shift_id);
 CREATE INDEX IF NOT EXISTS idx_volunteer_assignments_person ON volunteer_assignments(person_id);
+
+-- Ensure volunteer_assignments.person_id has FK to people (may be missing if tables
+-- were created by 030_all_remaining_features.sql before this migration ran).
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'volunteer_assignments_person_id_fkey'
+    ) THEN
+        ALTER TABLE volunteer_assignments
+            ADD CONSTRAINT volunteer_assignments_person_id_fkey
+            FOREIGN KEY (person_id) REFERENCES people(id) ON DELETE SET NULL;
+    END IF;
+END $$;

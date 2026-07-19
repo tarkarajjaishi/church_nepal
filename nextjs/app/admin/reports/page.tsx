@@ -1,27 +1,20 @@
 'use client'
 
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import api from '@/lib/admin/api'
+import { useGivingSummary, usePeopleSummary } from '@/lib/hooks'
 import { DollarSign, Users, TrendingUp, BarChart3, ArrowUpRight, ArrowDownRight } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts'
+import { Loading, EmptyState, ErrorState } from '@/components/LoadingStates'
 
 const COLORS = ['#3B82F6', '#10B981', '#8B5CF6', '#F59E0B', '#EF4444', '#EC4899', '#06B6D4', '#84CC16']
 
 export default function ReportsPage() {
   const [tab, setTab] = useState<'giving' | 'people'>('giving')
 
-  const { data: givingSummary = {}, isLoading: givingLoading } = useQuery({
-    queryKey: ['reports-giving-summary'],
-    queryFn: () => api.get('/reports/giving-summary').then(r => r.data),
-  })
-
-  const { data: peopleSummary = {}, isLoading: peopleLoading } = useQuery({
-    queryKey: ['reports-people-summary'],
-    queryFn: () => api.get('/reports/people-summary').then(r => r.data),
-  })
+  const { data: givingSummary = {}, isLoading: givingLoading, isError: givingError, refetch: refetchGiving } = useGivingSummary()
+  const { data: peopleSummary = {}, isLoading: peopleLoading, isError: peopleError, refetch: refetchPeople } = usePeopleSummary()
 
   const monthlyData = givingSummary.monthlyTrend || []
   const byTypeData = givingSummary.byType || []
@@ -91,9 +84,11 @@ export default function ReportsPage() {
               <CardHeader><CardTitle className="text-base">Monthly Giving Trend</CardTitle></CardHeader>
               <CardContent>
                 {givingLoading ? (
-                  <div className="h-64 flex items-center justify-center text-muted-foreground">Loading...</div>
+                  <div className="h-64 flex items-center justify-center"><Loading /></div>
+                ) : givingError ? (
+                  <ErrorState message="Failed to load giving report" onRetry={() => refetchGiving()} />
                 ) : monthlyData.length === 0 ? (
-                  <div className="h-64 flex items-center justify-center text-muted-foreground">No data available</div>
+                  <EmptyState icon={<BarChart3 className="size-8" />} title="No giving data yet" description="Giving trends appear here once gifts are recorded." />
                 ) : (
                   <ResponsiveContainer width="100%" height={280}>
                     <LineChart data={monthlyData}>
@@ -113,9 +108,11 @@ export default function ReportsPage() {
               <CardHeader><CardTitle className="text-base">Giving by Type</CardTitle></CardHeader>
               <CardContent>
                 {givingLoading ? (
-                  <div className="h-64 flex items-center justify-center text-muted-foreground">Loading...</div>
+                  <div className="h-64 flex items-center justify-center"><Loading /></div>
+                ) : givingError ? (
+                  <ErrorState message="Failed to load giving report" onRetry={() => refetchGiving()} />
                 ) : byTypeData.length === 0 ? (
-                  <div className="h-64 flex items-center justify-center text-muted-foreground">No data available</div>
+                  <EmptyState icon={<BarChart3 className="size-8" />} title="No giving data yet" description="Giving by type appears here once gifts are recorded." />
                 ) : (
                   <ResponsiveContainer width="100%" height={280}>
                     <PieChart>
@@ -193,9 +190,11 @@ export default function ReportsPage() {
               <CardHeader><CardTitle className="text-base">Status Distribution</CardTitle></CardHeader>
               <CardContent>
                 {peopleLoading ? (
-                  <div className="h-64 flex items-center justify-center text-muted-foreground">Loading...</div>
+                  <div className="h-64 flex items-center justify-center"><Loading /></div>
+                ) : peopleError ? (
+                  <ErrorState message="Failed to load people report" onRetry={() => refetchPeople()} />
                 ) : statusDistribution.length === 0 ? (
-                  <div className="h-64 flex items-center justify-center text-muted-foreground">No data available</div>
+                  <EmptyState icon={<Users className="size-8" />} title="No people data yet" description="Status distribution appears here once people are added." />
                 ) : (
                   <ResponsiveContainer width="100%" height={280}>
                     <PieChart>

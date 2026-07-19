@@ -30,6 +30,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { toast } from 'sonner'
+import { Loading } from '@/components/LoadingStates'
 import { RichTextEditor } from '@/components/admin/RichTextEditor'
 import { ItemsEditor } from '@/components/admin/ItemsEditor'
 import { MediaPicker } from '@/components/admin/MediaPicker'
@@ -312,15 +313,7 @@ export default function ContentBlocksPage() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-              <div className="p-8 text-center text-gray-500">
-                <div className="animate-pulse space-y-3">
-                  <div className="h-4 bg-gray-200 rounded w-1/4 mx-auto" />
-                  <div className="h-4 bg-gray-200 rounded w-1/3 mx-auto" />
-                  <div className="h-4 bg-gray-200 rounded w-1/2 mx-auto" />
-                </div>
-              </div>
-            </div>
+            <Loading />
           ) : (
             <div className="space-y-4">
               <div className="text-sm text-muted-foreground">

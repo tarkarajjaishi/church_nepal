@@ -8,7 +8,7 @@ import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { Layout } from '@/components/admin/Layout'
 import AdminNav from '@/components/admin/AdminNav'
 import { ThemeCustomizer } from '@/components/theme/ThemeCustomizer'
-import { Toaster } from 'sonner'
+import { Toaster } from '@/components/ui/sonner'
 
 /**
  * Gate every admin page behind a login. While the session is being checked we

@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
+import { Loading, EmptyState } from '@/components/LoadingStates'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
@@ -118,7 +119,7 @@ export default function GivingDashboard() {
         </CardHeader>
         <CardContent>
           {donorLoading ? (
-            <div className="p-8 text-center text-muted-foreground">Loading...</div>
+            <Loading />
           ) : byDonor.length === 0 ? (
             <div className="p-8 text-center text-muted-foreground">No donor data found.</div>
           ) : (

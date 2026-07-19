@@ -1,18 +1,21 @@
 use crate::tenant::Db;
-use axum::extract::State;
 use axum::Json;
 use bcrypt::{hash, verify, DEFAULT_COST};
-use sqlx::PgPool;
 
 use crate::auth::{create_token, AuthUser};
 use crate::error::AppError;
 use crate::models::{AuthResponse, CreateUser, LoginRequest, UserPublic};
 
+/// Create a user account. NOTE: this is intentionally NOT exposed as a public
+/// route — the church admin is provisioned by the control plane and additional
+/// admins are created via the admin-only `POST /users` endpoint. This handler
+/// hard-codes a non-privileged role so it can never mint an admin, even if it
+/// is ever re-wired behind a guard for member self-signup.
+#[allow(dead_code)]
 pub async fn register(
     Db(pool): Db,
     Json(input): Json<CreateUser>,
 ) -> Result<Json<AuthResponse>, AppError> {
-    // Check if email already exists
     let existing: Option<uuid::Uuid> = sqlx::query_scalar("SELECT id FROM users WHERE email = $1")
         .bind(&input.email)
         .fetch_optional(&pool)
@@ -23,8 +26,10 @@ pub async fn register(
 
     let password_hash = hash(&input.password, DEFAULT_COST)?;
 
+    // Force a non-privileged role. The `users.role` column defaults to 'admin',
+    // so we MUST set it explicitly here to avoid privilege escalation.
     let user = sqlx::query_as::<_, UserPublic>(
-        r#"INSERT INTO users (email, password_hash, name) VALUES ($1, $2, $3) RETURNING id, email, name, role"#,
+        r#"INSERT INTO users (email, password_hash, name, role) VALUES ($1, $2, $3, 'member') RETURNING id, email, name, role"#,
     )
     .bind(&input.email)
     .bind(&password_hash)
@@ -32,7 +37,7 @@ pub async fn register(
     .fetch_one(&pool)
     .await?;
 
-    let token = create_token(&user.id.to_string(), &user.email)?;
+    let token = create_token(&user.id.to_string(), &user.email, &user.role)?;
 
     Ok(Json(AuthResponse { token, user }))
 }
@@ -54,7 +59,7 @@ pub async fn login(
         return Err(AppError::unauthorized("Invalid email or password"));
     }
 
-    let token = create_token(&user.id.to_string(), &user.email)?;
+    let token = create_token(&user.id.to_string(), &user.email, &user.role)?;
 
     let public = UserPublic {
         id: user.id,
@@ -63,10 +68,32 @@ pub async fn login(
         role: user.role,
     };
 
-    Ok(Json(AuthResponse {
-        token,
-        user: public,
-    }))
+    Ok(Json(AuthResponse { token, user: public }))
+}
+
+/// Issue a fresh 24h token for the currently authenticated user.
+pub async fn refresh(
+    auth: AuthUser,
+    Db(pool): Db,
+) -> Result<Json<AuthResponse>, AppError> {
+    let user = sqlx::query_as::<_, crate::models::User>(
+        r#"SELECT id, email, password_hash, name, role, created_at FROM users WHERE id = $1"#,
+    )
+    .bind(auth.user_id.parse::<uuid::Uuid>()?)
+    .fetch_optional(&pool)
+    .await?
+    .ok_or_else(|| AppError::not_found("User not found"))?;
+
+    let token = create_token(&user.id.to_string(), &user.email, &user.role)?;
+
+    let public = UserPublic {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+    };
+
+    Ok(Json(AuthResponse { token, user: public }))
 }
 
 pub async fn me(
@@ -118,7 +145,6 @@ pub async fn change_password(
     Db(pool): Db,
     Json(input): Json<ChangePasswordRequest>,
 ) -> Result<Json<serde_json::Value>, AppError> {
-    use bcrypt::{hash, verify, DEFAULT_COST};
     let id = auth.user_id.parse::<uuid::Uuid>()?;
 
     let current_hash: Option<String> = sqlx::query_scalar(

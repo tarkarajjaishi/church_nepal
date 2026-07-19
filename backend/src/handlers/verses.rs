@@ -1,15 +1,15 @@
 use crate::tenant::Db;
-use axum::extract::{Path, State};
+use axum::extract::{Path, Query};
 use axum::Json;
-use sqlx::PgPool;
 use crate::auth::AuthUser;
 use crate::error::AppError;
-use crate::models::{CreateVerse, UpdateVerse, Verse};
+use crate::models::{CreateVerse, Paginated, Pagination, UpdateVerse, Verse};
 
-pub async fn list(Db(pool): Db) -> Result<Json<Vec<Verse>>, AppError> {
-    let rows = sqlx::query_as::<_, Verse>("SELECT * FROM verses ORDER BY created_at DESC")
-        .fetch_all(&pool).await?;
-    Ok(Json(rows))
+pub async fn list(Db(pool): Db, Query(p): Query<Pagination>) -> Result<Json<Paginated<Verse>>, AppError> {
+    let total: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM verses").fetch_one(&pool).await?;
+    let rows = sqlx::query_as::<_, Verse>("SELECT * FROM verses ORDER BY is_pinned DESC, sort_order ASC, created_at DESC LIMIT $1 OFFSET $2")
+        .bind(p.limit()).bind(p.offset()).fetch_all(&pool).await?;
+    Ok(Json(Paginated::new(rows, total, &p)))
 }
 
 pub async fn get(Db(pool): Db, Path(id): Path<uuid::Uuid>) -> Result<Json<Verse>, AppError> {
@@ -82,6 +82,28 @@ pub async fn reorder(
     )
     .bind(id)
     .bind(input.sort_order)
+    .fetch_optional(&pool)
+    .await?
+    .ok_or_else(|| AppError::not_found("Verse not found"))?;
+    Ok(Json(row))
+}
+
+/// Pin a verse as "Verse of the Day". Unpins all others first (only one can be pinned).
+pub async fn pin(
+    _auth: AuthUser,
+    Db(pool): Db,
+    Path(id): Path<uuid::Uuid>,
+) -> Result<Json<Verse>, AppError> {
+    // Unpin all verses first
+    sqlx::query("UPDATE verses SET is_pinned = FALSE")
+        .execute(&pool)
+        .await?;
+
+    // Pin the requested verse
+    let row = sqlx::query_as::<_, Verse>(
+        "UPDATE verses SET is_pinned = TRUE WHERE id = $1 RETURNING *",
+    )
+    .bind(id)
     .fetch_optional(&pool)
     .await?
     .ok_or_else(|| AppError::not_found("Verse not found"))?;

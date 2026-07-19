@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog'
 import { toast } from 'sonner'
+import { Loading, EmptyState } from '@/components/LoadingStates'
 
 const statusOptions = ['active', 'fulfilled', 'cancelled', 'overdue']
 
@@ -121,9 +122,9 @@ export default function PledgesPage() {
       <Card>
         <CardContent>
           {isLoading ? (
-            <div className="p-8 text-center text-muted-foreground">Loading...</div>
+            <Loading />
           ) : pledges.length === 0 ? (
-            <div className="p-8 text-center text-muted-foreground">No pledges found.</div>
+            <EmptyState icon={<Target className="size-10" />} title="No pledges found" description="Pledges will appear here once created." />
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">

@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea'
 import { toast } from 'sonner'
+import { Loading, EmptyState } from '@/components/LoadingStates'
 
 const statusColors: Record<string, string> = {
   assigned: 'bg-yellow-100 text-yellow-800',
@@ -57,7 +58,7 @@ export default function VolunteersPage() {
   const toStr = endOfWeek.toISOString().split('T')[0]
 
   // Queries
-  const { data: teams = [] } = useQuery({
+  const { data: teams = [], isLoading: teamsLoading } = useQuery({
     queryKey: ['volunteer-teams'],
     queryFn: () => api.get('/volunteer-teams').then(r => r.data),
   })
@@ -254,6 +255,8 @@ export default function VolunteersPage() {
             <Button onClick={() => openCreateShift()} className="bg-church-blue hover:bg-church-blue/90"><Plus className="size-4 mr-1" /> Add Shift</Button>
           </div>
 
+          {shiftsLoading && <Loading message="Loading schedule…" />}
+
           <div className="grid grid-cols-7 gap-2">
             {daysOfWeek.map((date, i) => {
               const d = new Date(date + 'T00:00:00')
@@ -323,8 +326,17 @@ export default function VolunteersPage() {
                 </CardContent>
               </Card>
             ))}
-            {teams.length === 0 && <Card><CardContent className="p-8 text-center text-muted-foreground">No teams yet. Create one to get started.</CardContent></Card>}
+            {teams.length === 0 && !teamsLoading && (
+              <div className="col-span-full">
+                <EmptyState
+                  icon={<Users className="size-8" />}
+                  title="No teams yet"
+                  description="Create your first volunteer team to start scheduling."
+                />
+              </div>
+            )}
           </div>
+          {teamsLoading && <Loading message="Loading teams…" />}
         </>
       )}
 

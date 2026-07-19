@@ -13,6 +13,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog'
 import { toast } from 'sonner'
+import { Loading, EmptyState } from '@/components/LoadingStates'
 
 const statusConfig: Record<string, { color: string; icon: any }> = {
   draft: { color: 'bg-gray-100 text-gray-800', icon: Clock },
@@ -79,9 +80,9 @@ export default function BroadcastsPage() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="p-8 text-center text-muted-foreground">Loading...</div>
+            <Loading />
           ) : broadcasts.length === 0 ? (
-            <div className="p-8 text-center text-muted-foreground">No broadcasts yet. Create one to get started.</div>
+            <EmptyState icon={<Radio className="size-10" />} title="No broadcasts yet" description="Create a broadcast to start reaching your congregation." />
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">

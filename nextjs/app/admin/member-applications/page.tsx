@@ -12,6 +12,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
+import { Loading, TableSkeleton, TableEmpty } from '@/components/LoadingStates'
 
 const statusColors: Record<string, string> = {
   pending: 'bg-yellow-100 text-yellow-800',
@@ -104,9 +105,9 @@ export default function MemberApplicationsPage() {
               </thead>
               <tbody>
                 {isLoading ? (
-                  <tr><td colSpan={7} className="p-8 text-center text-muted-foreground">Loading...</td></tr>
+                  <TableSkeleton rows={5} cols={7} />
                 ) : applications.length === 0 ? (
-                  <tr><td colSpan={7} className="p-8 text-center text-muted-foreground">No applications yet</td></tr>
+                  <TableEmpty colSpan={7} message="No applications yet" />
                 ) : applications.map((app: any) => (
                   <tr key={app.id} className="border-b hover:bg-muted/50 cursor-pointer" onClick={() => { setSelected(app); setReviewNotes(app.notes || '') }}>
                     <td className="p-2 font-medium">{app.firstName} {app.lastName}</td>

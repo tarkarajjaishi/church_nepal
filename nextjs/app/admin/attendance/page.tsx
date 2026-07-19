@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog'
 import { toast } from 'sonner'
+import { Loading, EmptyState } from '@/components/LoadingStates'
 
 export default function AttendancePage() {
   const qc = useQueryClient()
@@ -103,11 +104,13 @@ export default function AttendancePage() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="p-8 text-center text-muted-foreground">Loading...</div>
+            <Loading />
           ) : filteredAttendance.length === 0 ? (
-            <div className="p-8 text-center text-muted-foreground">
-              {todayAttendance.length === 0 ? 'No check-ins today yet.' : 'No matching records found.'}
-            </div>
+            <EmptyState
+              icon={<Users className="size-10" />}
+              title={todayAttendance.length === 0 ? 'No check-ins today yet' : 'No matching records found'}
+              description={todayAttendance.length === 0 ? 'Check-ins will appear here as people arrive.' : 'Try adjusting your search.'}
+            />
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">

@@ -13,6 +13,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog'
 import { toast } from 'sonner'
+import { Loading, EmptyState } from '@/components/LoadingStates'
 
 const fundTypes = ['general', 'building', 'missions', 'benevolence', 'youth', 'worship', 'admin']
 
@@ -65,9 +66,9 @@ export default function FundsPage() {
       {/* Funds List */}
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
         {isLoading ? (
-          <Card><CardContent className="p-8 text-center text-muted-foreground">Loading...</CardContent></Card>
+          <div className="md:col-span-2 lg:col-span-3"><Loading /></div>
         ) : funds.length === 0 ? (
-          <Card><CardContent className="p-8 text-center text-muted-foreground">No funds yet. Create one to get started.</CardContent></Card>
+          <div className="md:col-span-2 lg:col-span-3"><EmptyState icon={<Wallet className="size-10" />} title="No funds yet" description="Create a fund to start tracking donations." /></div>
         ) : funds.map((fund: any) => (
           <Card key={fund.id} className="hover:shadow-md transition-shadow">
             <CardContent className="p-4">

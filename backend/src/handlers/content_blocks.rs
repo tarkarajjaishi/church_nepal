@@ -1,10 +1,9 @@
 use crate::tenant::Db;
-use axum::extract::{Path, State};
+use axum::extract::{Path, Query};
 use axum::Json;
-use sqlx::PgPool;
 use crate::auth::AuthUser;
 use crate::error::AppError;
-use crate::models::{ContentBlock, CreateContentBlock, UpdateContentBlock};
+use crate::models::{ContentBlock, CreateContentBlock, Paginated, Pagination, UpdateContentBlock};
 
 #[derive(serde::Deserialize)]
 pub struct ReorderRequest {
@@ -22,10 +21,11 @@ pub struct BatchReorderRequest {
     pub items: Vec<ReorderItem>,
 }
 
-pub async fn list(Db(pool): Db) -> Result<Json<Vec<ContentBlock>>, AppError> {
-    let rows = sqlx::query_as::<_, ContentBlock>("SELECT * FROM content_blocks ORDER BY sort_order ASC")
-        .fetch_all(&pool).await?;
-    Ok(Json(rows))
+pub async fn list(Db(pool): Db, Query(p): Query<Pagination>) -> Result<Json<Paginated<ContentBlock>>, AppError> {
+    let total: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM content_blocks").fetch_one(&pool).await?;
+    let rows = sqlx::query_as::<_, ContentBlock>("SELECT * FROM content_blocks ORDER BY sort_order ASC LIMIT $1 OFFSET $2")
+        .bind(p.limit()).bind(p.offset()).fetch_all(&pool).await?;
+    Ok(Json(Paginated::new(rows, total, &p)))
 }
 
 pub async fn list_enabled(Db(pool): Db) -> Result<Json<Vec<ContentBlock>>, AppError> {

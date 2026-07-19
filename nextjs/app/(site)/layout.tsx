@@ -13,9 +13,10 @@ export default function SiteLayout({ children }: { children: React.ReactNode }) 
   return (
     <Providers>
       <LanguageProvider>
+        <a href="#main-content" className="skip-link">Skip to main content</a>
         <AnnouncementBar />
         <Navbar />
-        <main>{children}</main>
+        <main id="main-content">{children}</main>
         <Footer />
         <FloatingButtons />
         <ThemeCustomizer />

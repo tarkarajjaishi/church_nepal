@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { Save, CheckCircle, Building2, Globe, Search, Loader2 } from 'lucide-react'
-import api from '@/lib/admin/api'
+import { Loading, ErrorState } from '@/components/LoadingStates'
+import { useSettings, useUpsertSetting } from '@/lib/hooks'
 
 interface SiteSettings {
   churchName: string
@@ -49,25 +50,34 @@ const keyMap: Record<keyof SiteSettings, string> = {
 export default function SettingsPage() {
   const [settings, setSettings] = useState<SiteSettings>(defaults)
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const { data: settingsData = [], refetch } = useSettings()
+  const upsertSetting = useUpsertSetting()
+
+  const loadSettings = () => {
+    setLoading(true)
+    setLoadError(false)
+    try {
+      const mapped = { ...defaults }
+      for (const pair of settingsData as { key: string; value: string }[]) {
+        const camelKey = Object.entries(keyMap).find(([, v]) => v === pair.key)?.[0] as keyof SiteSettings | undefined
+        if (camelKey) {
+          mapped[camelKey] = pair.value ?? ''
+        }
+      }
+      setSettings(mapped)
+      setLoading(false)
+    } catch {
+      setLoadError(true)
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
-    api.get('/settings')
-      .then(r => {
-        const pairs: { key: string; value: string }[] = r.data
-        const mapped = { ...defaults }
-        for (const pair of pairs) {
-          const camelKey = Object.entries(keyMap).find(([, v]) => v === pair.key)?.[0] as keyof SiteSettings | undefined
-          if (camelKey) {
-            mapped[camelKey] = pair.value ?? ''
-          }
-        }
-        setSettings(mapped)
-        setLoading(false)
-      })
-      .catch(() => setLoading(false))
-  }, [])
+    loadSettings()
+  }, [settingsData])
 
   const update = (key: keyof SiteSettings, value: string) => {
     setSettings(prev => ({ ...prev, [key]: value }))
@@ -83,7 +93,7 @@ export default function SettingsPage() {
       await Promise.all(
         entries.map(([camelKey, value]) => {
           const backendKey = keyMap[camelKey]
-          return api.put(`/settings/${backendKey}`, { value: value ?? '' })
+          return upsertSetting.mutateAsync({ key: backendKey, value: value ?? '' })
         })
       )
       setSaved(true)
@@ -96,11 +106,11 @@ export default function SettingsPage() {
   }
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="size-6 text-[#0b3c5d] animate-spin" />
-      </div>
-    )
+    return <Loading message="Loading settings…" />
+  }
+
+  if (loadError) {
+    return <ErrorState message="Failed to load site settings" onRetry={loadSettings} />
   }
 
   return (

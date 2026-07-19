@@ -9,6 +9,7 @@ pub struct Verse {
     pub ne: String,
     pub enabled: Option<bool>,
     pub sort_order: Option<i32>,
+    pub is_pinned: Option<bool>,
     pub created_at: chrono::NaiveDateTime,
 }
 

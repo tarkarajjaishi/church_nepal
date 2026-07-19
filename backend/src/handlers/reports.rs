@@ -1,12 +1,9 @@
 use crate::tenant::Db;
-use axum::extract::State;
 use axum::Json;
 use sqlx::PgPool;
-use crate::auth::AuthUser;
 use crate::error::AppError;
 
 pub async fn giving_summary(
-    _auth: AuthUser,
     Db(pool): Db,
 ) -> Result<Json<serde_json::Value>, AppError> {
     let total_raised: (i64,) = sqlx::query_as(
@@ -40,13 +37,13 @@ pub async fn giving_summary(
     .await?;
 
     let avg_donation: (i64,) = sqlx::query_as(
-        "SELECT COALESCE(AVG(amount), 0)::bigint FROM donations WHERE status = 'completed' AND created_at >= date_trunc('year', CURRENT_DATE)",
+        "SELECT COALESCE(AVG(amount)::bigint, 0) FROM donations WHERE status = 'completed' AND created_at >= date_trunc('year', CURRENT_DATE)",
     )
     .fetch_one(&pool)
     .await?;
 
     let top_donors = sqlx::query_as::<_, (Option<String>, Option<String>, i64, i64)>(
-        r#"SELECT donor_email, donor_name, COALESCE(SUM(amount), 0) AS total, COUNT(*) AS count
+        r#"SELECT donor_email, donor_name, COALESCE(SUM(amount), 0)::bigint AS total, COUNT(*) AS count
            FROM donations WHERE status = 'completed'
            GROUP BY donor_email, donor_name
            ORDER BY total DESC LIMIT 10"#,
@@ -78,7 +75,6 @@ pub async fn giving_summary(
 }
 
 pub async fn people_summary(
-    _auth: AuthUser,
     Db(pool): Db,
 ) -> Result<Json<serde_json::Value>, AppError> {
     let total_people: (i64,) = sqlx::query_as(

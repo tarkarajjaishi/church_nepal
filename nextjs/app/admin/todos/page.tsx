@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '@/lib/admin/api'
 import { Plus, Pencil, Trash2, X, ChevronUp, ChevronDown, CheckSquare, Circle, CheckCircle2, Clock } from 'lucide-react'
+import { Loading, EmptyState } from '@/components/LoadingStates'
 
 interface Todo {
   id: string
@@ -118,9 +119,13 @@ export default function TodosPage() {
       {/* Table */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         {isLoading ? (
-          <div className="p-8 text-center text-gray-500">Loading...</div>
+          <Loading />
         ) : filteredItems.length === 0 ? (
-          <div className="p-8 text-center text-gray-500">No todos {filterStatus !== 'all' ? `with status "${filterStatus}"` : 'yet'}. Click "New Todo" to add one.</div>
+          <EmptyState
+            icon={<CheckSquare className="size-10" />}
+            title={filterStatus !== 'all' ? `No ${filterStatus.replace('_', ' ')} todos` : 'No todos yet'}
+            description="Click 'New Todo' to create your first task."
+          />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">

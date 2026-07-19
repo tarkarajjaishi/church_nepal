@@ -2,10 +2,10 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQueryClient } from '@tanstack/react-query'
 import { type ColumnDef } from '@tanstack/react-table'
-import api, { uploadFile } from '@/lib/admin/api'
-import { Plus, Pencil, Trash2, Upload, ChevronUp, ChevronDown } from 'lucide-react'
+import { uploadFile } from '@/lib/admin/api'
+import { Plus, Pencil, Trash2, Upload, ChevronUp, ChevronDown, Pin } from 'lucide-react'
 import { DataTable, Badge, Switch, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, Button } from '@/components/admin/DataTable'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog'
@@ -14,7 +14,7 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
 import { RichTextEditor } from './RichTextEditor'
-import { useSections, useToggleSection } from '@/lib/hooks'
+import { createResourceHooks, useSections, useToggleSection } from '@/lib/hooks'
 
 interface Field {
   key: string
@@ -23,8 +23,16 @@ interface Field {
   options?: string[]
 }
 
-export function CrudPage({ endpoint, title, fields }: { endpoint: string; title: string; fields: Field[] }) {
+export function CrudPage({ endpoint, title, fields, enablePin = false }: { endpoint: string; title: string; fields: Field[]; enablePin?: boolean }) {
   const queryClient = useQueryClient()
+  const { useList, useCreate, useUpdate, useDelete, useToggle, useReorder, usePin } = createResourceHooks<any>(endpoint)
+  const { data: items = [], isLoading } = useList()
+  const createMut = useCreate()
+  const updateMut = useUpdate()
+  const deleteMut = useDelete()
+  const toggleMut = useToggle()
+  const reorderMut = useReorder()
+  const pinMut = usePin()
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<any>(null)
   const [form, setForm] = useState<Record<string, any>>({})
@@ -37,40 +45,6 @@ export function CrudPage({ endpoint, title, fields }: { endpoint: string; title:
   const { data: sections = {} } = useSections()
   const { toggleSection, isPending: sectionToggling } = useToggleSection()
   const sectionEnabled = (sections as Record<string, boolean>)[sectionKey] === true
-
-  const { data: items = [], isLoading } = useQuery({
-    queryKey: [endpoint],
-    queryFn: () => api.get(`/${endpoint}`).then(r => r.data),
-  })
-
-  const createMut = useMutation({
-    mutationFn: (data: any) => api.post(`/${endpoint}`, data),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: [endpoint] }); setShowForm(false); setForm({}); toast.success(`${title.replace(/s$/, '')} created`) },
-    onError: () => toast.error(`Failed to create ${title.replace(/s$/, '').toLowerCase()}`),
-  })
-
-  const updateMut = useMutation({
-    mutationFn: ({ id, data }: any) => api.put(`/${endpoint}/${id}`, data),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: [endpoint] }); setShowForm(false); setEditing(null); setForm({}); toast.success(`${title.replace(/s$/, '')} updated`) },
-    onError: () => toast.error(`Failed to update ${title.replace(/s$/, '').toLowerCase()}`),
-  })
-
-  const deleteMut = useMutation({
-    mutationFn: (id: string) => api.delete(`/${endpoint}/${id}`),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: [endpoint] }); setConfirmDelete(null); toast.success('Deleted') },
-    onError: () => toast.error('Failed to delete'),
-  })
-
-  const toggleMut = useMutation({
-    mutationFn: (id: string) => api.put(`/${endpoint}/${id}/toggle`),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: [endpoint] }); toast.success('Toggled') },
-  })
-
-  const reorderMut = useMutation({
-    mutationFn: ({ id, sortOrder }: { id: string; sortOrder: number }) =>
-      api.put(`/${endpoint}/${id}/reorder`, { sortOrder }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: [endpoint] }),
-  })
 
   const moveItem = (index: number, direction: 'up' | 'down') => {
     const item = items[index]
@@ -161,6 +135,21 @@ export function CrudPage({ endpoint, title, fields }: { endpoint: string; title:
       ),
       size: 140,
     },
+    ...(enablePin ? [{
+      id: 'pinned',
+      header: 'Pinned',
+      cell: ({ row }: any) => (
+        <button
+          onClick={() => pinMut.mutate(row.original.id)}
+          disabled={pinMut.isPending}
+          className={`p-1 rounded transition-colors ${row.original.isPinned ? 'text-gold bg-gold/10' : 'text-gray-400 hover:text-gold hover:bg-gold/5'}`}
+          title={row.original.isPinned ? 'Pinned as Verse of the Day' : 'Pin as Verse of the Day'}
+        >
+          <Pin className="size-4" fill={row.original.isPinned ? 'currentColor' : 'none'} />
+        </button>
+      ),
+      size: 80,
+    }] : []),
     ...fields.slice(0, 3).map(f => ({
       accessorKey: f.key,
       header: f.label,
@@ -193,6 +182,11 @@ export function CrudPage({ endpoint, title, fields }: { endpoint: string; title:
             <DropdownMenuItem onClick={() => openEdit(row.original)}>
               <Pencil className="mr-2 size-4" /> Edit
             </DropdownMenuItem>
+            {enablePin && (
+              <DropdownMenuItem onClick={() => pinMut.mutate(row.original.id)} disabled={pinMut.isPending}>
+                <Pin className="mr-2 size-4" /> {row.original.isPinned ? 'Unpin' : 'Pin as Verse of the Day'}
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem onClick={() => setConfirmDelete(row.original.id)} className="text-destructive">
               <Trash2 className="mr-2 size-4" /> Delete
             </DropdownMenuItem>

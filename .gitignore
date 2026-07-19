@@ -7,6 +7,11 @@ dist/
 dist-ssr/
 build/
 target/
+**/target/
+
+# Next.js
+.next/
+out/
 
 # Environment files
 .env
@@ -38,22 +43,33 @@ Desktop.ini
 
 # Rust
 backend/target/
+control-plane/backend/target/
 
-# Backend runtime
-backend/stderr.txt
-backend/stdout.txt
+# Stray debug / runtime output files (anywhere in the repo)
+stderr*.txt
+stdout*.txt
+test_*.txt
 
-# Obsidian (optional - comment out if you want to track vault config)
-# vault/.obsidian/workspace.json
-# vault/.obsidian/workspace-mobile.json
+# Backend runtime / debug files
+backend/stderr*.txt
+backend/stdout*.txt
+backend/test_*.txt
+backend/backend.log
+backend/uploads/
+
+# Storage (per-church uploads are in storage/<slug>/)
+storage/
+
+# Data files (generated / runtime — not source)
+users.json
+subscribers.json
+contact_info.json
+site_settings.json
 
 # Python (project is Rust + Next.js only — no Python in this repo)
 *.py
 requirements.txt
 Dockerfile.auth
-
-# Local data / secrets (never commit to a public repo)
-users.json
 
 # Claude Code local tooling
 .claude/
@@ -65,5 +81,3 @@ users.json
 # Misc
 *.local
 .cache/
-storage/
-control-plane/backend/target/

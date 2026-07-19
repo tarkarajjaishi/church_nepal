@@ -37,7 +37,7 @@ export default function AdminNav() {
   ]
 
   return (
-    <nav className="bg-card shadow-sm border-b border-border">
+    <nav className="bg-card shadow-sm border-b border-border" aria-label="Admin top navigation">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
@@ -105,6 +105,8 @@ export default function AdminNav() {
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="md:hidden p-2 rounded-lg hover:bg-muted"
+              aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
+              aria-expanded={mobileMenuOpen}
             >
               {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </button>

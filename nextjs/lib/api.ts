@@ -35,6 +35,20 @@ api.interceptors.response.use((res) => {
   return res
 })
 
+// On 401, clear token and redirect to login (avoid redirect loop on login page)
+api.interceptors.response.use(
+  (res) => res,
+  (error) => {
+    if (error.response?.status === 401 && typeof window !== 'undefined') {
+      localStorage.removeItem('admin_token')
+      if (!window.location.pathname.startsWith('/admin/login')) {
+        window.location.href = '/admin/login'
+      }
+    }
+    return Promise.reject(error)
+  }
+)
+
 // Public API — no auth needed for reading
 export async function fetchAll<T>(endpoint: string): Promise<T[]> {
   const { data } = await api.get<T[]>(`/${endpoint}`)

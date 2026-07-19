@@ -4,78 +4,143 @@ import { ReactNode } from 'react'
 import { Loader2 } from 'lucide-react'
 
 /**
- * Skeleton screen component for loading states
- * Provides better UX than blank/loading text
+ * Full-page or section loading spinner.
  */
-export function SkeletonLoader({ count = 1, height = 'h-12' }: { count?: number; height?: string }) {
+export function Loading({ message }: { message?: string }) {
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col items-center justify-center gap-3 py-12">
+      <Loader2 className="size-8 animate-spin text-primary" />
+      {message && <p className="text-sm text-muted-foreground">{message}</p>}
+    </div>
+  )
+}
+
+/**
+ * Skeleton loader for table/list placeholders.
+ */
+export function SkeletonLoader({ count = 3, height = 'h-12' }: { count?: number; height?: string }) {
+  return (
+    <div className="space-y-3">
       {Array.from({ length: count }).map((_, i) => (
-        <div key={i} className={`${height} bg-gray-200 rounded animate-pulse`} />
+        <div key={i} className={`${height} rounded-md bg-muted animate-pulse`} />
       ))}
     </div>
   )
 }
 
 /**
- * Loading spinner for async operations
+ * Table row skeleton for data tables.
  */
-export function LoadingSpinner({ size = 'md', message }: { size?: 'sm' | 'md' | 'lg'; message?: string }) {
-  const sizeClass = {
-    sm: 'w-4 h-4',
-    md: 'w-8 h-8',
-    lg: 'w-12 h-12',
-  }[size]
-
+export function TableSkeleton({ rows = 5, cols = 5 }: { rows?: number; cols?: number }) {
   return (
-    <div className="flex flex-col items-center justify-center gap-3">
-      <Loader2 className={`${sizeClass} animate-spin text-blue-600`} />
-      {message && <p className="text-sm text-gray-600">{message}</p>}
-    </div>
+    <tbody>
+      {Array.from({ length: rows }).map((_, i) => (
+        <tr key={i} className="border-b border-border">
+          {Array.from({ length: cols }).map((_, j) => (
+            <td key={j} className="p-3">
+              <div className="h-4 rounded bg-muted animate-pulse" />
+            </td>
+          ))}
+        </tr>
+      ))}
+    </tbody>
   )
 }
 
 /**
- * Empty state component
+ * Empty state — shown when a list has no items.
  */
 export function EmptyState({
-  icon: Icon,
+  icon,
   title,
   description,
   action,
 }: {
-  icon: ReactNode
+  icon?: ReactNode
   title: string
-  description: string
+  description?: string
   action?: ReactNode
 }) {
   return (
-    <div className="flex flex-col items-center justify-center gap-4 py-12">
-      <div className="text-gray-400">{Icon}</div>
-      <div className="text-center">
-        <h3 className="text-lg font-semibold text-gray-900 mb-1">{title}</h3>
-        <p className="text-sm text-gray-600">{description}</p>
-      </div>
-      {action && <div>{action}</div>}
+    <div className="flex flex-col items-center justify-center gap-3 py-12 text-center">
+      {icon && <div className="text-muted-foreground/50">{icon}</div>}
+      <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+      {description && <p className="text-sm text-muted-foreground max-w-sm">{description}</p>}
+      {action && <div className="mt-1">{action}</div>}
     </div>
   )
 }
 
 /**
- * Error state component for failed data loading
+ * Inline empty state for inside table cells.
+ */
+export function TableEmpty({ colSpan, message = 'No data yet' }: { colSpan: number; message?: string }) {
+  return (
+    <tr>
+      <td colSpan={colSpan} className="p-8 text-center text-muted-foreground text-sm">
+        {message}
+      </td>
+    </tr>
+  )
+}
+
+/**
+ * Error state — shown when data loading fails.
  */
 export function ErrorState({
   message = 'Failed to load data',
+  onRetry,
   action,
 }: {
   message?: string
+  onRetry?: () => void
   action?: ReactNode
 }) {
   return (
-    <div className="rounded-lg border border-red-200 bg-red-50 p-6">
-      <h3 className="font-semibold text-red-900 mb-2">Error</h3>
-      <p className="text-sm text-red-700 mb-4">{message}</p>
-      {action && <div>{action}</div>}
+    <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-6 text-center">
+      <p className="text-sm font-medium text-destructive mb-2">{message}</p>
+      {action && <div className="mt-2">{action}</div>}
+      {onRetry && !action && (
+        <button onClick={onRetry} className="text-sm text-primary hover:underline">
+          Retry
+        </button>
+      )}
     </div>
   )
+}
+
+/** Backward-compatible alias */
+export const LoadingSpinner = Loading
+
+/**
+ * Full loading/empty/error wrapper for list pages.
+ * Renders the appropriate state based on query results.
+ */
+export function DataState({
+  isLoading,
+  isError,
+  isEmpty,
+  error,
+  onRetry,
+  emptyIcon,
+  emptyTitle = 'No data yet',
+  emptyDescription,
+  emptyAction,
+  children,
+}: {
+  isLoading: boolean
+  isError: boolean
+  isEmpty: boolean
+  error?: any
+  onRetry?: () => void
+  emptyIcon?: ReactNode
+  emptyTitle?: string
+  emptyDescription?: string
+  emptyAction?: ReactNode
+  children: ReactNode
+}) {
+  if (isLoading) return <Loading />
+  if (isError) return <ErrorState message={error?.message || error?.detail || 'Failed to load data'} onRetry={onRetry} />
+  if (isEmpty) return <EmptyState icon={emptyIcon} title={emptyTitle} description={emptyDescription} action={emptyAction} />
+  return <>{children}</>
 }

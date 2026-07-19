@@ -49,6 +49,21 @@ api.interceptors.response.use((res) => {
   return res
 })
 
+// On 401 Unauthorized, clear the token and redirect to login
+api.interceptors.response.use(
+  (res) => res,
+  (error) => {
+    if (error.response?.status === 401 && typeof window !== 'undefined') {
+      localStorage.removeItem('admin_token')
+      // Avoid redirect loop if already on login page
+      if (!window.location.pathname.startsWith('/admin/login')) {
+        window.location.href = '/admin/login'
+      }
+    }
+    return Promise.reject(error)
+  }
+)
+
 export default api
 
 // Generic CRUD helpers

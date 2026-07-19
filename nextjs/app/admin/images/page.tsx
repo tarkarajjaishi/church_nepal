@@ -1,14 +1,16 @@
 'use client'
 
 import { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api, { uploadFile } from '@/lib/admin/api'
+import { useQueryClient } from '@tanstack/react-query'
+import { uploadFile } from '@/lib/admin/api'
 import { Upload, Save, Image as ImageIcon, Trash2, Eye } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
+import { Loading, ErrorState } from '@/components/LoadingStates'
+import { useSettings, useUpsertSetting } from '@/lib/hooks'
 
 const imageSlots = [
   { key: 'site_hero_image', label: 'Hero Section Background', description: 'Main background image on the homepage hero', group: 'Homepage' },
@@ -32,27 +34,15 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3002'
 export default function ImageManagerPage() {
   const qc = useQueryClient()
   const [uploadingKey, setUploadingKey] = useState<string | null>(null)
-
-  const { data: settings = {} } = useQuery({
-    queryKey: ['settings'],
-    queryFn: () => api.get('/settings').then(r => {
-      const map: Record<string, string> = {}
-      r.data.forEach((s: any) => { map[s.key] = s.value })
-      return map
-    }),
-  })
-
-  const updateMut = useMutation({
-    mutationFn: ({ key, value }: { key: string; value: string }) => api.put(`/settings/${key}`, { value }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['settings'] }); toast.success('Image saved') },
-    onError: () => toast.error('Failed to save'),
-  })
+  const { data: settings = [], isLoading, isError, refetch } = useSettings()
+  const updateSetting = useUpsertSetting()
+  const settingsMap = Object.fromEntries((settings ?? []).map((s: any) => [s.key, s.value])) as Record<string, string>
 
   const handleUpload = async (key: string, file: File) => {
     setUploadingKey(key)
     try {
       const result = await uploadFile(file)
-      updateMut.mutate({ key, value: result.url })
+      updateSetting.mutate({ key, value: result.url }, { onSuccess: () => { qc.invalidateQueries({ queryKey: ['settings'] }); toast.success('Image saved') }, onError: () => toast.error('Failed to save') })
     } catch (err: any) {
       toast.error(`Upload failed: ${err.message}`)
     } finally {
@@ -61,7 +51,7 @@ export default function ImageManagerPage() {
   }
 
   const handleClear = (key: string) => {
-    updateMut.mutate({ key, value: '' })
+    updateSetting.mutate({ key, value: '' }, { onSuccess: () => { qc.invalidateQueries({ queryKey: ['settings'] }); toast.success('Image saved') }, onError: () => toast.error('Failed to save') })
   }
 
   const getImageSrc = (url: string) => {
@@ -75,6 +65,9 @@ export default function ImageManagerPage() {
     acc[slot.group].push(slot)
     return acc
   }, {} as Record<string, typeof imageSlots>)
+
+  if (isLoading) return <Loading message="Loading images…" />
+  if (isError) return <ErrorState message="Failed to load site images" onRetry={() => refetch()} />
 
   return (
     <div className="space-y-6">
@@ -97,7 +90,7 @@ export default function ImageManagerPage() {
           <CardContent>
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               {slots.map(slot => {
-                const currentUrl = settings[slot.key] || ''
+                const currentUrl = settingsMap[slot.key] || ''
                 return (
                   <div key={slot.key} className="space-y-3">
                     <Label className="text-sm font-medium">{slot.label}</Label>
@@ -143,7 +136,7 @@ export default function ImageManagerPage() {
                       </div>
                       <Input
                         value={currentUrl}
-                        onChange={e => updateMut.mutate({ key: slot.key, value: e.target.value })}
+                        onChange={e => updateSetting.mutate({ key: slot.key, value: e.target.value })}
                         placeholder="Or paste image URL..."
                         className="text-xs"
                       />
