@@ -11,7 +11,6 @@ const nextConfig: NextConfig = {
   // images publish). Re-enable strict checks once the type debt is cleared.
   // ponytail: remove both once `tsc --noEmit` and `eslint` are clean.
   typescript: { ignoreBuildErrors: true },
-  eslint: { ignoreDuringBuilds: true },
 
   // Stable React Compiler (optional; enable when ready for longer compiles)
   // reactCompiler: true,

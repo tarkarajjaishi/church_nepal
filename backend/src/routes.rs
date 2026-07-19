@@ -1,7 +1,7 @@
 use axum::routing::{delete, get, patch, post, put};
 use axum::Router;
 
-use crate::auth::{AdminGuard, AuthUser};
+use crate::auth::AdminGuard;
 use crate::handlers::*;
 
 /// Public + read-only routes (no auth required).

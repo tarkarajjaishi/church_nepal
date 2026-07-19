@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { useAuth } from '@/lib/admin/auth'
+import { useAuth } from '@/lib/auth'
 import api from '@/lib/admin/api'
 import { User, Lock, Save, CheckCircle, AlertCircle } from 'lucide-react'
 

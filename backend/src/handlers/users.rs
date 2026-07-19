@@ -1,8 +1,7 @@
 use crate::tenant::Db;
-use axum::extract::{Path, State};
+use axum::extract::Path;
 use axum::Json;
 use bcrypt::{hash, DEFAULT_COST};
-use sqlx::PgPool;
 
 use crate::auth::AuthUser;
 use crate::error::AppError;

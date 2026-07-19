@@ -1,6 +1,5 @@
 use crate::tenant::Db;
 use axum::Json;
-use sqlx::PgPool;
 use crate::error::AppError;
 
 pub async fn giving_summary(

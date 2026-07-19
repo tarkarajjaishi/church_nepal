@@ -14,7 +14,8 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
 import { RichTextEditor } from './RichTextEditor'
-import { createResourceHooks, useSections, useToggleSection } from '@/lib/hooks'
+import { useSettingsSections, useToggleSection } from '@/lib/hooks/settings'
+import { createResourceHooks } from '@/lib/hooks/factory'
 
 interface Field {
   key: string
@@ -42,7 +43,7 @@ export function CrudPage({ endpoint, title, fields, enablePin = false }: { endpo
 
   const sectionApiKey = endpoint.replace(/-/g, '_')
   const sectionKey = endpoint.replace(/-([a-z])/g, (_, c) => c.toUpperCase())
-  const { data: sections = {} } = useSections()
+  const { data: sections = {} } = useSettingsSections()
   const { toggleSection, isPending: sectionToggling } = useToggleSection()
   const sectionEnabled = (sections as Record<string, boolean>)[sectionKey] === true
 

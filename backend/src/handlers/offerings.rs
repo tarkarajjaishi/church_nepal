@@ -1,7 +1,6 @@
 use crate::tenant::Db;
-use axum::extract::{Path, State, Query};
+use axum::extract::{Path, Query};
 use axum::Json;
-use sqlx::PgPool;
 use crate::auth::AuthUser;
 use crate::error::AppError;
 use crate::models::offering::*;

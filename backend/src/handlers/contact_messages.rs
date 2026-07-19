@@ -1,7 +1,6 @@
 use crate::tenant::Db;
-use axum::extract::{Path, State};
+use axum::extract::Path;
 use axum::Json;
-use sqlx::PgPool;
 use uuid::Uuid;
 
 use crate::auth::AuthUser;

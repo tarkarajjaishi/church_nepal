@@ -1,20 +1,21 @@
 'use client'
 
 import { useQueryClient } from '@tanstack/react-query'
-import { useAuth } from "@/lib/admin/auth"
+import { useAuth } from "@/lib/auth"
 import Link from 'next/link'
 import {
   BookOpen, Calendar, Users, Bell, Image, Quote, UserCheck, Clock,
   BookMarked, DollarSign, Settings, Shield, ArrowRight, Activity,
   Globe, Briefcase, Star, Mail, Heart
 } from 'lucide-react'
-import { useSections, useToggleSection, useDashboardSermons, useDashboardEvents, useDashboardMinistries, useDashboardNotices, useDashboardLeaders, useDashboardGallery, useDashboardTestimonies, useDashboardMembers, useDashboardServiceTimes, useDashboardVerses, useDashboardCampaigns, useSettings, useUsers } from '@/lib/hooks'
+import { useSettingsSections, useToggleSection } from '@/lib/hooks/settings'
+import { useDashboardSermons, useDashboardEvents, useDashboardMinistries, useDashboardNotices, useDashboardLeaders, useDashboardGallery, useDashboardTestimonies, useDashboardMembers, useDashboardServiceTimes, useDashboardVerses, useDashboardCampaigns, useSettings, useUsers } from '@/lib/hooks'
 import { Loading } from '@/components/LoadingStates'
 
 export default function Dashboard() {
   const { user } = useAuth()
   const queryClient = useQueryClient()
-  const { data: sections = {} } = useSections()
+  const { data: sections = {} } = useSettingsSections()
   const { toggleSection } = useToggleSection()
   const sec = sections as Record<string, boolean>
 

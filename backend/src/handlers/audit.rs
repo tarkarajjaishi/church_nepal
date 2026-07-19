@@ -1,5 +1,5 @@
 use crate::tenant::Db;
-use axum::extract::{State, Query};
+use axum::extract::Query;
 use axum::Json;
 use sqlx::PgPool;
 use crate::auth::AuthUser;

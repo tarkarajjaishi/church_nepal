@@ -1,8 +1,7 @@
 use crate::tenant::Db;
-use axum::extract::{Path, State, Query};
+use axum::extract::{Path, Query};
 use axum::Json;
 use chrono::NaiveDateTime;
-use sqlx::PgPool;
 use crate::error::AppError;
 use crate::models::donation::{Donation, InitiateDonation};
 
