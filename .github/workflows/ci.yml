@@ -19,7 +19,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20.9.0'
-      - run: cd nextjs && npm ci
+      - run: cd nextjs && npm install --no-audit --no-fund
       # Advisory only — reported but does not block builds/packages while the app is stabilised.
       - run: cd nextjs && npm run typecheck
         continue-on-error: true
@@ -35,7 +35,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20.9.0'
-      - run: cd nextjs && npm ci
+      - run: cd nextjs && npm install --no-audit --no-fund
       - run: cd nextjs && npm run build
 
   # Check Rust Backend
