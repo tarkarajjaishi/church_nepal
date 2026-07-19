@@ -412,8 +412,8 @@ export function createResourceHooks<T = any>(endpoint: string) {
     useReorder: () => {
       const qc = useQueryClient()
       return useMutation({
-        mutationFn: (vars: { id: string; sort_order: number }) =>
-          api.put(`${base}/${vars.id}/reorder`, { sort_order: vars.sort_order }).then(r => r.data),
+        mutationFn: (vars: { id: string; sortOrder?: number; sort_order?: number }) =>
+          api.put(`${base}/${vars.id}/reorder`, { sort_order: vars.sortOrder ?? vars.sort_order }).then(r => r.data),
         onSuccess: () => invalidate(qc),
       })
     },
