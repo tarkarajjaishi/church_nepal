@@ -5,8 +5,9 @@ WORKDIR /build
 # Copy manifests
 COPY Cargo.* ./
 
-# Copy source tree
+# Copy source tree + migrations (sqlx::migrate! embeds them at compile time)
 COPY src ./src
+COPY migrations ./migrations
 
 # Build for release
 RUN cargo build --release
