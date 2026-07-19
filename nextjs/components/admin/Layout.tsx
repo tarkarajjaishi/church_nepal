@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/lib/auth'
-import { LayoutDashboard, BookOpen, Calendar, Users, Image, Quote, Bell, UserCheck, Clock, BookMarked, DollarSign, Settings, LogOut, Church, Shield, LayoutGrid, Heart, CheckSquare, UserCircle, Newspaper, Briefcase, Globe, Mail, Contact, Palette, Receipt, HandHelping, TrendingUp, Wallet, Target, ClipboardCheck, Radio, FileText, BarChart3 } from 'lucide-react'
+import { LayoutDashboard, BookOpen, Calendar, Users, Image, Quote, Bell, UserCheck, Clock, BookMarked, DollarSign, Settings, LogOut, Church, Shield, LayoutGrid, Heart, CheckSquare, UserCircle, Newspaper, Briefcase, Globe, Mail, Contact, Palette, Receipt, HandHelping, TrendingUp, Wallet, Target, ClipboardCheck, Radio, FileText, BarChart3, HandHeart } from 'lucide-react'
 
 const navItems = [
   { to: '/admin/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -22,6 +22,7 @@ const navItems = [
   { to: '/admin/verses', icon: BookMarked, label: 'Verses' },
   { divider: true, label: 'CRM & Finance' },
   { to: '/admin/people', icon: Users, label: 'People' },
+  { to: '/admin/prayer-requests', icon: HandHeart, label: 'Prayer Requests' },
   { to: '/admin/offerings', icon: DollarSign, label: 'Offerings' },
   { to: '/admin/giving', icon: Receipt, label: 'Giving Dashboard' },
   { to: '/admin/funds', icon: Wallet, label: 'Funds' },

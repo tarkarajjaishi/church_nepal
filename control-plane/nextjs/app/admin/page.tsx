@@ -1,47 +1,52 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
-
-const API = process.env.NEXT_PUBLIC_CONTROL_API || "http://localhost:3100/api";
-
-type Church = {
-  id: string;
-  name: string;
-  slug: string;
-  subdomain: string;
-  admin_email: string;
-  status: string;
-  created_at?: string;
-};
-
-type NewChurch = {
-  slug: string;
-  subdomain: string;
-  url: string;
-  admin_email: string;
-  admin_password: string;
-};
+import { useEffect, useState } from "react";
+import { useChurches, useCreateChurch, useDeleteChurch, useSeedDummyChurches, useLogin, useMe } from "@/components/hooks";
+import { setAuthToken, getAuthToken } from "@/lib/api-client";
+import { LoadingState, EmptyState, ErrorState, InlineError, useConfirmDialog } from "@/components";
+import type { Church, NewChurch } from "@/types";
 
 export default function AdminPage() {
-  const [token, setToken] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    setToken(localStorage.getItem("control_token"));
+    // Initialize token from localStorage on mount
+    const token = localStorage.getItem("control_token");
+    if (token) {
+      setAuthToken(token);
+    }
     setReady(true);
   }, []);
 
-  const onLogin = (t: string) => {
-    localStorage.setItem("control_token", t);
-    setToken(t);
-  };
-  const onLogout = () => {
-    localStorage.removeItem("control_token");
-    setToken(null);
+  // Check auth status using the useMe hook
+  const { data: meData, isLoading: checkingAuth } = useMe();
+
+  if (!ready || checkingAuth) {
+    return (
+      <div className="wrap">
+        <div className="brand">
+          <Link href="/" className="dot" aria-label="Home" />
+          <h1>ChurchNepal — Master Control</h1>
+        </div>
+        <LoadingState message="Checking authentication..." />
+      </div>
+    );
+  }
+
+  const isLoggedIn = !!meData;
+
+  const handleLogin = (token: string) => {
+    setAuthToken(token);
+    localStorage.setItem("control_token", token);
+    window.location.reload();
   };
 
-  if (!ready) return null;
+  const handleLogout = () => {
+    setAuthToken(null);
+    localStorage.removeItem("control_token");
+    window.location.reload();
+  };
 
   return (
     <div className="wrap">
@@ -50,142 +55,113 @@ export default function AdminPage() {
         <h1>ChurchNepal — Master Control</h1>
       </div>
       <p className="sub">Create and manage church websites · one subdomain, database &amp; storage per church</p>
-      {token ? <Dashboard token={token} onLogout={onLogout} onExpired={onLogout} /> : <Login onLogin={onLogin} />}
+      {isLoggedIn ? <Dashboard onLogout={handleLogout} /> : <Login onLogin={handleLogin} />}
     </div>
   );
 }
 
-function Login({ onLogin }: { onLogin: (t: string) => void }) {
+function Login({ onLogin }: { onLogin: (token: string) => void }) {
   const [email, setEmail] = useState("owner@churchnepal.com");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
+  const loginMutation = useLogin();
 
-  const submit = async () => {
-    setBusy(true);
-    setError("");
-    try {
-      const res = await fetch(`${API}/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Login failed");
-      onLogin(data.token);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Login failed");
-    } finally {
-      setBusy(false);
-    }
+  const submit = () => {
+    loginMutation.mutate({ email, password });
   };
+
+  // Handle successful login
+  useEffect(() => {
+    if (loginMutation.isSuccess && loginMutation.data?.token) {
+      onLogin(loginMutation.data.token);
+    }
+  }, [loginMutation.isSuccess, loginMutation.data?.token, onLogin]);
 
   return (
     <div className="center">
       <div className="card login">
         <h2 style={{ marginTop: 0 }}>Owner sign in</h2>
         <label>Email</label>
-        <input value={email} onChange={(e) => setEmail(e.target.value)} />
+        <input value={email} onChange={(e) => setEmail(e.target.value)} disabled={loginMutation.isPending} />
         <label>Password</label>
         <input
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && submit()}
+          disabled={loginMutation.isPending}
         />
         <div style={{ marginTop: 18 }}>
-          <button onClick={submit} disabled={busy} style={{ width: "100%" }}>
-            {busy ? "Signing in…" : "Sign in"}
+          <button onClick={submit} disabled={loginMutation.isPending} style={{ width: "100%" }}>
+            {loginMutation.isPending ? "Signing in…" : "Sign in"}
           </button>
         </div>
-        {error && <div className="error">{error}</div>}
+        {loginMutation.error && <InlineError message={loginMutation.error.message} className="mt-2" />}
       </div>
     </div>
   );
 }
 
-function Dashboard({
-  token,
-  onLogout,
-  onExpired,
-}: {
-  token: string;
-  onLogout: () => void;
-  onExpired: () => void;
-}) {
-  const [churches, setChurches] = useState<Church[]>([]);
+function Dashboard({ onLogout }: { onLogout: () => void }) {
+  const churchesQuery = useChurches();
+  const createChurchMutation = useCreateChurch();
+  const deleteChurchMutation = useDeleteChurch();
+  const seedDummyMutation = useSeedDummyChurches();
+  const { confirm, ConfirmDialog } = useConfirmDialog();
+
+  const churches = churchesQuery.data || [];
   const [name, setName] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
+  const [search, setSearch] = useState("");
   const [created, setCreated] = useState<NewChurch | null>(null);
 
-  const authHeaders = useCallback(
-    () => ({ "Content-Type": "application/json", Authorization: `Bearer ${token}` }),
-    [token]
+  // Filter churches by search
+  const filtered = churches.filter(c => 
+    c.name.toLowerCase().includes(search.toLowerCase()) ||
+    c.slug.toLowerCase().includes(search.toLowerCase())
   );
 
-  const load = useCallback(async () => {
-    try {
-      const res = await fetch(`${API}/churches`, { headers: authHeaders() });
-      if (res.status === 401) return onExpired();
-      const data = await res.json();
-      setChurches(Array.isArray(data) ? data : []);
-    } catch {
-      setError("Could not reach the control API. Is the backend running on :3100?");
-    }
-  }, [authHeaders, onExpired]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  const create = async () => {
+  const create = () => {
     if (!name.trim()) return;
-    setBusy(true);
-    setError("");
-    try {
-      const res = await fetch(`${API}/churches`, {
-        method: "POST",
-        headers: authHeaders(),
-        body: JSON.stringify({ name }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to create church");
-      setCreated(data as NewChurch);
-      setName("");
-      load();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to create church");
-    } finally {
-      setBusy(false);
-    }
+    createChurchMutation.mutate(name.trim(), {
+      onSuccess: (data) => {
+        setCreated(data);
+        setName("");
+      },
+    });
   };
 
-  const remove = async (c: Church) => {
-    if (!confirm(`Delete "${c.name}"? This drops its database and storage permanently.`)) return;
-    try {
-      const res = await fetch(`${API}/churches/${c.id}`, { method: "DELETE", headers: authHeaders() });
-      if (!res.ok) {
-        const d = await res.json().catch(() => ({}));
-        throw new Error(d.error || "Delete failed");
-      }
-      load();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Delete failed");
-    }
+  const remove = (c: Church) => {
+    confirm({
+      title: "Delete church?",
+      description: `This will permanently delete "${c.name}", its database, and all data. This action cannot be undone.`,
+      confirmLabel: "Delete",
+      variant: "destructive",
+      onConfirm: () => deleteChurchMutation.mutate(c.id),
+    });
+  };
+
+  const seedDummy = () => {
+    seedDummyMutation.mutate();
   };
 
   const localUrl = (slug: string) => `http://${slug}.localhost:3005`;
+
+  // Get error state
+  const error = deleteChurchMutation.error?.message || createChurchMutation.error?.message || seedDummyMutation.error?.message || churchesQuery.error?.message;
 
   return (
     <>
       <div className="card" style={{ marginBottom: 18 }}>
         <div className="toolbar">
           <h2>Add a church</h2>
-          <button className="ghost" onClick={onLogout}>Sign out</button>
+          <div style={{ display: "flex", gap: "8px" }}>
+            <button className="ghost" onClick={seedDummy} disabled={seedDummyMutation.isPending}>
+              {seedDummyMutation.isPending ? "Seeding…" : "Seed Demo Churches"}
+            </button>
+            <button className="ghost" onClick={onLogout}>Sign out</button>
+          </div>
         </div>
         <div className="row">
-          <div>
+          <div style={{ flex: 1 }}>
             <label>Church name</label>
             <input
               placeholder="e.g. Grace Church Kathmandu"
@@ -194,43 +170,86 @@ function Dashboard({
               onKeyDown={(e) => e.key === "Enter" && create()}
             />
           </div>
-          <button onClick={create} disabled={busy}>{busy ? "Provisioning…" : "Create church"}</button>
+          <button onClick={create} disabled={createChurchMutation.isPending}>{createChurchMutation.isPending ? "Provisioning…" : "Create church"}</button>
         </div>
         <p className="muted" style={{ marginTop: 10 }}>
           Creates a subdomain, a dedicated Postgres database, a storage folder, and an auto-generated admin login.
         </p>
-        {error && <div className="error">{error}</div>}
+        {error && <ErrorState title="Error" description={error} />}
       </div>
+
+      {churches.length > 0 && (
+        <div className="card" style={{ marginBottom: 18 }}>
+          <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+            <input
+              type="text"
+              placeholder="Search churches…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              style={{ flex: 1, maxWidth: "300px" }}
+            />
+            <span className="muted" style={{ fontSize: "12px" }}>{filtered.length} of {churches.length} churches</span>
+          </div>
+        </div>
+      )}
 
       <div className="card">
         <div className="toolbar">
           <h2>Churches ({churches.length})</h2>
         </div>
-        {churches.length === 0 ? (
-          <div className="empty">No churches yet. Add your first one above.</div>
+        {churchesQuery.isLoading ? (
+          <LoadingState message="Loading churches..." variant="skeleton" />
+        ) : churchesQuery.error ? (
+          <ErrorState 
+            title="Failed to load churches" 
+            description={churchesQuery.error.message}
+            retry={() => churchesQuery.refetch()}
+          />
+        ) : churches.length === 0 ? (
+          <EmptyState
+            icon="church"
+            title="No churches yet"
+            description="Get started by creating a new church or seeding demo data."
+            action={{
+              label: seedDummyMutation.isPending ? "Seeding..." : "Seed 5 Demo Churches",
+              onClick: seedDummy,
+            }}
+          />
         ) : (
           <table>
             <thead>
               <tr>
                 <th>Name</th>
-                <th>Local link</th>
-                <th>Admin</th>
+                <th>Plan</th>
                 <th>Status</th>
+                <th>Members</th>
+                <th>Giving</th>
+                <th>Last Active</th>
                 <th></th>
               </tr>
             </thead>
             <tbody>
-              {churches.map((c) => (
+              {filtered.map((c) => (
                 <tr key={c.id}>
-                  <td>{c.name}</td>
                   <td>
-                    <a className="link" href={localUrl(c.slug)} target="_blank" rel="noreferrer">
-                      {c.slug}.localhost:3005
-                    </a>
+                    <div style={{ fontWeight: 500 }}>{c.name}</div>
+                    <div className="muted" style={{ fontSize: "11px" }}>{c.slug}.localhost:3005</div>
                   </td>
-                  <td className="muted">{c.admin_email}</td>
-                  <td><span className="badge">{c.status}</span></td>
+                  <td><span className="badge" style={{ 
+                    background: c.plan === "Pro" ? "rgba(79,140,255,0.2)" : 
+                              c.plan === "Standard" ? "rgba(47,191,107,0.15)" : "rgba(147,163,187,0.1)" 
+                  }}>{c.plan || "—"}</span></td>
+                  <td><span className="badge" style={{
+                    background: c.status === "active" ? "rgba(47,191,107,0.15)" : "rgba(255,93,93,0.15)",
+                    color: c.status === "active" ? "var(--good)" : "var(--danger)"
+                  }}>{c.status}</span></td>
+                  <td className="muted">{c.member_count ?? "—"}</td>
+                  <td className="muted">Rs. {c.giving_total?.toLocaleString() ?? "—"}</td>
+                  <td className="muted">{c.last_active_at ? new Date(c.last_active_at).toLocaleDateString() : "—"}</td>
                   <td style={{ textAlign: "right" }}>
+                    <a className="link" href={localUrl(c.slug)} target="_blank" rel="noreferrer" style={{ marginRight: "8px" }}>
+                      Open
+                    </a>
                     <button className="danger" onClick={() => remove(c)}>Delete</button>
                   </td>
                 </tr>
@@ -241,6 +260,7 @@ function Dashboard({
       </div>
 
       {created && <CredentialsModal data={created} onClose={() => setCreated(null)} />}
+      <ConfirmDialog />
     </>
   );
 }

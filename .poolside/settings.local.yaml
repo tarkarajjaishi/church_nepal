@@ -1,0 +1,8 @@
+tools:
+    shell:
+        allow:
+            - dir *
+            - findstr *
+            - head *
+            - ls *
+            - Get-ChildItem *

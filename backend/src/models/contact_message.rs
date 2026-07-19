@@ -13,6 +13,8 @@ pub struct ContactMessage {
     pub anonymous: bool,
     pub visit_date: String,
     pub status: String,
+    pub notes: Option<String>,
+    pub answered_at: Option<chrono::NaiveDateTime>,
     pub created_at: chrono::NaiveDateTime,
 }
 
@@ -34,4 +36,13 @@ pub struct CreateContactMessage {
     pub anonymous: Option<bool>,
     #[serde(default)]
     pub visit_date: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct UpdateContactMessage {
+    #[serde(default)]
+    pub status: Option<String>,
+    #[serde(default)]
+    pub notes: Option<String>,
+    pub answered_at: Option<chrono::NaiveDateTime>,
 }

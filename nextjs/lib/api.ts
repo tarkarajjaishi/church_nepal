@@ -50,9 +50,18 @@ api.interceptors.response.use(
 )
 
 // Public API — no auth needed for reading
+export interface PaginatedResponse<T> {
+  data: T[]
+  total: number
+  page: number
+  per_page: number
+  total_pages: number
+}
+
 export async function fetchAll<T>(endpoint: string): Promise<T[]> {
-  const { data } = await api.get<T[]>(`/${endpoint}`)
-  return data
+  const { data } = await api.get<PaginatedResponse<T>>(`/${endpoint}`)
+  // Handle both paginated responses and direct arrays (for backwards compatibility)
+  return Array.isArray(data) ? data : data.data
 }
 
 export async function fetchOne<T>(endpoint: string, id: string): Promise<T> {

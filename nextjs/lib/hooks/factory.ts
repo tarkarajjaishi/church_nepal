@@ -9,6 +9,14 @@ import api from '../admin/api'
  *   const { useList, useGet, useCreate, useUpdate, useDelete, useToggle } =
  *     createResourceHooks<Sermon>('sermons')
  */
+export interface PaginatedResponse<T> {
+  data: T[]
+  total: number
+  page: number
+  per_page: number
+  total_pages: number
+}
+
 export function createResourceHooks<T extends { id: string }>(endpoint: string) {
   const key = endpoint // react-query cache key
 
@@ -20,7 +28,7 @@ export function createResourceHooks<T extends { id: string }>(endpoint: string) 
         if (pagination?.page) allParams.page = String(pagination.page)
         if (pagination?.per_page) allParams.per_page = String(pagination.per_page)
         const qs = Object.keys(allParams).length ? '?' + new URLSearchParams(allParams).toString() : ''
-        return api.get<T[]>(`/${endpoint}${qs}`).then(r => r.data)
+        return api.get<PaginatedResponse<T>>(`/${endpoint}${qs}`).then(r => r.data.data) // Extract data array from paginated response
       },
     })
   }

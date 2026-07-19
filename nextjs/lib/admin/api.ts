@@ -71,7 +71,8 @@ export function createCrudHooks<T extends { id: string }>(endpoint: string) {
   return {
     list: async () => {
       const { data } = await api.get<T[]>(`/${endpoint}`)
-      return data
+      // Handle both paginated responses and direct arrays
+      return Array.isArray(data) ? data : (data as any).data ?? []
     },
     get: async (id: string) => {
       const { data } = await api.get<T>(`/${endpoint}/${id}`)

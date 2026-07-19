@@ -5,7 +5,7 @@ use uuid::Uuid;
 
 use crate::auth::AuthUser;
 use crate::error::AppError;
-use crate::models::{ContactMessage, CreateContactMessage};
+use crate::models::{ContactMessage, CreateContactMessage, UpdateContactMessage};
 
 pub async fn create(
     Db(pool): Db,
@@ -51,6 +51,30 @@ pub async fn get(
         "SELECT * FROM contact_messages WHERE id = $1",
     )
     .bind(id)
+    .fetch_optional(&pool)
+    .await?
+    .ok_or_else(|| AppError::not_found("Message not found"))?;
+    Ok(Json(row))
+}
+
+pub async fn update(
+    _auth: AuthUser,
+    Db(pool): Db,
+    Path(id): Path<Uuid>,
+    Json(input): Json<UpdateContactMessage>,
+) -> Result<Json<ContactMessage>, AppError> {
+    let row = sqlx::query_as::<_, ContactMessage>(
+        r#"UPDATE contact_messages SET
+           status = COALESCE($2, status),
+           notes = COALESCE($3, notes),
+           answered_at = $4
+           WHERE id = $1
+           RETURNING *"#,
+    )
+    .bind(id)
+    .bind(input.status)
+    .bind(input.notes)
+    .bind(input.answered_at)
     .fetch_optional(&pool)
     .await?
     .ok_or_else(|| AppError::not_found("Message not found"))?;

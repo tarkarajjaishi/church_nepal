@@ -3,6 +3,7 @@ mod config;
 mod error;
 mod handlers;
 mod provision;
+mod seed;
 
 use axum::http::{header, Method};
 use axum::routing::{delete, get, post};
@@ -38,6 +39,9 @@ async fn main() {
 
     seed_super_admin(&pool, &cfg).await;
 
+    // Seed dummy churches (dev mode - idempotent)
+    let _ = seed::seed_dummy_churches(&cfg, &pool).await;
+
     let state = AppState { pool, cfg: Arc::new(cfg.clone()) };
 
     let cors = CorsLayer::new()
@@ -48,8 +52,24 @@ async fn main() {
     let api = Router::new()
         .route("/auth/login", post(handlers::login))
         .route("/auth/me", get(handlers::me))
+        // Churches
         .route("/churches", get(handlers::list_churches).post(handlers::create_church))
         .route("/churches/{id}", delete(handlers::delete_church))
+        .route("/churches/{slug}/stats", get(handlers::get_church_stats))
+        // Plans
+        .route("/plans", get(handlers::list_plans).post(handlers::create_plan))
+        .route("/plans/{id}", get(handlers::get_plan).put(handlers::update_plan).delete(handlers::delete_plan))
+        // Billing
+        .route("/billing", get(handlers::list_billing))
+        .route("/billing/{church_id}", get(handlers::get_billing_for_church))
+        .route("/invoices", get(handlers::list_invoices).post(handlers::create_invoice))
+        .route("/invoices/{id}/pay", post(handlers::mark_invoice_paid))
+        // Analytics
+        .route("/analytics", get(handlers::get_analytics))
+        .route("/analytics/growth", get(handlers::get_growth_analytics))
+        .route("/analytics/top-churches", get(handlers::get_top_churches))
+        // Seeding
+        .route("/seed/dummy", post(handlers::seed_dummy))
         .with_state(state);
 
     let app = Router::new().nest("/api", api).layer(cors);

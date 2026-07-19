@@ -292,7 +292,11 @@ export interface ContentBlock {
 export function useContentBlocks() {
   return useQuery({
     queryKey: ["content-blocks"],
-    queryFn: () => api.get("/content-blocks").then(r => r.data as ContentBlock[]),
+    queryFn: async () => {
+      const { data } = await api.get("/content-blocks")
+      // Handle both paginated responses and direct arrays
+      return Array.isArray(data) ? (data as ContentBlock[]) : (data as any).data ?? []
+    },
     placeholderData: [] as ContentBlock[],
   })
 }
@@ -323,7 +327,11 @@ export function useContactInfo() {
 function useDashboardList(endpoint: string) {
   const query = useQuery({
     queryKey: ["dashboard", endpoint],
-    queryFn: () => api.get(`/${endpoint}`).then(r => r.data),
+    queryFn: async () => {
+      const { data } = await api.get(`/${endpoint}`)
+      // Handle both paginated responses and direct arrays
+      return Array.isArray(data) ? data : (data as any).data ?? []
+    },
   })
   return wrapQuery(query)
 }
@@ -379,7 +387,14 @@ export function createResourceHooks<T = any>(endpoint: string) {
 
   return {
     useList: () =>
-      wrapQuery(useQuery({ queryKey: key, queryFn: () => api.get(base).then(r => r.data) })),
+      wrapQuery(useQuery({
+        queryKey: key,
+        queryFn: async () => {
+          const { data } = await api.get(`${base}`)
+          // Handle both paginated responses and direct arrays
+          return Array.isArray(data) ? data : (data as any).data ?? []
+        }
+      })),
     useCreate: () => {
       const qc = useQueryClient()
       return useMutation({

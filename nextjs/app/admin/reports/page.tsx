@@ -2,16 +2,18 @@
 
 import { useState } from 'react'
 import { useGivingSummary, usePeopleSummary } from '@/lib/hooks'
-import { DollarSign, Users, TrendingUp, BarChart3, ArrowUpRight, ArrowDownRight } from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { DollarSign, Users, TrendingUp, BarChart3, ArrowUpRight, ArrowDownRight, FileDown, Calendar, ClipboardCheck } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts'
 import { Loading, EmptyState, ErrorState } from '@/components/LoadingStates'
+import { toast } from 'sonner'
 
 const COLORS = ['#3B82F6', '#10B981', '#8B5CF6', '#F59E0B', '#EF4444', '#EC4899', '#06B6D4', '#84CC16']
 
 export default function ReportsPage() {
-  const [tab, setTab] = useState<'giving' | 'people'>('giving')
+  const [tab, setTab] = useState<'giving' | 'people' | 'attendance'>('giving')
 
   const { data: givingSummary = {}, isLoading: givingLoading, isError: givingError, refetch: refetchGiving } = useGivingSummary()
   const { data: peopleSummary = {}, isLoading: peopleLoading, isError: peopleError, refetch: refetchPeople } = usePeopleSummary()
@@ -22,10 +24,39 @@ export default function ReportsPage() {
   const statusDistribution = peopleSummary.statusDistribution || []
   const membershipSummary = peopleSummary.membership || {}
 
+  const exportToCSV = () => {
+    if (tab === 'giving') {
+      const headers = ['Month', 'Total']
+      const rows = monthlyData.map((m: any) => [m.month, m.total])
+      const csvContent = [headers, ...rows].map(e => e.join(',')).join('\n')
+      downloadFile(csvContent, 'giving-report.csv', 'text/csv')
+    } else if (tab === 'people') {
+      const headers = ['Status', 'Count']
+      const rows = statusDistribution.map((s: any) => [s.status, s.count])
+      const csvContent = [headers, ...rows].map(e => e.join(',')).join('\n')
+      downloadFile(csvContent, 'people-report.csv', 'text/csv')
+    }
+    toast.success('Report exported successfully')
+  }
+
+  const downloadFile = (content: string, filename: string, mimeType: string) => {
+    const blob = new Blob([content], { type: mimeType })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-[#0b3c5d]">Reports</h1>
+        <Button variant="outline" size="sm" onClick={exportToCSV}>
+          <FileDown className="size-4 mr-1.5" />
+          Export CSV
+        </Button>
       </div>
 
       {/* Tab Bar */}
