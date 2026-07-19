@@ -96,7 +96,7 @@ Every provisioned church gets a full website that its own admins manage — no d
                          └──────────────────────────────┘   storage/<slug>/
 ```
 
-Reverse proxy (Caddy/nginx) routes the apex to the control plane and `*.churchnepal.com` to the church app, **preserving the Host header** so the backend can resolve the tenant. See **[ARCHITECTURE.md](ARCHITECTURE.md)** for the full data flow.
+Reverse proxy (Caddy/nginx) routes the apex to the control plane and `*.churchnepal.com` to the church app, **preserving the Host header** so the backend can resolve the tenant. See **[ARCHITECTURE.md](docs/ARCHITECTURE.md)** for the full data flow.
 
 ---
 
@@ -188,7 +188,7 @@ Under the hood (`control-plane/backend/src/provision.rs`): name → slug → `CR
 3. **Frontends:** build each Next.js app; set `NEXT_PUBLIC_API_URL` to same-origin so the tenant Host header reaches the backend.
 4. **Secrets:** strong `JWT_SECRET`, `SUPER_ADMIN_PASSWORD`, and a Postgres user with `CREATEDB` for the provisioner.
 
-Full guide: **[MULTI_TENANT_SETUP.md](MULTI_TENANT_SETUP.md)**.
+Full guide: **[MULTI_TENANT_SETUP.md](docs/MULTI_TENANT_SETUP.md)**.
 
 ---
 
@@ -209,10 +209,11 @@ GitHub Actions provides a production pipeline:
 
 | Doc | Contents |
 |-----|----------|
-| [ARCHITECTURE.md](ARCHITECTURE.md) | System design, data flow, tenant resolution |
-| [MULTI_TENANT_SETUP.md](MULTI_TENANT_SETUP.md) | Running & deploying the multi-tenant platform |
-| [API_DOCUMENTATION.md](API_DOCUMENTATION.md) | Backend API endpoints |
-| [ROADMAP.md](ROADMAP.md) | Feature backlog & phases |
+| [OVERVIEW.md](docs/OVERVIEW.md) | What the project is, its objective, and how it's controlled |
+| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design, data flow, tenant resolution |
+| [MULTI_TENANT_SETUP.md](docs/MULTI_TENANT_SETUP.md) | Running & deploying the multi-tenant platform |
+| [API_DOCUMENTATION.md](docs/API_DOCUMENTATION.md) | Backend API endpoints |
+| [ROADMAP.md](docs/ROADMAP.md) | Feature backlog & phases |
 
 ---
 
