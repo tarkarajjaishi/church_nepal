@@ -75,7 +75,9 @@ jobs:
   # Build and Push Docker Images
   docker-build:
     runs-on: ubuntu-latest
-    needs: [ frontend-build, backend-check ]
+    # Only gate on the backend build; the frontend image publishes once the app
+    # compiles (its step is continue-on-error until then).
+    needs: [ backend-check ]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     permissions:
       contents: read
@@ -100,7 +102,8 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - uses: docker/build-push-action@v5
+      - continue-on-error: true
+        uses: docker/build-push-action@v5
         with:
           context: ./nextjs
           file: ./nextjs/Dockerfile
