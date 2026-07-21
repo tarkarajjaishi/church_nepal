@@ -17,10 +17,12 @@ const Switch = forwardRef<HTMLButtonElement, SwitchProps>(
         role="switch"
         aria-checked={checked}
         className={cn(
-          "inline-flex h-6 w-11 items-center rounded-full transition-colors",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+          "inline-flex h-6 w-11 items-center rounded-full transition-all",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--ring-offset)]",
           "disabled:cursor-not-allowed disabled:opacity-50",
-          checked ? "bg-accent" : "bg-panel-2",
+          checked 
+            ? "bg-accent shadow-md" 
+            : "bg-panel-2 border border-border",
           className
         )}
         onClick={() => onCheckedChange?.(!checked)}
@@ -28,8 +30,10 @@ const Switch = forwardRef<HTMLButtonElement, SwitchProps>(
       >
         <span
           className={cn(
-            "inline-block h-5 w-5 rounded-full bg-white shadow-lg transition-transform",
-            checked ? "translate-x-6" : "translate-x-1"
+            "inline-block h-5 w-5 rounded-full shadow transition-transform",
+            checked 
+              ? "translate-x-6 bg-[var(--accent-contrast)]" 
+              : "translate-x-1 bg-[var(--text-strong)]"
           )}
         />
       </button>

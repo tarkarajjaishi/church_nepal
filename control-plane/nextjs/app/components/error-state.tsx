@@ -1,6 +1,7 @@
 "use client";
 
 import { AlertCircle, AlertTriangle, WifiOff, ServerCrash } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
 interface ErrorStateProps {
@@ -21,24 +22,24 @@ export function ErrorState({
   const getIcon = () => {
     switch (variant) {
       case "warning":
-        return <AlertTriangle className="h-12 w-12" style={{ color: "var(--gold)" }} />;
+        return <AlertTriangle className="h-12 w-12 text-gold" />;
       case "network":
-        return <WifiOff className="h-12 w-12" style={{ color: "var(--accent)" }} />;
+        return <WifiOff className="h-12 w-12 text-accent" />;
       case "server":
-        return <ServerCrash className="h-12 w-12" style={{ color: "var(--danger)" }} />;
+        return <ServerCrash className="h-12 w-12 text-danger" />;
       default:
-        return <AlertCircle className="h-12 w-12" style={{ color: "var(--danger)" }} />;
+        return <AlertCircle className="h-12 w-12 text-danger" />;
     }
   };
 
   return (
     <div className="flex flex-col items-center justify-center p-8 text-center">
       {getIcon()}
-      <h3 className="mt-4 text-lg font-semibold" style={{ color: "var(--text)" }}>{title}</h3>
+      <h3 className="mt-4 text-lg font-semibold text-text">{title}</h3>
       {typeof description === "string" ? (
-        <p className="mt-2 text-sm max-w-sm" style={{ color: "var(--muted)" }}>{description}</p>
+        <p className="mt-2 text-sm max-w-sm text-muted">{description}</p>
       ) : (
-        <div className="mt-2 text-sm max-w-sm" style={{ color: "var(--muted)" }}>{description}</div>
+        <div className="mt-2 text-sm max-w-sm text-muted">{description}</div>
       )}
       {retry && (
         <Button onClick={retry} variant="outline" className="mt-4">
@@ -58,7 +59,7 @@ export function InlineError({
   className?: string 
 }) {
   return (
-    <div className={`flex items-center gap-2 text-sm ${className || ""}`} style={{ color: "var(--danger)" }}>
+    <div className={cn("flex items-center gap-2 text-sm text-danger", className)}>
       <AlertCircle className="h-4 w-4" />
       {message}
     </div>

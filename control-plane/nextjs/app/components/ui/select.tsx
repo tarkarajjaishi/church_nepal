@@ -66,7 +66,7 @@ const SelectTrigger = forwardRef<
       type="button"
       className={cn(
         "flex h-10 w-full items-center justify-between rounded-md border border-border bg-panel-2 px-3 py-2 text-sm text-text",
-        "focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2",
+        "focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-[var(--ring-offset)]",
         "disabled:cursor-not-allowed disabled:opacity-50",
         className
       )}

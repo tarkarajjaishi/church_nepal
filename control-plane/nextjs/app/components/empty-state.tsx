@@ -35,7 +35,7 @@ export function EmptyState({
     
     if (typeof icon === "string" && icon in iconMap) {
       const IconComponent = iconMap[icon];
-      return <IconComponent className="h-12 w-12" style={{ color: "var(--muted)" }} />;
+      return <IconComponent className="h-12 w-12 text-muted" />;
     }
     
     return icon;
@@ -45,9 +45,9 @@ export function EmptyState({
     return (
       <div className="flex flex-col items-center justify-center py-8 text-center">
         {renderIcon()}
-        <h3 className="mt-3 text-base font-medium" style={{ color: "var(--text)" }}>{title}</h3>
+        <h3 className="mt-3 text-base font-medium text-text">{title}</h3>
         {description && (
-          <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>{description}</p>
+          <p className="mt-1 text-sm text-muted">{description}</p>
         )}
         {action && (
           <Button onClick={action.onClick} variant="outline" size="sm" className="mt-3">
@@ -60,12 +60,12 @@ export function EmptyState({
 
   return (
     <div className="flex flex-col items-center justify-center p-8 text-center">
-      <div className="mb-4 text-4xl" style={{ color: "var(--muted)" }}>
+      <div className="mb-4 text-4xl text-muted">
         {renderIcon()}
       </div>
-      <h3 className="text-lg font-semibold" style={{ color: "var(--text)" }}>{title}</h3>
+      <h3 className="text-lg font-semibold text-text">{title}</h3>
       {description && (
-        <p className="mt-2 text-sm max-w-sm" style={{ color: "var(--muted)" }}>{description}</p>
+        <p className="mt-2 text-sm max-w-sm text-muted">{description}</p>
       )}
       {action && (
         <Button onClick={action.onClick} className="mt-4">

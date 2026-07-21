@@ -86,16 +86,23 @@ DropdownMenuContent.displayName = "DropdownMenuContent";
 const DropdownMenuItem = forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement>
->(({ className, ...props }, ref) => (
-  <div
-    ref={ref}
-    className={cn(
-      "relative flex cursor-pointer items-center rounded-sm px-2 py-1.5 text-sm text-text outline-none transition-colors hover:bg-panel-2 hover:text-text",
-      className
-    )}
-    {...props}
-  />
-));
+>(({ className, onClick, ...props }, ref) => {
+  const { setOpen } = useDropdownMenuContext();
+  return (
+    <div
+      ref={ref}
+      className={cn(
+        "relative flex cursor-pointer items-center rounded-sm px-2 py-1.5 text-sm text-text outline-none transition-colors hover:bg-[var(--accent-soft)] hover:text-[var(--accent)]",
+        className
+      )}
+      onClick={(e) => {
+        onClick?.(e);
+        setOpen(false);
+      }}
+      {...props}
+    />
+  );
+});
 DropdownMenuItem.displayName = "DropdownMenuItem";
 
 const DropdownMenuCheckboxItem = forwardRef<

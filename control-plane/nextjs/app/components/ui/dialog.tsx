@@ -72,7 +72,7 @@ const DialogOverlay = forwardRef<
   <div
     ref={ref}
     className={cn(
-      "fixed inset-0 bg-black/60 backdrop-blur-sm",
+      "fixed inset-0 bg-[var(--overlay)] backdrop-blur-sm",
       className
     )}
     {...props}
@@ -102,7 +102,7 @@ const DialogContent = forwardRef<
       >
         {children}
         <button
-          className="absolute right-4 top-4 rounded-sm p-1 text-muted hover:bg-panel-2 hover:text-text"
+          className="absolute right-4 top-4 rounded-sm p-1 text-muted hover:bg-panel-2 hover:text-text focus:outline-none focus:ring-2 focus:ring-accent"
           onClick={() => setOpen(false)}
         >
           <X className="h-4 w-4" />
@@ -144,7 +144,7 @@ const DialogTitle = forwardRef<
 >(({ className, ...props }, ref) => (
   <h2
     ref={ref}
-    className={cn("text-lg font-semibold text-text", className)}
+    className={cn("text-lg font-semibold text-text-strong", className)}
     {...props}
   />
 ));

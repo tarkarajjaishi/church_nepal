@@ -30,14 +30,14 @@ export function ConfirmDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md bg-panel border border-border">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2" style={{ color: "var(--text)" }}>
+          <DialogTitle className="flex items-center gap-2 text-text">
             {variant === "destructive" && (
-              <AlertTriangle className="h-5 w-5" style={{ color: "var(--danger)" }} />
+              <AlertTriangle className="h-5 w-5 text-danger" />
             )}
             {title}
           </DialogTitle>
           {description && (
-            <DialogDescription style={{ color: "var(--muted)" }}>
+            <DialogDescription className="text-muted">
               {variant === "destructive" ? (
                 <span>
                   <strong className="text-danger">Warning:</strong> {description}
@@ -51,7 +51,7 @@ export function ConfirmDialog({
             {cancelLabel}
           </Button>
           <Button 
-            variant={variant === "destructive" ? "destructive" : "default"}
+            variant={variant === "destructive" ? "destructive" : "primary"}
             onClick={() => {
               onConfirm();
               onOpenChange(false);

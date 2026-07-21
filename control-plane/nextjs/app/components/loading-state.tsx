@@ -16,8 +16,8 @@ export function LoadingState({ rows = 3, message = "Loading...", variant = "spin
       <div className="space-y-4 p-6">
         {Array.from({ length: rows }).map((_, i) => (
           <div key={i} className="space-y-2">
-            <Skeleton className="h-4 w-3/4 bg-panel-2" />
-            <Skeleton className="h-4 w-1/2 bg-panel-2" />
+            <Skeleton className="h-4 w-3/4" />
+            <Skeleton className="h-4 w-1/2" />
           </div>
         ))}
       </div>
@@ -27,8 +27,8 @@ export function LoadingState({ rows = 3, message = "Loading...", variant = "spin
   // Spinner variant (default)
   if (inline) {
     return (
-      <div className="flex items-center gap-2 text-sm" style={{ color: "var(--muted)" }}>
-        <Loader2 className="h-4 w-4 animate-spin" style={{ color: "var(--accent)" }} />
+      <div className="flex items-center gap-2 text-sm text-muted">
+        <Loader2 className="h-4 w-4 animate-spin text-accent" />
         {message}
       </div>
     );
@@ -36,8 +36,8 @@ export function LoadingState({ rows = 3, message = "Loading...", variant = "spin
 
   return (
     <div className="flex flex-col items-center justify-center p-8 text-center min-h-[200px]">
-      <Loader2 className="h-8 w-8 animate-spin mb-4" style={{ color: "var(--accent)" }} />
-      <p className="text-sm" style={{ color: "var(--muted)" }}>{message}</p>
+      <Loader2 className="h-8 w-8 animate-spin mb-4 text-accent" />
+      <p className="text-sm text-muted">{message}</p>
     </div>
   );
 }
@@ -46,8 +46,8 @@ export function LoadingState({ rows = 3, message = "Loading...", variant = "spin
 export function LoadingSpinner({ size = 24, className }: { size?: number; className?: string }) {
   return (
     <Loader2 
-      className={`animate-spin ${className || ""}`} 
-      style={{ width: size, height: size, color: "var(--accent)" }} 
+      className={`animate-spin ${className || ""} text-accent`} 
+      style={{ width: size, height: size }}
     />
   );
 }

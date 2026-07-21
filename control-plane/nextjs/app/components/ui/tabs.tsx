@@ -66,9 +66,9 @@ const TabsTrigger = forwardRef<
       ref={ref}
       className={cn(
         "inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium",
-        "transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+        "transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--ring-offset)]",
         selected === value 
-          ? "bg-accent text-white shadow" 
+          ? "bg-accent text-[var(--accent-contrast)] shadow" 
           : "text-muted hover:text-text",
         className
       )}
@@ -89,7 +89,7 @@ const TabsContent = forwardRef<
     <div
       ref={ref}
       className={cn(
-        "mt-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        "mt-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
         className
       )}
       {...props}
