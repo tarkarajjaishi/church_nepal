@@ -1,0 +1,64 @@
+Fix ALL these TypeScript errors in control-plane/nextjs/app/admin/layout.tsx so it compiles cleanly.
+
+KEY FACTS about this codebase — use them to fix the errors correctly:
+- The auth hook is `useMe` (current signed-in admin), exported from "@/components/hooks".
+  There is NO `useAuth` — replace any useAuth() with useMe().
+- The Church type (from "@/types") fields: id, name, slug, status, plan (string|null),
+  member_count (number), storage_bytes, created_at, admin_email, subdomain. There is NO
+  `plan_name` — use `plan`. Guard optional fields.
+- The admin chart/widget components are DEFAULT exports, one per file under
+  "@/components/admin/". Import each as DEFAULT from its OWN file, e.g.:
+    import AreaChart from "@/components/admin/area-chart";
+    import DonutChart from "@/components/admin/donut-chart";
+    import BarChart from "@/components/admin/bar-chart";
+    import StatCard from "@/components/admin/stat-card";
+    import CreateChurchModal from "@/components/admin/create-church-modal";
+    import EditPlanModal from "@/components/admin/edit-plan-modal";
+    import InvoicesTable from "@/components/admin/invoices-table";
+    import ActivityFeed from "@/components/admin/activity-feed";
+    import SystemStatus from "@/components/admin/system-status";
+    import CommandPalette from "@/components/admin/command-palette";
+    import ChurchesToolbar from "@/components/admin/churches-toolbar";
+    import Breadcrumbs from "@/components/admin/breadcrumbs";
+  Do NOT import from "@/components/admin" (there is NO barrel/index) and do NOT use named
+  imports for these components. KEEP every admin component a DEFAULT export
+  (export default ...); do NOT convert any of them to a named export — fix the IMPORT side
+  to match the default export instead.
+- The Analytics type has: total_churches, active_churches, total_members, total_giving, mrr.
+  It does NOT have `revenue_trend` or other invented fields. Do not reference fields that do
+  not exist — derive any trend from useChurches() by created_at, or drop that particular chart.
+- `apiClient` (from "@/lib/api-client") is an axios instance with .get/.post/.put/.delete only.
+  It has NO `useQuery`. For data use `useQuery`/`useMutation` from "@tanstack/react-query" and
+  call apiClient inside the queryFn/mutationFn.
+- Give explicit types to arrays/params (no implicit-any), e.g.
+  const rows: { label: string; value: number }[] = [].
+- Never touch window/document/localStorage during render (SSR-safe) — only in useEffect/handlers.
+
+CANONICAL COMPONENT CONTRACTS — fix the CONSUMER side to match these EXACT prop names
+(do NOT rename the components' props):
+- CreateChurchModal props: { open: boolean; onClose: () => void }. Pass `open` (NOT isOpen).
+- EditPlanModal props: { plan: Plan | null; onClose: () => void } (it shows when plan != null).
+  Pass `plan` and `onClose` — do NOT pass open / onOpenChange / church / plans.
+- ChurchesToolbar props: { search: string; onSearch:(s:string)=>void; plan: string;
+  onPlan:(s:string)=>void; status: string; onStatus:(s:string)=>void; sort: string;
+  onSort:(s:string)=>void }. Use these names (NOT searchQuery/selectedPlan/onSearchChange/...).
+- Charts AreaChart/DonutChart/BarChart are DEFAULT exports taking data: {label:string; value:number}[].
+  Import each as default (import DonutChart from "@/components/admin/donut-chart"); map any
+  {date,value} to {label,value}. Keep DonutChart a DEFAULT export.
+- CommandPalette takes NO props.
+OTHER CONTRACTS:
+- useMe() returns ONLY { id: string; email: string }. Do NOT read .name, .role or
+  .last_login_at (they don't exist). For a role label use a constant like "Super Admin",
+  and derive a display name from the email if needed.
+- The <Button> from "@/components/ui/button" does NOT support `asChild`. For a link styled as a
+  button use a styled <Link>/<a> or plain <button> — never <Button asChild>.
+- The Plan type comes from "@/types" — import it (import { Plan } from "@/types"); do NOT define a
+  local `interface Plan`/`type Plan` (that causes "two different types named Plan").
+
+Output the COMPLETE corrected file. Keep all existing, working functionality and the default export.
+
+THE ERRORS (from `tsc --noEmit`):
+  line 203: error TS2322: Type '{ children: Element; asChild: true; }' is not assignable to type 'IntrinsicAttributes & ButtonHTMLAttributes<HTMLButtonElement> & RefAttributes<HTMLButtonElement>'.
+
+MODIFY (output the COMPLETE corrected file): control-plane/nextjs/app/admin/layout.tsx
+@include: control-plane/nextjs/app/admin/layout.tsx

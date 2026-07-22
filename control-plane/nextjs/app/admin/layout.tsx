@@ -9,6 +9,8 @@ import { AdminSidebar, AdminMobileDrawer } from "./sidebar";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
 import { useTheme } from "@/components/theme-provider";
+import Breadcrumbs from "@/components/admin/breadcrumbs";
+import CommandPalette from "@/components/admin/command-palette";
 
 // Page titles mapping
 const pageTitles: Record<string, string> = {
@@ -87,6 +89,7 @@ export default function AdminLayout({
 
   return (
     <div className="min-h-screen bg-[var(--bg)] text-[var(--text)]">
+      <CommandPalette />
       <div className="flex h-screen overflow-hidden">
         {/* Desktop Sidebar */}
         <AdminSidebar />
@@ -101,33 +104,41 @@ export default function AdminLayout({
         {/* Main Content Area */}
         <div className="flex flex-col flex-1 overflow-hidden">
           {/* Topbar */}
-          <header className="flex items-center justify-between h-16 px-6 bg-[var(--panel-2)] border-b border-[var(--border)]">
-            {/* Left side - Mobile menu button + Page title */}
-            <div className="flex items-center gap-4">
-              {/* Mobile menu button */}
-              <button
-                onClick={() => setMobileMenuOpen(true)}
-                className="md:hidden p-2 rounded-md text-[var(--muted)] hover:text-[var(--text-strong)] hover:bg-[var(--panel-3)] transition-colors"
-                aria-label="Open navigation menu"
-              >
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 15a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
-                </svg>
-              </button>
-
-              {/* Page Title */}
-              <h1 className="text-xl font-semibold text-[var(--text-strong)]">
-                {getPageTitle(pathname)}
-              </h1>
+          <header className="flex flex-col gap-4 h-auto px-6 py-4 bg-[var(--panel-2)] border-b border-[var(--border)]">
+            {/* Breadcrumbs row */}
+            <div className="flex items-center">
+              <Breadcrumbs />
             </div>
+            
+            {/* Navigation and User Menu row */}
+            <div className="flex items-center justify-between">
+              {/* Left side - Mobile menu button + Page title */}
+              <div className="flex items-center gap-4">
+                {/* Mobile menu button */}
+                <button
+                  onClick={() => setMobileMenuOpen(true)}
+                  className="md:hidden p-2 rounded-md text-[var(--muted)] hover:text-[var(--text-strong)] hover:bg-[var(--panel-3)] transition-colors"
+                  aria-label="Open navigation menu"
+                >
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 15a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
+                  </svg>
+                </button>
 
-            {/* Right side - Theme toggle + User menu */}
-            <div className="flex items-center gap-3">
-              {/* Theme Toggle */}
-              <ThemeToggleButton />
-              
-              {/* User Menu */}
-              <UserMenu email={userEmail} name={userName} onLogout={handleLogout} router={router} />
+                {/* Page Title */}
+                <h1 className="text-xl font-semibold text-[var(--text-strong)]">
+                  {getPageTitle(pathname)}
+                </h1>
+              </div>
+
+              {/* Right side - Theme toggle + User menu */}
+              <div className="flex items-center gap-3">
+                {/* Theme Toggle */}
+                <ThemeToggleButton />
+                
+                {/* User Menu */}
+                <UserMenu email={userEmail} name={userName} onLogout={handleLogout} router={router} />
+              </div>
             </div>
           </header>
 
@@ -189,18 +200,16 @@ function UserMenu({ email, name, onLogout, router }: UserMenuProps) {
 
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
-      <DropdownMenuTrigger>
-        <button
-          className="flex items-center gap-2 p-1 rounded-md hover:bg-[var(--panel-3)] transition-colors"
-          aria-label="User menu"
-        >
-          <Avatar className="h-8 w-8">
-            <AvatarImage src="" alt={name} />
-            <AvatarFallback>
-              {name.charAt(0).toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
-        </button>
+      <DropdownMenuTrigger
+        className="flex items-center gap-2 p-1 rounded-md hover:bg-[var(--panel-3)] transition-colors"
+        aria-label="User menu"
+      >
+        <Avatar className="h-8 w-8">
+          <AvatarImage src="" alt={name} />
+          <AvatarFallback>
+            {name.charAt(0).toUpperCase()}
+          </AvatarFallback>
+        </Avatar>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
         <DropdownMenuLabel>
@@ -210,15 +219,15 @@ function UserMenu({ email, name, onLogout, router }: UserMenuProps) {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => setOpen(false)}>
+        <DropdownMenuItem onSelect={() => setOpen(false)}>
           Profile
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => { setOpen(false); router.push("/admin/settings"); }}>
+        <DropdownMenuItem onSelect={() => { setOpen(false); router.push("/admin/settings"); }}>
           Settings
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem 
-          onClick={() => { 
+          onSelect={() => { 
             setOpen(false); 
             onLogout(); 
           }}

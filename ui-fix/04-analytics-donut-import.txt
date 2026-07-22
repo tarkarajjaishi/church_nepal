@@ -1,0 +1,12 @@
+Fix ONE import in control-plane/nextjs/app/admin/analytics/page.tsx.
+
+It currently has a NAMED import:
+    import { DonutChart } from "@/components/admin/donut-chart";
+but DonutChart is a DEFAULT export. This causes the only remaining TypeScript error
+(TS2614: no exported member 'DonutChart').
+
+FIX: change it to a default import:
+    import DonutChart from "@/components/admin/donut-chart";
+Leave everything else exactly as-is. Output the COMPLETE corrected file.
+
+@include: control-plane/nextjs/app/admin/analytics/page.tsx

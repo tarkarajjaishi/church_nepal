@@ -1,23 +1,30 @@
 "use client";
 
-import { useParams } from "next/navigation";
-import { ArrowLeft, Database, ExternalLink } from "lucide-react";
+import { useParams, useRouter } from "next/navigation";
+import { ArrowLeft, Database, ExternalLink, Copy, CreditCard } from "lucide-react";
 import Link from "next/link";
-import { useChurch, useDeleteChurch } from "@/components/hooks";
+import { useChurch, useDeleteChurch, usePlans } from "@/components/hooks";
 import { LoadingState, ErrorState } from "@/components";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useConfirmDialog } from "@/components/confirm-dialog";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+import EditPlanModal from "@/components/admin/edit-plan-modal";
+import { Plan } from "@/types";
+import React, { useState } from "react";
 
 export default function ChurchDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const churchId = params.id as string;
   
   const { data: church, isLoading, error } = useChurch(churchId);
   const deleteChurchMutation = useDeleteChurch();
+  const { data: plans } = usePlans();
   const { confirm, ConfirmDialog } = useConfirmDialog();
+  const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
 
   const handleDelete = () => {
     if (!church) return;
@@ -26,8 +33,31 @@ export default function ChurchDetailPage() {
       description: `This will permanently delete "${church.name}", its database, and all data. This action cannot be undone.`,
       confirmLabel: "Delete",
       variant: "destructive",
-      onConfirm: () => deleteChurchMutation.mutate(church.id),
+      onConfirm: () => {
+        deleteChurchMutation.mutate(church.id, {
+          onSuccess: () => {
+            toast.success("Church deleted successfully");
+            router.push("/admin/churches");
+          },
+          onError: (err) => {
+            toast.error(err.message || "Failed to delete church");
+          }
+        });
+      },
     });
+  };
+
+  const handleCopyEmail = () => {
+    if (church?.admin_email) {
+      navigator.clipboard.writeText(church.admin_email);
+      toast.success("Admin email copied to clipboard");
+    }
+  };
+
+  const handleOpenPlanModal = () => {
+    if (!plans || plans.length === 0) return;
+    const currentPlan = plans.find((p: Plan) => p.name === church?.plan) ?? plans[0];
+    setSelectedPlan(currentPlan);
   };
 
   const formatDate = (dateStr: string | null | undefined) => {
@@ -84,7 +114,14 @@ export default function ChurchDetailPage() {
           </Link>
           <div>
             <h1 className="text-2xl font-bold text-text-strong">{church.name}</h1>
-            <p className="text-sm text-muted">{church.slug}.localhost:3005</p>
+            <div className="flex items-center gap-2 mt-1">
+              <Badge 
+                variant={church.status === "active" ? "success" : church.status === "suspended" ? "warning" : "destructive"}
+                className="capitalize"
+              >
+                {church.status}
+              </Badge>
+            </div>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -98,6 +135,16 @@ export default function ChurchDetailPage() {
               Open Church
             </Button>
           </a>
+          <Button variant="outline" onClick={handleCopyEmail}>
+            <Copy className="h-4 w-4 mr-2" />
+            Copy Email
+          </Button>
+          {plans && plans.length > 0 && (
+            <Button variant="outline" onClick={handleOpenPlanModal}>
+              <CreditCard className="h-4 w-4 mr-2" />
+              Change Plan
+            </Button>
+          )}
           <Button 
             variant="destructive" 
             onClick={handleDelete}
@@ -173,7 +220,7 @@ export default function ChurchDetailPage() {
             </div>
             <div>
               <p className="text-xs text-muted mb-1 uppercase tracking-wide">Subdomain</p>
-              <p className="font-mono">{church.subdomain}.localhost:3005</p>
+              <p className="font-mono">{church.slug}.localhost:3005</p>
             </div>
             <div>
               <p className="text-xs text-muted mb-1 uppercase tracking-wide">Admin Email</p>
@@ -234,6 +281,11 @@ export default function ChurchDetailPage() {
       )}
 
       <ConfirmDialog />
+      
+      <EditPlanModal
+        plan={selectedPlan}
+        onClose={() => setSelectedPlan(null)}
+      />
     </div>
   );
 }

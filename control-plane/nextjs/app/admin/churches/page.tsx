@@ -13,6 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import type { Church, NewChurch } from "@/types";
 import { cn } from "@/lib/utils";
+import ChurchesToolbar from "@/components/admin/churches-toolbar";
 
 type SortField = "name" | "created" | "members" | "giving";
 type SortDirection = "asc" | "desc";
@@ -27,6 +28,8 @@ export default function ChurchesPage() {
   const churches = churchesQuery.data || [];
   const [churchName, setChurchName] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedPlan, setSelectedPlan] = useState("");
+  const [selectedStatus, setSelectedStatus] = useState("");
   const [sortField, setSortField] = useState<SortField>("created");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -35,9 +38,12 @@ export default function ChurchesPage() {
   // Filter and sort churches
   const filteredAndSortedChurches = useMemo(() => {
     let result = churches.filter(c => 
-      c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.slug.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (c.custom_domain || "").toLowerCase().includes(searchQuery.toLowerCase())
+      (searchQuery === "" || 
+       c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+       c.slug.toLowerCase().includes(searchQuery.toLowerCase()) ||
+       (c.custom_domain || "").toLowerCase().includes(searchQuery.toLowerCase())) &&
+      (selectedPlan === "" || c.plan === selectedPlan) &&
+      (selectedStatus === "" || c.status === selectedStatus)
     );
 
     // Sort
@@ -75,7 +81,7 @@ export default function ChurchesPage() {
     });
 
     return result;
-  }, [churches, searchQuery, sortField, sortDirection]);
+  }, [churches, searchQuery, selectedPlan, selectedStatus, sortField, sortDirection]);
 
   const handleCreate = () => {
     if (!churchName.trim()) return;
@@ -114,6 +120,13 @@ export default function ChurchesPage() {
       setSortField(field);
       setSortDirection("asc");
     }
+  };
+
+  const sortString = `${sortField}:${sortDirection}`;
+  const handleSortFromToolbar = (s: string) => {
+    const [field, dir] = s.split(":");
+    if (field) setSortField(field as SortField);
+    if (dir) setSortDirection(dir as SortDirection);
   };
 
   return (
@@ -241,10 +254,20 @@ export default function ChurchesPage() {
             <EmptyState
               icon="search"
               title="No churches found"
-              description={`No churches match "${searchQuery}"`}
+              description={`No churches match your filters`}
             />
           ) : (
             <div className="overflow-x-auto">
+              <ChurchesToolbar
+                search={searchQuery}
+                onSearch={setSearchQuery}
+                plan={selectedPlan}
+                onPlan={setSelectedPlan}
+                status={selectedStatus}
+                onStatus={setSelectedStatus}
+                sort={sortString}
+                onSort={handleSortFromToolbar}
+              />
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -321,7 +344,7 @@ export default function ChurchesPage() {
                             {church.name}
                           </Link>
                           <div className="text-xs text-muted">
-                            {church.subdomain}.localhost:3005
+                            {church.slug}.localhost:3005
                           </div>
                         </div>
                       </TableCell>

@@ -1,17 +1,37 @@
 "use client";
 
+import { useState } from "react";
 import { usePlans, useAnalytics } from "@/components/hooks";
 import { LoadingState, EmptyState } from "@/components";
 import { Badge } from "@/components/ui/badge";
+import EditPlanModal from "@/components/admin/edit-plan-modal";
+import InvoicesTable from "@/components/admin/invoices-table";
+import { Plan } from "@/types";
+
+interface AnalyticsData {
+  mrr?: number;
+  active_churches?: number;
+  total_giving?: number;
+}
 
 export default function BillingPage() {
   const { data: plans, isLoading: plansLoading } = usePlans();
   const { data: analytics, isLoading: analyticsLoading } = useAnalytics();
+  const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
 
   if (plansLoading || analyticsLoading) {
     return <LoadingState message="Loading billing data..." />;
   }
 
+  const handleEditClick = (plan: Plan) => {
+    setSelectedPlan(plan);
+  };
+
+  const closeModal = () => {
+    setSelectedPlan(null);
+  };
+
+  // Show revenue summary since there's no revenue_trend in Analytics
   return (
     <div className="space-y-6">
       {/* Plans Overview */}
@@ -33,7 +53,12 @@ export default function BillingPage() {
                     <span className="text-[var(--good)]">•</span> {plan.max_storage_mb}MB storage
                   </li>
                 </ul>
-                <button className="w-full btn-primary">Edit</button>
+                <button 
+                  className="w-full btn-primary"
+                  onClick={() => handleEditClick(plan)}
+                >
+                  Edit
+                </button>
               </div>
             ))}
           </div>
@@ -48,7 +73,10 @@ export default function BillingPage() {
 
       {/* Revenue Summary */}
       <div className="card">
-        <h3 className="text-lg font-semibold text-[var(--text-strong)] mb-4">Revenue Summary</h3>
+        <h3 className="text-lg font-semibold text-[var(--text-strong)] mb-4">
+          Revenue Summary
+        </h3>
+        
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <p className="text-sm text-[var(--muted)]">MRR</p>
@@ -70,6 +98,17 @@ export default function BillingPage() {
           </div>
         </div>
       </div>
+
+      {/* Invoices Table */}
+      <div className="card">
+        <h3 className="text-lg font-semibold text-[var(--text-strong)] mb-4">Invoices</h3>
+        <InvoicesTable />
+      </div>
+
+      {/* Edit Plan Modal */}
+      {selectedPlan && (
+        <EditPlanModal plan={selectedPlan} onClose={closeModal} />
+      )}
     </div>
   );
 }

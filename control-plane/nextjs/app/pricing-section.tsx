@@ -1,10 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
 import { usePlans } from "@/components/hooks/use-plans";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
 
 interface PlanFeature {
   text: string;
@@ -34,7 +33,6 @@ function formatPrice(price: number): string {
 }
 
 export default function PricingSection() {
-  const [isAnnual, setIsAnnual] = useState(false);
   const { data: plans, isLoading, isError } = usePlans();
 
   // Static fallback plan data matching the use-plans structure
@@ -93,46 +91,12 @@ export default function PricingSection() {
         <p className="lp-sub2">
           Choose the plan that fits your church's needs. All plans include core features.
         </p>
-
-        {/* Billing toggle */}
-        <div className="inline-flex items-center gap-3 mt-6">
-          <span className={`text-sm font-medium ${!isAnnual ? "text-[var(--text-strong)]" : "text-[var(--muted)]"}`}>
-            Monthly
-          </span>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={isAnnual}
-            onClick={() => setIsAnnual(!isAnnual)}
-            className={`
-              relative inline-flex h-6 w-11 items-center rounded-full transition-all
-              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2
-              ${isAnnual ? "bg-accent" : "bg-[var(--panel-2)] border border-[var(--border)]"}
-            `}
-          >
-            <span
-              className={`
-                inline-block h-5 w-5 rounded-full bg-[var(--text-strong)] shadow transition-transform
-                ${isAnnual ? "translate-x-6 bg-[var(--accent-contrast)]" : "translate-x-1"}
-              `}
-            />
-          </button>
-          <span className={`text-sm font-medium ${isAnnual ? "text-[var(--text-strong)]" : "text-[var(--muted)]"}`}>
-            Annual
-          </span>
-          {isAnnual && (
-            <span className="text-xs bg-[var(--good-soft)] text-[var(--good)] px-2 py-1 rounded-full font-semibold">
-              Save up to 20%
-            </span>
-          )}
-        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-[var(--max)] mx-auto">
         {planData.map((plan, index) => {
           const features = staticPlans[index] || [];
-          const price = isAnnual ? plan.price_annual : plan.price_monthly;
-          const period = isAnnual ? "per year" : "per month";
+          const price = plan.price_monthly; // Use the monthly price for display
           const recommended = isRecommended(plan.id);
 
           return (
@@ -171,11 +135,14 @@ export default function PricingSection() {
               </CardHeader>
 
               <CardContent className="flex-1">
-                <div className="mb-6">
+                <div className="mb-2">
                   <span className="text-5xl font-bold text-[var(--text-strong)]">
                     {formatPrice(price)}
                   </span>
-                  <span className="text-[var(--muted)] text-base"> / {period}</span>
+                  <span className="text-[var(--muted)] text-base"> / per month</span>
+                </div>
+                <div className="mb-6">
+                  <span className="text-sm text-[var(--muted)]">billed annually</span>
                 </div>
 
                 <ul className="space-y-3">
@@ -197,7 +164,7 @@ export default function PricingSection() {
                           viewBox="0 0 20 20"
                           aria-hidden="true"
                         >
-                          <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 011.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                          <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 011.414 1.414L11.414 10l4.293-4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
                         </svg>
                       )}
                       <span className={`text-sm ${feature.included ? "text-[var(--text)]" : "text-[var(--muted-2)]"}`}>
@@ -209,7 +176,7 @@ export default function PricingSection() {
               </CardContent>
 
               <CardFooter>
-                <Link href="/admin" className="w-full">
+                <Link href="/contact" className="w-full">
                   <Button 
                     variant={recommended ? "primary" : "outline"} 
                     size="lg" 

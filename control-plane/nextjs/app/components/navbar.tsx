@@ -207,13 +207,6 @@ export function Navbar() {
                 </div>
               )}
             </div>
-
-            {/* Master Control Button */}
-            <Link href="/admin">
-              <Button variant="primary" size="md">
-                Master Control
-              </Button>
-            </Link>
           </div>
 
           {/* Mobile Menu Button */}
@@ -317,15 +310,6 @@ export function Navbar() {
                 ))}
               </div>
             </nav>
-
-            {/* Footer - Master Control Button */}
-            <div className="p-4 border-t border-[var(--border)]">
-              <Link href="/admin" onClick={() => setIsMobileMenuOpen(false)}>
-                <Button variant="primary" className="w-full">
-                  Master Control
-                </Button>
-              </Link>
-            </div>
           </div>
         </div>
       )}

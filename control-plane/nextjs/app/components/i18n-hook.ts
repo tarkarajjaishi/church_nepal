@@ -4,7 +4,7 @@ const i18nHook = {
   en: {
     "how.title": "From name to live site in three steps",
     "how.step1.name": "Name the church",
-    "how.step1.description": "Type the church name in Master Control and hit create.",
+    "how.step1.description": "Type the church name in the dashboard and hit create.",
     "how.step2.name": "We provision everything",
     "how.step2.description": "A subdomain, a database, a storage folder, and an admin login — automatically.",
     "how.step3.name": "The church takes over",
@@ -52,7 +52,7 @@ const i18nHook = {
   ne: {
     "how.title": "तपाईँको वेबसाइट तीनै चरणहरूमा",
     "how.step1.name": "चर्चको नाम राख्नुहोस्",
-    "how.step1.description": "मास्टर कन्ट्रोलमा चर्चको नाम टाइप गर्नुहोस् र बनाउनुहोस्।",
+    "how.step1.description": "तपाईँको ड्यासबोर्डमा चर्चको नाम टाइप गर्नुहोस् र बनाउनुहोस्।",
     "how.step2.name": "हामी सबै व्यवस्थित गर्दछौं",
     "how.step2.description": "एक सबडोमेन, एक डेटाबेस, एक स्टोरेज फोल्डर, र एक एडमिन लगिन — स्वचालित रूपमा।",
     "how.step3.name": "चर्चले आफूलाई सम्हाल्छ",

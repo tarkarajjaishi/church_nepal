@@ -1,0 +1,25 @@
+Remove "Master Control" wording and /admin links from the public landing CTAs. The admin is
+reached at /admin directly and must not be shown on the public site. Replace each
+"Open Master Control" button with a public CTA labeled "Get Started" linking to "/pricing".
+
+MODIFY (output the COMPLETE file for EACH):
+
+1. control-plane/nextjs/app/page.tsx
+   - The hero PRIMARY button currently reads "Open Master Control" and links to /admin. Change it to
+     "Get Started" linking to "/pricing". Keep its arrow icon and keep the secondary
+     "See how it works" button unchanged.
+
+2. control-plane/nextjs/app/components/landing/final-cta.tsx
+   - Change the primary "Open Master Control" link (href /admin) to "Get Started" linking to "/pricing".
+   - Keep the secondary "Book a demo" button.
+
+3. control-plane/nextjs/app/cta-section.tsx
+   - Change the "Open Master Control" button/text to "Get Started" linking to "/pricing", and reword
+     the surrounding copy so it does NOT mention "Master Control".
+
+Do NOT link to /admin anywhere in these public files. Keep all other markup/styling intact.
+No new packages; must compile.
+
+@include: control-plane/nextjs/app/page.tsx
+@include: control-plane/nextjs/app/components/landing/final-cta.tsx
+@include: control-plane/nextjs/app/cta-section.tsx

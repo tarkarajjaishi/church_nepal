@@ -1,0 +1,32 @@
+The tech marquee is horizontal now but does NOT auto-scroll — its styled-jsx `.animate-marquee`
+animation does not apply in the Next.js App Router (computed animation is "none"). Make
+`animate-marquee` a REAL Tailwind utility instead (reliable) and remove the styled-jsx.
+
+CHANGE 2 FILES (output BOTH complete files):
+
+1) control-plane/nextjs/tailwind.config.js
+   Inside theme.extend, MERGE in (keep all existing config, do not delete anything):
+       keyframes: {
+         marquee: {
+           '0%':   { transform: 'translateX(0)' },
+           '100%': { transform: 'translateX(-50%)' },
+         },
+       },
+       animation: {
+         marquee: 'marquee 30s linear infinite',
+       },
+   If theme.extend already has keyframes/animation objects, add `marquee` into them rather than
+   overwriting.
+
+2) control-plane/nextjs/app/components/landing/logo-marquee.tsx
+   - REMOVE the entire <style jsx global> block (Tailwind now provides animate-marquee).
+   - Make the scrolling track:
+       className="flex w-max items-center gap-x-6 animate-marquee hover:[animation-play-state:paused] motion-reduce:animate-none"
+   - Keep the duplicated item list (so translateX(-50%) loops seamlessly), keep BOTH edge fade
+     masks, and keep the chips (lucide icon + name, bg-[var(--panel-2)] border, rounded-xl,
+     flex-shrink-0) unchanged.
+
+No new npm packages; must compile.
+
+@include: control-plane/nextjs/tailwind.config.js
+@include: control-plane/nextjs/app/components/landing/logo-marquee.tsx

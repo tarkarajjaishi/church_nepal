@@ -1,0 +1,15 @@
+In control-plane/nextjs/app/components/navbar.tsx, REMOVE the "Master Control" button from the
+public site navbar. The admin is accessed directly at /admin and must NOT be advertised on the
+public site.
+
+- Remove the DESKTOP "Master Control" button (the block near the "Master Control Button" comment: the
+  <Link href="/admin"> wrapping a <Button> labeled "Master Control").
+- Remove the MOBILE drawer "Master Control" button (the footer block inside the mobile menu with the
+  <Link href="/admin"> labeled "Master Control").
+- Do NOT leave any link to /admin in this file.
+
+Keep everything else intact and working: the logo, the nav links, the theme toggle, the language
+switcher, the mobile menu open/close, and the scroll behavior. The desktop actions row should still
+contain the theme toggle and language switcher. Output the COMPLETE corrected file.
+
+@include: control-plane/nextjs/app/components/navbar.tsx

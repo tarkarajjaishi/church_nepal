@@ -3,12 +3,23 @@
 import Link from "next/link";
 import HowSection from "./how-section";
 import FeaturesSection from "./features-section";
-import StatsSection from "./stats-section";
 import PricingSection from "./pricing-section";
-import FAQSection from "./faq-section";
-import CTASection from "./cta-section";
 import PublicLayout from "./public-layout";
 import { Badge } from "@/components/ui/badge";
+
+// New production landing sections (generated via the Qwen agent)
+import Reveal from "@/components/landing/scroll-reveal";
+import TrustBar from "@/components/landing/trust-bar";
+import LogoMarquee from "@/components/landing/logo-marquee";
+import SecuritySection from "@/components/landing/security-section";
+import ProvisioningPreview from "@/components/landing/provisioning-preview";
+import MetricsBand from "@/components/landing/metrics-band";
+import ComparisonSection from "@/components/landing/comparison-section";
+import IntegrationsSection from "@/components/landing/integrations-section";
+import TestimonialCarousel from "@/components/landing/testimonial-carousel";
+import NewsletterSection from "@/components/landing/newsletter-section";
+import FaqSearch from "@/components/landing/faq-search";
+import FinalCTA from "@/components/landing/final-cta";
 
 export default function Landing() {
   return (
@@ -37,8 +48,8 @@ export default function Landing() {
           </p>
           {/* CTA buttons */}
           <div className="lp-hero-cta">
-            <Link href="/admin" className="lp-btn lp-btn-lg">
-              Open Master Control
+            <Link href="/pricing" className="lp-btn lp-btn-lg">
+              Get Started
               <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
                 <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
               </svg>
@@ -79,23 +90,41 @@ export default function Landing() {
           </div>
         </header>
 
+        {/* Social proof + tech marquee */}
+        <TrustBar />
+        <LogoMarquee />
+
         {/* Features */}
         <FeaturesSection />
 
-        {/* How it works */}
-        <HowSection />
+        {/* Isolation / security */}
+        <Reveal><SecuritySection /></Reveal>
 
-        {/* Stats & Testimonials */}
-        <StatsSection />
+        {/* How it works + animated provisioning */}
+        <HowSection />
+        <ProvisioningPreview />
+
+        {/* Animated KPI band */}
+        <MetricsBand />
+
+        {/* Comparison + integrations */}
+        <Reveal><ComparisonSection /></Reveal>
+        <Reveal><IntegrationsSection /></Reveal>
+
+        {/* Testimonials carousel */}
+        <TestimonialCarousel />
 
         {/* Pricing */}
         <PricingSection />
 
-        {/* FAQ */}
-        <FAQSection />
+        {/* Newsletter */}
+        <Reveal><NewsletterSection /></Reveal>
 
-        {/* CTA Band */}
-        <CTASection />
+        {/* Searchable FAQ */}
+        <FaqSearch />
+
+        {/* Final CTA band */}
+        <FinalCTA />
       </div>
     </PublicLayout>
   );

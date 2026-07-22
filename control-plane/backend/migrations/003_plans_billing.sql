@@ -35,5 +35,5 @@ INSERT INTO plans (name, price_monthly, price_annual, max_members, max_storage_m
 VALUES 
     ('Free', 0, 0, 100, 100, 100, 1, '{"giving": true, "groups": true, "sermons": true}'::jsonb),
     ('Standard', 2900, 29000, 500, 500, 500, 1, '{"giving": true, "groups": true, "sermons": true, "events": true, "crm": true}'::jsonb),
-    ('Pro', 9900, 99000, 5000, 2000, 2000, 5, '{"giving": true, "groups": true, "sermons": true, "events": true, "crm": true, "multi_admin": true}')::jsonb
+    ('Pro', 9900, 99000, 5000, 2000, 2000, 5, '{"giving": true, "groups": true, "sermons": true, "events": true, "crm": true, "multi_admin": true}'::jsonb)
 ON CONFLICT (name) DO NOTHING;

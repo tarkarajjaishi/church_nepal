@@ -1,0 +1,18 @@
+Fix control-plane/nextjs/app/components/admin/donut-chart.tsx so it is a DEFAULT export.
+
+It currently does `export const DonutChart: React.FC<DonutChartProps> = ...` — a NAMED
+export. But every page imports it as a DEFAULT:
+    import DonutChart from "@/components/admin/donut-chart";
+So the build fails with "has no default export".
+
+FIX: make DonutChart the DEFAULT export while keeping the SAME props (DonutChartProps),
+the SAME SVG rendering and behavior. Either:
+    export default function DonutChart(props: DonutChartProps) { ... }
+or keep the const and add at the end:
+    export default DonutChart;
+Do NOT make it a named-only export. Output the COMPLETE corrected file.
+
+Rules: no new npm packages; pure inline SVG; "use client" only if it uses hooks;
+must compile with zero TypeScript errors.
+
+@include: control-plane/nextjs/app/components/admin/donut-chart.tsx

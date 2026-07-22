@@ -1,0 +1,23 @@
+Fix a doubled-domain bug in the admin UI: church links render as
+"newlifechurchdharan.localhost.localhost:3005" (DOUBLE .localhost).
+
+CAUSE: the code appends ".localhost:3005" to `church.subdomain`, but the subdomain field ALREADY
+ends in ".localhost" (e.g. "newlifechurchdharan.localhost"). The correct local URL is
+`http://<slug>.localhost:3005` (slug has no .localhost) — e.g. http://newlifechurchdharan.localhost:3005.
+
+FIX — everywhere a church URL/label is built from `subdomain` + ".localhost", use the SLUG instead
+so it is not doubled. Concretely, replace patterns like `{church.subdomain}.localhost:3005` and
+`{c.subdomain || c.slug}.localhost:3005` with `{church.slug}.localhost:3005` (use the slug field).
+Do this in ALL of these files, keeping everything else unchanged:
+
+MODIFY (output the COMPLETE file for each):
+1. control-plane/nextjs/app/admin/page.tsx  (lines ~227 and ~246 use c.subdomain)
+2. control-plane/nextjs/app/admin/churches/page.tsx  (the display around line ~347 uses subdomain)
+3. control-plane/nextjs/app/admin/churches/[id]/page.tsx  (line ~223 uses subdomain)
+
+Result: every church URL reads like `newlifechurchdharan.localhost:3005` (single .localhost).
+No new packages; must compile.
+
+@include: control-plane/nextjs/app/admin/page.tsx
+@include: control-plane/nextjs/app/admin/churches/page.tsx
+@include: control-plane/nextjs/app/admin/churches/[id]/page.tsx

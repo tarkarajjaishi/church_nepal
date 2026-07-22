@@ -1,0 +1,30 @@
+Create an admin breadcrumbs component.
+
+ADMIN AREA — Master Control dashboard (control-plane/nextjs/app/admin/*). MATCH the existing system.
+Design (CSS variables; NEVER hardcode hex):
+- Cards: use the existing `.card` class OR bg-[var(--panel)] border border-[var(--border)] rounded-xl p-5.
+- text-[var(--text)]; headings text-[var(--text-strong)]; muted text-[var(--muted)];
+  accent text-[var(--accent)] / bg-[var(--accent-soft)]; status [var(--good)]/[var(--danger)]/[var(--gold)].
+- Buttons: <Button> from "@/components/ui/button" (variant primary|ghost|danger, size sm|md) or `.btn-primary`.
+- Badges: <Badge> from "@/components/ui/badge". Icons: lucide-react (only icons that exist).
+DATA — DO NOT invent endpoints. Use existing hooks from "@/components/hooks":
+  useAnalytics, useChurches, useChurch, usePlans, useAdmins, useAuth,
+  useCreateChurch, useDeleteChurch, useUpdateChurch, useSeedDummyChurches.
+For other calls use `apiClient` from "@/lib/api-client" (apiClient.get/post/put/delete<T>(path) -> {data};
+auth is already attached). Endpoints that EXIST: /churches, /churches/{id}, /analytics,
+/analytics/growth, /analytics/top-churches, /billing, /billing/{church_id}, /invoices,
+/invoices/{id}/pay, /plans, /plans/{id}, /seed/dummy, /auth/me. (There is NO /admins CRUD endpoint.)
+Toasts: import { toast } from "sonner" and call toast.success/error on every mutation.
+Loading/empty: LoadingState, EmptyState from "@/components".
+RULES:
+- No new npm packages. Charts MUST be pure inline SVG/CSS (NO chart library).
+- "use client" on line 1 for anything using hooks/state/effects.
+- NEVER touch window/document/localStorage during render — only inside useEffect/handlers (SSR-safe),
+  or the whole page 500s. Guard browser APIs.
+- TypeScript, React 19, App Router. MUST compile with ZERO TypeScript errors.
+
+CREATE THIS ONE FILE: control-plane/nextjs/app/components/admin/breadcrumbs.tsx
+
+"use client". Default-export <Breadcrumbs>. Use usePathname() from next/navigation to build
+breadcrumbs from the admin path (e.g. /admin/churches/123 -> Admin / Churches / 123), each segment a
+Link except the last, separated by a lucide ChevronRight, muted styling. Title-case segment labels.

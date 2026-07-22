@@ -1,0 +1,32 @@
+Add a 'Book a demo' modal with a lead form.
+
+DESIGN SYSTEM — MATCH EXACTLY. It is a dark/light themeable system driven by CSS
+variables. NEVER hardcode hex colors; use the CSS vars as Tailwind arbitrary values.
+- Container:  <div className="mx-auto max-w-[var(--max)] px-6">   (max = 1120px)
+- Section:    <section className="py-20 md:py-28"> ... </section>  (add id when told)
+- Surfaces:   bg-[var(--bg)] bg-[var(--panel)] bg-[var(--panel-2)] bg-[var(--panel-3)]
+- Borders:    border border-[var(--border)]
+- Text:       text-[var(--text)]  headings text-[var(--text-strong)]  muted text-[var(--muted)]
+- Accent:     text-[var(--accent)] bg-[var(--accent)] bg-[var(--accent-soft)]
+- Status:     [var(--good)] [var(--danger)] [var(--gold)]
+- Corners:    rounded-xl / rounded-2xl.  Cards: subtle shadow-lg.
+- Icons:      import from "lucide-react" (already installed).
+- Fonts/size: eyebrow = uppercase text-xs tracking-wider text-[var(--accent)];
+              section h2 = text-3xl md:text-4xl font-bold text-[var(--text-strong)].
+HARD RULES:
+- Do NOT install or import any new npm package. framer-motion is NOT available —
+  animate with CSS transitions/keyframes or IntersectionObserver only.
+- If the component uses hooks/state/effects/browser APIs, put "use client"; on line 1.
+- TypeScript, React 19, Next.js App Router. Export a DEFAULT React component.
+- Everything self-contained in the ONE file named below. Do NOT modify other files.
+- Make it genuinely polished and production-grade: responsive, accessible
+  (aria labels, keyboard support), and it must compile with no TypeScript errors.
+
+CREATE THIS ONE FILE: control-plane/nextjs/app/components/landing/demo-modal.tsx
+
+"use client". Default-export <DemoModal/> that renders its own trigger button
+('Book a demo') and a modal dialog (build a lightweight accessible modal with a fixed
+overlay bg-[var(--overlay)], Escape to close, focus the first field, click-outside to
+close — do NOT depend on any UI dialog file). Form fields: name, church name, email,
+optional message. Validate required fields + email; on submit show a success state and a
+sonner toast.success. Style with the design tokens.

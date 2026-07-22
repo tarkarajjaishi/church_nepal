@@ -1,0 +1,30 @@
+POLISH PASS — improve the EXISTING component included below. Output the COMPLETE
+updated file for the SAME path. Keep the SAME default export (same component name)
+and the SAME props/signature so existing imports keep working. Do NOT rename or
+remove exports, and do NOT change the file path.
+
+Keep it working, and follow these rules exactly:
+- Match the CSS-variable design system; never hardcode hex. Use arbitrary values:
+  bg-[var(--bg)] / bg-[var(--panel)] / bg-[var(--panel-2)] / bg-[var(--panel-3)],
+  border-[var(--border)], text-[var(--text)], headings text-[var(--text-strong)],
+  muted text-[var(--muted)], accent text-[var(--accent)] / bg-[var(--accent-soft)].
+- Container: mx-auto max-w-[var(--max)] px-6. Section wrapper: py-20 md:py-28 and
+  KEEP the existing section id.
+- Consistent eyebrow: <p className="text-xs font-semibold uppercase tracking-wider text-[var(--accent)] mb-3">…</p>
+  Consistent heading: text-3xl md:text-4xl font-bold text-[var(--text-strong)],
+  optional muted subhead: mt-3 text-[var(--muted)] max-w-2xl.
+- FULLY responsive: must look right from 375px mobile up, no horizontal overflow.
+- Tasteful hover/transition; accessible (aria-labels, keyboard, focus-visible).
+- No new npm packages. framer-motion and next-themes are NOT installed — use CSS
+  transitions/keyframes or IntersectionObserver. Only import lucide-react icons
+  that truly exist. Keep "use client" if it uses hooks/state/effects.
+- Must compile with ZERO TypeScript errors.
+
+SPECIFIC IMPROVEMENTS FOR THIS COMPONENT:
+- Responsive single-card carousel; quote readable (text-lg md:text-xl). Visible
+  prev/next arrow buttons and clickable dots. Autoplay ~6s, pause on hover/focus,
+  smooth slide/fade, keyboard (left/right). No layout shift between slides.
+
+@include: control-plane/nextjs/app/components/landing/testimonial-carousel.tsx
+
+CREATE/REPLACE THIS ONE FILE: control-plane/nextjs/app/components/landing/testimonial-carousel.tsx

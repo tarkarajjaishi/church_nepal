@@ -1,0 +1,24 @@
+# Master Control ADMIN — 20-task 'fully functional' upgrade
+# Focus: control-plane/nextjs/app/admin/*
+# Run all:  run_task.bat --all admin-tasks
+
+ 1. Create a reusable inline-SVG area/line chart for the admin.   [admin-tasks/01-area-chart.txt]
+ 2. Create a reusable inline-SVG donut chart with legend.   [admin-tasks/02-donut-chart.txt]
+ 3. Create a reusable horizontal bar chart (inline SVG/CSS).   [admin-tasks/03-bar-chart.txt]
+ 4. Create a polished KPI stat card for the admin.   [admin-tasks/04-stat-card.txt]
+ 5. Create a functional 'Create Church' modal.   [admin-tasks/05-create-church-modal.txt]
+ 6. Create a functional 'Edit Plan' modal.   [admin-tasks/06-edit-plan-modal.txt]
+ 7. Create an invoices table with a pay action.   [admin-tasks/07-invoices-table.txt]
+ 8. Create a recent-activity feed widget.   [admin-tasks/08-activity-feed.txt]
+ 9. Create a system-status / health widget.   [admin-tasks/09-system-status.txt]
+10. Create a Ctrl/Cmd-K command palette for the admin.   [admin-tasks/10-command-palette.txt]
+11. Create a search/filter/sort toolbar for the churches list.   [admin-tasks/11-churches-toolbar.txt]
+12. Create an admin breadcrumbs component.   [admin-tasks/12-breadcrumbs.txt]
+13. Upgrade the Analytics page with real charts.   [admin-tasks/13-analytics-page.txt]
+14. Upgrade the main dashboard.   [admin-tasks/14-dashboard-page.txt]
+15. Make the Billing page functional.   [admin-tasks/15-billing-page.txt]
+16. Add search/filter/sort + working create/delete to the Churches list.   [admin-tasks/16-churches-page.txt]
+17. Enrich the church detail page.   [admin-tasks/17-church-detail-page.txt]
+18. Polish the Admins page (read-only, no fake endpoints).   [admin-tasks/18-admins-page.txt]
+19. Make the Settings page functional where possible.   [admin-tasks/19-settings-page.txt]
+20. Fix the admin top bar and add breadcrumbs + command palette.   [admin-tasks/20-admin-layout.txt]

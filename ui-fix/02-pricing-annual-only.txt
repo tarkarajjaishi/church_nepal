@@ -1,0 +1,13 @@
+Edit control-plane/nextjs/app/pricing-section.tsx — make pricing ANNUAL-ONLY and remove the toggle.
+
+CHANGES:
+- REMOVE the Monthly/Annual billing toggle entirely: the switch control, the 'Monthly' and
+  'Annual' labels, and the `isAnnual` state. There is no monthly/annual switching anymore.
+- Always show ANNUAL billing. For each plan keep the big price headline using its per-month figure
+  (price_monthly) in the existing 'NPR <amount> / per month' style, and add a small muted line
+  directly under it: 'billed annually'. (The per-month figure is the annual-plan rate.)
+- Keep everything else exactly: the three plans (Free / Standard / Pro), the 'Recommended' badge on
+  Standard, all the feature checklists, and the CTA buttons.
+Output the COMPLETE corrected file. No new packages; must compile.
+
+@include: control-plane/nextjs/app/pricing-section.tsx

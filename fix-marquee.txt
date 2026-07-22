@@ -1,0 +1,26 @@
+Fix control-plane/nextjs/app/components/landing/logo-marquee.tsx — the marquee is BROKEN:
+it currently renders as a VERTICAL stacked list (each tech chip on its own full-width row)
+instead of ONE horizontal auto-scrolling strip.
+
+ROOT CAUSE: the scrolling track has BOTH the Tailwind `flex` class AND `animate-marquee`, but
+the component's `<style jsx global>` defines `.animate-marquee { display: inline-block; ... }`,
+which OVERRIDES `display:flex`. The track becomes inline-block, so the block-level child chips
+stack vertically.
+
+FIX:
+- Make the scrolling track a horizontal flex row that is as wide as its content:
+      <div className="flex w-max items-center gap-x-6 animate-marquee"> ... </div>
+- The `.animate-marquee` CSS must apply ONLY the animation + hover-pause — do NOT set `display`
+  or `min-width` on it:
+      @keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+      .animate-marquee { animation: marquee 30s linear infinite; }
+      .animate-marquee:hover { animation-play-state: paused; }
+      @media (prefers-reduced-motion: reduce) { .animate-marquee { animation: none; } }
+- Keep the items DUPLICATED once (so translateX(-50%) loops seamlessly), keep BOTH edge fade
+  masks, and keep the same chips (lucide icon + name, bg-[var(--panel-2)] border, rounded-xl,
+  flex-shrink-0). Keep the section/container wrappers.
+
+RESULT: a single horizontal row of tech chips scrolling smoothly leftward, pausing on hover,
+with faded left/right edges. Output the COMPLETE corrected file. No new npm packages; must compile.
+
+@include: control-plane/nextjs/app/components/landing/logo-marquee.tsx

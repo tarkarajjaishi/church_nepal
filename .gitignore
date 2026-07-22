@@ -78,6 +78,10 @@ Dockerfile.auth
 .bridge/
 *.bat
 
+# Qwen agent (task.txt -> code) runtime: backups, logs, raw replies, task input
+.qwen_agent/
+task.txt
+
 # Misc
 *.local
 .cache/

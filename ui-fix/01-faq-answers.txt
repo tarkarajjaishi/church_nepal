@@ -1,0 +1,18 @@
+Fix control-plane/nextjs/app/components/landing/faq-search.tsx — the FAQ answers do not show.
+Each item renders as an empty box and the answer text is invisible ("blank").
+
+ROOT CAUSE: the collapse uses `grid grid-rows-[0fr]` / `grid-rows-[1fr]`, but the grid CHILD has
+the default min-height:auto, so the 0fr row does NOT collapse (the empty box stays visible), and
+`opacity-0` hides the answer text — leaving visible empty boxes.
+
+FIX (make the accordion robust and the answers visible):
+- When an item is CLOSED it must take NO space (no empty box). When OPEN, its answer text must be
+  clearly visible in text-[var(--text)] with comfortable padding.
+- Simplest reliable approach: conditionally RENDER the answer block only when openIndex === index
+  (so closed items have no leftover container). A CSS height/opacity animation is optional; the
+  priority is that answers actually SHOW when expanded and there are NO empty boxes when collapsed.
+- Open the FIRST item by default: useState<number | null>(0).
+- Keep the search box + filtering, all questions/answers, the chevron rotate, and the card styling.
+Output the COMPLETE corrected file. No new packages; must compile.
+
+@include: control-plane/nextjs/app/components/landing/faq-search.tsx
