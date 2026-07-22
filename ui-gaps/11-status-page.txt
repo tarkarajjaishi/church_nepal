@@ -1,0 +1,39 @@
+Create a system STATUS page (does not exist yet).
+
+CREATE THIS ONE FILE: app/status/page.tsx
+
+Content:
+- Hero with a big "All systems operational" banner (green: bg-[var(--good-soft)] text-[var(--good)])
+  with a pulsing dot.
+- A list of components each with a status pill: "Website / Marketing", "Admin Dashboard", "Church
+  Sites", "API", "Database", "Media / Storage", "Email Delivery". All "Operational" except make ONE
+  "Degraded Performance" (amber using --gold-soft) to show the styling.
+- A 90-day uptime bar for each component: render 90 small vertical bars (mostly green, a few amber),
+  built with an array .map — use a subtle title tooltip.
+- A "Past incidents" section with 2 sample resolved incidents (date, title, short resolution note).
+This is a static illustrative page (no live data) — clearly it's a UI mock of a status page.
+
+DESIGN SYSTEM — match the existing site EXACTLY:
+- First line of the file: "use client";
+- Wrap the whole page in the shared layout. For a file at app/<name>/page.tsx use:
+      import PublicLayout from "../public-layout";
+      ...
+      return <PublicLayout> ...page... </PublicLayout>;
+- COLORS: use ONLY CSS variables through Tailwind arbitrary values. NEVER hardcode hex.
+  Available vars: --bg --panel --panel-2 --panel-3 --border --border-soft --text --text-strong
+  --muted --accent --accent-2 --accent-soft --gold-soft --good --good-soft --max
+  Examples: text-[var(--text-strong)] text-[var(--muted)] bg-[var(--panel)] bg-[var(--panel-2)]
+  border-[var(--border)] text-[var(--accent)] bg-[var(--accent-soft)]
+- UI components available to import:
+      import Link from "next/link";
+      import { Card, CardContent } from "@/components/ui/card";
+      import { Badge } from "@/components/ui/badge";
+      import { Button } from "@/components/ui/button";
+- Outer container: <div className="max-w-[var(--max)] mx-auto px-6 py-16 sm:py-24">
+- Hero at top: small eyebrow <Badge variant="secondary">, big H1 (text-4xl sm:text-5xl font-bold
+  text-[var(--text-strong)]), subtitle text-[var(--muted)] text-lg. Then content sections.
+  End with a closing CTA card linking to /signup and /pricing.
+- Fully responsive (grid-cols-1 md:grid-cols-2 / lg:grid-cols-3). Must look correct in BOTH light
+  and dark themes automatically (guaranteed if you only use the CSS vars above).
+- Use inline SVG icons (stroke="currentColor") — do NOT add new npm imports.
+Output the COMPLETE file. Must compile with zero TypeScript errors.

@@ -1,0 +1,35 @@
+Create the blog DETAIL (article) page — it currently does not exist, so blog links 404.
+
+CREATE THIS ONE FILE: app/blog/[slug]/page.tsx
+
+Requirements:
+- "use client"; at the top.
+- Imports:
+    import { use } from "react";
+    import Link from "next/link";
+    import { notFound } from "next/navigation";
+    import PublicLayout from "../../public-layout";
+    import { Badge } from "@/components/ui/badge";
+    import { getPostBySlug, getRelatedPosts } from "@/lib/blog-data";
+- This is a dynamic route. The page receives params as a Promise in Next 15/16:
+    export default function BlogPostPage({ params }: { params: Promise<{ slug: string }> }) {
+      const { slug } = use(params);
+      const post = getPostBySlug(slug);
+      if (!post) notFound();
+      ...
+    }
+- Layout inside <PublicLayout>:
+    * A back link "← Back to blog" to /blog.
+    * Article header: category Badge, big H1 title (text-4xl font-bold text-[var(--text-strong)]),
+      a meta row (author • date • readTime) in text-[var(--muted)].
+    * A cover banner div using style={{ background: post.coverImage }} (h-64 rounded-xl).
+    * The body: map post.content -> each section renders an <h2> (text-2xl font-semibold
+      text-[var(--text-strong)]) and a <p> (text-[var(--muted)] leading-relaxed). Constrain reading
+      width with max-w-3xl mx-auto.
+    * A "Related articles" section at the bottom: getRelatedPosts(post.slug, 3) rendered as small
+      cards each linking to /blog/[slug]. Hide the section if there are none.
+- Fully responsive, works in light + dark via the CSS vars.
+
+@include: lib/blog-data.ts
+
+Output the COMPLETE file app/blog/[slug]/page.tsx. Must compile with zero TypeScript errors.

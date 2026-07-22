@@ -1,0 +1,22 @@
+Upgrade the Master Control ADMINS page from read-only into a manageable list (invite / edit role /
+remove). Keep it client-side with useState (no backend wiring required) but make the interactions real.
+
+EDIT: app/admin/admins/page.tsx
+
+Preserve whatever data-fetching hook it already uses to seed the initial list (e.g. useAdmins). Copy
+the fetched admins into local useState on load (useEffect) so you can add/edit/remove locally. If no
+hook data, fall back to 2-3 sample admins.
+
+Add:
+- An "Invite admin" button in the header that opens a modal (a fixed overlay + centered Card — no
+  external lib): fields Email + Role <select> (Super Admin / Admin / Read-only). "Send invite" adds a
+  row with status Badge "Pending" and toasts success. Basic email validation.
+- Each admin row shows: avatar initials, email, a Role select (changing it updates local state +
+  toast), a status Badge (Active/Pending), last-active text, and a "Remove" button that opens a
+  window.confirm then removes the row + toast. Prevent removing the last Super Admin (guard + toast.error).
+- A small stats strip on top: total admins, active, pending.
+- Use { toast } from "sonner". Match the admin card style and CSS vars. Fully responsive, light + dark.
+
+@include: app/admin/admins/page.tsx
+
+Output the COMPLETE app/admin/admins/page.tsx. Must compile with zero TypeScript errors.

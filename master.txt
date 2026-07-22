@@ -1,0 +1,646 @@
+# master.txt -- Kilo (FREE models only) task queue for churchnepal.com (:3200)
+# Work dir: control-plane/nextjs   |   Run:  run_master.bat
+# Tasks are separated by a line containing exactly: @@@TASK@@@
+# Kilo reads the real files and makes the code changes itself, one task at a time.
+
+@@@TASK@@@
+Create a shared blog data module so the blog list and the new blog detail pages read from ONE source.
+
+CREATE THIS ONE FILE: lib/blog-data.ts  (note: @/lib/* maps to ./lib/*)
+
+Requirements:
+- Export this interface:
+    export interface BlogPost {
+      slug: string;            // url-safe, e.g. "getting-started-with-churchnepal"
+      title: string;
+      excerpt: string;
+      date: string;            // ISO "2024-01-15"
+      readTime: string;        // "5 min read"
+      category: string;
+      author: string;
+      coverImage: string;      // a CSS gradient string, e.g. "linear-gradient(135deg, var(--accent-soft), var(--gold-soft))"
+      featured?: boolean;
+      content: { heading: string; body: string }[];  // 4-6 real sections of 2-4 sentences each
+    }
+- Export `export const blogPosts: BlogPost[]` with SIX well-written posts. Reuse these titles/authors/
+  categories (add a unique slug + real multi-paragraph `content` to each):
+    1 "Getting Started with ChurchNepal" — Getting Started — Tarka Raj Jaishi — featured
+    2 "5 Ways Church Websites Drive Engagement" — Growth — Sarah Thompson
+    3 "Multi-Tenant Architecture Explained" — Technical — Tarka Raj Jaishi
+    4 "Theme Customization for Churches" — Customization — Sarah Thompson
+    5 "Keeping Church Data Secure and Isolated" — Security — Tarka Raj Jaishi
+    6 "The Future of Cloud Hosting for Churches" — Future — Sarah Thompson
+  Write genuine, helpful English content (no lorem ipsum). Use varied gradient coverImage strings
+  built from the CSS vars: --accent-soft --gold-soft --good-soft --panel-2 --border-soft.
+- Export helpers:
+    export function getAllPosts(): BlogPost[]                 // returns blogPosts
+    export function getPostBySlug(slug: string): BlogPost | undefined
+    export function getRelatedPosts(slug: string, count?: number): BlogPost[]  // same category first, default 3
+    export function getCategories(): string[]                // unique categories, no duplicates
+
+ts. Must compile with zero TypeScript errors.
+
+@@@TASK@@@
+Upgrade the blog LISTING page to read from the shared data module and add search + category filtering.
+
+EDIT: app/blog/page.tsx  (keep "use client" and the PublicLayout wrapper)
+
+Do this:
+- REMOVE the local hardcoded `blogPosts` array and the local BlogPost interface.
+- Import from the shared module instead:
+    import { getAllPosts, getCategories, type BlogPost } from "@/lib/blog-data";
+- Add a search box (controlled input, useState) that filters posts by title/excerpt/category
+  (case-insensitive).
+- Add a horizontal row of category filter chips built from getCategories(), plus an "All" chip.
+  Selected chip uses bg-[var(--accent)] text white; others bg-[var(--panel-2)]. useState for selection.
+- Show the featured post (post.featured) as a larger hero card at the top when no filter/search is active.
+- Render the filtered posts in a responsive grid (md:grid-cols-2 lg:grid-cols-3).
+- EACH post card MUST be wrapped in a link to its detail page:
+    <Link href={`/blog/${post.slug}`}> ...card... </Link>
+- Show an empty-state ("No articles found") when the filtered list is empty.
+- Keep the existing color system (CSS vars) and the coverImage gradient (use it as the card banner
+  via style={{ background: post.coverImage }}).
+
+
+tsx. Must compile with zero TypeScript errors.
+
+Read these existing files before editing: app/blog/page.tsx, lib/blog-data.ts.
+
+@@@TASK@@@
+Create the blog DETAIL (article) page — it currently does not exist, so blog links 404.
+
+CREATE THIS ONE FILE: app/blog/[slug]/page.tsx
+
+Requirements:
+- "use client"; at the top.
+- Imports:
+    import { use } from "react";
+    import Link from "next/link";
+    import { notFound } from "next/navigation";
+    import PublicLayout from "../../public-layout";
+    import { Badge } from "@/components/ui/badge";
+    import { getPostBySlug, getRelatedPosts } from "@/lib/blog-data";
+- This is a dynamic route. The page receives params as a Promise in Next 15/16:
+    export default function BlogPostPage({ params }: { params: Promise<{ slug: string }> }) {
+      const { slug } = use(params);
+      const post = getPostBySlug(slug);
+      if (!post) notFound();
+      ...
+    }
+- Layout inside <PublicLayout>:
+    * A back link "← Back to blog" to /blog.
+    * Article header: category Badge, big H1 title (text-4xl font-bold text-[var(--text-strong)]),
+      a meta row (author • date • readTime) in text-[var(--muted)].
+    * A cover banner div using style={{ background: post.coverImage }} (h-64 rounded-xl).
+    * The body: map post.content -> each section renders an <h2> (text-2xl font-semibold
+      text-[var(--text-strong)]) and a <p> (text-[var(--muted)] leading-relaxed). Constrain reading
+      width with max-w-3xl mx-auto.
+    * A "Related articles" section at the bottom: getRelatedPosts(post.slug, 3) rendered as small
+      cards each linking to /blog/[slug]. Hide the section if there are none.
+- Fully responsive, works in light + dark via the CSS vars.
+
+
+tsx. Must compile with zero TypeScript errors.
+
+Read these existing files before editing: lib/blog-data.ts.
+
+@@@TASK@@@
+Make the EN / नेपाली language switcher ACTUALLY work. Right now useTranslation() hardcodes English and
+the navbar dropdown buttons only have a `// Would trigger language change` comment.
+
+Change TWO files (output the COMPLETE file for each):
+
+1) app/components/i18n-hook.ts
+   - Keep the big `i18nHook` dictionary object (en + ne) EXACTLY as-is.
+   - Replace the useTranslation() implementation at the bottom so language is real and reactive:
+     * Read the current language from localStorage key "cn_lang" (default "en"), value is "en" | "ne".
+     * Use React state + useEffect so the hook re-renders when the language changes. Listen for a
+       custom window event "cn-langchange" AND the storage event, updating state on both.
+     * Export a helper to change language:
+           export function setLanguage(lang: "en" | "ne") {
+             if (typeof window !== "undefined") {
+               localStorage.setItem("cn_lang", lang);
+               window.dispatchEvent(new CustomEvent("cn-langchange", { detail: lang }));
+             }
+           }
+     * useTranslation() must return { t, language, setLanguage }. `t(key)` looks up the CURRENT
+       language dict, falling back to en, then to the key string (same fallback behavior as now).
+   - Add "use client"; if not already present. Import { useState, useEffect } from "react".
+   - Must compile: t must always return a string.
+
+2) app/components/navbar.tsx
+   - Import { useTranslation } is already there; also pull setLanguage + language:
+         const { language, setLanguage } = useTranslation();
+   - The current-language button label must show "EN" when language==="en" else "ने".
+   - The two dropdown buttons (English / नेपाली) must call setLanguage("en") / setLanguage("ne")
+     respectively (replace the `// Would trigger language change` comments), then close the menu
+     (setIsLangOpen(false)). Show a small check ✓ next to the active language.
+   - Keep EVERYTHING else in the navbar exactly as-is (brand/logo, nav links, theme toggle, mobile
+     menu, scroll behavior).
+
+
+Must compile with zero TypeScript errors.
+
+Read these existing files before editing: app/components/i18n-hook.ts, app/components/navbar.tsx.
+
+@@@TASK@@@
+Create a full marketing FEATURES page (currently features only exist as a landing section, no page).
+
+CREATE THIS ONE FILE: app/features/page.tsx
+
+Content: a hero, then feature groups in cards. Cover at least these groups, each with 3-4 features
+(title + one-sentence description + inline SVG icon):
+- "Website & Content" (page builder, themes, media library, custom domain, SEO)
+- "Church Operations" (members/CRM, groups, events, service times, attendance)
+- "Giving & Finance" (online donations, funds, pledges, campaigns, reports)
+- "Communication" (sermons, newsletters, broadcasts, prayer requests, forms)
+- "Platform & Security" (multi-tenant isolation, per-church database, backups, roles, 99.9% uptime)
+Add a comparison line ("Everything included, no add-ons") and a closing CTA to /signup and /pricing.
+
+DESIGN SYSTEM — match the existing site EXACTLY:
+- First line of the file: "use client";
+- Wrap the whole page in the shared layout. For a file at app/<name>/page.tsx use:
+      import PublicLayout from "../public-layout";
+      ...
+      return <PublicLayout> ...page... </PublicLayout>;
+- COLORS: use ONLY CSS variables through Tailwind arbitrary values. NEVER hardcode hex.
+  Available vars: --bg --panel --panel-2 --panel-3 --border --border-soft --text --text-strong
+  --muted --accent --accent-2 --accent-soft --gold-soft --good --good-soft --max
+  Examples: text-[var(--text-strong)] text-[var(--muted)] bg-[var(--panel)] bg-[var(--panel-2)]
+  border-[var(--border)] text-[var(--accent)] bg-[var(--accent-soft)]
+- UI components available to import:
+      import Link from "next/link";
+      import { Card, CardContent } from "@/components/ui/card";
+      import { Badge } from "@/components/ui/badge";
+      import { Button } from "@/components/ui/button";
+- Outer container: <div className="max-w-[var(--max)] mx-auto px-6 py-16 sm:py-24">
+- Hero at top: small eyebrow <Badge variant="secondary">, big H1 (text-4xl sm:text-5xl font-bold
+  text-[var(--text-strong)]), subtitle text-[var(--muted)] text-lg. Then content sections.
+  End with a closing CTA card linking to /signup and /pricing.
+- Fully responsive (grid-cols-1 md:grid-cols-2 / lg:grid-cols-3). Must look correct in BOTH light
+  and dark themes automatically (guaranteed if you only use the CSS vars above).
+- Use inline SVG icons (stroke="currentColor") — do NOT add new npm imports.
+Must compile with zero TypeScript errors.
+
+@@@TASK@@@
+Create a DOCS / Help Center landing page (does not exist yet).
+
+CREATE THIS ONE FILE: app/docs/page.tsx
+
+Content:
+- Hero with a (non-functional but styled) search box "Search the docs...".
+- A grid of documentation categories as cards, each with an icon, title, short description and a list
+  of 3-4 example article links (use href="#" for the article links for now, but make them look real):
+  "Getting Started", "Managing Churches", "Themes & Design", "Members & Groups", "Giving & Donations",
+  "Events & Calendar", "Sermons & Media", "Account & Billing", "API & Integrations".
+- A "Popular articles" list section.
+- A "Still need help?" CTA card linking to /contact.
+
+DESIGN SYSTEM — match the existing site EXACTLY:
+- First line of the file: "use client";
+- Wrap the whole page in the shared layout. For a file at app/<name>/page.tsx use:
+      import PublicLayout from "../public-layout";
+      ...
+      return <PublicLayout> ...page... </PublicLayout>;
+- COLORS: use ONLY CSS variables through Tailwind arbitrary values. NEVER hardcode hex.
+  Available vars: --bg --panel --panel-2 --panel-3 --border --border-soft --text --text-strong
+  --muted --accent --accent-2 --accent-soft --gold-soft --good --good-soft --max
+  Examples: text-[var(--text-strong)] text-[var(--muted)] bg-[var(--panel)] bg-[var(--panel-2)]
+  border-[var(--border)] text-[var(--accent)] bg-[var(--accent-soft)]
+- UI components available to import:
+      import Link from "next/link";
+      import { Card, CardContent } from "@/components/ui/card";
+      import { Badge } from "@/components/ui/badge";
+      import { Button } from "@/components/ui/button";
+- Outer container: <div className="max-w-[var(--max)] mx-auto px-6 py-16 sm:py-24">
+- Hero at top: small eyebrow <Badge variant="secondary">, big H1 (text-4xl sm:text-5xl font-bold
+  text-[var(--text-strong)]), subtitle text-[var(--muted)] text-lg. Then content sections.
+  End with a closing CTA card linking to /signup and /pricing.
+- Fully responsive (grid-cols-1 md:grid-cols-2 / lg:grid-cols-3). Must look correct in BOTH light
+  and dark themes automatically (guaranteed if you only use the CSS vars above).
+- Use inline SVG icons (stroke="currentColor") — do NOT add new npm imports.
+Must compile with zero TypeScript errors.
+
+@@@TASK@@@
+Create a SECURITY / TRUST page (does not exist yet). This reassures church admins about data safety.
+
+CREATE THIS ONE FILE: app/security/page.tsx
+
+Content:
+- Hero: "Security & Trust".
+- A grid of security practice cards (icon + title + description): "Per-church data isolation"
+  (separate database per church), "Encryption in transit & at rest", "Role-based access control",
+  "Automated backups", "DDoS protection & WAF", "Regular security updates", "GDPR-friendly data
+  handling", "Audit logging".
+- A "Compliance & standards" strip with badge-style pills (SSL, TLS 1.3, Daily Backups, Uptime 99.9%).
+- A short "Responsible disclosure" section with a mailto link security@churchnepal.com.
+- Closing CTA to /contact ("Talk to us about security").
+
+DESIGN SYSTEM — match the existing site EXACTLY:
+- First line of the file: "use client";
+- Wrap the whole page in the shared layout. For a file at app/<name>/page.tsx use:
+      import PublicLayout from "../public-layout";
+      ...
+      return <PublicLayout> ...page... </PublicLayout>;
+- COLORS: use ONLY CSS variables through Tailwind arbitrary values. NEVER hardcode hex.
+  Available vars: --bg --panel --panel-2 --panel-3 --border --border-soft --text --text-strong
+  --muted --accent --accent-2 --accent-soft --gold-soft --good --good-soft --max
+  Examples: text-[var(--text-strong)] text-[var(--muted)] bg-[var(--panel)] bg-[var(--panel-2)]
+  border-[var(--border)] text-[var(--accent)] bg-[var(--accent-soft)]
+- UI components available to import:
+      import Link from "next/link";
+      import { Card, CardContent } from "@/components/ui/card";
+      import { Badge } from "@/components/ui/badge";
+      import { Button } from "@/components/ui/button";
+- Outer container: <div className="max-w-[var(--max)] mx-auto px-6 py-16 sm:py-24">
+- Hero at top: small eyebrow <Badge variant="secondary">, big H1 (text-4xl sm:text-5xl font-bold
+  text-[var(--text-strong)]), subtitle text-[var(--muted)] text-lg. Then content sections.
+  End with a closing CTA card linking to /signup and /pricing.
+- Fully responsive (grid-cols-1 md:grid-cols-2 / lg:grid-cols-3). Must look correct in BOTH light
+  and dark themes automatically (guaranteed if you only use the CSS vars above).
+- Use inline SVG icons (stroke="currentColor") — do NOT add new npm imports.
+Must compile with zero TypeScript errors.
+
+@@@TASK@@@
+Create a CHANGELOG / "What's New" page (does not exist yet).
+
+CREATE THIS ONE FILE: app/changelog/page.tsx
+
+Content:
+- Hero: "Changelog".
+- A vertical timeline of releases (newest first). Provide 6 entries, each with: a version badge
+  (e.g. v1.4.0), a date, a title, a short paragraph, and a small list of bullet changes tagged with
+  colored pills "New" (bg-[var(--good-soft)] text-[var(--good)]), "Improved"
+  (bg-[var(--accent-soft)] text-[var(--accent)]), "Fixed" (bg-[var(--panel-2)] text-[var(--muted)]).
+  Make the content realistic for this product (blog detail pages, language switcher, admin
+  notifications, audit log, billing plans, theme customizer, giving reports, etc.).
+- Closing CTA to /signup.
+
+DESIGN SYSTEM — match the existing site EXACTLY:
+- First line of the file: "use client";
+- Wrap the whole page in the shared layout. For a file at app/<name>/page.tsx use:
+      import PublicLayout from "../public-layout";
+      ...
+      return <PublicLayout> ...page... </PublicLayout>;
+- COLORS: use ONLY CSS variables through Tailwind arbitrary values. NEVER hardcode hex.
+  Available vars: --bg --panel --panel-2 --panel-3 --border --border-soft --text --text-strong
+  --muted --accent --accent-2 --accent-soft --gold-soft --good --good-soft --max
+  Examples: text-[var(--text-strong)] text-[var(--muted)] bg-[var(--panel)] bg-[var(--panel-2)]
+  border-[var(--border)] text-[var(--accent)] bg-[var(--accent-soft)]
+- UI components available to import:
+      import Link from "next/link";
+      import { Card, CardContent } from "@/components/ui/card";
+      import { Badge } from "@/components/ui/badge";
+      import { Button } from "@/components/ui/button";
+- Outer container: <div className="max-w-[var(--max)] mx-auto px-6 py-16 sm:py-24">
+- Hero at top: small eyebrow <Badge variant="secondary">, big H1 (text-4xl sm:text-5xl font-bold
+  text-[var(--text-strong)]), subtitle text-[var(--muted)] text-lg. Then content sections.
+  End with a closing CTA card linking to /signup and /pricing.
+- Fully responsive (grid-cols-1 md:grid-cols-2 / lg:grid-cols-3). Must look correct in BOTH light
+  and dark themes automatically (guaranteed if you only use the CSS vars above).
+- Use inline SVG icons (stroke="currentColor") — do NOT add new npm imports.
+Must compile with zero TypeScript errors.
+
+@@@TASK@@@
+Create a CAREERS page (does not exist yet).
+
+CREATE THIS ONE FILE: app/careers/page.tsx
+
+Content:
+- Hero: "Join our mission".
+- A short "Why work here" section with 3-4 value cards (Remote-first, Mission-driven, Growth, Impact).
+- An "Open positions" list: 4-5 role cards (title, department, location "Remote / Kathmandu",
+  type "Full-time"), each with an "Apply" button that links to /contact.
+- A "Perks & benefits" grid.
+- A closing "Don't see your role?" CTA linking to /contact.
+
+DESIGN SYSTEM — match the existing site EXACTLY:
+- First line of the file: "use client";
+- Wrap the whole page in the shared layout. For a file at app/<name>/page.tsx use:
+      import PublicLayout from "../public-layout";
+      ...
+      return <PublicLayout> ...page... </PublicLayout>;
+- COLORS: use ONLY CSS variables through Tailwind arbitrary values. NEVER hardcode hex.
+  Available vars: --bg --panel --panel-2 --panel-3 --border --border-soft --text --text-strong
+  --muted --accent --accent-2 --accent-soft --gold-soft --good --good-soft --max
+  Examples: text-[var(--text-strong)] text-[var(--muted)] bg-[var(--panel)] bg-[var(--panel-2)]
+  border-[var(--border)] text-[var(--accent)] bg-[var(--accent-soft)]
+- UI components available to import:
+      import Link from "next/link";
+      import { Card, CardContent } from "@/components/ui/card";
+      import { Badge } from "@/components/ui/badge";
+      import { Button } from "@/components/ui/button";
+- Outer container: <div className="max-w-[var(--max)] mx-auto px-6 py-16 sm:py-24">
+- Hero at top: small eyebrow <Badge variant="secondary">, big H1 (text-4xl sm:text-5xl font-bold
+  text-[var(--text-strong)]), subtitle text-[var(--muted)] text-lg. Then content sections.
+  End with a closing CTA card linking to /signup and /pricing.
+- Fully responsive (grid-cols-1 md:grid-cols-2 / lg:grid-cols-3). Must look correct in BOTH light
+  and dark themes automatically (guaranteed if you only use the CSS vars above).
+- Use inline SVG icons (stroke="currentColor") — do NOT add new npm imports.
+Must compile with zero TypeScript errors.
+
+@@@TASK@@@
+Create a CUSTOMERS / Case Studies page (does not exist yet).
+
+CREATE THIS ONE FILE: app/customers/page.tsx
+
+Content:
+- Hero: "Churches thriving on ChurchNepal".
+- A metrics band (e.g. "500+ churches", "1M+ members served", "99.9% uptime", "24/7 support").
+- A grid of 4-6 customer story cards: church name (make up realistic names), location, a one-line
+  result quote, and 2-3 stat chips (e.g. "+40% online giving"). Use avatar circles with initials.
+- A featured testimonial (large quote + attribution).
+- Closing CTA to /signup.
+Note: these are illustrative sample stories — keep tone credible, not exaggerated.
+
+DESIGN SYSTEM — match the existing site EXACTLY:
+- First line of the file: "use client";
+- Wrap the whole page in the shared layout. For a file at app/<name>/page.tsx use:
+      import PublicLayout from "../public-layout";
+      ...
+      return <PublicLayout> ...page... </PublicLayout>;
+- COLORS: use ONLY CSS variables through Tailwind arbitrary values. NEVER hardcode hex.
+  Available vars: --bg --panel --panel-2 --panel-3 --border --border-soft --text --text-strong
+  --muted --accent --accent-2 --accent-soft --gold-soft --good --good-soft --max
+  Examples: text-[var(--text-strong)] text-[var(--muted)] bg-[var(--panel)] bg-[var(--panel-2)]
+  border-[var(--border)] text-[var(--accent)] bg-[var(--accent-soft)]
+- UI components available to import:
+      import Link from "next/link";
+      import { Card, CardContent } from "@/components/ui/card";
+      import { Badge } from "@/components/ui/badge";
+      import { Button } from "@/components/ui/button";
+- Outer container: <div className="max-w-[var(--max)] mx-auto px-6 py-16 sm:py-24">
+- Hero at top: small eyebrow <Badge variant="secondary">, big H1 (text-4xl sm:text-5xl font-bold
+  text-[var(--text-strong)]), subtitle text-[var(--muted)] text-lg. Then content sections.
+  End with a closing CTA card linking to /signup and /pricing.
+- Fully responsive (grid-cols-1 md:grid-cols-2 / lg:grid-cols-3). Must look correct in BOTH light
+  and dark themes automatically (guaranteed if you only use the CSS vars above).
+- Use inline SVG icons (stroke="currentColor") — do NOT add new npm imports.
+Must compile with zero TypeScript errors.
+
+@@@TASK@@@
+Create a system STATUS page (does not exist yet).
+
+CREATE THIS ONE FILE: app/status/page.tsx
+
+Content:
+- Hero with a big "All systems operational" banner (green: bg-[var(--good-soft)] text-[var(--good)])
+  with a pulsing dot.
+- A list of components each with a status pill: "Website / Marketing", "Admin Dashboard", "Church
+  Sites", "API", "Database", "Media / Storage", "Email Delivery". All "Operational" except make ONE
+  "Degraded Performance" (amber using --gold-soft) to show the styling.
+- A 90-day uptime bar for each component: render 90 small vertical bars (mostly green, a few amber),
+  built with an array .map — use a subtle title tooltip.
+- A "Past incidents" section with 2 sample resolved incidents (date, title, short resolution note).
+This is a static illustrative page (no live data) — clearly it's a UI mock of a status page.
+
+DESIGN SYSTEM — match the existing site EXACTLY:
+- First line of the file: "use client";
+- Wrap the whole page in the shared layout. For a file at app/<name>/page.tsx use:
+      import PublicLayout from "../public-layout";
+      ...
+      return <PublicLayout> ...page... </PublicLayout>;
+- COLORS: use ONLY CSS variables through Tailwind arbitrary values. NEVER hardcode hex.
+  Available vars: --bg --panel --panel-2 --panel-3 --border --border-soft --text --text-strong
+  --muted --accent --accent-2 --accent-soft --gold-soft --good --good-soft --max
+  Examples: text-[var(--text-strong)] text-[var(--muted)] bg-[var(--panel)] bg-[var(--panel-2)]
+  border-[var(--border)] text-[var(--accent)] bg-[var(--accent-soft)]
+- UI components available to import:
+      import Link from "next/link";
+      import { Card, CardContent } from "@/components/ui/card";
+      import { Badge } from "@/components/ui/badge";
+      import { Button } from "@/components/ui/button";
+- Outer container: <div className="max-w-[var(--max)] mx-auto px-6 py-16 sm:py-24">
+- Hero at top: small eyebrow <Badge variant="secondary">, big H1 (text-4xl sm:text-5xl font-bold
+  text-[var(--text-strong)]), subtitle text-[var(--muted)] text-lg. Then content sections.
+  End with a closing CTA card linking to /signup and /pricing.
+- Fully responsive (grid-cols-1 md:grid-cols-2 / lg:grid-cols-3). Must look correct in BOTH light
+  and dark themes automatically (guaranteed if you only use the CSS vars above).
+- Use inline SVG icons (stroke="currentColor") — do NOT add new npm imports.
+Must compile with zero TypeScript errors.
+
+@@@TASK@@@
+Create a self-serve SIGN-UP / onboarding flow. Today every CTA points to /pricing or the admin login;
+there is no way to start creating a church. Build a polished multi-step wizard (UI-complete, client
+side — it does NOT need to call the backend; it ends in a clear confirmation screen).
+
+CREATE THIS ONE FILE: app/signup/page.tsx
+
+Requirements:
+- "use client"; wrap in PublicLayout (import PublicLayout from "../public-layout";).
+- A 4-step wizard with a progress indicator (Step x of 4) at the top:
+    Step 1 "Your church": church name input -> live slug preview shown as `<slug>.churchnepal.com`
+           (slugify: lowercase, spaces->dashes, strip non-alphanumeric/dash). Country/city optional.
+    Step 2 "Admin account": full name, email, (password + confirm fields are OK as UI only — do NOT
+           submit them anywhere). Basic inline validation (required, email format, passwords match).
+    Step 3 "Choose a plan": three selectable plan cards Free / Standard ($9/mo) / Pro ($29/mo)
+           (radio-style selection, highlight the chosen one). Default Standard.
+    Step 4 "Review": summary of everything entered, a terms checkbox ("I agree to the Terms and
+           Privacy Policy" linking to /terms and /privacy if they exist, else "#"), and a
+           "Create my church" button (disabled until the checkbox is ticked).
+- Back / Next buttons; Next is disabled until the current step is valid. useState for step + form data.
+- On final submit: DO NOT call any API. Instead switch to a success screen showing:
+  a green check, "Your church site is being provisioned", the chosen `<slug>.churchnepal.com`, a note
+  that login details will be emailed, and two buttons: "Go to admin" (/admin) and "Back to home" (/).
+- Use the design system (CSS vars, Card/Badge/Button). Fully responsive, light + dark.
+
+tsx. Must compile with zero TypeScript errors.
+
+@@@TASK@@@
+Update the footer link columns so all the new pages are reachable, and wire the newsletter + CTA.
+
+EDIT: app/components/footer.tsx (keep "use client", the brand column, logo, newsletter form, and
+social links exactly as they are).
+
+Update the link columns (there are Product / Resources / Company style columns) so they include these
+real, existing routes (use next/link <Link href=...>):
+- Product: Features (/features), Pricing (/pricing), Sign up (/signup), Status (/status)
+- Resources: Docs (/docs), Blog (/blog), Changelog (/changelog), Security (/security)
+- Company: About (/about), Customers (/customers), Careers (/careers), Contact (/contact)
+- Legal (small row near the copyright): Privacy (/privacy), Terms (/terms)
+Keep every href pointing at a route that exists (all of the above are being created). Match the
+existing text styles (text-[var(--muted)] hover:text-[var(--text-strong)] / hover:text-[var(--accent)]).
+Do not change the newsletter behavior or social icons.
+
+
+tsx. Must compile with zero TypeScript errors.
+
+Read these existing files before editing: app/components/footer.tsx.
+
+@@@TASK@@@
+Add a floating SUPPORT / help widget to the public site (bottom-right).
+
+Change TWO files (output the COMPLETE file for each):
+
+1) CREATE app/components/support-widget.tsx
+   - "use client"; component named SupportWidget, default export.
+   - A fixed bottom-right button (a chat/help bubble, inline SVG). z-40. On click it toggles a small
+     panel (useState open).
+   - The panel (a Card, w-80) shows: a header "How can we help?", 3-4 quick links (Docs -> /docs,
+     Contact us -> /contact, Status -> /status, Read the blog -> /blog) each as a row with an icon,
+     and a small footer note "Avg. reply time: under 2 hours".
+   - Close on outside-ish interaction: include an X button in the panel header. Keep it simple, no
+     external libs. Use CSS vars for all colors; works light + dark; responsive (on mobile the panel
+     should not overflow — use max-w-[calc(100vw-2rem)]).
+
+2) EDIT app/public-layout.tsx
+   - Import the widget: import SupportWidget from "@/components/support-widget";
+   - Render <SupportWidget /> inside the layout (near the existing BackToTop / CookieConsent). Keep
+     everything else (ScrollProgress, Navbar, main, Footer, DemoModal, BackToTop, CookieConsent) as-is.
+
+
+Must compile with zero TypeScript errors.
+
+Read these existing files before editing: app/public-layout.tsx.
+
+@@@TASK@@@
+Create the Master Control admin NOTIFICATIONS center page (does not exist yet).
+
+CREATE THIS ONE FILE: app/admin/notifications/page.tsx
+
+Match the existing admin page style (see how other admin pages look): "use client"; cards use
+className="card bg-[var(--panel)] border border-[var(--border)] rounded-xl p-5"; headings use
+text-[var(--text-strong)]; muted text text-[var(--muted)]. Import { Button } from "@/components/ui/button"
+and { Badge } from "@/components/ui/badge".
+
+Content (client-side sample data with useState — no backend needed):
+- Page header "Notifications" + a "Mark all as read" button.
+- Filter tabs: All / Unread / Churches / Billing / System (useState selected).
+- A list of ~8 notification rows, each: an icon by type, a title, a short description, a relative
+  timestamp ("2h ago"), and an unread dot. Types: new church provisioned, plan upgraded, payment
+  failed, storage near limit, new admin invited, system update, backup completed, church suspended.
+- Clicking a row marks it read (removes the dot). "Mark all as read" clears all dots.
+- Unread count Badge in the header.
+- Empty state when a filter has no items.
+Fully responsive, light + dark via CSS vars.
+
+tsx. Must compile with zero TypeScript errors.
+
+@@@TASK@@@
+Create the Master Control admin AUDIT LOG page (does not exist yet).
+
+CREATE THIS ONE FILE: app/admin/audit-log/page.tsx
+
+Match existing admin style ("use client"; card = bg-[var(--panel)] border border-[var(--border)]
+rounded-xl p-5; CSS vars for all colors). Import Button + Badge from @/components/ui/*.
+
+Content (client-side sample data with useState):
+- Header "Audit Log" + subtitle "Every administrative action, recorded."
+- A toolbar: a search input (filters by actor/action/target), an actor filter <select>, an action-type
+  filter <select> (Create / Update / Delete / Login / Billing), and an "Export CSV" button that builds
+  a CSV string from the filtered rows and triggers a download via a Blob + an <a download> (client only).
+- A responsive table (or stacked cards on mobile) of ~12 audit entries: timestamp, actor (admin email),
+  action (with a colored pill by type), target (e.g. "Church: Grace Chapel"), and IP address.
+- Pagination or a "Load more" button (client-side slice) if you generate more than ~10 rows.
+- Empty state when filters match nothing.
+Fully responsive, light + dark.
+
+tsx. Must compile with zero TypeScript errors.
+
+@@@TASK@@@
+Add the two new admin pages to the Master Control sidebar navigation.
+
+EDIT: app/admin/sidebar.tsx
+
+- In the `navItems` array, add two entries so the order is:
+    Dashboard, Churches, Analytics, Billing & Plans, Notifications (/admin/notifications, icon "bell"),
+    Audit Log (/admin/audit-log, icon "audit"), Admins, Settings.
+- Add matching entries to the `Icons` object for the new keys:
+    bell:  an inline SVG bell (viewBox 0 0 24 24, fill none, stroke currentColor, strokeWidth 2,
+           round caps) — path like: M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9  plus  M13.73 21a2 2 0 0 1-3.46 0
+    audit: an inline SVG document-with-check (a file/clipboard outline with a small checkmark).
+- Keep the exact same rendering pattern the other items use (the component maps navItems and looks up
+  Icons[item.icon]). Keep everything else in the file (active-state logic, theme toggle, collapse,
+  pathname highlighting) EXACTLY as-is.
+
+
+tsx. Must compile with zero TypeScript errors.
+
+Read these existing files before editing: app/admin/sidebar.tsx.
+
+@@@TASK@@@
+Rebuild the Master Control admin SETTINGS page into a real, tabbed settings screen. The current page is
+mostly a stub (a toast on save). Keep it client-side (useState); no backend calls required, but make it
+feel fully functional (local state updates + a success toast on save).
+
+EDIT (replace): app/admin/settings/page.tsx
+
+Keep the existing imports that work: { useState, useEffect } from "react"; Button + Badge from
+@/components/ui/*; useMe from "@/components/hooks/use-auth"; { toast } from "sonner". Keep the
+authIsLoading guard.
+
+Build a left-rail (or top) tab switcher (useState activeTab) with these tabs, each its own card panel:
+- "Profile": show the signed-in email (userData?.email) read-only, a Display Name input, and a Role
+  Badge "Super Admin". Save button -> toast.success("Profile updated").
+- "Security": Change password form (current, new, confirm) with inline validation (new===confirm,
+  min 8 chars). A "Two-factor authentication" row with an Enable/Disable toggle (useState). Save ->
+  toast.
+- "Organization": Platform Name, Base URL (churchnepal.com), Default Plan <select> (Free/Standard/Pro),
+  Maintenance Mode toggle. Save -> toast.
+- "Email": SMTP host, port, username, "from" address, and a "Send test email" button (-> toast.info).
+- "API Keys": a list of 1-2 sample keys shown masked (cn_live_••••1234) with Copy + Revoke buttons and
+  a "Generate new key" button that prepends a new masked row (client state). Copy -> toast.success.
+- "Danger Zone": red-bordered card (border-[var(--bad)] if it exists else border-red styling via
+  bg-[var(--panel-2)]) with a "Reset platform data" button that opens a confirm (window.confirm ok) and
+  then toast — clearly a destructive-styled section.
+Every form field is controlled (useState). Fully responsive, light + dark, all colors via CSS vars.
+
+
+tsx. Must compile with zero TypeScript errors.
+
+Read these existing files before editing: app/admin/settings/page.tsx.
+
+@@@TASK@@@
+Upgrade the Master Control ADMINS page from read-only into a manageable list (invite / edit role /
+remove). Keep it client-side with useState (no backend wiring required) but make the interactions real.
+
+EDIT: app/admin/admins/page.tsx
+
+Preserve whatever data-fetching hook it already uses to seed the initial list (e.g. useAdmins). Copy
+the fetched admins into local useState on load (useEffect) so you can add/edit/remove locally. If no
+hook data, fall back to 2-3 sample admins.
+
+Add:
+- An "Invite admin" button in the header that opens a modal (a fixed overlay + centered Card — no
+  external lib): fields Email + Role <select> (Super Admin / Admin / Read-only). "Send invite" adds a
+  row with status Badge "Pending" and toasts success. Basic email validation.
+- Each admin row shows: avatar initials, email, a Role select (changing it updates local state +
+  toast), a status Badge (Active/Pending), last-active text, and a "Remove" button that opens a
+  window.confirm then removes the row + toast. Prevent removing the last Super Admin (guard + toast.error).
+- A small stats strip on top: total admins, active, pending.
+- Use { toast } from "sonner". Match the admin card style and CSS vars. Fully responsive, light + dark.
+
+
+tsx. Must compile with zero TypeScript errors.
+
+Read these existing files before editing: app/admin/admins/page.tsx.
+
+@@@TASK@@@
+Add real management actions to the Master Control CHURCHES list: per-church suspend/reactivate, an
+Actions menu (including "Log in as" and "View site"), bulk selection with bulk actions, CSV export, and
+client-side pagination. Keep the EXISTING search/filter/sort toolbar and data hook working — only ADD.
+
+EDIT: app/admin/churches/page.tsx
+
+Requirements (client-side; use local useState layered over the existing fetched list — do NOT delete
+the current filtering/sorting logic; extend it):
+- Add a "status" concept per church (active | suspended). Seed from the church's existing status field
+  if present, else default "active", tracked in local state so toggling persists in the UI.
+- Row actions (a small "⋯" menu button per row, or inline buttons):
+    * Suspend / Reactivate  -> toggles that church's status + toast. Suspended rows render dimmed
+      (opacity-60) with a "Suspended" Badge (bg-[var(--gold-soft)] text style).
+    * View site -> opens `https://<subdomain-or-slug>.churchnepal.com` in a new tab (use the church's
+      existing subdomain/slug field; guard if missing).
+    * Log in as -> just toast.info(`Impersonation link sent for <name>`) (UI only).
+- Bulk selection: a checkbox per row + a header "select all (filtered)" checkbox. When >0 selected,
+  show a bulk action bar: "Suspend selected", "Reactivate selected", "Export selected (CSV)".
+- "Export CSV" button (exports the currently filtered list): builds CSV (name, subdomain, plan, status,
+  created) and downloads via Blob + <a download>. Client only.
+- Client-side pagination: page size 10, with Prev/Next + "Page x of y" (operate on the filtered list).
+- Keep all colors on CSS vars; keep the page responsive and working in light + dark.
+- Import { toast } from "sonner" if not already imported.
+
+
+tsx. Must compile with zero TypeScript errors.
+
+Read these existing files before editing: app/admin/churches/page.tsx.

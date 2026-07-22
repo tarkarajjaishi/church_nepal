@@ -1,0 +1,35 @@
+Create a shared blog data module so the blog list and the new blog detail pages read from ONE source.
+
+CREATE THIS ONE FILE: lib/blog-data.ts  (note: @/lib/* maps to ./lib/*)
+
+Requirements:
+- Export this interface:
+    export interface BlogPost {
+      slug: string;            // url-safe, e.g. "getting-started-with-churchnepal"
+      title: string;
+      excerpt: string;
+      date: string;            // ISO "2024-01-15"
+      readTime: string;        // "5 min read"
+      category: string;
+      author: string;
+      coverImage: string;      // a CSS gradient string, e.g. "linear-gradient(135deg, var(--accent-soft), var(--gold-soft))"
+      featured?: boolean;
+      content: { heading: string; body: string }[];  // 4-6 real sections of 2-4 sentences each
+    }
+- Export `export const blogPosts: BlogPost[]` with SIX well-written posts. Reuse these titles/authors/
+  categories (add a unique slug + real multi-paragraph `content` to each):
+    1 "Getting Started with ChurchNepal" — Getting Started — Tarka Raj Jaishi — featured
+    2 "5 Ways Church Websites Drive Engagement" — Growth — Sarah Thompson
+    3 "Multi-Tenant Architecture Explained" — Technical — Tarka Raj Jaishi
+    4 "Theme Customization for Churches" — Customization — Sarah Thompson
+    5 "Keeping Church Data Secure and Isolated" — Security — Tarka Raj Jaishi
+    6 "The Future of Cloud Hosting for Churches" — Future — Sarah Thompson
+  Write genuine, helpful English content (no lorem ipsum). Use varied gradient coverImage strings
+  built from the CSS vars: --accent-soft --gold-soft --good-soft --panel-2 --border-soft.
+- Export helpers:
+    export function getAllPosts(): BlogPost[]                 // returns blogPosts
+    export function getPostBySlug(slug: string): BlogPost | undefined
+    export function getRelatedPosts(slug: string, count?: number): BlogPost[]  // same category first, default 3
+    export function getCategories(): string[]                // unique categories, no duplicates
+
+Output the COMPLETE file lib/blog-data.ts. Must compile with zero TypeScript errors.

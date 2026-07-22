@@ -1,0 +1,37 @@
+Make the EN / नेपाली language switcher ACTUALLY work. Right now useTranslation() hardcodes English and
+the navbar dropdown buttons only have a `// Would trigger language change` comment.
+
+Change TWO files (output the COMPLETE file for each):
+
+1) app/components/i18n-hook.ts
+   - Keep the big `i18nHook` dictionary object (en + ne) EXACTLY as-is.
+   - Replace the useTranslation() implementation at the bottom so language is real and reactive:
+     * Read the current language from localStorage key "cn_lang" (default "en"), value is "en" | "ne".
+     * Use React state + useEffect so the hook re-renders when the language changes. Listen for a
+       custom window event "cn-langchange" AND the storage event, updating state on both.
+     * Export a helper to change language:
+           export function setLanguage(lang: "en" | "ne") {
+             if (typeof window !== "undefined") {
+               localStorage.setItem("cn_lang", lang);
+               window.dispatchEvent(new CustomEvent("cn-langchange", { detail: lang }));
+             }
+           }
+     * useTranslation() must return { t, language, setLanguage }. `t(key)` looks up the CURRENT
+       language dict, falling back to en, then to the key string (same fallback behavior as now).
+   - Add "use client"; if not already present. Import { useState, useEffect } from "react".
+   - Must compile: t must always return a string.
+
+2) app/components/navbar.tsx
+   - Import { useTranslation } is already there; also pull setLanguage + language:
+         const { language, setLanguage } = useTranslation();
+   - The current-language button label must show "EN" when language==="en" else "ने".
+   - The two dropdown buttons (English / नेपाली) must call setLanguage("en") / setLanguage("ne")
+     respectively (replace the `// Would trigger language change` comments), then close the menu
+     (setIsLangOpen(false)). Show a small check ✓ next to the active language.
+   - Keep EVERYTHING else in the navbar exactly as-is (brand/logo, nav links, theme toggle, mobile
+     menu, scroll behavior).
+
+@include: app/components/i18n-hook.ts
+@include: app/components/navbar.tsx
+
+Output BOTH complete files. Must compile with zero TypeScript errors.

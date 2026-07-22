@@ -1,0 +1,29 @@
+Rebuild the Master Control admin SETTINGS page into a real, tabbed settings screen. The current page is
+mostly a stub (a toast on save). Keep it client-side (useState); no backend calls required, but make it
+feel fully functional (local state updates + a success toast on save).
+
+EDIT (replace): app/admin/settings/page.tsx
+
+Keep the existing imports that work: { useState, useEffect } from "react"; Button + Badge from
+@/components/ui/*; useMe from "@/components/hooks/use-auth"; { toast } from "sonner". Keep the
+authIsLoading guard.
+
+Build a left-rail (or top) tab switcher (useState activeTab) with these tabs, each its own card panel:
+- "Profile": show the signed-in email (userData?.email) read-only, a Display Name input, and a Role
+  Badge "Super Admin". Save button -> toast.success("Profile updated").
+- "Security": Change password form (current, new, confirm) with inline validation (new===confirm,
+  min 8 chars). A "Two-factor authentication" row with an Enable/Disable toggle (useState). Save ->
+  toast.
+- "Organization": Platform Name, Base URL (churchnepal.com), Default Plan <select> (Free/Standard/Pro),
+  Maintenance Mode toggle. Save -> toast.
+- "Email": SMTP host, port, username, "from" address, and a "Send test email" button (-> toast.info).
+- "API Keys": a list of 1-2 sample keys shown masked (cn_live_••••1234) with Copy + Revoke buttons and
+  a "Generate new key" button that prepends a new masked row (client state). Copy -> toast.success.
+- "Danger Zone": red-bordered card (border-[var(--bad)] if it exists else border-red styling via
+  bg-[var(--panel-2)]) with a "Reset platform data" button that opens a confirm (window.confirm ok) and
+  then toast — clearly a destructive-styled section.
+Every form field is controlled (useState). Fully responsive, light + dark, all colors via CSS vars.
+
+@include: app/admin/settings/page.tsx
+
+Output the COMPLETE app/admin/settings/page.tsx. Must compile with zero TypeScript errors.

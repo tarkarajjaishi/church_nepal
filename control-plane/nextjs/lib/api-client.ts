@@ -33,7 +33,10 @@ apiClient.interceptors.response.use(
       setAuthToken(null);
       if (typeof window !== "undefined") {
         localStorage.removeItem("control_token");
-        window.location.href = "/admin";
+        const path = window.location.pathname;
+        if (path.startsWith("/admin") && path !== "/admin/login") {
+          window.location.href = "/admin/login";
+        }
       }
     }
     return Promise.reject(error);

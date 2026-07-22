@@ -330,14 +330,13 @@
     font-size: var(--text-sm);
     font-weight: 600;
     font-family: inherit;
-    color: var(--accent-contrast);
-    background: linear-gradient(135deg, var(--accent), var(--accent-2));
-    box-shadow: var(--shadow-sm);
+    color: inherit;
+    background: transparent;
     transition: transform var(--dur-fast) var(--ease),
       box-shadow var(--dur) var(--ease), opacity var(--dur-fast) var(--ease),
       background var(--dur) var(--ease), border-color var(--dur) var(--ease);
   }
-  button:hover { transform: translateY(-1px); box-shadow: var(--shadow); }
+  button:hover {}
   button:active { transform: translateY(0); }
   button:disabled { opacity: 0.55; cursor: default; transform: none; box-shadow: none; }
 

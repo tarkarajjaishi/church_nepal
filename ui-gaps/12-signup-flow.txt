@@ -1,0 +1,25 @@
+Create a self-serve SIGN-UP / onboarding flow. Today every CTA points to /pricing or the admin login;
+there is no way to start creating a church. Build a polished multi-step wizard (UI-complete, client
+side — it does NOT need to call the backend; it ends in a clear confirmation screen).
+
+CREATE THIS ONE FILE: app/signup/page.tsx
+
+Requirements:
+- "use client"; wrap in PublicLayout (import PublicLayout from "../public-layout";).
+- A 4-step wizard with a progress indicator (Step x of 4) at the top:
+    Step 1 "Your church": church name input -> live slug preview shown as `<slug>.churchnepal.com`
+           (slugify: lowercase, spaces->dashes, strip non-alphanumeric/dash). Country/city optional.
+    Step 2 "Admin account": full name, email, (password + confirm fields are OK as UI only — do NOT
+           submit them anywhere). Basic inline validation (required, email format, passwords match).
+    Step 3 "Choose a plan": three selectable plan cards Free / Standard ($9/mo) / Pro ($29/mo)
+           (radio-style selection, highlight the chosen one). Default Standard.
+    Step 4 "Review": summary of everything entered, a terms checkbox ("I agree to the Terms and
+           Privacy Policy" linking to /terms and /privacy if they exist, else "#"), and a
+           "Create my church" button (disabled until the checkbox is ticked).
+- Back / Next buttons; Next is disabled until the current step is valid. useState for step + form data.
+- On final submit: DO NOT call any API. Instead switch to a success screen showing:
+  a green check, "Your church site is being provisioned", the chosen `<slug>.churchnepal.com`, a note
+  that login details will be emailed, and two buttons: "Go to admin" (/admin) and "Back to home" (/).
+- Use the design system (CSS vars, Card/Badge/Button). Fully responsive, light + dark.
+
+Output the COMPLETE file app/signup/page.tsx. Must compile with zero TypeScript errors.

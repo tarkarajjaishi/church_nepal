@@ -1,0 +1,13 @@
+In control-plane/nextjs/app/components/navbar.tsx, use the real logo instead of the placeholder.
+
+- Add the import:  import Logo from "@/components/logo";
+- Replace the brand placeholder element
+    <span className="lp-logo transition-transform group-hover:scale-105" />
+  with
+    <Logo className="transition-transform group-hover:scale-105" />
+- Keep the "ChurchNepal" brand text and EVERYTHING else in the file exactly as-is (nav links, theme
+  toggle, language switcher, mobile menu, scroll behavior).
+
+Output the COMPLETE corrected file. Must compile.
+
+@include: control-plane/nextjs/app/components/navbar.tsx

@@ -1,0 +1,21 @@
+Create the Master Control admin NOTIFICATIONS center page (does not exist yet).
+
+CREATE THIS ONE FILE: app/admin/notifications/page.tsx
+
+Match the existing admin page style (see how other admin pages look): "use client"; cards use
+className="card bg-[var(--panel)] border border-[var(--border)] rounded-xl p-5"; headings use
+text-[var(--text-strong)]; muted text text-[var(--muted)]. Import { Button } from "@/components/ui/button"
+and { Badge } from "@/components/ui/badge".
+
+Content (client-side sample data with useState — no backend needed):
+- Page header "Notifications" + a "Mark all as read" button.
+- Filter tabs: All / Unread / Churches / Billing / System (useState selected).
+- A list of ~8 notification rows, each: an icon by type, a title, a short description, a relative
+  timestamp ("2h ago"), and an unread dot. Types: new church provisioned, plan upgraded, payment
+  failed, storage near limit, new admin invited, system update, backup completed, church suspended.
+- Clicking a row marks it read (removes the dot). "Mark all as read" clears all dots.
+- Unread count Badge in the header.
+- Empty state when a filter has no items.
+Fully responsive, light + dark via CSS vars.
+
+Output the COMPLETE file app/admin/notifications/page.tsx. Must compile with zero TypeScript errors.

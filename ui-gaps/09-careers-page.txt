@@ -1,0 +1,36 @@
+Create a CAREERS page (does not exist yet).
+
+CREATE THIS ONE FILE: app/careers/page.tsx
+
+Content:
+- Hero: "Join our mission".
+- A short "Why work here" section with 3-4 value cards (Remote-first, Mission-driven, Growth, Impact).
+- An "Open positions" list: 4-5 role cards (title, department, location "Remote / Kathmandu",
+  type "Full-time"), each with an "Apply" button that links to /contact.
+- A "Perks & benefits" grid.
+- A closing "Don't see your role?" CTA linking to /contact.
+
+DESIGN SYSTEM — match the existing site EXACTLY:
+- First line of the file: "use client";
+- Wrap the whole page in the shared layout. For a file at app/<name>/page.tsx use:
+      import PublicLayout from "../public-layout";
+      ...
+      return <PublicLayout> ...page... </PublicLayout>;
+- COLORS: use ONLY CSS variables through Tailwind arbitrary values. NEVER hardcode hex.
+  Available vars: --bg --panel --panel-2 --panel-3 --border --border-soft --text --text-strong
+  --muted --accent --accent-2 --accent-soft --gold-soft --good --good-soft --max
+  Examples: text-[var(--text-strong)] text-[var(--muted)] bg-[var(--panel)] bg-[var(--panel-2)]
+  border-[var(--border)] text-[var(--accent)] bg-[var(--accent-soft)]
+- UI components available to import:
+      import Link from "next/link";
+      import { Card, CardContent } from "@/components/ui/card";
+      import { Badge } from "@/components/ui/badge";
+      import { Button } from "@/components/ui/button";
+- Outer container: <div className="max-w-[var(--max)] mx-auto px-6 py-16 sm:py-24">
+- Hero at top: small eyebrow <Badge variant="secondary">, big H1 (text-4xl sm:text-5xl font-bold
+  text-[var(--text-strong)]), subtitle text-[var(--muted)] text-lg. Then content sections.
+  End with a closing CTA card linking to /signup and /pricing.
+- Fully responsive (grid-cols-1 md:grid-cols-2 / lg:grid-cols-3). Must look correct in BOTH light
+  and dark themes automatically (guaranteed if you only use the CSS vars above).
+- Use inline SVG icons (stroke="currentColor") — do NOT add new npm imports.
+Output the COMPLETE file. Must compile with zero TypeScript errors.

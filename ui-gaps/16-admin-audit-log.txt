@@ -1,0 +1,19 @@
+Create the Master Control admin AUDIT LOG page (does not exist yet).
+
+CREATE THIS ONE FILE: app/admin/audit-log/page.tsx
+
+Match existing admin style ("use client"; card = bg-[var(--panel)] border border-[var(--border)]
+rounded-xl p-5; CSS vars for all colors). Import Button + Badge from @/components/ui/*.
+
+Content (client-side sample data with useState):
+- Header "Audit Log" + subtitle "Every administrative action, recorded."
+- A toolbar: a search input (filters by actor/action/target), an actor filter <select>, an action-type
+  filter <select> (Create / Update / Delete / Login / Billing), and an "Export CSV" button that builds
+  a CSV string from the filtered rows and triggers a download via a Blob + an <a download> (client only).
+- A responsive table (or stacked cards on mobile) of ~12 audit entries: timestamp, actor (admin email),
+  action (with a colored pill by type), target (e.g. "Church: Grace Chapel"), and IP address.
+- Pagination or a "Load more" button (client-side slice) if you generate more than ~10 rows.
+- Empty state when filters match nothing.
+Fully responsive, light + dark.
+
+Output the COMPLETE file app/admin/audit-log/page.tsx. Must compile with zero TypeScript errors.

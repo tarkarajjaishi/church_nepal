@@ -1,0 +1,12 @@
+In control-plane/nextjs/app/components/footer.tsx, use the real logo instead of the placeholder.
+
+- Add the import:  import Logo from "@/components/logo";
+- Replace the placeholder element
+    <span className="lp-logo transition-transform group-hover:scale-105" />
+  with
+    <Logo className="transition-transform group-hover:scale-105" />
+- Keep everything else in the file exactly as-is.
+
+Output the COMPLETE corrected file. Must compile.
+
+@include: control-plane/nextjs/app/components/footer.tsx

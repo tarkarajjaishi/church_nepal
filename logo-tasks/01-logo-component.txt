@@ -1,0 +1,19 @@
+Create control-plane/nextjs/app/components/logo.tsx — a reusable client component that shows the
+ChurchNepal logo and switches it by theme.
+
+- "use client" on line 1.
+- import { useTheme } from "./theme-provider";  // returns { theme, setTheme, toggleTheme }, theme is "light" | "dark"
+- import Image from "next/image";
+- import { useState, useEffect } from "react";
+- Two files exist in the public folder: "/logo-light.png" (LIGHT mode — white background) and
+  "/logo-dark.png" (DARK mode — dark background).
+- Use a mounted flag (useState(false) + useEffect(() => setMounted(true), [])) to avoid a hydration
+  mismatch. BEFORE mounted, use "/logo-dark.png" (the app default theme is dark). AFTER mounted,
+  use "/logo-light.png" when theme === "light", else "/logo-dark.png".
+- Props: { size?: number; className?: string } with default size = 40.
+- Render:
+    <Image src={src} alt="ChurchNepal logo" width={size} height={size} priority
+           className={`rounded-lg object-contain ${className ?? ""}`} />
+- export default Logo. Must compile with zero TypeScript errors, no other files touched.
+
+CREATE THIS ONE FILE: control-plane/nextjs/app/components/logo.tsx

@@ -1,0 +1,24 @@
+Upgrade the blog LISTING page to read from the shared data module and add search + category filtering.
+
+EDIT: app/blog/page.tsx  (keep "use client" and the PublicLayout wrapper)
+
+Do this:
+- REMOVE the local hardcoded `blogPosts` array and the local BlogPost interface.
+- Import from the shared module instead:
+    import { getAllPosts, getCategories, type BlogPost } from "@/lib/blog-data";
+- Add a search box (controlled input, useState) that filters posts by title/excerpt/category
+  (case-insensitive).
+- Add a horizontal row of category filter chips built from getCategories(), plus an "All" chip.
+  Selected chip uses bg-[var(--accent)] text white; others bg-[var(--panel-2)]. useState for selection.
+- Show the featured post (post.featured) as a larger hero card at the top when no filter/search is active.
+- Render the filtered posts in a responsive grid (md:grid-cols-2 lg:grid-cols-3).
+- EACH post card MUST be wrapped in a link to its detail page:
+    <Link href={`/blog/${post.slug}`}> ...card... </Link>
+- Show an empty-state ("No articles found") when the filtered list is empty.
+- Keep the existing color system (CSS vars) and the coverImage gradient (use it as the card banner
+  via style={{ background: post.coverImage }}).
+
+@include: app/blog/page.tsx
+@include: lib/blog-data.ts
+
+Output the COMPLETE app/blog/page.tsx. Must compile with zero TypeScript errors.

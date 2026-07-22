@@ -1,0 +1,23 @@
+Add a floating SUPPORT / help widget to the public site (bottom-right).
+
+Change TWO files (output the COMPLETE file for each):
+
+1) CREATE app/components/support-widget.tsx
+   - "use client"; component named SupportWidget, default export.
+   - A fixed bottom-right button (a chat/help bubble, inline SVG). z-40. On click it toggles a small
+     panel (useState open).
+   - The panel (a Card, w-80) shows: a header "How can we help?", 3-4 quick links (Docs -> /docs,
+     Contact us -> /contact, Status -> /status, Read the blog -> /blog) each as a row with an icon,
+     and a small footer note "Avg. reply time: under 2 hours".
+   - Close on outside-ish interaction: include an X button in the panel header. Keep it simple, no
+     external libs. Use CSS vars for all colors; works light + dark; responsive (on mobile the panel
+     should not overflow — use max-w-[calc(100vw-2rem)]).
+
+2) EDIT app/public-layout.tsx
+   - Import the widget: import SupportWidget from "@/components/support-widget";
+   - Render <SupportWidget /> inside the layout (near the existing BackToTop / CookieConsent). Keep
+     everything else (ScrollProgress, Navbar, main, Footer, DemoModal, BackToTop, CookieConsent) as-is.
+
+@include: app/public-layout.tsx
+
+Output BOTH complete files. Must compile with zero TypeScript errors.

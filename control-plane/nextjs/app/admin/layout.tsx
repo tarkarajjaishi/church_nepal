@@ -78,6 +78,15 @@ export default function AdminLayout({
     );
   }
 
+  // Show loading state if not authenticated
+  if (!meData) {
+    return (
+      <div className="min-h-screen bg-[var(--bg)] flex items-center justify-center">
+        <LoadingState message="Loading..." />
+      </div>
+    );
+  }
+
   const handleLogout = () => {
     setAuthToken(null);
     localStorage.removeItem("control_token");

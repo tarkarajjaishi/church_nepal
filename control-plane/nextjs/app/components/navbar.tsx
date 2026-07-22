@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "./theme-provider";
 import { useTranslation } from "./i18n-hook";
+import Logo from "@/components/logo";
 
 // Nav links configuration
 const navLinks = [
@@ -110,7 +111,7 @@ export function Navbar() {
         <nav className="max-w-[var(--max)] mx-auto px-6 h-16 flex items-center justify-between">
           {/* Brand */}
           <Link href="/" className="flex items-center gap-3 group">
-            <span className="lp-logo transition-transform group-hover:scale-105" />
+            <Logo className="transition-transform group-hover:scale-105" />
             <span className="font-bold text-lg text-[var(--text-strong)]">
               ChurchNepal
             </span>

@@ -1,0 +1,27 @@
+Add real management actions to the Master Control CHURCHES list: per-church suspend/reactivate, an
+Actions menu (including "Log in as" and "View site"), bulk selection with bulk actions, CSV export, and
+client-side pagination. Keep the EXISTING search/filter/sort toolbar and data hook working — only ADD.
+
+EDIT: app/admin/churches/page.tsx
+
+Requirements (client-side; use local useState layered over the existing fetched list — do NOT delete
+the current filtering/sorting logic; extend it):
+- Add a "status" concept per church (active | suspended). Seed from the church's existing status field
+  if present, else default "active", tracked in local state so toggling persists in the UI.
+- Row actions (a small "⋯" menu button per row, or inline buttons):
+    * Suspend / Reactivate  -> toggles that church's status + toast. Suspended rows render dimmed
+      (opacity-60) with a "Suspended" Badge (bg-[var(--gold-soft)] text style).
+    * View site -> opens `https://<subdomain-or-slug>.churchnepal.com` in a new tab (use the church's
+      existing subdomain/slug field; guard if missing).
+    * Log in as -> just toast.info(`Impersonation link sent for <name>`) (UI only).
+- Bulk selection: a checkbox per row + a header "select all (filtered)" checkbox. When >0 selected,
+  show a bulk action bar: "Suspend selected", "Reactivate selected", "Export selected (CSV)".
+- "Export CSV" button (exports the currently filtered list): builds CSV (name, subdomain, plan, status,
+  created) and downloads via Blob + <a download>. Client only.
+- Client-side pagination: page size 10, with Prev/Next + "Page x of y" (operate on the filtered list).
+- Keep all colors on CSS vars; keep the page responsive and working in light + dark.
+- Import { toast } from "sonner" if not already imported.
+
+@include: app/admin/churches/page.tsx
+
+Output the COMPLETE app/admin/churches/page.tsx. Must compile with zero TypeScript errors.

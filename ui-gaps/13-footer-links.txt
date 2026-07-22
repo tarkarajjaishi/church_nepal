@@ -1,0 +1,18 @@
+Update the footer link columns so all the new pages are reachable, and wire the newsletter + CTA.
+
+EDIT: app/components/footer.tsx (keep "use client", the brand column, logo, newsletter form, and
+social links exactly as they are).
+
+Update the link columns (there are Product / Resources / Company style columns) so they include these
+real, existing routes (use next/link <Link href=...>):
+- Product: Features (/features), Pricing (/pricing), Sign up (/signup), Status (/status)
+- Resources: Docs (/docs), Blog (/blog), Changelog (/changelog), Security (/security)
+- Company: About (/about), Customers (/customers), Careers (/careers), Contact (/contact)
+- Legal (small row near the copyright): Privacy (/privacy), Terms (/terms)
+Keep every href pointing at a route that exists (all of the above are being created). Match the
+existing text styles (text-[var(--muted)] hover:text-[var(--text-strong)] / hover:text-[var(--accent)]).
+Do not change the newsletter behavior or social icons.
+
+@include: app/components/footer.tsx
+
+Output the COMPLETE app/components/footer.tsx. Must compile with zero TypeScript errors.

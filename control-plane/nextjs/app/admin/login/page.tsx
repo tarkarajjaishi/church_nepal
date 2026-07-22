@@ -10,6 +10,7 @@ import { LoadingState } from "@/components/loading-state";
 import { InlineError } from "@/components/error-state";
 import { useLogin, useMe } from "@/components/hooks";
 import { setAuthToken } from "@/lib/api-client";
+import Logo from "@/components/logo";
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -55,7 +56,7 @@ export default function AdminLoginPage() {
       <div className="min-h-screen bg-[var(--bg)] flex items-center justify-center p-4">
         <div className="w-full max-w-md">
           <div className="flex items-center justify-center gap-3 mb-8">
-            <Link href="/" className="lp-logo block" aria-label="Home" />
+            <Link href="/" aria-label="Home"><Logo size={44} /></Link>
             <span className="text-2xl font-bold text-[var(--text-strong)]">ChurchNepal</span>
           </div>
           <LoadingState message="Checking authentication..." />
@@ -70,7 +71,7 @@ export default function AdminLoginPage() {
         {/* Brand/Header */}
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-3 group mb-6" aria-label="Home">
-            <span className="lp-logo transition-transform group-hover:scale-105" />
+            <Logo size={44} className="transition-transform group-hover:scale-105" />
             <span className="text-2xl font-bold text-[var(--text-strong)]">ChurchNepal</span>
           </Link>
         </div>

@@ -1,0 +1,38 @@
+Create a SECURITY / TRUST page (does not exist yet). This reassures church admins about data safety.
+
+CREATE THIS ONE FILE: app/security/page.tsx
+
+Content:
+- Hero: "Security & Trust".
+- A grid of security practice cards (icon + title + description): "Per-church data isolation"
+  (separate database per church), "Encryption in transit & at rest", "Role-based access control",
+  "Automated backups", "DDoS protection & WAF", "Regular security updates", "GDPR-friendly data
+  handling", "Audit logging".
+- A "Compliance & standards" strip with badge-style pills (SSL, TLS 1.3, Daily Backups, Uptime 99.9%).
+- A short "Responsible disclosure" section with a mailto link security@churchnepal.com.
+- Closing CTA to /contact ("Talk to us about security").
+
+DESIGN SYSTEM — match the existing site EXACTLY:
+- First line of the file: "use client";
+- Wrap the whole page in the shared layout. For a file at app/<name>/page.tsx use:
+      import PublicLayout from "../public-layout";
+      ...
+      return <PublicLayout> ...page... </PublicLayout>;
+- COLORS: use ONLY CSS variables through Tailwind arbitrary values. NEVER hardcode hex.
+  Available vars: --bg --panel --panel-2 --panel-3 --border --border-soft --text --text-strong
+  --muted --accent --accent-2 --accent-soft --gold-soft --good --good-soft --max
+  Examples: text-[var(--text-strong)] text-[var(--muted)] bg-[var(--panel)] bg-[var(--panel-2)]
+  border-[var(--border)] text-[var(--accent)] bg-[var(--accent-soft)]
+- UI components available to import:
+      import Link from "next/link";
+      import { Card, CardContent } from "@/components/ui/card";
+      import { Badge } from "@/components/ui/badge";
+      import { Button } from "@/components/ui/button";
+- Outer container: <div className="max-w-[var(--max)] mx-auto px-6 py-16 sm:py-24">
+- Hero at top: small eyebrow <Badge variant="secondary">, big H1 (text-4xl sm:text-5xl font-bold
+  text-[var(--text-strong)]), subtitle text-[var(--muted)] text-lg. Then content sections.
+  End with a closing CTA card linking to /signup and /pricing.
+- Fully responsive (grid-cols-1 md:grid-cols-2 / lg:grid-cols-3). Must look correct in BOTH light
+  and dark themes automatically (guaranteed if you only use the CSS vars above).
+- Use inline SVG icons (stroke="currentColor") — do NOT add new npm imports.
+Output the COMPLETE file. Must compile with zero TypeScript errors.
