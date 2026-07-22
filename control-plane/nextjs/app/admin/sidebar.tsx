@@ -12,6 +12,8 @@ const navItems = [
   { href: "/admin/churches", label: "Churches", icon: "churches" },
   { href: "/admin/analytics", label: "Analytics", icon: "analytics" },
   { href: "/admin/billing", label: "Billing & Plans", icon: "billing" },
+  { href: "/admin/notifications", label: "Notifications", icon: "bell" },
+  { href: "/admin/audit-log", label: "Audit Log", icon: "audit" },
   { href: "/admin/admins", label: "Admins", icon: "admins" },
   { href: "/admin/settings", label: "Settings", icon: "settings" },
 ];
@@ -47,6 +49,19 @@ const Icons = {
       <path d="M2 10h20" />
       <path d="M6 16h2" />
       <path d="M10 16h4" />
+    </svg>
+  ),
+  bell: (props: React.SVGProps<SVGSVGElement>) => (
+    <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
+      <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+    </svg>
+  ),
+  audit: (props: React.SVGProps<SVGSVGElement>) => (
+    <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <polyline points="14 2 14 8 20 8" />
+      <path d="M9 15l2 2 4-4" />
     </svg>
   ),
   admins: (props: React.SVGProps<SVGSVGElement>) => (

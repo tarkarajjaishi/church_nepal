@@ -1,3 +1,4 @@
+import SupportWidget from "@/components/support-widget";
 import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
 import ScrollProgress from "@/components/landing/scroll-progress";
@@ -20,6 +21,7 @@ export default function PublicLayout({
       <div className="fixed bottom-6 left-6 z-40">
         <DemoModal />
       </div>
+      <SupportWidget />
       <BackToTop />
       <CookieConsent />
     </div>

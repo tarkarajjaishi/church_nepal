@@ -89,99 +89,119 @@ export function Footer() {
             </div>
           </div>
 
-          {/* Product Links */}
-          <div>
-            <h3 className="text-sm font-semibold text-[var(--text-strong)] mb-3 uppercase tracking-wider">
-              Product
-            </h3>
-            <ul className="space-y-2">
-              <li>
-                <Link href="/#features" className="text-sm text-[var(--muted)] hover:text-[var(--accent)] transition-colors">
-                  Features
-                </Link>
-              </li>
-              <li>
-                <Link href="/pricing" className="text-sm text-[var(--muted)] hover:text-[var(--accent)] transition-colors">
-                  Pricing
-                </Link>
-              </li>
-              <li>
-                <Link href="/#how" className="text-sm text-[var(--muted)] hover:text-[var(--accent)] transition-colors">
-                  How it works
-                </Link>
-              </li>
-            </ul>
-          </div>
+           {/* Product Links */}
+           <div>
+             <h3 className="text-sm font-semibold text-[var(--text-strong)] mb-3 uppercase tracking-wider">
+               Product
+             </h3>
+             <ul className="space-y-2">
+               <li>
+                 <Link href="/features" className="text-sm text-[var(--muted)] hover:text-[var(--accent)] transition-colors">
+                   Features
+                 </Link>
+               </li>
+               <li>
+                 <Link href="/pricing" className="text-sm text-[var(--muted)] hover:text-[var(--accent)] transition-colors">
+                   Pricing
+                 </Link>
+               </li>
+               <li>
+                 <Link href="/signup" className="text-sm text-[var(--muted)] hover:text-[var(--accent)] transition-colors">
+                   Sign up
+                 </Link>
+               </li>
+               <li>
+                 <Link href="/status" className="text-sm text-[var(--muted)] hover:text-[var(--accent)] transition-colors">
+                   Status
+                 </Link>
+               </li>
+             </ul>
+           </div>
 
-          {/* Company Links */}
-          <div>
-            <h3 className="text-sm font-semibold text-[var(--text-strong)] mb-3 uppercase tracking-wider">
-              Company
-            </h3>
-            <ul className="space-y-2">
-              <li>
-                <Link href="/about" className="text-sm text-[var(--muted)] hover:text-[var(--accent)] transition-colors">
-                  About
-                </Link>
-              </li>
-              <li>
-                <Link href="/blog" className="text-sm text-[var(--muted)] hover:text-[var(--accent)] transition-colors">
-                  Blog
-                </Link>
-              </li>
-              <li>
-                <Link href="/contact" className="text-sm text-[var(--muted)] hover:text-[var(--accent)] transition-colors">
-                  Contact
-                </Link>
-              </li>
-            </ul>
-          </div>
+           {/* Resources Links */}
+           <div>
+             <h3 className="text-sm font-semibold text-[var(--text-strong)] mb-3 uppercase tracking-wider">
+               Resources
+             </h3>
+             <ul className="space-y-2">
+               <li>
+                 <Link href="/docs" className="text-sm text-[var(--muted)] hover:text-[var(--accent)] transition-colors">
+                   Docs
+                 </Link>
+               </li>
+               <li>
+                 <Link href="/blog" className="text-sm text-[var(--muted)] hover:text-[var(--accent)] transition-colors">
+                   Blog
+                 </Link>
+               </li>
+               <li>
+                 <Link href="/changelog" className="text-sm text-[var(--muted)] hover:text-[var(--accent)] transition-colors">
+                   Changelog
+                 </Link>
+               </li>
+               <li>
+                 <Link href="/security" className="text-sm text-[var(--muted)] hover:text-[var(--accent)] transition-colors">
+                   Security
+                 </Link>
+               </li>
+             </ul>
+           </div>
 
-          {/* Legal Links */}
-          <div>
-            <h3 className="text-sm font-semibold text-[var(--text-strong)] mb-3 uppercase tracking-wider">
-              Legal
-            </h3>
-            <ul className="space-y-2">
-              <li>
-                <Link href="/terms" className="text-sm text-[var(--muted)] hover:text-[var(--accent)] transition-colors">
-                  Terms
-                </Link>
-              </li>
-              <li>
-                <Link href="/privacy" className="text-sm text-[var(--muted)] hover:text-[var(--accent)] transition-colors">
-                  Privacy
-                </Link>
-              </li>
-              <li>
-                <Link href="/refund" className="text-sm text-[var(--muted)] hover:text-[var(--accent)] transition-colors">
-                  Refund
-                </Link>
-              </li>
-              <li>
-                <Link href="/cookies" className="text-sm text-[var(--muted)] hover:text-[var(--accent)] transition-colors">
-                  Cookies
-                </Link>
-              </li>
-            </ul>
-          </div>
+           {/* Company Links */}
+           <div>
+             <h3 className="text-sm font-semibold text-[var(--text-strong)] mb-3 uppercase tracking-wider">
+               Company
+             </h3>
+             <ul className="space-y-2">
+               <li>
+                 <Link href="/about" className="text-sm text-[var(--muted)] hover:text-[var(--accent)] transition-colors">
+                   About
+                 </Link>
+               </li>
+               <li>
+                 <Link href="/customers" className="text-sm text-[var(--muted)] hover:text-[var(--accent)] transition-colors">
+                   Customers
+                 </Link>
+               </li>
+               <li>
+                 <Link href="/careers" className="text-sm text-[var(--muted)] hover:text-[var(--accent)] transition-colors">
+                   Careers
+                 </Link>
+               </li>
+               <li>
+                 <Link href="/contact" className="text-sm text-[var(--muted)] hover:text-[var(--accent)] transition-colors">
+                   Contact
+                 </Link>
+               </li>
+             </ul>
+           </div>
         </div>
 
-        {/* Bottom Bar */}
-        <div className="py-6 border-t border-[var(--border)] flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p className="text-sm text-[var(--muted)]">
-            © {new Date().getFullYear()} ChurchNepal. All rights reserved.
-          </p>
-          
-          <a
-            href="https://tarkarajjaishi.com.np/"
-            target="_blank"
-            rel="noreferrer"
-            className="text-sm font-semibold text-[var(--muted)] hover:text-[var(--accent)] transition-colors"
-          >
-            Developed by Tarka Raj Jaishi
-          </a>
-        </div>
+         {/* Bottom Bar */}
+         <div className="py-6 border-t border-[var(--border)] flex flex-col sm:flex-row items-center justify-between gap-4">
+           <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4">
+             <p className="text-sm text-[var(--muted)]">
+               © {new Date().getFullYear()} ChurchNepal. All rights reserved.
+             </p>
+             <div className="flex items-center gap-4">
+               <Link href="/privacy" className="text-sm text-[var(--muted)] hover:text-[var(--accent)] transition-colors">
+                 Privacy
+               </Link>
+               <Link href="/terms" className="text-sm text-[var(--muted)] hover:text-[var(--accent)] transition-colors">
+                 Terms
+               </Link>
+             </div>
+           </div>
+           
+           <a
+             href="https://tarkarajjaishi.com.np/"
+             target="_blank"
+             rel="noreferrer"
+             className="text-sm font-semibold text-[var(--muted)] hover:text-[var(--accent)] transition-colors"
+           >
+             Developed by Tarka Raj Jaishi
+           </a>
+         </div>
       </div>
     </footer>
   );

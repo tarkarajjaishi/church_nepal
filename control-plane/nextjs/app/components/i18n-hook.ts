@@ -1,5 +1,7 @@
 "use client";
 
+import { useState, useEffect } from "react";
+
 const i18nHook = {
   en: {
     "how.title": "From name to live site in three steps",
@@ -61,7 +63,7 @@ const i18nHook = {
     "pricing.subtitle": "तपाईँको चर्च समुदायको लागि उत्तम योजना छनौट गर्नुहोस्",
     "pricing.free.name": "नि:शुल्क",
     "pricing.free.description": "प्रारंभ गर्नु र प्लेटफार्म जाँच गर्न उत्तम",
-    "pricing.free.price": "\u0902$",
+    "pricing.free.price": "\\u0902$",
     "pricing.free.features": [
       "1 चर्च सम्म",
       "तपाईँको चर्चको लागि वेबसाइट",
@@ -71,7 +73,7 @@ const i18nHook = {
     ],
     "pricing.standard.name": "मानक",
     "pricing.standard.description": "विकासमान चर्चहरूको लागि उपयुक्त जसले थप चाहना छन्",
-    "pricing.standard.price": "\u09082,499 नेपाली रुपैयाको / महिना",
+    "pricing.standard.price": "\\u09082,499 नेपाली रुपैयाको / महिना",
     "pricing.standard.features": [
       "10 चर्चहरू सम्म",
       "उन्नत विशेषताहरू",
@@ -82,7 +84,7 @@ const i18nHook = {
     ],
     "pricing.pro.name": "प्रो",
     "pricing.pro.description": "स्थापित चर्चहरूको लागि जसले अधिकतम क्षमताहरू चाहन्छन्",
-    "pricing.pro.price": "\u09084,999 नेपाली रुपैयाको / महिना",
+    "pricing.pro.price": "\\u09084,999 नेपाली रुपैयाको / महिना",
     "pricing.pro.features": [
       "अनलिमिटेड चर्चहरू",
       "पूर्ण विशेषताहरू",
@@ -139,15 +141,61 @@ const i18nHook = {
   }
 };
 
+export function setLanguage(lang: "en" | "ne") {
+  if (typeof window !== "undefined") {
+    localStorage.setItem("cn_lang", lang);
+    window.dispatchEvent(new CustomEvent("cn-langchange", { detail: lang }));
+  }
+}
+
 export function useTranslation() {
-  const language = "en"; // Default to English
-  
-  const t = (key: string) => {
-    const dict = i18nHook as unknown as Record<string, Record<string, unknown>>;
+  const [language, setLanguageState] = useState<"en" | "ne">("en");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("cn_lang");
+      if (stored === "en" || stored === "ne") {
+        setLanguageState(stored);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    const handleLangChange = (e: Event) => {
+      const customEvent = e as CustomEvent<"en" | "ne">;
+      const newLang = customEvent.detail;
+      if (newLang === "en" || newLang === "ne") {
+        setLanguageState(newLang);
+      }
+    };
+
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === "cn_lang" && (e.newValue === "en" || e.newValue === "ne")) {
+        setLanguageState(e.newValue);
+      }
+    };
+
+    window.addEventListener("cn-langchange", handleLangChange as EventListener);
+    window.addEventListener("storage", handleStorage);
+    return () => {
+      window.removeEventListener("cn-langchange", handleLangChange as EventListener);
+      window.removeEventListener("storage", handleStorage);
+    };
+  }, []);
+
+  const t = (key: string): string => {
+    const dict = i18nHook as unknown as Record<string, Record<string, string>>;
     const languageData = dict[language] || dict.en || {};
     const value = languageData[key];
-    return (typeof value === "string" ? value : key) || key; // Return key if translation not found
+    if (typeof value === "string" && value) {
+      return value;
+    }
+    const fallbackValue = dict.en[key];
+    if (typeof fallbackValue === "string" && fallbackValue) {
+      return fallbackValue;
+    }
+    return key;
   };
-  
-  return { t };
+
+  return { t, language, setLanguage };
 }

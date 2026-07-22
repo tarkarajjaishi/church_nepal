@@ -1,0 +1,1543 @@
+# master-prod.txt -- 150 PRODUCTION-GRADE tasks for Kilo (FREE models only).
+# Run from repo root with:  run_prod.bat        (live-watch each task)
+#   preview:  run_prod.bat --dry-run
+#   resume:   run_prod.bat --start 47
+#   one task: run_prod.bat --only 12
+# Tasks are separated by a line containing exactly: @@@TASK@@@
+# Kilo runs at the REPO ROOT and finds/edits the real files itself (autonomous).
+# Ordered by dependency: backend/schema first, then wiring, then features, infra, tests, security.
+
+@@@TASK@@@
+# Task 1 of 150
+[MC-API] Migration: admins table
+Goal: Persist Master Control admin users with roles.
+Files (relative to repo root): control-plane/backend/migrations/004_admins.sql; control-plane/backend/src/handlers.rs
+Implement:
+  - Create migration 004_admins.sql: table admins(id uuid pk default gen_random_uuid(), email text unique not null, password_hash text not null, role text not null default 'admin' check(role in ('super_admin','admin','readonly')), status text not null default 'active' check(status in ('active','pending','disabled')), last_active_at timestamptz, created_at timestamptz default now()).
+  - Seed one super_admin from env (reuse existing seed.rs pattern) if table empty.
+  - Add sqlx query structs in handlers.rs to map rows.
+Verify: sqlx migrate runs cleanly; admins table exists with a seeded super_admin.
+
+@@@TASK@@@
+# Task 2 of 150
+[MC-API] Migration: audit_log table
+Goal: Record every administrative action.
+Files (relative to repo root): control-plane/backend/migrations/005_audit_log.sql
+Implement:
+  - Create audit_log(id bigserial pk, actor_id uuid, actor_email text, action text not null, target_type text, target_id text, ip inet, metadata jsonb default '{}', created_at timestamptz default now()).
+  - Add indexes on created_at desc and actor_id.
+Verify: Migration applies; can INSERT and SELECT ordered by created_at.
+
+@@@TASK@@@
+# Task 3 of 150
+[MC-API] Migration: notifications table
+Goal: Store platform notifications with read state.
+Files (relative to repo root): control-plane/backend/migrations/006_notifications.sql
+Implement:
+  - Create notifications(id bigserial pk, type text not null, title text not null, body text, church_id uuid, read boolean default false, created_at timestamptz default now()).
+  - Index on read, created_at desc.
+Verify: Migration applies; rows insert/select.
+
+@@@TASK@@@
+# Task 4 of 150
+[MC-API] Migration: platform_settings + api_keys + church columns
+Goal: Settings persistence, API keys, church lifecycle columns.
+Files (relative to repo root): control-plane/backend/migrations/007_settings_keys_church.sql
+Implement:
+  - platform_settings(key text pk, value jsonb not null, updated_at timestamptz default now()).
+  - api_keys(id uuid pk default gen_random_uuid(), name text, prefix text not null, hash text not null, scopes text[] default '{}', created_at timestamptz default now(), revoked_at timestamptz).
+  - ALTER TABLE churches ADD COLUMN status text default 'active' check(status in ('active','suspended','provisioning')), ADD COLUMN storage_used_bytes bigint default 0, ADD COLUMN suspended_at timestamptz.
+Verify: Migration applies; churches has status/storage columns.
+
+@@@TASK@@@
+# Task 5 of 150
+[MC-API] RBAC middleware + role extractor
+Goal: Enforce super_admin/admin/readonly on protected routes.
+Files (relative to repo root): control-plane/backend/src/auth.rs; control-plane/backend/src/main.rs
+Implement:
+  - Extend the JWT claims to include admin role; add an axum extractor RequireRole(role) or a middleware fn that reads claims and rejects with 403 if role insufficient.
+  - Apply: readonly can GET; admin can mutate churches/notifications; only super_admin can manage admins/settings/api_keys.
+  - Return the app error type from error.rs for 401/403.
+Verify: A readonly token gets 403 on POST /api/admins; super_admin succeeds.
+
+@@@TASK@@@
+# Task 6 of 150
+[MC-API] Admins CRUD endpoints
+Goal: List, invite, update role, remove admins (guard last super_admin).
+Files (relative to repo root): control-plane/backend/src/handlers.rs; control-plane/backend/src/main.rs
+Implement:
+  - Routes: GET /api/admins, POST /api/admins (invite: email+role, status=pending, generate invite token), PATCH /api/admins/:id (role/status), DELETE /api/admins/:id.
+  - Refuse DELETE/downgrade if it would remove the last active super_admin (409).
+  - Write an audit_log row for every mutation.
+  - Register routes in main.rs behind RBAC (super_admin).
+Verify: curl the endpoints: list returns seeded admin; invite adds pending; last super_admin cannot be removed.
+
+@@@TASK@@@
+# Task 7 of 150
+[MC-API] Audit log middleware + query endpoint
+Goal: Auto-record mutations and expose a filtered, paginated list.
+Files (relative to repo root): control-plane/backend/src/handlers.rs; control-plane/backend/src/main.rs
+Implement:
+  - Add a helper audit(actor, action, target, ip, meta) used by handlers.
+  - GET /api/audit-log?actor=&action=&type=&page=&page_size= returns rows + total, newest first.
+  - Capture client IP from ConnectInfo / X-Forwarded-For.
+Verify: Performing an admin action creates an audit row; GET returns it with filters working.
+
+@@@TASK@@@
+# Task 8 of 150
+[MC-API] Notifications endpoints + event emit
+Goal: List, mark read, mark all read; emit on key events.
+Files (relative to repo root): control-plane/backend/src/handlers.rs; control-plane/backend/src/provision.rs; control-plane/backend/src/main.rs
+Implement:
+  - GET /api/notifications (list + unread_count), POST /api/notifications/:id/read, POST /api/notifications/read-all.
+  - Emit a notification row when: a church is provisioned, suspended, plan changed, payment failed.
+  - Hook the emit into provision.rs and billing handlers.
+Verify: Provisioning a church creates a notification; mark-read flips read=true.
+
+@@@TASK@@@
+# Task 9 of 150
+[MC-API] Platform settings endpoints
+Goal: Get/update singleton platform settings.
+Files (relative to repo root): control-plane/backend/src/handlers.rs; control-plane/backend/src/main.rs
+Implement:
+  - GET /api/settings returns all platform_settings as an object; PUT /api/settings upserts keys (platformName, baseUrl, defaultPlan, maintenanceMode, smtp{...}).
+  - Only super_admin may write; audit the change.
+Verify: PUT then GET round-trips the settings object.
+
+@@@TASK@@@
+# Task 10 of 150
+[MC-API] API keys endpoints (one-time secret)
+Goal: Generate, list (masked), revoke API keys.
+Files (relative to repo root): control-plane/backend/src/handlers.rs; control-plane/backend/src/main.rs
+Implement:
+  - POST /api/api-keys {name,scopes} -> returns the full key ONCE (prefix + random secret), store only a hash + prefix.
+  - GET /api/api-keys returns masked (prefix + last4). DELETE /api/api-keys/:id sets revoked_at.
+  - Add an extractor that authenticates requests bearing x-api-key by hashing and matching.
+Verify: Create returns a full key once; list shows masked; revoke disables it.
+
+@@@TASK@@@
+# Task 11 of 150
+[MC-API] Church suspend/reactivate + enforcement
+Goal: Lifecycle actions on churches, enforced at auth/provision.
+Files (relative to repo root): control-plane/backend/src/handlers.rs; control-plane/backend/src/provision.rs; control-plane/backend/src/main.rs
+Implement:
+  - POST /api/churches/:id/suspend and /reactivate set status + suspended_at, audit + notify.
+  - When a church is suspended, its tenant admin login / API should return 403 (enforce in the church backend token check or a shared flag).
+  - Return the church row with new status.
+Verify: Suspend flips status=suspended; reactivate restores; suspended church admin is blocked.
+
+@@@TASK@@@
+# Task 12 of 150
+[MC-API] Real analytics endpoints from DB
+Goal: Replace mock metrics with SQL aggregates.
+Files (relative to repo root): control-plane/backend/src/handlers.rs; control-plane/backend/src/main.rs
+Implement:
+  - GET /api/analytics/overview: total churches, active, suspended, MRR (sum of plan price of active subscriptions), new churches this month, churches by plan.
+  - GET /api/analytics/growth?range=30d|90d|12m: time series of churches created per bucket.
+  - Use efficient GROUP BY queries; return JSON the frontend charts expect.
+Verify: Endpoints return real counts that match the churches table.
+
+@@@TASK@@@
+# Task 13 of 150
+[MC-API] Password reset flow
+Goal: Request + token + reset for admins.
+Files (relative to repo root): control-plane/backend/src/handlers.rs; control-plane/backend/migrations/008_password_reset.sql; control-plane/backend/src/main.rs
+Implement:
+  - Migration: password_resets(token_hash text pk, admin_id uuid, expires_at timestamptz, used boolean default false).
+  - POST /api/auth/forgot {email} -> create token, email a reset link (use the email service; if absent, log the link).
+  - POST /api/auth/reset {token,new_password} -> verify, set password_hash (argon2/bcrypt), mark used.
+Verify: Forgot creates a token; reset changes the password and invalidates the token.
+
+@@@TASK@@@
+# Task 14 of 150
+[MC-API] 2FA (TOTP) enroll/verify/disable
+Goal: Optional two-factor for admins.
+Files (relative to repo root): control-plane/backend/src/handlers.rs; control-plane/backend/migrations/009_twofa.sql; control-plane/backend/src/main.rs
+Implement:
+  - Add totp secret + enabled columns to admins (or a twofa table). Use a TOTP crate (e.g. totp-rs).
+  - POST /api/auth/2fa/enroll -> returns otpauth URI + QR data; POST /2fa/verify {code} enables; POST /2fa/disable.
+  - In login, if 2FA enabled require a second step (code) before issuing the full token.
+Verify: Enroll returns a secret; a valid TOTP code enables 2FA and is required at next login.
+
+@@@TASK@@@
+# Task 15 of 150
+[MC-API] Refresh tokens + logout (revocation)
+Goal: Short-lived access + rotating refresh tokens.
+Files (relative to repo root): control-plane/backend/src/auth.rs; control-plane/backend/src/handlers.rs; control-plane/backend/migrations/010_refresh_tokens.sql
+Implement:
+  - Issue access (15m) + refresh (30d) on login; store refresh token hash in refresh_tokens(id, admin_id, token_hash, expires_at, revoked).
+  - POST /api/auth/refresh rotates (revoke old, issue new). POST /api/auth/logout revokes.
+  - Reject reused/revoked refresh tokens.
+Verify: Refresh rotates tokens; logout revokes; reusing an old refresh token fails.
+
+@@@TASK@@@
+# Task 16 of 150
+[MC-API] Impersonation: log in as church
+Goal: Issue a scoped, audited token to enter a church admin.
+Files (relative to repo root): control-plane/backend/src/handlers.rs; control-plane/backend/src/main.rs
+Implement:
+  - POST /api/churches/:id/impersonate (super_admin only) -> mint a short-lived token accepted by that church's backend as its admin, with an 'impersonated_by' claim.
+  - Audit every impersonation. Return a URL to the church admin with the token.
+  - The church backend must honor the impersonation claim and log it.
+Verify: Impersonate returns a working church-admin URL; the action is in the audit log.
+
+@@@TASK@@@
+# Task 17 of 150
+[MC-API] Rate limiting middleware
+Goal: Protect auth and mutation endpoints.
+Files (relative to repo root): control-plane/backend/src/main.rs; control-plane/backend/Cargo.toml
+Implement:
+  - Add tower_governor (or a simple in-memory token bucket keyed by IP) as a layer.
+  - Stricter limits on /api/auth/*; return 429 with Retry-After.
+  - Make limits configurable via config.rs/env.
+Verify: Hammering /api/auth/login returns 429 after the limit.
+
+@@@TASK@@@
+# Task 18 of 150
+[MC-API] Health/readiness endpoints
+Goal: Liveness + readiness with DB ping for the status page and orchestrator.
+Files (relative to repo root): control-plane/backend/src/main.rs; control-plane/backend/src/handlers.rs
+Implement:
+  - GET /healthz -> 200 always (liveness). GET /readyz -> checks a DB SELECT 1 and returns 200/503.
+  - Include build version + uptime in the body.
+Verify: healthz always 200; readyz 503 when DB is down, 200 when up.
+
+@@@TASK@@@
+# Task 19 of 150
+[MC-API] OpenAPI / route catalog endpoint
+Goal: Expose the API surface for docs and contract tests.
+Files (relative to repo root): control-plane/backend/src/main.rs; control-plane/backend/src/handlers.rs
+Implement:
+  - Either integrate utoipa to generate /api/openapi.json, or hand-maintain a GET /api/_routes that lists method+path+auth for every route.
+  - Keep it in sync with the router.
+Verify: GET returns a machine-readable list of all endpoints.
+
+@@@TASK@@@
+# Task 20 of 150
+[BILL] Add Stripe + config plumbing
+Goal: Bring Stripe into the control-plane backend.
+Files (relative to repo root): control-plane/backend/Cargo.toml; control-plane/backend/src/config.rs; .env.example
+Implement:
+  - Add async-stripe (or call the REST API with reqwest) dependency.
+  - Add STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, STRIPE_PRICE_* to config.rs + .env.example.
+  - Create a stripe client helper module.
+Verify: Backend compiles with Stripe config loaded from env.
+
+@@@TASK@@@
+# Task 21 of 150
+[BILL] Plans CRUD synced to Stripe
+Goal: Manage subscription plans and mirror them as Stripe products/prices.
+Files (relative to repo root): control-plane/backend/src/handlers.rs; control-plane/backend/src/main.rs
+Implement:
+  - GET/POST/PATCH/DELETE /api/plans backed by the plans table (from 003_plans_billing.sql).
+  - On create/update, upsert a matching Stripe product + price; store stripe_price_id on the plan.
+  - Deleting a plan archives the Stripe price (do not hard-delete if churches use it).
+Verify: Creating a plan creates a Stripe price and stores its id.
+
+@@@TASK@@@
+# Task 22 of 150
+[BILL] Stripe Checkout session (subscribe a church)
+Goal: Start a subscription for a church on a plan.
+Files (relative to repo root): control-plane/backend/src/handlers.rs; control-plane/backend/src/main.rs
+Implement:
+  - POST /api/churches/:id/subscribe {plan_id} -> create a Stripe Checkout Session (mode=subscription) with the plan's price, success/cancel URLs; return the session URL.
+  - Store the pending intent linked to the church.
+Verify: Endpoint returns a Stripe Checkout URL for the chosen plan.
+
+@@@TASK@@@
+# Task 23 of 150
+[BILL] Stripe webhook handler
+Goal: React to Stripe events to keep subscription state correct.
+Files (relative to repo root): control-plane/backend/src/handlers.rs; control-plane/backend/src/main.rs
+Implement:
+  - POST /api/webhooks/stripe: verify signature with STRIPE_WEBHOOK_SECRET.
+  - Handle checkout.session.completed (activate church subscription), invoice.paid (extend), invoice.payment_failed (mark past_due + notify), customer.subscription.deleted (downgrade/suspend).
+  - Idempotent by event id.
+Verify: A test webhook (stripe CLI) updates the church subscription and creates a notification.
+
+@@@TASK@@@
+# Task 24 of 150
+[BILL] Billing portal + invoices
+Goal: Let churches manage billing; list invoices.
+Files (relative to repo root): control-plane/backend/src/handlers.rs; control-plane/backend/src/main.rs
+Implement:
+  - POST /api/churches/:id/billing-portal -> Stripe Billing Portal session URL.
+  - GET /api/churches/:id/invoices -> list invoices (id, amount, status, pdf url, date) from Stripe.
+  - GET /api/billing/overview -> MRR, active subs, churn for the MC dashboard.
+Verify: Portal returns a URL; invoices list returns Stripe invoices.
+
+@@@TASK@@@
+# Task 25 of 150
+[BILL] Dunning: failed payment -> suspend + notify
+Goal: Automate response to non-payment.
+Files (relative to repo root): control-plane/backend/src/handlers.rs
+Implement:
+  - On invoice.payment_failed after N retries (Stripe smart retries), set church past_due; after grace period, suspend.
+  - Emit notifications at each stage; email the church admin.
+Verify: Simulated failed payment moves the church to past_due then suspended after grace.
+
+@@@TASK@@@
+# Task 26 of 150
+[BILL] eSewa donation integration (church giving)
+Goal: Accept donations via eSewa (Nepal).
+Files (relative to repo root): backend/src/handlers/donations.rs; backend/src/main.rs (church backend)
+Implement:
+  - Add POST /api/give/esewa/init that builds the eSewa payment form params (amount, product code, signature) and returns them.
+  - Add GET/POST /api/give/esewa/callback to verify the transaction (status check API) and record a donation + receipt.
+  - Store gateway, txn ref, status idempotently.
+Verify: Init returns valid eSewa params; a verified callback records a donation.
+
+@@@TASK@@@
+# Task 27 of 150
+[BILL] Khalti donation integration (church giving)
+Goal: Accept donations via Khalti ePayment v2.
+Files (relative to repo root): backend/src/handlers/donations.rs; backend/src/main.rs (church backend)
+Implement:
+  - POST /api/give/khalti/init -> call Khalti initiate, return pidx + payment_url.
+  - POST /api/give/khalti/verify {pidx} -> lookup, on Completed record donation + receipt idempotently.
+  - Config keys in .env.example.
+Verify: Init returns a Khalti payment_url; verify records a completed donation.
+
+@@@TASK@@@
+# Task 28 of 150
+[BILL] Payment reconciliation + receipts (PDF)
+Goal: Reconcile gateway records and issue receipts.
+Files (relative to repo root): backend/src/handlers/donations.rs; backend/src/handlers/reports.rs
+Implement:
+  - Idempotency table keyed by gateway+txn_ref to prevent double-recording.
+  - Generate a PDF receipt (printpdf or an HTML->PDF step) on successful donation; email it and store a download link.
+  - Nightly job flags mismatches between gateway and DB.
+Verify: A donation produces exactly one record and a downloadable PDF receipt.
+
+@@@TASK@@@
+# Task 29 of 150
+[BILL] Recurring giving (subscriptions)
+Goal: Let members set up recurring donations.
+Files (relative to repo root): backend/src/handlers/donations.rs; backend/migrations
+Implement:
+  - Add recurring_donations table (member, amount, interval, gateway, next_charge_at, active).
+  - For Stripe use subscriptions; for Khalti/eSewa schedule via the job queue.
+  - Endpoints to create/pause/cancel recurring giving.
+Verify: A member can create and cancel a recurring donation; it charges on schedule.
+
+@@@TASK@@@
+# Task 30 of 150
+[BILL] Refunds handling
+Goal: Support full/partial refunds with audit.
+Files (relative to repo root): backend/src/handlers/donations.rs; control-plane/backend/src/handlers.rs
+Implement:
+  - Admin endpoint to refund a donation (Stripe refund / gateway refund), update status, audit.
+  - Reflect refunds in reports and receipts.
+Verify: Refunding updates the donation status and appears in reports.
+
+@@@TASK@@@
+# Task 31 of 150
+[MC-UI] Wire churches list to real API
+Goal: Replace mock data with live React Query hooks.
+Files (relative to repo root): control-plane/nextjs/app/admin/churches/page.tsx; control-plane/nextjs/app/components/hooks/use-churches.ts; control-plane/nextjs/lib/api-client.ts
+Implement:
+  - Implement useChurches/useCreateChurch/useUpdateChurch/useDeleteChurch against /api/churches.
+  - Keep the existing toolbar (search/filter/sort) and the new actions (suspend/export/bulk) but drive them from server data + mutations.
+  - Optimistic update + toast + query invalidation.
+Verify: The churches table shows real DB rows; create/suspend reflect on refresh.
+
+@@@TASK@@@
+# Task 32 of 150
+[MC-UI] Wire church detail page to real API
+Goal: Live church detail + actions.
+Files (relative to repo root): control-plane/nextjs/app/admin/churches/[id]/page.tsx; control-plane/nextjs/app/components/hooks/use-church.ts
+Implement:
+  - Fetch church by id; show plan, status, storage, created, subscription.
+  - Wire suspend/reactivate, change plan, impersonate, view invoices to their endpoints.
+  - Danger zone: delete church with typed confirmation.
+Verify: Detail page reflects real data and actions hit the backend.
+
+@@@TASK@@@
+# Task 33 of 150
+[MC-UI] Wire admins page to real API
+Goal: Live admin management.
+Files (relative to repo root): control-plane/nextjs/app/admin/admins/page.tsx; control-plane/nextjs/app/components/hooks/use-admins.ts
+Implement:
+  - useAdmins/useInviteAdmin/useUpdateAdmin/useRemoveAdmin against /api/admins.
+  - Show pending vs active; disable removing the last super_admin (server already guards; reflect the 409 as a toast).
+Verify: Invite/remove/role-change persist and survive refresh.
+
+@@@TASK@@@
+# Task 34 of 150
+[MC-UI] Wire audit log page to real API
+Goal: Server-side filtered, paginated audit log.
+Files (relative to repo root): control-plane/nextjs/app/admin/audit-log/page.tsx
+Implement:
+  - Fetch /api/audit-log with actor/action/type filters + pagination from the server.
+  - Keep CSV export but export the current server query (or add a server export endpoint).
+Verify: Audit page shows real events; filters/pagination hit the API.
+
+@@@TASK@@@
+# Task 35 of 150
+[MC-UI] Wire notifications + topbar badge
+Goal: Live notifications with unread badge and polling.
+Files (relative to repo root): control-plane/nextjs/app/admin/notifications/page.tsx; control-plane/nextjs/app/admin/layout.tsx
+Implement:
+  - useNotifications hook polling every ~30s; show unread count as a bell badge in the admin topbar.
+  - Mark read / mark all read call the API and update the badge.
+Verify: New backend notifications appear and the badge decrements on read.
+
+@@@TASK@@@
+# Task 36 of 150
+[MC-UI] Wire settings page to backend
+Goal: Persist settings, change password, manage API keys.
+Files (relative to repo root): control-plane/nextjs/app/admin/settings/page.tsx
+Implement:
+  - Load/save platform settings via /api/settings; change-password via /api/auth/reset-authenticated (add if needed).
+  - API Keys tab: generate (show once), list masked, revoke via /api/api-keys.
+  - 2FA tab: enroll (QR) / disable via the 2FA endpoints.
+Verify: Settings persist across reload; API key generate shows the secret once.
+
+@@@TASK@@@
+# Task 37 of 150
+[MC-UI] Wire analytics to real metrics + date range
+Goal: Charts driven by real aggregates.
+Files (relative to repo root): control-plane/nextjs/app/admin/analytics/page.tsx; control-plane/nextjs/app/components/hooks/use-analytics.ts
+Implement:
+  - Fetch /api/analytics/overview and /growth?range=; add a date-range selector that refetches.
+  - Feed the existing area/donut/bar charts with the real series.
+Verify: Analytics reflect real DB numbers and update with the range selector.
+
+@@@TASK@@@
+# Task 38 of 150
+[MC-UI] Provisioning progress UI
+Goal: Show live provisioning steps after create.
+Files (relative to repo root): control-plane/nextjs/app/admin/churches/page.tsx; control-plane/nextjs/app/components/admin/create-church-modal.tsx
+Implement:
+  - After create, poll GET /api/churches/:id (status provisioning->active) or a /provision-status endpoint; show a step list (subdomain, database, storage, admin).
+  - Disable actions until active; toast on completion.
+Verify: Creating a church shows progress until it becomes active.
+
+@@@TASK@@@
+# Task 39 of 150
+[MC-UI] Impersonation 'Log in as church' real flow
+Goal: Open the church admin as that church.
+Files (relative to repo root): control-plane/nextjs/app/admin/churches/[id]/page.tsx; control-plane/nextjs/app/admin/churches/page.tsx
+Implement:
+  - Call POST /api/churches/:id/impersonate, then open the returned church-admin URL (with token) in a new tab.
+  - Show a warning that the action is audited.
+Verify: Clicking 'Log in as' opens a working church admin session.
+
+@@@TASK@@@
+# Task 40 of 150
+[MC-UI] Global search backend + command palette wire
+Goal: Real search across churches/admins/settings.
+Files (relative to repo root): control-plane/nextjs/app/components/admin/command-palette.tsx; control-plane/backend/src/handlers.rs
+Implement:
+  - Add GET /api/search?q= that returns churches (by name/subdomain) and quick actions.
+  - Wire the command palette to call it (debounced) and navigate on select.
+Verify: Typing in the palette returns real churches and jumps to them.
+
+@@@TASK@@@
+# Task 41 of 150
+[MC-UI] Auth: refresh + 2FA in api-client
+Goal: Robust token lifecycle in the frontend.
+Files (relative to repo root): control-plane/nextjs/lib/api-client.ts; control-plane/nextjs/app/admin/login/page.tsx
+Implement:
+  - On 401, attempt POST /api/auth/refresh once, retry the request; on failure, redirect to /admin/login.
+  - Add the 2FA code step to the login form when the server signals twofa_required.
+Verify: Access-token expiry silently refreshes; 2FA-enabled login prompts for a code.
+
+@@@TASK@@@
+# Task 42 of 150
+[MC-UI] MC admin states audit (loading/empty/error)
+Goal: Consistent skeletons, empty states, and error boundaries.
+Files (relative to repo root): control-plane/nextjs/app/admin/**; control-plane/nextjs/app/components/admin/**
+Implement:
+  - Add skeleton loaders to every data table/card while fetching.
+  - Add empty states with a primary action, and per-route error.tsx boundaries.
+  - Ensure all mutations show success/error toasts.
+Verify: Every admin page has proper loading, empty, and error UI.
+
+@@@TASK@@@
+# Task 43 of 150
+[MC-UI] Blog CMS admin editor (Master Control)
+Goal: Manage marketing blog posts from the DB.
+Files (relative to repo root): control-plane/nextjs/app/admin/blog/page.tsx; control-plane/backend/src/handlers.rs; control-plane/backend/migrations/011_blog.sql
+Implement:
+  - Migration: mc_blog_posts(id, slug unique, title, excerpt, body, cover, author, category, published boolean, published_at, created_at).
+  - CRUD endpoints + an admin editor page (rich text) with publish toggle and slug generation.
+  - Public /blog and /blog/[slug] then read from this API instead of the static module.
+Verify: Creating a post in admin makes it appear on the public blog.
+
+@@@TASK@@@
+# Task 44 of 150
+[CH-PUB] Online giving with real payment
+Goal: Wire /give to eSewa/Khalti/Stripe and issue receipts.
+Files (relative to repo root): nextjs/app/(site)/give/page.tsx; nextjs/app/api/give/route.ts; backend/src/handlers/donations.rs
+Implement:
+  - Amount + fund + frequency form -> call the church backend giving init (eSewa/Khalti/Stripe) via a Next API route.
+  - Redirect to the gateway; handle the return on /give/success with verification.
+  - Show a receipt and email it.
+Verify: A test donation completes end-to-end and shows a receipt on /give/success.
+
+@@@TASK@@@
+# Task 45 of 150
+[CH-PUB] Event RSVP / registration
+Goal: Let visitors register for events.
+Files (relative to repo root): nextjs/app/(site)/events/[id]/page.tsx; backend/src/handlers/event_rsvps.rs
+Implement:
+  - RSVP form (name, email, guests) -> POST to event_rsvps; capacity + waitlist handling.
+  - Confirmation email + add-to-calendar (iCal) link.
+  - Admin can view RSVPs.
+Verify: RSVPing records a row, respects capacity, and emails a confirmation.
+
+@@@TASK@@@
+# Task 46 of 150
+[CH-PUB] Sermon media player + podcast RSS
+Goal: Rich sermon playback and a podcast feed.
+Files (relative to repo root): nextjs/app/(site)/sermons/[id]/page.tsx; nextjs/app/(site)/sermons/page.tsx; nextjs/app/api/podcast/route.ts
+Implement:
+  - Audio/video player with speed, seek, download; series grouping and filters.
+  - Generate /podcast.xml (RSS 2.0 with iTunes tags) from published sermons.
+  - Structured data (PodcastEpisode) for SEO.
+Verify: Sermons play; /podcast.xml validates as a podcast feed.
+
+@@@TASK@@@
+# Task 47 of 150
+[CH-PUB] Live streaming page
+Goal: Embed live services with schedule and offline state.
+Files (relative to repo root): nextjs/app/(site)/live/page.tsx; backend/src/handlers/settings.rs
+Implement:
+  - Embed YouTube/Facebook live by URL from church settings; show next-service countdown when offline.
+  - Optional live chat embed.
+Verify: Live page shows the stream when live and a schedule when offline.
+
+@@@TASK@@@
+# Task 48 of 150
+[CH-PUB] Prayer requests + moderation wall
+Goal: Submit prayer requests; optional public wall.
+Files (relative to repo root): nextjs/app/(site)/prayer/page.tsx; backend/src/handlers/prayer_requests.rs; backend/src/main.rs
+Implement:
+  - Public submit form (with private/anonymous option) -> backend; admin moderates.
+  - Approved+public requests show on a wall with a 'pray' counter.
+  - Add the prayer_requests handler + routes if missing.
+Verify: Submitting creates a pending request; approving shows it on the wall.
+
+@@@TASK@@@
+# Task 49 of 150
+[CH-PUB] Volunteer signup
+Goal: Sign up to serve.
+Files (relative to repo root): nextjs/app/(site)/volunteer/page.tsx; backend/src/handlers/forms.rs
+Implement:
+  - Role list + availability form -> store submission; confirmation email; admin inbox.
+  - Reuse the forms handler or add volunteers table.
+Verify: Volunteer signup stores a submission and confirms by email.
+
+@@@TASK@@@
+# Task 50 of 150
+[CH-PUB] Small groups finder
+Goal: Browse and join groups.
+Files (relative to repo root): nextjs/app/(site)/groups/page.tsx; backend/src/handlers/groups.rs
+Implement:
+  - Filter groups by day/category/location; group detail with a join request.
+  - Optional map view of meeting locations.
+Verify: Groups filter and a join request reaches the group leader/admin.
+
+@@@TASK@@@
+# Task 51 of 150
+[CH-PUB] Contact form wired + email
+Goal: Real contact submissions.
+Files (relative to repo root): nextjs/app/(site)/contact/page.tsx; backend/src/handlers/contact_messages.rs
+Implement:
+  - POST to contact_messages; validate + spam honeypot; email the church admin; success state.
+  - Show in admin inbox.
+Verify: Submitting contact stores a message and notifies admin.
+
+@@@TASK@@@
+# Task 52 of 150
+[CH-PUB] Newsletter double opt-in
+Goal: Subscribe with confirmation.
+Files (relative to repo root): nextjs/app/(site)/**; backend/src/handlers/newsletter.rs
+Implement:
+  - Subscribe -> pending + confirmation email with token; confirm endpoint activates.
+  - Unsubscribe link + preferences.
+Verify: Subscribing requires email confirmation before active.
+
+@@@TASK@@@
+# Task 53 of 150
+[CH-PUB] Member portal login + profile
+Goal: Church members (not admins) sign in.
+Files (relative to repo root): nextjs/app/(site)/portal/**; backend/src/handlers/members.rs; backend/src/auth.rs
+Implement:
+  - Member auth (email + password or magic link) separate from admin role.
+  - Portal: profile edit, giving history + statements, event registrations, groups.
+  - Guard portal routes.
+Verify: A member logs in and sees only their own data.
+
+@@@TASK@@@
+# Task 54 of 150
+[CH-PUB] Member directory (opt-in)
+Goal: Privacy-gated directory for logged-in members.
+Files (relative to repo root): nextjs/app/(site)/portal/directory/page.tsx; backend/src/handlers/people.rs
+Implement:
+  - Only members who opted in are listed; search by name; contact via in-app only.
+  - Respect privacy flags.
+Verify: Directory shows only opted-in members to logged-in members.
+
+@@@TASK@@@
+# Task 55 of 150
+[CH-PUB] Dynamic forms submission
+Goal: Render admin-built forms and collect responses.
+Files (relative to repo root): nextjs/app/(site)/forms/[slug]/page.tsx; backend/src/handlers/forms.rs
+Implement:
+  - Render a form schema from the backend; validate; store responses; confirmation.
+  - Admin sees responses + export.
+Verify: A published form renders and stores responses.
+
+@@@TASK@@@
+# Task 56 of 150
+[CH-PUB] Church calendar + iCal/Google
+Goal: Unified events calendar with export.
+Files (relative to repo root): nextjs/app/(site)/events/page.tsx; nextjs/app/api/calendar/route.ts
+Implement:
+  - Month/list calendar of events; per-event add-to-calendar; /calendar.ics feed.
+  - Filter by ministry/category.
+Verify: Calendar renders events and /calendar.ics imports into Google/Apple.
+
+@@@TASK@@@
+# Task 57 of 150
+[CH-PUB] Sermon/blog search + pagination
+Goal: Findable content.
+Files (relative to repo root): nextjs/app/(site)/sermons/page.tsx; nextjs/app/(site)/blog/**; backend/src/handlers/sermons.rs
+Implement:
+  - Server-side search + category filters + pagination for sermons and blog.
+  - Debounced search input; URL-synced query params.
+Verify: Searching narrows results; pagination works and is shareable via URL.
+
+@@@TASK@@@
+# Task 58 of 150
+[CH-PUB] Per-church i18n
+Goal: Multi-language church sites.
+Files (relative to repo root): nextjs/app/(site)/**; nextjs/lib/i18n.ts
+Implement:
+  - Add an i18n layer (locale switch, dictionaries, persisted choice); wrap public pages.
+  - Church admin can set default + available languages.
+Verify: Switching language changes all public strings and persists.
+
+@@@TASK@@@
+# Task 59 of 150
+[CH-PUB] PWA (installable + offline + push)
+Goal: Progressive web app for the church site.
+Files (relative to repo root): nextjs/app/manifest.ts; nextjs/public/sw.js; nextjs/app/(site)/**
+Implement:
+  - Web app manifest (per-church name/icons/colors), service worker with offline fallback + asset caching.
+  - Web Push subscription for notices/events (opt-in).
+Verify: The site is installable, loads offline, and can receive a push.
+
+@@@TASK@@@
+# Task 60 of 150
+[CH-PUB] Per-church SEO
+Goal: Dynamic metadata, sitemap, robots, OG, JSON-LD.
+Files (relative to repo root): nextjs/app/(site)/**; nextjs/app/sitemap.ts; nextjs/app/robots.ts
+Implement:
+  - generateMetadata per route from church + content; Organization/Church + Event + Article JSON-LD.
+  - Dynamic sitemap.xml + robots.txt scoped to the tenant; OG image route.
+Verify: Each church page has correct meta, a valid sitemap, and rich results.
+
+@@@TASK@@@
+# Task 61 of 150
+[CH-PUB] Accessibility pass (public)
+Goal: WCAG AA across the public site.
+Files (relative to repo root): nextjs/app/(site)/**; nextjs/components/site/**
+Implement:
+  - Skip links, focus management, ARIA on interactive components, alt text, color contrast, keyboard nav.
+  - Fix issues flagged by axe.
+Verify: axe reports no critical issues on key public pages.
+
+@@@TASK@@@
+# Task 62 of 150
+[CH-PUB] Giving statements / tax receipts
+Goal: Annual statements for members.
+Files (relative to repo root): nextjs/app/(site)/portal/giving/page.tsx; backend/src/handlers/donations.rs
+Implement:
+  - Member can download an annual giving statement (PDF) summarizing donations.
+  - Admin can bulk-generate statements.
+Verify: A member downloads a correct annual statement PDF.
+
+@@@TASK@@@
+# Task 63 of 150
+[CH-PUB] Testimonies submit + approval
+Goal: Collect and moderate testimonies.
+Files (relative to repo root): nextjs/app/(site)/**; backend/src/handlers/testimonies.rs
+Implement:
+  - Public submit -> pending; admin approves; approved show on the site.
+  - Notify admin on submit.
+Verify: Submitting queues a testimony; approval publishes it.
+
+@@@TASK@@@
+# Task 64 of 150
+[CH-ADM] Media library -> real storage
+Goal: Uploads persisted to tenant storage.
+Files (relative to repo root): nextjs/components/admin/MediaLibrary*; nextjs/app/api/media/route.ts; backend/src/handlers (add media.rs)
+Implement:
+  - Upload endpoint stores files under storage/<slug>/media/, records metadata; list/delete/folders.
+  - Return served URLs; enforce type/size limits.
+  - MediaPicker uses the real list.
+Verify: Uploading shows the file in the library and it is retrievable.
+
+@@@TASK@@@
+# Task 65 of 150
+[CH-ADM] Rich editor image upload
+Goal: Inline image upload in the editor.
+Files (relative to repo root): nextjs/components/admin/RichTextEditor*
+Implement:
+  - Hook the editor's image button to the media upload endpoint; insert the returned URL.
+  - Paste-to-upload support.
+Verify: Pasting/inserting an image uploads and renders it.
+
+@@@TASK@@@
+# Task 66 of 150
+[CH-ADM] Theme customizer persistence + publish
+Goal: Save and publish per-church theme.
+Files (relative to repo root): nextjs/components/theme/ThemeCustomizer*; backend/src/handlers/settings.rs
+Implement:
+  - Persist theme (colors, fonts, radius, logo) to backend; live preview; draft vs published.
+  - Publish applies to the public site.
+Verify: Changing the theme and publishing updates the live site.
+
+@@@TASK@@@
+# Task 67 of 150
+[CH-ADM] Email broadcasts (real sending)
+Goal: Send newsletters/announcements.
+Files (relative to repo root): nextjs/app/admin/broadcasts/**; backend/src/handlers/broadcasts.rs
+Implement:
+  - Compose (template + rich body), select audience segment, schedule or send now.
+  - Send via the email service through the job queue; track sent/opened.
+  - Unsubscribe handling.
+Verify: A broadcast sends to the segment and shows delivery stats.
+
+@@@TASK@@@
+# Task 68 of 150
+[CH-ADM] SMS broadcasts
+Goal: Send SMS to members.
+Files (relative to repo root): nextjs/app/admin/broadcasts/**; backend/src/handlers (add sms.rs)
+Implement:
+  - Integrate an SMS gateway (Sparrow SMS / Twilio); compose + segment + send.
+  - Opt-out handling + delivery status.
+Verify: An SMS broadcast reaches a test number.
+
+@@@TASK@@@
+# Task 69 of 150
+[CH-ADM] Donation management + receipts
+Goal: Reconcile and manage giving.
+Files (relative to repo root): nextjs/app/admin/donations/**; backend/src/handlers/donations.rs
+Implement:
+  - List/filter donations, funds breakdown, issue/resend receipts, export CSV.
+  - Show gateway status + refunds.
+Verify: Admin sees real donations, can export and resend receipts.
+
+@@@TASK@@@
+# Task 70 of 150
+[CH-ADM] Members import/export + custom fields
+Goal: Powerful member CRM.
+Files (relative to repo root): nextjs/app/admin/members/**; backend/src/handlers/members.rs
+Implement:
+  - CSV import (mapping + dedupe) and export; custom fields; tags; bulk actions.
+  - Households/families grouping.
+Verify: Importing a CSV creates/updates members; export round-trips.
+
+@@@TASK@@@
+# Task 71 of 150
+[CH-ADM] Attendance check-in
+Goal: Track attendance, kiosk mode.
+Files (relative to repo root): nextjs/app/admin/attendance/**; backend/src/handlers/attendance.rs
+Implement:
+  - Check-in UI (search member, tap present) + kiosk mode; per-service counts.
+  - Attendance reports + trends.
+Verify: Checking in records attendance and updates counts.
+
+@@@TASK@@@
+# Task 72 of 150
+[CH-ADM] Pledges & campaigns tracking
+Goal: Fundraising progress.
+Files (relative to repo root): nextjs/app/admin/campaigns/**; nextjs/app/admin/pledges/**; backend/src/handlers/campaigns.rs
+Implement:
+  - Create campaigns with goals; record pledges; progress bars; link donations to campaigns.
+  - Public campaign page shows progress.
+Verify: A campaign shows real pledged/received progress.
+
+@@@TASK@@@
+# Task 73 of 150
+[CH-ADM] Reports & analytics (real)
+Goal: Church dashboards with exports.
+Files (relative to repo root): nextjs/app/admin/reports/**; nextjs/app/admin/dashboard/**; backend/src/handlers/reports.rs
+Implement:
+  - Giving trends, attendance, member growth, top funds; date ranges; CSV/PDF export.
+  - Charts from real aggregates.
+Verify: Reports reflect real data and export correctly.
+
+@@@TASK@@@
+# Task 74 of 150
+[CH-ADM] Content scheduling
+Goal: Publish-later for content.
+Files (relative to repo root): nextjs/app/admin/**; backend/src/handlers/content_blocks.rs
+Implement:
+  - Add published_at scheduling to blog/notices/sermons; a job publishes when due.
+  - Admin shows scheduled vs live.
+Verify: A scheduled post goes live at its time.
+
+@@@TASK@@@
+# Task 75 of 150
+[CH-ADM] Approval workflows
+Goal: Moderate member apps, testimonies, prayer.
+Files (relative to repo root): nextjs/app/admin/member-applications/**; backend/src/handlers/member_applications.rs
+Implement:
+  - Unified approval queues with approve/reject + reason + notification.
+  - Audit each decision.
+Verify: Approving an application notifies the applicant and updates status.
+
+@@@TASK@@@
+# Task 76 of 150
+[CH-ADM] Church-level RBAC
+Goal: Staff roles and permissions.
+Files (relative to repo root): nextjs/app/admin/users/**; backend/src/auth.rs; backend/src/handlers (roles)
+Implement:
+  - Roles (owner/pastor/editor/finance/volunteer) with granular permissions; assign to staff.
+  - Enforce on both backend routes and admin UI (hide/disable).
+Verify: A finance-only user cannot access non-finance admin sections.
+
+@@@TASK@@@
+# Task 77 of 150
+[CH-ADM] Church audit log UI
+Goal: Per-church action history.
+Files (relative to repo root): nextjs/app/admin/audit-log/**; backend/src/handlers/audit.rs
+Implement:
+  - Backend already has audit.rs; add filters/pagination endpoint + admin UI table + export.
+  - Record all admin mutations.
+Verify: Church admin actions appear in the audit log with filters.
+
+@@@TASK@@@
+# Task 78 of 150
+[CH-ADM] Church settings suite
+Goal: Profile, service times, contact, social, SEO.
+Files (relative to repo root): nextjs/app/admin/settings/**; nextjs/app/admin/service-times/**; backend/src/handlers/settings.rs; backend/src/handlers/service_times.rs
+Implement:
+  - Tabbed settings persisting all church profile fields, service times, contact info, social links, SEO/meta.
+  - Validation + save toasts.
+Verify: Editing settings persists and reflects on the public site.
+
+@@@TASK@@@
+# Task 79 of 150
+[CH-ADM] Church notifications center
+Goal: In-app notifications for staff.
+Files (relative to repo root): nextjs/app/admin/**; backend/src/handlers (add notifications.rs)
+Implement:
+  - Notify on new donation, RSVP, contact message, application, failed payment; bell + list; read state.
+  - Poll or SSE.
+Verify: A new contact message raises a staff notification.
+
+@@@TASK@@@
+# Task 80 of 150
+[CH-ADM] Church admin global search
+Goal: Find anything in the admin.
+Files (relative to repo root): nextjs/components/admin/**; backend/src/handlers/dashboard.rs
+Implement:
+  - Command palette searching members, sermons, events, donations; keyboard shortcut; navigate on select.
+  - Backend search endpoint (tsvector).
+Verify: Searching returns cross-entity results and navigates.
+
+@@@TASK@@@
+# Task 81 of 150
+[CH-ADM] Media optimization on upload
+Goal: Resize/webp for performance.
+Files (relative to repo root): backend/src/handlers (media.rs); nextjs/components/admin/MediaLibrary*
+Implement:
+  - On image upload, generate resized + webp variants via the job queue; store variants.
+  - Serve responsive srcset.
+Verify: Uploaded images produce optimized variants served responsively.
+
+@@@TASK@@@
+# Task 82 of 150
+[CH-BE] File storage service
+Goal: Central tenant-scoped uploads with limits + signed URLs.
+Files (relative to repo root): backend/src/handlers (add storage.rs); backend/src/main.rs; storage/
+Implement:
+  - Module to save/list/delete files under storage/<slug>/...; MIME/size validation; signed/expiring URLs.
+  - Used by media, receipts, exports.
+Verify: Uploads land under the tenant folder and are served via signed URLs.
+
+@@@TASK@@@
+# Task 83 of 150
+[CH-BE] Email service (transactional)
+Goal: Send templated emails.
+Files (relative to repo root): backend/src/handlers (add email.rs); backend/Cargo.toml; .env.example
+Implement:
+  - Add lettre; SMTP/provider config; templates (welcome, receipt, reset, confirmation, notification).
+  - A queue-backed send with retries.
+Verify: A test email sends via configured SMTP.
+
+@@@TASK@@@
+# Task 84 of 150
+[CH-BE] SMS service abstraction
+Goal: Provider-agnostic SMS.
+Files (relative to repo root): backend/src/handlers (add sms.rs); .env.example
+Implement:
+  - Trait with implementations (Sparrow SMS/Twilio); config-selected provider; send + status.
+  - Used by broadcasts + OTP.
+Verify: A test SMS sends via the configured provider.
+
+@@@TASK@@@
+# Task 85 of 150
+[CH-BE] Background job queue
+Goal: Async work: provisioning, emails, media, statements.
+Files (relative to repo root): backend/src/handlers (add jobs.rs); backend/src/main.rs; backend/migrations
+Implement:
+  - Postgres-backed job table + a worker loop (tokio) with retries + backoff + dead-letter.
+  - Enqueue helpers used across handlers.
+Verify: Enqueued jobs run and retry on failure.
+
+@@@TASK@@@
+# Task 86 of 150
+[CH-BE] Full-text search
+Goal: Search sermons/blog/events/members.
+Files (relative to repo root): backend/migrations; backend/src/handlers/dashboard.rs
+Implement:
+  - Add tsvector columns + GIN indexes + triggers; a search endpoint with ranking.
+  - Expose to public + admin search.
+Verify: Search returns ranked results across entities.
+
+@@@TASK@@@
+# Task 87 of 150
+[CH-BE] Rate limiting + validation middleware
+Goal: Protect and validate the church API.
+Files (relative to repo root): backend/src/main.rs; backend/src/handlers/mod.rs
+Implement:
+  - Per-IP + per-token rate limits; request body validation (validator crate) with clear 400s.
+  - Stricter on auth + public submit endpoints.
+Verify: Abusive requests get 429; invalid bodies get structured 400s.
+
+@@@TASK@@@
+# Task 88 of 150
+[CH-BE] Church audit logging middleware
+Goal: Record all mutations centrally.
+Files (relative to repo root): backend/src/handlers/audit.rs; backend/src/main.rs
+Implement:
+  - A layer/helper that writes audit rows for POST/PUT/PATCH/DELETE with actor + entity + diff.
+  - Backfill key handlers to use it.
+Verify: Any admin mutation writes an audit row.
+
+@@@TASK@@@
+# Task 89 of 150
+[CH-BE] Refresh tokens + reset + verification (church users)
+Goal: Full auth lifecycle for church admins/members.
+Files (relative to repo root): backend/src/auth.rs; backend/src/handlers/auth.rs; backend/migrations
+Implement:
+  - Access/refresh tokens with rotation + revoke; password reset; email verification.
+  - Shared with member portal auth.
+Verify: Reset + verify + refresh all work for church users.
+
+@@@TASK@@@
+# Task 90 of 150
+[CH-BE] Church-member auth role
+Goal: Distinguish members from staff/admins.
+Files (relative to repo root): backend/src/auth.rs; backend/src/handlers/members.rs
+Implement:
+  - Add a 'member' principal type + guard; members access only portal endpoints.
+  - Prevent privilege escalation.
+Verify: A member token cannot hit admin endpoints.
+
+@@@TASK@@@
+# Task 91 of 150
+[CH-BE] Soft deletes + retention + restore
+Goal: Non-destructive deletes.
+Files (relative to repo root): backend/migrations; backend/src/handlers/mod.rs
+Implement:
+  - Add deleted_at to key tables; filter it out by default; restore + purge-after-N-days job.
+  - Admin trash view.
+Verify: Deleting hides a row; restore brings it back; purge removes after retention.
+
+@@@TASK@@@
+# Task 92 of 150
+[CH-BE] Outbound webhooks
+Goal: Notify external systems of church events.
+Files (relative to repo root): backend/src/handlers (add webhooks.rs); backend/migrations
+Implement:
+  - Configurable endpoints + secret; sign payloads (HMAC); retries via the queue.
+  - Events: donation, member.created, event.rsvp, etc.
+Verify: A configured webhook receives a signed event with retries.
+
+@@@TASK@@@
+# Task 93 of 150
+[CH-BE] Redis caching layer
+Goal: Cache hot reads.
+Files (relative to repo root): backend/src/main.rs; backend/Cargo.toml; docker-compose.yml
+Implement:
+  - Add Redis service; cache public content + settings with invalidation on write.
+  - Graceful fallback if Redis is down.
+Verify: Cached endpoints are faster and invalidate on update.
+
+@@@TASK@@@
+# Task 94 of 150
+[INFRA] Production docker-compose
+Goal: Hardened multi-service compose.
+Files (relative to repo root): docker-compose.yml; docker-compose.prod.yml
+Implement:
+  - Add healthchecks, restart: unless-stopped, resource limits, named volumes, depends_on with conditions.
+  - Separate prod override; secrets via env files.
+  - Services: postgres, redis, church-backend, control-backend, church-web, control-web, caddy.
+Verify: docker compose -f docker-compose.prod.yml config validates; stack starts healthy.
+
+@@@TASK@@@
+# Task 95 of 150
+[INFRA] Multi-stage Dockerfiles
+Goal: Small, cached images for all apps.
+Files (relative to repo root): backend/Dockerfile; control-plane/backend/Dockerfile; nextjs/Dockerfile; control-plane/nextjs/Dockerfile
+Implement:
+  - Rust: cargo chef or dependency caching, distroless/slim runtime. Next: standalone output, node slim.
+  - Non-root users; minimal layers.
+Verify: Each image builds and runs the service.
+
+@@@TASK@@@
+# Task 96 of 150
+[INFRA] Caddy wildcard TLS + subdomain routing
+Goal: Serve *.churchnepal.com per tenant.
+Files (relative to repo root): Caddyfile
+Implement:
+  - Wildcard cert (DNS challenge) for *.churchnepal.com; route apex/www to marketing, /admin to MC, subdomains to the church app with Host passthrough.
+  - Security headers + gzip/zstd + rate limiting.
+Verify: A subdomain resolves to the church app over HTTPS with headers.
+
+@@@TASK@@@
+# Task 97 of 150
+[INFRA] GitHub Actions CI
+Goal: Lint + typecheck + test + build on PR.
+Files (relative to repo root): .github/workflows/ci.yml
+Implement:
+  - Matrix: two Rust backends (cargo fmt/clippy/test) + two Next apps (eslint/tsc/build).
+  - Cache cargo + node; fail on warnings.
+Verify: CI runs green on a clean tree and red on a lint error.
+
+@@@TASK@@@
+# Task 98 of 150
+[INFRA] GitHub Actions CD
+Goal: Build + push images + deploy.
+Files (relative to repo root): .github/workflows/deploy.yml
+Implement:
+  - On main: build all images, push to a registry, deploy via SSH/compose or your target.
+  - Run migrations as a deploy step; smoke-test /readyz.
+Verify: A push to main builds and (dry-run) deploys.
+
+@@@TASK@@@
+# Task 99 of 150
+[INFRA] Automated backups + restore
+Goal: Protect data.
+Files (relative to repo root): scripts/backup.sh; scripts/restore.sh; docker-compose.prod.yml
+Implement:
+  - Nightly pg_dump (all tenant DBs) + storage/ tar to a backup volume/offsite; rotation.
+  - A tested restore script.
+Verify: Backup produces artifacts; restore rebuilds a DB from them.
+
+@@@TASK@@@
+# Task 100 of 150
+[INFRA] Structured logging (tracing)
+Goal: Consistent, queryable logs.
+Files (relative to repo root): backend/src/main.rs; control-plane/backend/src/main.rs
+Implement:
+  - Adopt tracing + tracing-subscriber (JSON in prod), request spans with ids, error events.
+  - Correlate by request id header.
+Verify: Logs are structured JSON with request ids.
+
+@@@TASK@@@
+# Task 101 of 150
+[INFRA] Metrics endpoints
+Goal: Prometheus-scrapable metrics.
+Files (relative to repo root): backend/src/main.rs; control-plane/backend/src/main.rs; docker-compose.prod.yml
+Implement:
+  - Expose /metrics (request counts, latencies, error rates, db pool) via a metrics layer.
+  - Optional Prometheus + Grafana services + a dashboard json.
+Verify: /metrics returns Prometheus format and is scraped.
+
+@@@TASK@@@
+# Task 102 of 150
+[INFRA] Error tracking
+Goal: Capture exceptions.
+Files (relative to repo root): backend/src/main.rs; control-plane/backend/src/main.rs; nextjs/**; control-plane/nextjs/**
+Implement:
+  - Integrate a Sentry-compatible SDK (backend + both frontends), DSN via env, release + environment tags.
+  - Scrub PII.
+Verify: A thrown error appears in the error tracker.
+
+@@@TASK@@@
+# Task 103 of 150
+[INFRA] Env/secrets management + boot validation
+Goal: Fail fast on misconfig.
+Files (relative to repo root): .env.example; backend/src/config.rs; control-plane/backend/src/config.rs; config/
+Implement:
+  - Document every env var in .env.example; validate required vars on boot with clear errors.
+  - Keep secrets out of git; use the vault/ dir pattern.
+Verify: Missing a required env var stops boot with a clear message.
+
+@@@TASK@@@
+# Task 104 of 150
+[INFRA] DB pooling + migrate-on-deploy
+Goal: Reliable DB access.
+Files (relative to repo root): backend/src/db.rs; control-plane/backend/src/main.rs
+Implement:
+  - Tune sqlx pool (max/min/idle/timeout) via config; run migrations on startup behind a flag.
+  - Handle connect retries.
+Verify: App boots, migrates, and serves under load without pool exhaustion.
+
+@@@TASK@@@
+# Task 105 of 150
+[INFRA] Zero-downtime deploy script
+Goal: Rolling restarts + migration safety.
+Files (relative to repo root): scripts/deploy.sh
+Implement:
+  - Build new images, run migrations (backward-compatible), start new containers, health-gate, drain old.
+  - Rollback path.
+Verify: Deploy swaps services without dropping requests.
+
+@@@TASK@@@
+# Task 106 of 150
+[INFRA] Caddy WAF + rate limits
+Goal: Edge protection.
+Files (relative to repo root): Caddyfile
+Implement:
+  - Basic WAF rules (block bad paths/agents), per-IP rate limiting, request size caps, security headers.
+  - Allowlist health checks.
+Verify: Malicious patterns are blocked at the edge; limits return 429.
+
+@@@TASK@@@
+# Task 107 of 150
+[INFRA] Uptime/health monitoring feed
+Goal: Data source for the public status page.
+Files (relative to repo root): scripts/healthcheck.sh; control-plane/backend/src/handlers.rs
+Implement:
+  - A checker probing each service /readyz on a schedule, storing component status + incidents.
+  - Expose GET /api/status consumed by /status.
+Verify: The status page reflects real component health.
+
+@@@TASK@@@
+# Task 108 of 150
+[TEST] Rust unit tests
+Goal: Cover auth/provision/billing logic.
+Files (relative to repo root): control-plane/backend/src/**; backend/src/**
+Implement:
+  - Add #[cfg(test)] unit tests for token logic, RBAC, provisioning steps, billing math.
+  - Mock external calls.
+Verify: cargo test passes with meaningful coverage of core logic.
+
+@@@TASK@@@
+# Task 109 of 150
+[TEST] Rust integration tests (API)
+Goal: Exercise real endpoints against a test DB.
+Files (relative to repo root): control-plane/backend/tests/; backend/tests/
+Implement:
+  - Spin up Postgres (testcontainers) or a disposable schema; hit endpoints via reqwest; assert status + DB.
+  - Cover auth, churches CRUD, billing webhook.
+Verify: Integration tests pass against a fresh DB.
+
+@@@TASK@@@
+# Task 110 of 150
+[TEST] Playwright E2E: marketing
+Goal: Critical marketing flows.
+Files (relative to repo root): control-plane/nextjs/e2e/; control-plane/nextjs/playwright.config.ts
+Implement:
+  - Cover nav, pricing, signup wizard, blog list->detail, language switch, contact.
+  - Run headless in CI.
+Verify: npx playwright test passes for marketing flows.
+
+@@@TASK@@@
+# Task 111 of 150
+[TEST] Playwright E2E: MC admin
+Goal: Admin flows.
+Files (relative to repo root): control-plane/nextjs/e2e/
+Implement:
+  - Login (+2FA), create church, suspend, billing view, settings save.
+  - Seed a test admin.
+Verify: MC admin E2E passes.
+
+@@@TASK@@@
+# Task 112 of 150
+[TEST] Playwright E2E: church public
+Goal: Visitor flows.
+Files (relative to repo root): nextjs/e2e/; nextjs/playwright.config.ts
+Implement:
+  - Giving (test mode), event RSVP, contact, sermon play, prayer submit.
+  - Assert receipts/confirmations.
+Verify: Church public E2E passes.
+
+@@@TASK@@@
+# Task 113 of 150
+[TEST] Playwright E2E: church admin
+Goal: CMS flows.
+Files (relative to repo root): nextjs/e2e/
+Implement:
+  - CRUD a sermon/event, media upload, broadcast draft, theme change.
+  - Seeded church + admin.
+Verify: Church admin E2E passes.
+
+@@@TASK@@@
+# Task 114 of 150
+[TEST] Component tests (Vitest)
+Goal: Unit-test React components.
+Files (relative to repo root): control-plane/nextjs/**; nextjs/**
+Implement:
+  - Set up Vitest + Testing Library; test forms, tables, modals, hooks.
+  - Run in CI.
+Verify: Component tests pass in both frontends.
+
+@@@TASK@@@
+# Task 115 of 150
+[TEST] API contract tests
+Goal: Frontend and backend agree.
+Files (relative to repo root): control-plane/nextjs/**; control-plane/backend/**
+Implement:
+  - Validate responses against the OpenAPI/route catalog; catch drift.
+  - Run in CI.
+Verify: Contract tests fail when an endpoint shape changes.
+
+@@@TASK@@@
+# Task 116 of 150
+[TEST] Load testing (k6)
+Goal: Validate capacity.
+Files (relative to repo root): scripts/load/
+Implement:
+  - k6 scripts for provisioning, giving, and public reads; thresholds on p95 latency + error rate.
+  - Document results.
+Verify: Load test runs and reports pass/fail against thresholds.
+
+@@@TASK@@@
+# Task 117 of 150
+[TEST] Accessibility tests (axe) in CI
+Goal: Automate a11y.
+Files (relative to repo root): control-plane/nextjs/e2e/; nextjs/e2e/
+Implement:
+  - Run axe on key pages within Playwright; fail on critical violations.
+Verify: a11y checks run in CI and gate critical issues.
+
+@@@TASK@@@
+# Task 118 of 150
+[TEST] Lint/format + pre-commit hooks
+Goal: Consistent code quality.
+Files (relative to repo root): .pre-commit-config.yaml; control-plane/nextjs/.eslintrc*; nextjs/.eslintrc*
+Implement:
+  - eslint + prettier (both frontends), rustfmt + clippy (both backends); pre-commit hooks.
+  - CI enforces.
+Verify: Committing runs hooks; CI enforces lint/format.
+
+@@@TASK@@@
+# Task 119 of 150
+[TEST] Strict TS + type coverage
+Goal: Tighten types.
+Files (relative to repo root): control-plane/nextjs/tsconfig.json; nextjs/tsconfig.json
+Implement:
+  - Enable strict, noUncheckedIndexedAccess, exactOptionalPropertyTypes progressively; fix fallout.
+  - Add a type-coverage check.
+Verify: tsc --strict passes in both frontends.
+
+@@@TASK@@@
+# Task 120 of 150
+[SEC] Security headers + CSP
+Goal: Harden both frontends and the edge.
+Files (relative to repo root): control-plane/nextjs/next.config.*; nextjs/next.config.*; Caddyfile
+Implement:
+  - Set CSP, HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy.
+  - Tune CSP to allow only needed sources; report-only first.
+Verify: Security scanners report the headers present and a strict CSP.
+
+@@@TASK@@@
+# Task 121 of 150
+[SEC] CSRF protection
+Goal: Guard state-changing requests.
+Files (relative to repo root): backend/src/main.rs; control-plane/backend/src/main.rs; both frontends
+Implement:
+  - Double-submit token or SameSite cookies + origin checks for cookie-authed mutations.
+  - Exempt pure bearer-token APIs appropriately.
+Verify: A forged cross-site POST is rejected.
+
+@@@TASK@@@
+# Task 122 of 150
+[SEC] Input validation + XSS sanitization
+Goal: Never trust input.
+Files (relative to repo root): backend/src/handlers/**; both frontends
+Implement:
+  - Validate all inputs (validator); sanitize rich text (server-side) before storage/render.
+  - Escape output; avoid dangerouslySetInnerHTML without sanitize.
+Verify: Stored XSS payloads are neutralized.
+
+@@@TASK@@@
+# Task 123 of 150
+[SEC] Tenant isolation tests
+Goal: No cross-church data leakage.
+Files (relative to repo root): backend/tests/; control-plane/backend/tests/
+Implement:
+  - Tests asserting tenant A cannot read/write tenant B via any endpoint or token.
+  - Verify DB-per-church separation + subdomain scoping.
+Verify: Isolation tests pass; cross-tenant access is denied.
+
+@@@TASK@@@
+# Task 124 of 150
+[SEC] Dependency + secret scanning
+Goal: Catch vulns and leaked secrets.
+Files (relative to repo root): .github/workflows/security.yml
+Implement:
+  - cargo audit + cargo deny; npm audit; gitleaks/trufflehog secret scan in CI.
+  - Fail on high severity.
+Verify: Security workflow runs and flags known issues.
+
+@@@TASK@@@
+# Task 125 of 150
+[SEC] Password hashing + policy + breach check
+Goal: Strong credential handling.
+Files (relative to repo root): backend/src/auth.rs; control-plane/backend/src/auth.rs
+Implement:
+  - Use argon2/bcrypt with sane params; enforce length/complexity; optional k-anonymity breach check (HIBP range API).
+  - Never log passwords.
+Verify: Weak/breached passwords are rejected; hashes are argon2/bcrypt.
+
+@@@TASK@@@
+# Task 126 of 150
+[SEC] 2FA enforcement option
+Goal: Require 2FA for privileged admins.
+Files (relative to repo root): control-plane/backend/src/**; control-plane/nextjs/app/admin/settings/**
+Implement:
+  - Policy toggle to require 2FA for super_admin/admin; block sensitive actions until enrolled.
+  - Recovery codes.
+Verify: With enforcement on, an admin must enroll 2FA to proceed.
+
+@@@TASK@@@
+# Task 127 of 150
+[SEC] Session security
+Goal: Safe cookies and timeouts.
+Files (relative to repo root): both backends; both frontends
+Implement:
+  - httpOnly + Secure + SameSite cookies where used; idle + absolute timeouts; rotation on privilege change.
+  - Invalidate on password reset.
+Verify: Sessions expire on idle and rotate on sensitive changes.
+
+@@@TASK@@@
+# Task 128 of 150
+[SEC] GDPR data export
+Goal: Right to access.
+Files (relative to repo root): control-plane/backend/src/handlers.rs; backend/src/handlers/members.rs
+Implement:
+  - Export all data for a church (MC) and for a member (church) as a downloadable archive.
+  - Audit exports.
+Verify: An export produces a complete data archive.
+
+@@@TASK@@@
+# Task 129 of 150
+[SEC] GDPR deletion + retention
+Goal: Right to erasure.
+Files (relative to repo root): both backends
+Implement:
+  - Hard-delete/anonymize on verified request; configurable retention windows; cascade safely.
+  - Audit deletions.
+Verify: A deletion request removes/anonymizes the subject's data.
+
+@@@TASK@@@
+# Task 130 of 150
+[SEC] Audit trail completeness
+Goal: Tamper-evident, complete logs.
+Files (relative to repo root): both backends
+Implement:
+  - Ensure every sensitive action is audited; append-only + hash chaining for tamper-evidence.
+  - Admin-viewable, exportable.
+Verify: Sensitive actions are all present and the chain verifies.
+
+@@@TASK@@@
+# Task 131 of 150
+[SEC] Pen-test checklist fixes (IDOR/authz)
+Goal: Close common web vulns.
+Files (relative to repo root): both backends; both frontends
+Implement:
+  - Systematically check IDOR (object ownership on every :id route), authz on every endpoint, SSRF on URL inputs, open redirects.
+  - Add regression tests for each fix.
+Verify: IDOR/authz probes are denied; regression tests cover them.
+
+@@@TASK@@@
+# Task 132 of 150
+[GROW] Demo booking + calendar
+Goal: Let prospects book a demo.
+Files (relative to repo root): control-plane/nextjs/app/components/landing/demo-modal.tsx; control-plane/nextjs/app/contact/**
+Implement:
+  - Integrate a scheduling flow (Cal.com embed or a booking form -> email + calendar invite).
+  - Confirmation + reminder email.
+Verify: Booking a demo creates a calendar invite and confirmation.
+
+@@@TASK@@@
+# Task 133 of 150
+[GROW] Real testimonials/customers from DB
+Goal: Replace placeholders with managed content.
+Files (relative to repo root): control-plane/nextjs/app/customers/page.tsx; control-plane/backend/src/handlers.rs; control-plane/backend/migrations
+Implement:
+  - testimonials + customer_logos tables + admin management; public pages read from API.
+  - Approval before display.
+Verify: Managing a testimonial in admin updates the public page.
+
+@@@TASK@@@
+# Task 134 of 150
+[GROW] Complete Nepali translations (marketing)
+Goal: Full ne locale for all marketing pages.
+Files (relative to repo root): control-plane/nextjs/app/components/i18n-hook.ts; control-plane/nextjs/app/**
+Implement:
+  - Translate every marketing string to Nepali; wire pages to t(); verify with the language switcher.
+  - No hardcoded English left on public pages.
+Verify: Switching to नेपाली fully translates all marketing pages.
+
+@@@TASK@@@
+# Task 135 of 150
+[GROW] Privacy-friendly analytics + cookie gating
+Goal: Measure without harming privacy.
+Files (relative to repo root): control-plane/nextjs/app/**; control-plane/nextjs/app/components/landing/cookie-consent.tsx
+Implement:
+  - Integrate Plausible/Umami (self-host in compose); load only after consent.
+  - Track key funnels (visit->signup).
+Verify: Analytics load only after consent and record page views.
+
+@@@TASK@@@
+# Task 136 of 150
+[GROW] Feature flags + A/B testing
+Goal: Experiment safely.
+Files (relative to repo root): control-plane/nextjs/lib/flags.ts; control-plane/backend/src/handlers.rs
+Implement:
+  - A flags service (backend-config or env) + a useFlag hook; simple A/B assignment + event tracking.
+  - Admin toggles.
+Verify: Toggling a flag changes UI for the assigned cohort.
+
+@@@TASK@@@
+# Task 137 of 150
+[GROW] Pricing -> real Stripe checkout + coupons
+Goal: Convert pricing to purchase.
+Files (relative to repo root): control-plane/nextjs/app/pricing/**; control-plane/backend/src/handlers.rs
+Implement:
+  - Wire plan CTAs to the subscribe/checkout flow; annual/monthly toggle drives the right price; coupon field.
+  - Post-checkout returns to onboarding.
+Verify: Choosing a plan starts a real Stripe checkout with the correct price.
+
+@@@TASK@@@
+# Task 138 of 150
+[GROW] Email capture + onboarding drip
+Goal: Nurture signups.
+Files (relative to repo root): control-plane/nextjs/app/**; control-plane/backend/src/handlers.rs
+Implement:
+  - Capture emails (newsletter/lead magnet); a drip sequence (day 0/1/3/7) via the email service + job queue.
+  - Unsubscribe + preferences.
+Verify: A new lead receives the scheduled drip emails.
+
+@@@TASK@@@
+# Task 139 of 150
+[GROW] Referral / affiliate program
+Goal: Growth loop.
+Files (relative to repo root): control-plane/nextjs/app/**; control-plane/backend/src/handlers.rs; control-plane/backend/migrations
+Implement:
+  - Referral codes + attribution on signup; reward tracking; a simple affiliate dashboard.
+  - Fraud guards.
+Verify: A referred signup is attributed and rewarded.
+
+@@@TASK@@@
+# Task 140 of 150
+[GROW] Help center / docs content + search
+Goal: Real documentation.
+Files (relative to repo root): control-plane/nextjs/app/docs/**
+Implement:
+  - Author real docs (getting started, churches, billing, themes, API); client-side search; categories.
+  - Feedback widget.
+Verify: Docs are searchable and cover core tasks.
+
+@@@TASK@@@
+# Task 141 of 150
+[GROW] Changelog from source + RSS
+Goal: Maintainable changelog.
+Files (relative to repo root): control-plane/nextjs/app/changelog/**; control-plane/nextjs/app/api/changelog/route.ts
+Implement:
+  - Drive /changelog from markdown files or a DB table; generate /changelog.xml (RSS).
+  - Tag entries (New/Improved/Fixed).
+Verify: Adding an entry updates the page and RSS.
+
+@@@TASK@@@
+# Task 142 of 150
+[GROW] Lighthouse performance pass
+Goal: Fast marketing + church sites.
+Files (relative to repo root): control-plane/nextjs/**; nextjs/**
+Implement:
+  - Optimize images (next/image, sizes), code-split, prefetch, cache headers, font display swap.
+  - Target Lighthouse >= 90 on perf/SEO/best-practices/a11y.
+Verify: Lighthouse scores >= 90 on key pages.
+
+@@@TASK@@@
+# Task 143 of 150
+[MC-UI] MC dashboard real widgets + date filters
+Goal: Make the Master Control dashboard live.
+Files (relative to repo root): control-plane/nextjs/app/admin/page.tsx; control-plane/nextjs/app/components/admin/**
+Implement:
+  - Wire stat cards + charts + activity feed + system status to real endpoints (analytics, audit, status).
+  - Add a date-range filter that refetches; trend arrows vs previous period.
+Verify: Dashboard shows real numbers that change with the date range.
+
+@@@TASK@@@
+# Task 144 of 150
+[CH-PUB] Editable homepage sections (live)
+Goal: Church homepage built from content blocks.
+Files (relative to repo root): nextjs/app/(site)/page.tsx; nextjs/components/site/EditableBlock*; backend/src/handlers/content_blocks.rs
+Implement:
+  - Render hero, about, service times, featured sermon/event, CTA from content_blocks; admin inline-edits and reorders.
+  - Fallback defaults when empty.
+Verify: Editing a homepage block in admin updates the public home.
+
+@@@TASK@@@
+# Task 145 of 150
+[CH-ADM] Sermon series + speakers
+Goal: Organize sermons.
+Files (relative to repo root): nextjs/app/admin/sermons/**; backend/src/handlers/sermons.rs; backend/migrations
+Implement:
+  - Add series + speakers tables/relations; assign sermons; public series pages.
+  - Filters by series/speaker.
+Verify: A sermon can belong to a series and speaker, shown publicly.
+
+@@@TASK@@@
+# Task 146 of 150
+[CH-ADM] Fund designations + designated reports
+Goal: Track giving by fund.
+Files (relative to repo root): nextjs/app/admin/funds/**; backend/src/handlers/funds.rs; backend/src/handlers/reports.rs
+Implement:
+  - Manage funds; donors choose a fund at giving; reports break down giving by fund and period.
+  - Restricted vs general funds.
+Verify: Designated gifts roll up correctly in fund reports.
+
+@@@TASK@@@
+# Task 147 of 150
+[CH-BE] Idempotency + request-id middleware
+Goal: Safe retries and traceability.
+Files (relative to repo root): backend/src/main.rs; control-plane/backend/src/main.rs
+Implement:
+  - Accept an Idempotency-Key on POST for payments/provisioning; store + replay results.
+  - Attach/propagate an X-Request-Id to every response and log.
+Verify: Repeating a payment POST with the same key does not double-charge.
+
+@@@TASK@@@
+# Task 148 of 150
+[INFRA] CDN + long-cache static assets
+Goal: Fast asset delivery.
+Files (relative to repo root): control-plane/nextjs/next.config.*; nextjs/next.config.*; Caddyfile
+Implement:
+  - Content-hashed asset URLs with immutable long-cache headers; optional image CDN/proxy.
+  - Cache-bust on deploy.
+Verify: Static assets serve with immutable cache headers.
+
+@@@TASK@@@
+# Task 149 of 150
+[TEST] Visual regression tests
+Goal: Catch UI drift.
+Files (relative to repo root): control-plane/nextjs/e2e/; nextjs/e2e/
+Implement:
+  - Playwright screenshot snapshots of key pages (light+dark); diff on PRs; update workflow.
+  - Stable, deterministic seeds.
+Verify: A UI change flags a visual diff in CI.
+
+@@@TASK@@@
+# Task 150 of 150
+[CH-ADM] New-church onboarding checklist
+Goal: Guide fresh churches to launch.
+Files (relative to repo root): nextjs/app/admin/**; backend/src/handlers/settings.rs
+Implement:
+  - A setup checklist widget (add logo, service times, first sermon, connect giving, invite team) with progress.
+  - Dismiss when complete.
+Verify: A new church admin sees actionable setup steps with progress.

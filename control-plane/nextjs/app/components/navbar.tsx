@@ -22,7 +22,7 @@ const navLinks = [
 export function Navbar() {
   const pathname = usePathname();
   const { theme, toggleTheme } = useTheme();
-  const { t } = useTranslation();
+  const { t, language, setLanguage } = useTranslation();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isLangOpen, setIsLangOpen] = useState(false);
@@ -179,7 +179,7 @@ export function Navbar() {
                 <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M4.083 9h11.834c.076-.429-.068-.91-.37-1.238l-4.918-5.41c-.448-.5-1.152-.5-1.598 0L4.453 7.762c-.3.329-.408.81-.282 1.238zm0 2h11.834c.076.429-.068.91-.37 1.238l-4.918 5.41c-.448.5-1.152.5-1.598 0L4.453 12.238c-.3-.329-.408-.81-.282-1.238H4.083z" clipRule="evenodd" />
                 </svg>
-                EN
+                {language === "en" ? "EN" : "ने"}
                 <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
                 </svg>
@@ -190,19 +190,21 @@ export function Navbar() {
                   <button
                     className="w-full px-3 py-2 text-left text-sm hover:bg-[var(--panel-2)] transition-colors"
                     onClick={() => {
+                      setLanguage("en");
                       setIsLangOpen(false);
-                      // Would trigger language change
                     }}
                   >
+                    {language === "en" && <span className="float-right ml-1">✓</span>}
                     English
                   </button>
                   <button
                     className="w-full px-3 py-2 text-left text-sm hover:bg-[var(--panel-2)] transition-colors"
                     onClick={() => {
+                      setLanguage("ne");
                       setIsLangOpen(false);
-                      // Would trigger language change
                     }}
                   >
+                    {language === "ne" && <span className="float-right ml-1">✓</span>}
                     नेपाली
                   </button>
                 </div>
