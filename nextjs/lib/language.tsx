@@ -1,12 +1,11 @@
 'use client'
 
-import { createContext, useContext, useState, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 
 export type Lang = "en" | "ne";
 
 type Dict = Record<string, { en: string; ne: string }>;
 
-// Central translation dictionary. Keys used across the app.
 export const dict: Dict = {
   churchName: { en: "Grace Nepal Church", ne: "अनुग्रह नेपाल मण्डली" },
   tagline: { en: "Faith • Hope • Love", ne: "विश्वास • आशा • प्रेम" },
@@ -27,6 +26,7 @@ export const dict: Dict = {
   nav_gallery: { en: "Gallery", ne: "ग्यालरी" },
   nav_membership: { en: "Become a Member", ne: "सदस्य बन्नुहोस्" },
   nav_prayer: { en: "Prayer Request", ne: "प्रार्थना अनुरोध" },
+  nav_testimonies: { en: "Testimonies", ne: "गवाहीहरू" },
   nav_contact: { en: "Contact", ne: "सम्पर्क" },
 
   // Hero
@@ -105,6 +105,11 @@ const LanguageContext = createContext<LangCtx>({
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const [lang, setLang] = useState<Lang>("en");
   const t = (key: string) => dict[key]?.[lang] ?? key;
+
+  useEffect(() => {
+    document.documentElement.lang = lang;
+  }, [lang]);
+
   return (
     <LanguageContext.Provider value={{ lang, setLang, t }}>
       {children}

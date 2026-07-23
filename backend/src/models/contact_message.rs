@@ -36,6 +36,8 @@ pub struct CreateContactMessage {
     pub anonymous: Option<bool>,
     #[serde(default)]
     pub visit_date: Option<String>,
+    #[serde(default)]
+    pub honeypot: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]

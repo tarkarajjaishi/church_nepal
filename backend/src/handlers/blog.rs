@@ -5,6 +5,15 @@ use axum::Json;
 use crate::auth::AuthUser;
 use crate::error::AppError;
 use crate::models::{BlogPost, CreateBlogPost, Paginated, Pagination, UpdateBlogPost};
+use chrono::Utc;
+
+#[derive(serde::Deserialize, Default)]
+pub struct BlogQuery {
+    pub page: Option<i64>,
+    pub per_page: Option<i64>,
+    pub q: Option<String>,
+    pub category: Option<String>,
+}
 
 pub async fn list(Db(pool): Db, Query(p): Query<Pagination>) -> Result<Json<Paginated<BlogPost>>, AppError> {
     let total: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM blog_posts").fetch_one(&pool).await?;
@@ -13,11 +22,66 @@ pub async fn list(Db(pool): Db, Query(p): Query<Pagination>) -> Result<Json<Pagi
     Ok(Json(Paginated::new(rows, total, &p)))
 }
 
-pub async fn list_published(Db(pool): Db) -> Result<Json<Vec<BlogPost>>, AppError> {
-    let rows = sqlx::query_as::<_, BlogPost>("SELECT * FROM blog_posts WHERE published = true ORDER BY created_at DESC")
-        .fetch_all(&pool)
-        .await?;
-    Ok(Json(rows))
+pub async fn list_published(
+    Db(pool): Db,
+    Query(params): Query<BlogQuery>,
+) -> Result<Json<Paginated<BlogPost>>, AppError> {
+    let mut sql = String::from("SELECT * FROM blog_posts WHERE published = true AND (published_at IS NULL OR published_at <= NOW())");
+    let mut count_sql = String::from("SELECT COUNT(*) FROM blog_posts WHERE published = true AND (published_at IS NULL OR published_at <= NOW())");
+    let mut pos = 1;
+
+    if let Some(ref q) = params.q {
+        if !q.is_empty() {
+            let clause = format!(" AND (title ILIKE ${} OR excerpt ILIKE ${} OR content ILIKE ${} OR category ILIKE ${})", pos, pos, pos, pos);
+            sql.push_str(&clause);
+            count_sql.push_str(&clause);
+            pos += 1;
+        }
+    }
+    if let Some(ref category) = params.category {
+        if !category.is_empty() && *category != "all" {
+            sql.push_str(&format!(" AND category = ${}", pos));
+            count_sql.push_str(&format!(" AND category = ${}", pos));
+            pos += 1;
+        }
+    }
+
+    sql.push_str(" ORDER BY created_at DESC");
+    sql.push_str(&format!(" LIMIT ${} OFFSET ${}", pos, pos + 1));
+
+    let p = Pagination {
+        page: params.page,
+        per_page: params.per_page,
+    };
+
+    let mut count_query = sqlx::query_scalar::<_, i64>(&count_sql);
+    if let Some(ref q) = params.q {
+        if !q.is_empty() {
+            count_query = count_query.bind(format!("%{}%", q));
+        }
+    }
+    if let Some(ref category) = params.category {
+        if !category.is_empty() && *category != "all" {
+            count_query = count_query.bind(category);
+        }
+    }
+    let total: i64 = count_query.fetch_one(&pool).await?;
+
+    let mut query = sqlx::query_as::<_, BlogPost>(&sql);
+    if let Some(ref q) = params.q {
+        if !q.is_empty() {
+            query = query.bind(format!("%{}%", q));
+        }
+    }
+    if let Some(ref category) = params.category {
+        if !category.is_empty() && *category != "all" {
+            query = query.bind(category);
+        }
+    }
+    query = query.bind(p.limit()).bind(p.offset());
+
+    let rows = query.fetch_all(&pool).await?;
+    Ok(Json(Paginated::new(rows, total, &p)))
 }
 
 pub async fn get(
@@ -37,9 +101,13 @@ pub async fn create(
     Db(pool): Db,
     Json(input): Json<CreateBlogPost>,
 ) -> Result<Json<BlogPost>, AppError> {
+    let published = match input.published_at {
+        Some(ref at) if *at <= Utc::now().naive_utc() => true,
+        _ => input.published.unwrap_or(false),
+    };
     let row = sqlx::query_as::<_, BlogPost>(
-        r#"INSERT INTO blog_posts (title, slug, content, excerpt, author, category, image, published, featured)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *"#,
+        r#"INSERT INTO blog_posts (title, slug, content, excerpt, author, category, image, published, featured, published_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *"#,
     )
     .bind(&input.title)
     .bind(&input.slug)
@@ -48,8 +116,9 @@ pub async fn create(
     .bind(input.author.unwrap_or_default())
     .bind(input.category.unwrap_or_default())
     .bind(input.image.unwrap_or_default())
-    .bind(input.published.unwrap_or(false))
+    .bind(published)
     .bind(input.featured.unwrap_or(false))
+    .bind(input.published_at)
     .fetch_one(&pool)
     .await?;
     Ok(Json(row))
@@ -67,6 +136,12 @@ pub async fn update(
         .await?
         .ok_or_else(|| AppError::not_found("Blog post not found"))?;
 
+    let published = match input.published_at {
+        Some(ref at) if *at <= Utc::now().naive_utc() => true,
+        None => input.published.unwrap_or(existing.published),
+        _ => existing.published,
+    };
+
     let row = sqlx::query_as::<_, BlogPost>(
         r#"UPDATE blog_posts SET
             title = COALESCE($2, title),
@@ -78,6 +153,7 @@ pub async fn update(
             image = COALESCE($8, image),
             published = COALESCE($9, published),
             featured = COALESCE($10, featured),
+            published_at = COALESCE($11, published_at),
             updated_at = NOW()
            WHERE id = $1 RETURNING *"#,
     )
@@ -89,8 +165,9 @@ pub async fn update(
     .bind(input.author.as_deref().unwrap_or(&existing.author))
     .bind(input.category.as_deref().unwrap_or(&existing.category))
     .bind(input.image.as_deref().unwrap_or(&existing.image))
-    .bind(input.published.unwrap_or(existing.published))
+    .bind(published)
     .bind(input.featured.unwrap_or(existing.featured))
+    .bind(input.published_at)
     .fetch_one(&pool)
     .await?;
     Ok(Json(row))

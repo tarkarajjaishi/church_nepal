@@ -19,9 +19,9 @@ export function PageHero({ title, subtitle, image, crumb, children }: Props) {
         <div className="absolute inset-0 gradient-hero" />
       </div>
       <div className="relative mx-auto max-w-7xl px-4 py-20 md:py-28">
-        <nav className="flex items-center gap-1.5 text-sm text-white/70 mb-3">
+        <nav className="flex items-center gap-1.5 text-sm text-white/70 mb-3" aria-label="Breadcrumb">
           <Link href="/" className="hover:text-gold">Home</Link>
-          <ChevronRight className="size-3.5" />
+          <ChevronRight className="size-3.5" aria-hidden="true" />
           <span className="text-gold">{crumb ?? title}</span>
         </nav>
         <h1 className="text-white text-4xl md:text-5xl max-w-3xl" style={{ fontFamily: "var(--font-heading)", fontWeight: 700, lineHeight: 1.1 }}>

@@ -3,84 +3,10 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useNotifications, useMarkNotificationRead, useMarkAllNotificationsRead } from "@/components/hooks";
+import { Notification } from "@/types";
 
 type NotificationType = "church" | "billing" | "system" | "admin";
-
-interface Notification {
-  id: string;
-  type: NotificationType;
-  title: string;
-  description: string;
-  timestamp: string;
-  read: boolean;
-}
-
-const initialNotifications: Notification[] = [
-  {
-    id: "1",
-    type: "church",
-    title: "New church provisioned",
-    description: "Grace Community Church has been set up on the Starter plan.",
-    timestamp: "2h ago",
-    read: false,
-  },
-  {
-    id: "2",
-    type: "billing",
-    title: "Plan upgraded",
-    description: "Redeemer Fellowship moved from Free to Pro plan.",
-    timestamp: "4h ago",
-    read: false,
-  },
-  {
-    id: "3",
-    type: "billing",
-    title: "Payment failed",
-    description: "Subscription renewal failed for Hope Chapel. Please update payment method.",
-    timestamp: "6h ago",
-    read: false,
-  },
-  {
-    id: "4",
-    type: "system",
-    title: "Storage near limit",
-    description: "Backup storage is at 87% capacity. Consider expanding your storage plan.",
-    timestamp: "8h ago",
-    read: false,
-  },
-  {
-    id: "5",
-    type: "admin",
-    title: "New admin invited",
-    description: "john@example.com has been invited to join the admin team.",
-    timestamp: "12h ago",
-    read: true,
-  },
-  {
-    id: "6",
-    type: "system",
-    title: "System update",
-    description: "Control plane has been updated to v2.4.1 successfully.",
-    timestamp: "1d ago",
-    read: true,
-  },
-  {
-    id: "7",
-    type: "system",
-    title: "Backup completed",
-    description: "Daily database backup completed without errors.",
-    timestamp: "1d ago",
-    read: true,
-  },
-  {
-    id: "8",
-    type: "church",
-    title: "Church suspended",
-    description: "Living Word Church has been suspended due to policy violation.",
-    timestamp: "2d ago",
-    read: false,
-  },
-];
 
 const filters: { label: string; value: "all" | "unread" | NotificationType }[] = [
   { label: "All", value: "all" },
@@ -120,7 +46,7 @@ function getIcon(type: NotificationType) {
   }
 }
 
-function typeColor(type: NotificationType): string {
+function typeColor(type: NotificationType) {
   switch (type) {
     case "church":
       return "text-[var(--accent)] bg-[var(--accent-soft)]";
@@ -134,10 +60,12 @@ function typeColor(type: NotificationType): string {
 }
 
 export default function NotificationsPage() {
-  const [notifications, setNotifications] = useState<Notification[]>(initialNotifications);
+  const { data } = useNotifications();
+  const notifications: Notification[] = data?.notifications ?? [];
+  const unreadCount = data?.unreadCount ?? 0;
   const [filter, setFilter] = useState<"all" | "unread" | NotificationType>("all");
-
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  const markRead = useMarkNotificationRead();
+  const markAllRead = useMarkAllNotificationsRead();
 
   const filteredNotifications = notifications.filter((n) => {
     if (filter === "all") return true;
@@ -146,13 +74,11 @@ export default function NotificationsPage() {
   });
 
   const handleRowClick = (id: string) => {
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, read: true } : n))
-    );
+    markRead.mutate(id);
   };
 
   const handleMarkAllRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    markAllRead.mutate();
   };
 
   return (
@@ -167,7 +93,7 @@ export default function NotificationsPage() {
             )}
           </div>
           {unreadCount > 0 && (
-            <Button variant="outline" size="sm" onClick={handleMarkAllRead}>
+            <Button variant="outline" size="sm" onClick={handleMarkAllRead} disabled={markAllRead.isPending}>
               Mark all as read
             </Button>
           )}
@@ -211,16 +137,17 @@ export default function NotificationsPage() {
               <button
                 key={n.id}
                 onClick={() => handleRowClick(n.id)}
+                disabled={markRead.isPending}
                 className={`w-full flex items-start gap-4 p-4 rounded-lg text-left transition-colors hover:bg-[var(--panel)] ${
                   !n.read ? "bg-[var(--panel)]" : "opacity-70"
-                }`}
+                } ${markRead.isPending ? "opacity-60" : ""}`}
               >
                 <div
                   className={`flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center ${typeColor(
-                    n.type
+                    n.type as NotificationType
                   )}`}
                 >
-                  {getIcon(n.type)}
+                  {getIcon(n.type as NotificationType)}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">

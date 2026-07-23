@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { useMe } from "@/components/hooks/use-auth";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { apiClient } from "@/lib/api-client";
 
 const TABS = [
   { id: "profile", label: "Profile" },
@@ -23,11 +24,6 @@ const defaultSettings = {
   maintenanceMode: false,
 };
 
-const initialApiKeys = [
-  { id: "1", key: "cn_live_abcdefgh1234", created: "2025-01-15" },
-  { id: "2", key: "cn_live_wxyz9876abcd", created: "2025-03-22" },
-];
-
 export default function SettingsPage() {
   const { data: userData, isLoading: authIsLoading } = useMe();
   const [activeTab, setActiveTab] = useState<string>("profile");
@@ -35,20 +31,66 @@ export default function SettingsPage() {
 
   const [profile, setProfile] = useState({ displayName: "", email: "" });
   const [passwords, setPasswords] = useState({ current: "", newPass: "", confirm: "" });
-  const [twoFactor, setTwoFactor] = useState(false);
+  const [twoFactor, setTwoFactor] = useState<{
+    enabled: boolean;
+    enrolling: boolean;
+    secret: string;
+    otpauthUrl: string;
+    qrBase64: string;
+    verifyCode: string;
+    disableCode: string;
+  }>({
+    enabled: false,
+    enrolling: false,
+    secret: "",
+    otpauthUrl: "",
+    qrBase64: "",
+    verifyCode: "",
+    disableCode: "",
+  });
   const [settings, setSettings] = useState(defaultSettings);
   const [smtp, setSmtp] = useState({ host: "", port: "", username: "", from: "" });
-  const [apiKeys, setApiKeys] = useState(initialApiKeys as typeof initialApiKeys);
+  const [apiKeys, setApiKeys] = useState<Array<{
+    id: string;
+    name: string;
+    masked_key: string;
+    scopes: string[];
+    revoked_at?: string;
+    created_at: string;
+  }>>([]);
+  const [newKeySecret, setNewKeySecret] = useState<string | null>(null);
 
   useEffect(() => {
     if (userData) {
       setProfile({ displayName: userData.email.split("@")[0] || "", email: userData.email });
+      setTwoFactor((prev) => ({ ...prev, enabled: !!userData.twofa_enabled }));
+      loadSettings();
+      loadApiKeys();
     }
   }, [userData]);
 
-  const maskKey = (key: string) => {
-    if (key.length <= 12) return "••••" + key.slice(-4);
-    return key.slice(0, 8) + "••••" + key.slice(-4);
+  const loadSettings = async () => {
+    try {
+      const response = await apiClient.get("/api/settings");
+      const data = response.data as Record<string, unknown>;
+      setSettings((prev) => ({
+        platformName: (data.platformName as string) || prev.platformName,
+        baseUrl: (data.baseUrl as string) || prev.baseUrl,
+        defaultPlan: (data.defaultPlan as string) || prev.defaultPlan,
+        maintenanceMode: (data.maintenanceMode as boolean) ?? prev.maintenanceMode,
+      }));
+    } catch {
+      toast.error("Failed to load settings");
+    }
+  };
+
+  const loadApiKeys = async () => {
+    try {
+      const response = await apiClient.get("/api/api-keys");
+      setApiKeys(response.data as typeof apiKeys);
+    } catch {
+      toast.error("Failed to load API keys");
+    }
   };
 
   const copyToClipboard = async (text: string) => {
@@ -60,23 +102,6 @@ export default function SettingsPage() {
     }
   };
 
-  const revokeKey = (id: string) => {
-    setApiKeys((prev) => prev.filter((k) => k.id !== id));
-    toast.success("API key revoked");
-  };
-
-  const generateKey = () => {
-    const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
-    const rand = () => Array.from({ length: 12 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
-    const newKey: typeof initialApiKeys[0] = {
-      id: Date.now().toString(),
-      key: "cn_live_" + rand(),
-      created: new Date().toISOString().split("T")[0],
-    };
-    setApiKeys((prev) => [newKey, ...prev]);
-    toast.success("New API key generated");
-  };
-
   const saveProfile = () => {
     setSaving("profile");
     setTimeout(() => {
@@ -85,7 +110,7 @@ export default function SettingsPage() {
     }, 400);
   };
 
-  const saveSecurity = () => {
+  const saveSecurity = async () => {
     setSaving("security");
     if (passwords.newPass !== passwords.confirm) {
       toast.error("New passwords do not match");
@@ -102,23 +127,119 @@ export default function SettingsPage() {
       setSaving(null);
       return;
     }
-    setTimeout(() => {
+    try {
+      await apiClient.post("/api/auth/reset-authenticated", {
+        current_password: passwords.current,
+        new_password: passwords.newPass,
+      });
       setPasswords({ current: "", newPass: "", confirm: "" });
-      setSaving(null);
       toast.success("Security settings updated");
-    }, 400);
+    } catch (e) {
+      const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error || "Failed to update password";
+      toast.error(msg);
+    } finally {
+      setSaving(null);
+    }
   };
 
-  const saveOrganization = () => {
+  const startEnroll2FA = async () => {
+    try {
+      const response = await apiClient.post("/api/auth/2fa/enroll");
+      const data = response.data;
+      setTwoFactor((prev) => ({
+        ...prev,
+        enrolling: true,
+        secret: data.secret,
+        otpauthUrl: data.otpauth_url,
+        qrBase64: data.qr_base64,
+        verifyCode: "",
+      }));
+    } catch {
+      toast.error("Failed to start 2FA enrollment");
+    }
+  };
+
+  const verify2FA = async () => {
+    if (!twoFactor.verifyCode.trim()) {
+      toast.error("Please enter the verification code");
+      return;
+    }
+    try {
+      await apiClient.post("/api/auth/2fa/verify", { code: twoFactor.verifyCode });
+      setTwoFactor((prev) => ({ ...prev, enabled: true, enrolling: false }));
+      toast.success("Two-factor authentication enabled");
+    } catch {
+      toast.error("Invalid verification code");
+    }
+  };
+
+  const disable2FA = async () => {
+    if (!twoFactor.disableCode.trim()) {
+      toast.error("Please enter the verification code");
+      return;
+    }
+    try {
+      await apiClient.post("/api/auth/2fa/disable", { code: twoFactor.disableCode });
+      setTwoFactor((prev) => ({ ...prev, enabled: false, secret: "", otpauthUrl: "", qrBase64: "", disableCode: "" }));
+      toast.success("Two-factor authentication disabled");
+    } catch {
+      toast.error("Invalid verification code");
+    }
+  };
+
+  const saveOrganization = async () => {
     setSaving("organization");
-    setTimeout(() => {
-      setSaving(null);
+    try {
+      await apiClient.put("/api/settings", {
+        platformName: settings.platformName,
+        baseUrl: settings.baseUrl,
+        defaultPlan: settings.defaultPlan,
+        maintenanceMode: settings.maintenanceMode,
+      });
       toast.success("Organization settings saved");
-    }, 400);
+    } catch {
+      toast.error("Failed to save settings");
+    } finally {
+      setSaving(null);
+    }
   };
 
   const sendTestEmail = () => {
     toast.info("Test email sent (simulated)");
+  };
+
+  const generateApiKey = async () => {
+    try {
+      const response = await apiClient.post("/api/api-keys", {
+        name: `API Key ${new Date().toLocaleString()}`,
+        scopes: [],
+      });
+      const data = response.data;
+      setNewKeySecret(data.full_key);
+      setApiKeys((prev) => [
+        {
+          id: data.id,
+          name: data.name,
+          masked_key: data.masked_key,
+          scopes: data.scopes,
+          created_at: data.created_at,
+        },
+        ...prev,
+      ]);
+      toast.success("New API key generated");
+    } catch {
+      toast.error("Failed to generate API key");
+    }
+  };
+
+  const revokeApiKey = async (id: string) => {
+    try {
+      await apiClient.delete(`/api/api-keys/${id}`);
+      setApiKeys((prev) => prev.filter((k) => k.id !== id));
+      toast.success("API key revoked");
+    } catch {
+      toast.error("Failed to revoke API key");
+    }
   };
 
   const resetPlatformData = () => {
@@ -216,7 +337,7 @@ export default function SettingsPage() {
                     onChange={(e) => setPasswords({ ...passwords, newPass: e.target.value })}
                     className={cn(
                       "w-full max-w-md px-3 py-2 border rounded-md bg-[var(--input-bg,var(--bg))] text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]",
-                      passwords.newPass && passwords.newPass.length < 8 ? "border-[var(--danger)]" : "border-[var(--border)]"
+                      passwords.newPass && passwords.newPass.length > 0 && passwords.newPass.length < 8 ? "border-[var(--danger)]" : "border-[var(--border)]"
                     )}
                   />
                   {passwords.newPass && passwords.newPass.length > 0 && passwords.newPass.length < 8 && (
@@ -231,40 +352,104 @@ export default function SettingsPage() {
                     onChange={(e) => setPasswords({ ...passwords, confirm: e.target.value })}
                     className={cn(
                       "w-full max-w-md px-3 py-2 border rounded-md bg-[var(--input-bg,var(--bg))] text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]",
-                      passwords.confirm && passwords.confirm !== passwords.newPass ? "border-[var(--danger)]" : "border-[var(--border)]"
+                      passwords.confirm && passwords.confirm.length > 0 && passwords.confirm !== passwords.newPass ? "border-[var(--danger)]" : "border-[var(--border)]"
                     )}
                   />
-                  {passwords.confirm && passwords.confirm !== passwords.newPass && (
+                  {passwords.confirm && passwords.confirm.length > 0 && passwords.confirm !== passwords.newPass && (
                     <p className="text-xs text-[var(--danger)] mt-1">Passwords do not match</p>
                   )}
                 </div>
-                <div className="flex items-center justify-between max-w-md pt-2">
-                  <div>
-                    <p className="text-sm font-medium text-[var(--text)]">Two-factor authentication</p>
-                    <p className="text-xs text-[var(--muted)]">Add an extra layer of security to your account</p>
-                  </div>
-                  <button
-                    role="switch"
-                    aria-checked={twoFactor}
-                    onClick={() => setTwoFactor((prev) => !prev)}
-                    className={cn(
-                      "relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2",
-                      twoFactor ? "bg-[var(--accent)]" : "bg-[var(--border)]"
-                    )}
-                  >
-                    <span
-                      className={cn(
-                        "inline-block h-5 w-5 rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out",
-                        twoFactor ? "translate-x-5" : "translate-x-0"
-                      )}
-                    />
-                  </button>
+                <div className="pt-2">
+                  <Button variant="primary" onClick={saveSecurity} disabled={saving === "security"}>
+                    {saving === "security" ? "Saving..." : "Update Password"}
+                  </Button>
                 </div>
-              </div>
-              <div className="pt-2">
-                <Button variant="primary" onClick={saveSecurity} disabled={saving === "security"}>
-                  {saving === "security" ? "Saving..." : "Save"}
-                </Button>
+                <div className="mt-6 pt-6 border-t border-[var(--border)]">
+                  <div className="flex items-center justify-between max-w-md">
+                    <div>
+                      <p className="text-sm font-medium text-[var(--text)]">Two-factor authentication</p>
+                      <p className="text-xs text-[var(--muted)]">
+                        {twoFactor.enabled ? "Two-factor authentication is enabled" : "Add an extra layer of security to your account"}
+                      </p>
+                    </div>
+                    <Badge variant={twoFactor.enabled ? "success" : "outline"}>
+                      {twoFactor.enabled ? "Enabled" : "Disabled"}
+                    </Badge>
+                  </div>
+
+                  {!twoFactor.enabled && !twoFactor.enrolling && (
+                    <div className="pt-4">
+                      <Button variant="outline" onClick={startEnroll2FA}>
+                        Enable 2FA
+                      </Button>
+                    </div>
+                  )}
+
+                  {twoFactor.enrolling && (
+                    <div className="pt-4 space-y-4">
+                      <div className="p-4 rounded-lg border border-[var(--border-soft)] bg-[var(--bg-2)] space-y-3">
+                        <p className="text-sm font-medium text-[var(--text)]">Scan QR code with your authenticator app</p>
+                        {twoFactor.qrBase64 && (
+                          <img
+                            src={`data:image/png;base64,${twoFactor.qrBase64}`}
+                            alt="2FA QR Code"
+                            className="w-40 h-40 rounded-md border border-[var(--border)]"
+                          />
+                        )}
+                        <div>
+                          <p className="text-xs text-[var(--muted)] mb-1">Or enter this secret manually:</p>
+                          <code className="block text-xs text-[var(--text)] font-mono break-all bg-[var(--bg)] p-2 rounded border border-[var(--border-soft)]">
+                            {twoFactor.secret}
+                          </code>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-[var(--muted)] mb-2">Verification Code</label>
+                          <input
+                            type="text"
+                            value={twoFactor.verifyCode}
+                            onChange={(e) => setTwoFactor({ ...twoFactor, verifyCode: e.target.value })}
+                            className="w-full max-w-xs px-3 py-2 border border-[var(--border)] rounded-md bg-[var(--input-bg,var(--bg))] text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+                            placeholder="Enter 6-digit code"
+                          />
+                        </div>
+                        <div className="flex gap-2">
+                          <Button variant="primary" onClick={verify2FA}>
+                            Verify & Enable
+                          </Button>
+                          <Button
+                            variant="outline"
+                            onClick={() =>
+                              setTwoFactor((prev) => ({ ...prev, enrolling: false, secret: "", otpauthUrl: "", qrBase64: "", verifyCode: "" }))
+                            }
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {twoFactor.enabled && (
+                    <div className="pt-4 space-y-3">
+                      <p className="text-xs text-[var(--muted)]">Disabling 2FA will reduce your account security.</p>
+                      <div>
+                        <label className="block text-sm font-medium text-[var(--muted)] mb-2">Enter verification code to disable</label>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={twoFactor.disableCode}
+                            onChange={(e) => setTwoFactor({ ...twoFactor, disableCode: e.target.value })}
+                            className="flex-1 max-w-xs px-3 py-2 border border-[var(--border)] rounded-md bg-[var(--input-bg,var(--bg))] text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+                            placeholder="Enter 6-digit code"
+                          />
+                          <Button variant="destructive" onClick={disable2FA}>
+                            Disable 2FA
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           )}
@@ -391,10 +576,18 @@ export default function SettingsPage() {
             <div className="card bg-[var(--panel)] border border-[var(--border)] rounded-xl p-5 space-y-5">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold text-[var(--text-strong)]">API Keys</h3>
-                <Button variant="primary" size="sm" onClick={generateKey}>
+                <Button variant="primary" size="sm" onClick={generateApiKey}>
                   Generate new key
                 </Button>
               </div>
+              {newKeySecret && (
+                <div className="p-4 rounded-lg border border-[var(--accent)] bg-[var(--accent-soft)]">
+                  <p className="text-sm font-medium text-[var(--accent)] mb-1">New API key (shown once)</p>
+                  <code className="block text-xs text-[var(--text)] font-mono break-all bg-[var(--bg)] p-2 rounded border border-[var(--border-soft)]">
+                    {newKeySecret}
+                  </code>
+                </div>
+              )}
               <div className="space-y-3">
                 {apiKeys.length === 0 && (
                   <p className="text-sm text-[var(--muted)]">No API keys configured.</p>
@@ -404,14 +597,16 @@ export default function SettingsPage() {
                     key={k.id}
                     className="flex items-center gap-3 p-3 rounded-lg border border-[var(--border-soft)] bg-[var(--bg-2)]"
                   >
-                    <code className="flex-1 text-sm text-[var(--text)] font-mono break-all">
-                      {maskKey(k.key)}
-                    </code>
-                    <span className="text-xs text-[var(--muted)]">{k.created}</span>
-                    <Button variant="ghost" size="sm" onClick={() => copyToClipboard(k.key)}>
+                    <div className="flex-1 min-w-0">
+                      <code className="block text-sm text-[var(--text)] font-mono break-all">
+                        {k.masked_key}
+                      </code>
+                      <p className="text-xs text-[var(--muted)] mt-0.5">{k.created_at}</p>
+                    </div>
+                    <Button variant="ghost" size="sm" onClick={() => copyToClipboard(k.masked_key)}>
                       Copy
                     </Button>
-                    <Button variant="destructive" size="sm" onClick={() => revokeKey(k.id)}>
+                    <Button variant="destructive" size="sm" onClick={() => revokeApiKey(k.id)}>
                       Revoke
                     </Button>
                   </div>

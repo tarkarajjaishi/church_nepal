@@ -266,3 +266,37 @@ export interface ChangePasswordRequest {
   current_password: string
   new_password: string
 }
+
+export interface Broadcast {
+  id: string
+  subject: string
+  body: string
+  broadcastType: string
+  status: string
+  recipientGroup: string
+  recipientCount: number
+  sentAt?: string
+  scheduledAt?: string
+  templateBody: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface BroadcastRecipient {
+  id: string
+  broadcastId: string
+  recipientEmail: string
+  recipientName: string
+  recipientPhone: string
+  status: string
+  sentAt?: string
+  openedAt?: string
+}
+
+export interface BroadcastStats {
+  total: number
+  sent: number
+  pending: number
+  failed: number
+  opened: number
+}

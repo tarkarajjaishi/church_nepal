@@ -70,6 +70,11 @@ impl TenantRegistry {
         let entry = guard.entry(slug.to_string()).or_insert(pool);
         Some(entry.clone())
     }
+
+    pub async fn all_pools(&self) -> Vec<PgPool> {
+        let guard = self.pools.lock().await;
+        guard.values().cloned().collect()
+    }
 }
 
 /// A church's db name must be a safe Postgres identifier — this is also the

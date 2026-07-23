@@ -4,6 +4,18 @@ use axum::Json;
 use crate::auth::AuthUser;
 use crate::error::AppError;
 use crate::models::member_application::*;
+use crate::handlers::audit::create_audit_entry;
+use crate::email;
+
+#[derive(Debug, Deserialize)]
+pub struct ApproveInput {
+    pub reason: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct RejectInput {
+    pub reason: Option<String>,
+}
 
 pub async fn list(Db(pool): Db) -> Result<Json<Vec<MemberApplication>>, AppError> {
     let rows = sqlx::query_as::<_, MemberApplication>(
@@ -36,7 +48,7 @@ pub async fn create(
     .bind(&input.first_name)
     .bind(input.last_name.as_deref().unwrap_or(""))
     .bind(&input.email)
-    .bind(input.phone.as_deref().unwrap_or(""))
+    .bind(&input.phone.as_deref().unwrap_or(""))
     .bind(&input.address)
     .bind(&input.city)
     .bind(dob)
@@ -48,6 +60,100 @@ pub async fn create(
     .bind(&input.interest_areas)
     .bind(&input.testimony)
     .fetch_one(&pool).await?;
+    Ok(Json(row))
+}
+
+pub async fn approve(
+    _auth: AuthUser,
+    Db(pool): Db,
+    Path(id): Path<uuid::Uuid>,
+    Json(input): Json<ApproveInput>,
+) -> Result<Json<MemberApplication>, AppError> {
+    let existing = sqlx::query_as::<_, MemberApplication>("SELECT * FROM member_applications WHERE id = $1")
+        .bind(id)
+        .fetch_optional(&pool).await?
+        .ok_or_else(|| AppError::not_found("Application not found"))?;
+
+    let row = sqlx::query_as::<_, MemberApplication>(
+        r#"UPDATE member_applications SET
+            status='approved', reviewed_by=$2, reviewed_at=NOW(), notes=COALESCE($3,notes), updated_at=NOW()
+         WHERE id=$1 RETURNING *"#
+    )
+    .bind(id)
+    .bind(&_auth.email)
+    .bind(input.reason.as_ref().and_then(|r| if r.is_empty() { None } else { Some(r) }))
+    .fetch_optional(&pool).await?
+    .ok_or_else(|| AppError::not_found("Application not found"))?;
+
+    let pool_clone = pool.clone();
+    let applicant_name = format!("{} {}", existing.first_name, existing.last_name);
+    let reason_clone = input.reason.clone();
+    let email = existing.email.clone();
+    tokio::spawn(async move {
+        let _ = email::notify_member_application_decision(&pool_clone, &applicant_name, &email, true, reason_clone.as_deref()).await;
+    });
+
+    let _ = create_audit_entry(
+        &pool,
+        &_auth.email,
+        "approve_member_application",
+        &id.to_string(),
+        "member_application",
+        Some(serde_json::json!({
+            "applicant_name": applicant_name,
+            "applicant_email": existing.email,
+            "reason": input.reason,
+        })),
+    )
+    .await;
+
+    Ok(Json(row))
+}
+
+pub async fn reject(
+    _auth: AuthUser,
+    Db(pool): Db,
+    Path(id): Path<uuid::Uuid>,
+    Json(input): Json<RejectInput>,
+) -> Result<Json<MemberApplication>, AppError> {
+    let existing = sqlx::query_as::<_, MemberApplication>("SELECT * FROM member_applications WHERE id = $1")
+        .bind(id)
+        .fetch_optional(&pool).await?
+        .ok_or_else(|| AppError::not_found("Application not found"))?;
+
+    let row = sqlx::query_as::<_, MemberApplication>(
+        r#"UPDATE member_applications SET
+            status='rejected', reviewed_by=$2, reviewed_at=NOW(), notes=COALESCE($3,notes), updated_at=NOW()
+         WHERE id=$1 RETURNING *"#
+    )
+    .bind(id)
+    .bind(&_auth.email)
+    .bind(input.reason.as_ref().and_then(|r| if r.is_empty() { None } else { Some(r) }))
+    .fetch_optional(&pool).await?
+    .ok_or_else(|| AppError::not_found("Application not found"))?;
+
+    let pool_clone = pool.clone();
+    let applicant_name = format!("{} {}", existing.first_name, existing.last_name);
+    let reason_clone = input.reason.clone();
+    let email = existing.email.clone();
+    tokio::spawn(async move {
+        let _ = email::notify_member_application_decision(&pool_clone, &applicant_name, &email, false, reason_clone.as_deref()).await;
+    });
+
+    let _ = create_audit_entry(
+        &pool,
+        &_auth.email,
+        "reject_member_application",
+        &id.to_string(),
+        "member_application",
+        Some(serde_json::json!({
+            "applicant_name": applicant_name,
+            "applicant_email": existing.email,
+            "reason": input.reason,
+        })),
+    )
+    .await;
+
     Ok(Json(row))
 }
 

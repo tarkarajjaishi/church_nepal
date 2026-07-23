@@ -7,6 +7,17 @@ import { SiteThemeApplier } from '@/components/theme/SiteThemeApplier'
 export const metadata: Metadata = {
   title: 'Grace Nepal Church — Faith, Hope & Love',
   description: 'Grace Nepal Church - A community of faith, hope and love in Nepal. Join us for worship, fellowship and service.',
+  manifest: '/manifest',
+  themeColor: '#0b3c5d',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'Grace Nepal Church',
+  },
+  icons: {
+    icon: '/icon-192.png',
+    apple: '/icon-192.png',
+  },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

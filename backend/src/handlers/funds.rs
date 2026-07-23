@@ -113,16 +113,13 @@ pub async fn create_recurring(
     Json(input): Json<CreateRecurringDonation>,
 ) -> Result<Json<RecurringDonation>, AppError> {
     let row = sqlx::query_as::<_, RecurringDonation>(
-        r#"INSERT INTO recurring_donations (donor_name, donor_email, donor_phone, fund_id, amount, frequency, payment_method)
-           VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *"#,
+        r#"INSERT INTO recurring_donations (member_id, amount, interval, gateway)
+            VALUES ($1, $2, $3, $4) RETURNING *"#,
     )
-    .bind(&input.donor_name)
-    .bind(&input.donor_email)
-    .bind(input.donor_phone.as_deref().unwrap_or(""))
-    .bind(input.fund_id)
+    .bind(input.member_id)
     .bind(input.amount)
-    .bind(input.frequency.as_deref().unwrap_or("monthly"))
-    .bind(input.payment_method.as_deref().unwrap_or("bank"))
+    .bind(input.interval.as_deref().unwrap_or("monthly"))
+    .bind(input.gateway.as_deref().unwrap_or("stripe"))
     .fetch_one(&pool)
     .await?;
     Ok(Json(row))

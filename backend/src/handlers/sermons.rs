@@ -11,6 +11,17 @@ pub struct ReorderRequest {
     pub sort_order: i32,
 }
 
+#[derive(serde::Deserialize, Default)]
+pub struct SermonQuery {
+    pub page: Option<i64>,
+    pub per_page: Option<i64>,
+    pub q: Option<String>,
+    pub speaker: Option<String>,
+    pub topic: Option<String>,
+    pub series: Option<String>,
+    pub sort: Option<String>,
+}
+
 pub async fn list(
     Db(pool): Db,
     Query(p): Query<Pagination>,
@@ -21,6 +32,109 @@ pub async fn list(
         "SELECT * FROM sermons ORDER BY sort_order ASC, created_at DESC LIMIT $1 OFFSET $2")
         .bind(p.limit()).bind(p.offset())
         .fetch_all(&pool).await?;
+    Ok(Json(Paginated::new(rows, total, &p)))
+}
+
+pub async fn list_public(
+    Db(pool): Db,
+    Query(params): Query<SermonQuery>,
+) -> Result<Json<Paginated<Sermon>>, AppError> {
+    let mut sql = String::from("SELECT * FROM sermons WHERE enabled = TRUE");
+    let mut count_sql = String::from("SELECT COUNT(*) FROM sermons WHERE enabled = TRUE");
+    let mut pos = 1;
+
+    if let Some(ref q) = params.q {
+        if !q.is_empty() {
+            let clause = format!(" AND (title ILIKE ${} OR description ILIKE ${} OR series ILIKE ${} OR speaker ILIKE ${})", pos, pos, pos, pos);
+            sql.push_str(&clause);
+            count_sql.push_str(&clause);
+            pos += 1;
+        }
+    }
+    if let Some(ref speaker) = params.speaker {
+        if !speaker.is_empty() && *speaker != "all" {
+            sql.push_str(&format!(" AND speaker = ${}", pos));
+            count_sql.push_str(&format!(" AND speaker = ${}", pos));
+            pos += 1;
+        }
+    }
+    if let Some(ref topic) = params.topic {
+        if !topic.is_empty() && *topic != "all" {
+            sql.push_str(&format!(" AND topic = ${}", pos));
+            count_sql.push_str(&format!(" AND topic = ${}", pos));
+            pos += 1;
+        }
+    }
+    if let Some(ref series) = params.series {
+        if !series.is_empty() && *series != "all" {
+            sql.push_str(&format!(" AND series = ${}", pos));
+            count_sql.push_str(&format!(" AND series = ${}", pos));
+            pos += 1;
+        }
+    }
+
+    let order_by = match params.sort.as_deref() {
+        Some("date-asc") => "ORDER BY sort_order ASC, date ASC",
+        Some("title-asc") => "ORDER BY title ASC",
+        Some("title-desc") => "ORDER BY title DESC",
+        Some("date-desc") | Some(_) | None => "ORDER BY sort_order ASC, created_at DESC",
+    };
+    sql.push_str(" ");
+    sql.push_str(order_by);
+    sql.push_str(&format!(" LIMIT ${} OFFSET ${}", pos, pos + 1));
+
+    let p = Pagination {
+        page: params.page,
+        per_page: params.per_page,
+    };
+
+    let mut count_query = sqlx::query_scalar::<_, i64>(&count_sql);
+    if let Some(ref q) = params.q {
+        if !q.is_empty() {
+            count_query = count_query.bind(format!("%{}%", q));
+        }
+    }
+    if let Some(ref speaker) = params.speaker {
+        if !speaker.is_empty() && *speaker != "all" {
+            count_query = count_query.bind(speaker);
+        }
+    }
+    if let Some(ref topic) = params.topic {
+        if !topic.is_empty() && *topic != "all" {
+            count_query = count_query.bind(topic);
+        }
+    }
+    if let Some(ref series) = params.series {
+        if !series.is_empty() && *series != "all" {
+            count_query = count_query.bind(series);
+        }
+    }
+    let total: i64 = count_query.fetch_one(&pool).await?;
+
+    let mut query = sqlx::query_as::<_, Sermon>(&sql);
+    if let Some(ref q) = params.q {
+        if !q.is_empty() {
+            query = query.bind(format!("%{}%", q));
+        }
+    }
+    if let Some(ref speaker) = params.speaker {
+        if !speaker.is_empty() && *speaker != "all" {
+            query = query.bind(speaker);
+        }
+    }
+    if let Some(ref topic) = params.topic {
+        if !topic.is_empty() && *topic != "all" {
+            query = query.bind(topic);
+        }
+    }
+    if let Some(ref series) = params.series {
+        if !series.is_empty() && *series != "all" {
+            query = query.bind(series);
+        }
+    }
+    query = query.bind(p.limit()).bind(p.offset());
+
+    let rows = query.fetch_all(&pool).await?;
     Ok(Json(Paginated::new(rows, total, &p)))
 }
 

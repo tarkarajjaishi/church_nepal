@@ -36,6 +36,7 @@ const more = [
   { to: "/pastor", key: "nav_pastor" },
   { to: "/leadership", key: "nav_leadership" },
   { to: "/prayer", key: "nav_prayer" },
+  { to: "/testimonies", key: "nav_testimonies" },
 ];
 
 const allLinks = [...primary, ...more, { to: "/give", key: "give" }];
@@ -43,12 +44,18 @@ const allLinks = [...primary, ...more, { to: "/give", key: "give" }];
 export function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [themeLogo, setThemeLogo] = useState<string>('');
   const { lang, setLang, t } = useLang();
   const pathname = usePathname();
   const brand = useContentBlock('site_brand');
   const churchName = brand?.title || t("churchName");
   const tagline = brand?.subtitle || t("tagline");
-  const logoImage = brand?.items?.[0]?.logo;
+  const logoImage = themeLogo || brand?.items?.[0]?.logo;
+
+  useEffect(() => {
+    const logo = document.documentElement.getAttribute('data-theme-logo') || ''
+    setThemeLogo(logo)
+  }, [])
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
@@ -96,8 +103,8 @@ export function Navbar() {
               {t(l.key)}
             </Link>
           ))}
-          <DropdownMenu>
-            <DropdownMenuTrigger className="px-3 py-2 rounded-md text-sm text-foreground/70 hover:text-church-blue inline-flex items-center gap-1 outline-none">
+            <DropdownMenu>
+            <DropdownMenuTrigger className="px-3 py-2 rounded-md text-sm text-foreground/70 hover:text-church-blue inline-flex items-center gap-1 outline-none" aria-haspopup="true">
               {lang === "en" ? "More" : "थप"} <ChevronDown className="size-3.5" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">

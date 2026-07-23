@@ -109,40 +109,40 @@ export default function MembershipPage() {
               <form onSubmit={handleSubmit} className="space-y-5">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>First Name *</Label>
-                    <Input value={form.firstName || ''} onChange={e => setForm({ ...form, firstName: e.target.value })} required />
+                    <Label htmlFor="firstName">First Name *</Label>
+                    <Input id="firstName" value={form.firstName || ''} onChange={e => setForm({ ...form, firstName: e.target.value })} required />
                   </div>
                   <div className="space-y-2">
-                    <Label>Last Name</Label>
-                    <Input value={form.lastName || ''} onChange={e => setForm({ ...form, lastName: e.target.value })} />
+                    <Label htmlFor="lastName">Last Name</Label>
+                    <Input id="lastName" value={form.lastName || ''} onChange={e => setForm({ ...form, lastName: e.target.value })} />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Email *</Label>
-                    <Input type="email" value={form.email || ''} onChange={e => setForm({ ...form, email: e.target.value })} required />
+                    <Label htmlFor="email">Email *</Label>
+                    <Input id="email" type="email" value={form.email || ''} onChange={e => setForm({ ...form, email: e.target.value })} required />
                   </div>
                   <div className="space-y-2">
-                    <Label>Phone</Label>
-                    <Input value={form.phone || ''} onChange={e => setForm({ ...form, phone: e.target.value })} placeholder="+977 ..." />
+                    <Label htmlFor="phone">Phone</Label>
+                    <Input id="phone" value={form.phone || ''} onChange={e => setForm({ ...form, phone: e.target.value })} placeholder="+977 ..." />
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Address</Label>
-                  <Input value={form.address || ''} onChange={e => setForm({ ...form, address: e.target.value })} />
+                  <Label htmlFor="address">Address</Label>
+                  <Input id="address" value={form.address || ''} onChange={e => setForm({ ...form, address: e.target.value })} />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>City</Label>
-                    <Input value={form.city || ''} onChange={e => setForm({ ...form, city: e.target.value })} />
+                    <Label htmlFor="city">City</Label>
+                    <Input id="city" value={form.city || ''} onChange={e => setForm({ ...form, city: e.target.value })} />
                   </div>
                   <div className="space-y-2">
-                    <Label>Gender</Label>
+                    <Label htmlFor="gender">Gender</Label>
                     <Select value={form.gender || ''} onValueChange={v => setForm({ ...form, gender: v })}>
-                      <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                      <SelectTrigger id="gender"><SelectValue placeholder="Select" /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="male">Male</SelectItem>
                         <SelectItem value="female">Female</SelectItem>
@@ -155,9 +155,9 @@ export default function MembershipPage() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Marital Status</Label>
+                    <Label htmlFor="maritalStatus">Marital Status</Label>
                     <Select value={form.maritalStatus || ''} onValueChange={v => setForm({ ...form, maritalStatus: v })}>
-                      <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                      <SelectTrigger id="maritalStatus"><SelectValue placeholder="Select" /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="single">Single</SelectItem>
                         <SelectItem value="married">Married</SelectItem>
@@ -167,9 +167,9 @@ export default function MembershipPage() {
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label>Baptism Status</Label>
+                    <Label htmlFor="baptismStatus">Baptism Status</Label>
                     <Select value={form.baptismStatus || ''} onValueChange={v => setForm({ ...form, baptismStatus: v })}>
-                      <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                      <SelectTrigger id="baptismStatus"><SelectValue placeholder="Select" /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="not_baptized">Not Baptized</SelectItem>
                         <SelectItem value="baptized">Baptized</SelectItem>
@@ -180,23 +180,23 @@ export default function MembershipPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>How did you find us?</Label>
-                  <Input value={form.howFound || ''} onChange={e => setForm({ ...form, howFound: e.target.value })} placeholder="e.g. Friend, Social Media, Walk-in" />
+                  <Label htmlFor="howFound">How did you find us?</Label>
+                  <Input id="howFound" value={form.howFound || ''} onChange={e => setForm({ ...form, howFound: e.target.value })} placeholder="e.g. Friend, Social Media, Walk-in" />
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Areas of Interest</Label>
-                  <Input value={form.interestAreas || ''} onChange={e => setForm({ ...form, interestAreas: e.target.value })} placeholder="e.g. Worship, Youth, Children's Ministry" />
+                  <Label htmlFor="interestAreas">Areas of Interest</Label>
+                  <Input id="interestAreas" value={form.interestAreas || ''} onChange={e => setForm({ ...form, interestAreas: e.target.value })} placeholder="e.g. Worship, Youth, Children's Ministry" />
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Church Background</Label>
-                  <Textarea value={form.churchBackground || ''} onChange={e => setForm({ ...form, churchBackground: e.target.value })} rows={3} placeholder="Tell us about your faith journey and church background" />
+                  <Label htmlFor="churchBackground">Church Background</Label>
+                  <Textarea id="churchBackground" value={form.churchBackground || ''} onChange={e => setForm({ ...form, churchBackground: e.target.value })} rows={3} placeholder="Tell us about your faith journey and church background" />
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Testimony</Label>
-                  <Textarea value={form.testimony || ''} onChange={e => setForm({ ...form, testimony: e.target.value })} rows={3} placeholder="Share your personal testimony (optional)" />
+                  <Label htmlFor="testimony">Testimony</Label>
+                  <Textarea id="testimony" value={form.testimony || ''} onChange={e => setForm({ ...form, testimony: e.target.value })} rows={3} placeholder="Share your personal testimony (optional)" />
                 </div>
 
                 <Button type="submit" disabled={loading} className="w-full bg-church-blue hover:bg-church-blue/90 py-6 text-base">

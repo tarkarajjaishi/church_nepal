@@ -107,6 +107,7 @@ export function BibleSection() {
           <button
             onClick={() => setSelectedChapter(Math.max(1, selectedChapter - 1))}
             disabled={selectedChapter <= 1}
+            aria-label="Previous chapter"
             className="p-2 rounded-lg bg-white border border-gray-200 hover:bg-gray-50 disabled:opacity-50"
           >
             <ChevronLeft className="size-5" />
@@ -117,6 +118,7 @@ export function BibleSection() {
           <button
             onClick={() => setSelectedChapter(selectedChapter + 1)}
             disabled={selectedChapter >= maxChapters}
+            aria-label="Next chapter"
             className="p-2 rounded-lg bg-white border border-gray-200 hover:bg-gray-50 disabled:opacity-50"
           >
             <ChevronRight className="size-5" />
@@ -134,10 +136,10 @@ export function BibleSection() {
           ) : (
             <div className="space-y-3">
               {chapterData?.verses.map((v: { text: string }, i: number) => (
-                <div
+                <button
                   key={i}
                   onClick={() => setSelectedVerse(selectedVerse === i + 1 ? null : i + 1)}
-                  className={`p-3 rounded-lg cursor-pointer transition-all ${
+                  className={`w-full text-left px-3 py-2 rounded-lg cursor-pointer transition-all text-sm leading-relaxed ${
                     selectedVerse === i + 1
                       ? 'bg-[#0b3c5d]/10 border border-[#0b3c5d]/30'
                       : 'hover:bg-gray-50 border border-transparent'
@@ -145,7 +147,7 @@ export function BibleSection() {
                 >
                   <span className="text-xs font-bold text-[#d4a017] mr-2">{i + 1}</span>
                   <span className="text-gray-700 leading-relaxed">{v.text}</span>
-                </div>
+                </button>
               ))}
             </div>
           )}

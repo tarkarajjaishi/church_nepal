@@ -9,6 +9,7 @@ pub struct Testimony {
     pub quote: String,
     pub image: String,
     pub rating: i32,
+    pub status: String,
     pub enabled: Option<bool>,
     pub sort_order: Option<i32>,
     pub created_at: chrono::NaiveDateTime,
@@ -30,4 +31,5 @@ pub struct UpdateTestimony {
     pub quote: Option<String>,
     pub image: Option<String>,
     pub rating: Option<i32>,
+    pub status: Option<String>,
 }

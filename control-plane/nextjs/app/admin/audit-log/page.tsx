@@ -1,26 +1,21 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState } from "react";
+import { useAuditLog, fetchAllAuditLog } from "@/components/hooks/use-audit-log";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { EmptyState } from "@/components";
+import { EmptyState, LoadingState } from "@/components";
+import { Activity } from "lucide-react";
 
-interface AuditEntry {
-  id: string;
-  timestamp: string;
-  actor: string;
-  action: "Create" | "Update" | "Delete" | "Login" | "Billing";
-  target: string;
-  ip: string;
-}
+const PAGE_SIZE = 10;
 
 const ALL_ACTORS = [
   "owner@churchnepal.com",
   "admin@churchnepal.com",
 ];
 
-const ALL_ACTIONS: AuditEntry["action"][] = [
+const ALL_ACTIONS = [
   "Create",
   "Update",
   "Delete",
@@ -28,106 +23,7 @@ const ALL_ACTIONS: AuditEntry["action"][] = [
   "Billing",
 ];
 
-const auditData: AuditEntry[] = [
-  {
-    id: "1",
-    timestamp: "2026-07-23 09:12:45",
-    actor: "owner@churchnepal.com",
-    action: "Create",
-    target: "Church: Grace Chapel",
-    ip: "192.168.1.10",
-  },
-  {
-    id: "2",
-    timestamp: "2026-07-23 09:43:22",
-    actor: "admin@churchnepal.com",
-    action: "Update",
-    target: "Church: Grace Chapel",
-    ip: "192.168.1.12",
-  },
-  {
-    id: "3",
-    timestamp: "2026-07-23 10:15:10",
-    actor: "owner@churchnepal.com",
-    action: "Delete",
-    target: "Church: Old Bethlehem",
-    ip: "192.168.1.10",
-  },
-  {
-    id: "4",
-    timestamp: "2026-07-23 10:35:33",
-    actor: "admin@churchnepal.com",
-    action: "Login",
-    target: "Admin Panel",
-    ip: "192.168.1.14",
-  },
-  {
-    id: "5",
-    timestamp: "2026-07-23 11:02:01",
-    actor: "owner@churchnepal.com",
-    action: "Billing",
-    target: "Plan: Pro",
-    ip: "192.168.1.10",
-  },
-  {
-    id: "6",
-    timestamp: "2026-07-23 11:45:44",
-    actor: "admin@churchnepal.com",
-    action: "Create",
-    target: "Church: Hope Community",
-    ip: "192.168.1.16",
-  },
-  {
-    id: "7",
-    timestamp: "2026-07-23 12:10:15",
-    actor: "owner@churchnepal.com",
-    action: "Update",
-    target: "Church: Hope Community",
-    ip: "192.168.1.10",
-  },
-  {
-    id: "8",
-    timestamp: "2026-07-23 12:38:28",
-    actor: "admin@churchnepal.com",
-    action: "Login",
-    target: "Admin Panel",
-    ip: "192.168.1.12",
-  },
-  {
-    id: "9",
-    timestamp: "2026-07-23 13:05:56",
-    actor: "owner@churchnepal.com",
-    action: "Billing",
-    target: "Church: Grace Chapel",
-    ip: "192.168.1.10",
-  },
-  {
-    id: "10",
-    timestamp: "2026-07-23 13:40:09",
-    actor: "admin@churchnepal.com",
-    action: "Create",
-    target: "Church: Faith Assembly",
-    ip: "192.168.1.18",
-  },
-  {
-    id: "11",
-    timestamp: "2026-07-23 14:05:40",
-    actor: "owner@churchnepal.com",
-    action: "Delete",
-    target: "Church: Faith Assembly",
-    ip: "192.168.1.10",
-  },
-  {
-    id: "12",
-    timestamp: "2026-07-23 14:32:17",
-    actor: "admin@churchnepal.com",
-    action: "Update",
-    target: "Church: Grace Chapel",
-    ip: "192.168.1.12",
-  },
-];
-
-const actionBadgeVariant: Record<AuditEntry["action"], "success" | "accent" | "destructive" | "outline" | "warning"> = {
+const actionBadgeVariant: Record<string, "success" | "accent" | "destructive" | "outline" | "warning"> = {
   Create: "success",
   Update: "accent",
   Delete: "destructive",
@@ -135,37 +31,51 @@ const actionBadgeVariant: Record<AuditEntry["action"], "success" | "accent" | "d
   Billing: "warning",
 };
 
-const PAGE_SIZE = 5;
-
 export default function AuditLogPage() {
   const [search, setSearch] = useState("");
   const [actorFilter, setActorFilter] = useState("all");
   const [actionFilter, setActionFilter] = useState("all");
-  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [currentPage, setCurrentPage] = useState(1);
 
-  const filtered = useMemo(() => {
-    return auditData.filter((entry) => {
-      const term = search.toLowerCase().trim();
-      const matchesSearch =
-        !term ||
-        entry.actor.toLowerCase().includes(term) ||
-        entry.action.toLowerCase().includes(term) ||
-        entry.target.toLowerCase().includes(term);
+  const { data, isLoading, error } = useAuditLog({
+    actor: actorFilter === "all" ? undefined : actorFilter,
+    action: actionFilter === "all" ? undefined : actionFilter,
+    type: typeFilter === "all" ? undefined : typeFilter,
+    page: currentPage,
+    per_page: PAGE_SIZE,
+  });
 
-      const matchesActor = actorFilter === "all" || entry.actor === actorFilter;
-      const matchesAction = actionFilter === "all" || entry.action === actionFilter;
+  const entries = data?.entries || [];
+  const total = data?.total || 0;
+  const totalPages = data?.total_pages || 1;
+  const currentDataPage = data?.page || 1;
 
-      return matchesSearch && matchesActor && matchesAction;
+  const actors = [...new Set(entries.map((e) => e.actor))];
+  const actions = [...new Set(entries.map((e) => e.action))];
+  const types = [...new Set(entries.map((e) => e.type).filter(Boolean))] as string[];
+
+  const filteredEntries = search.trim()
+    ? entries.filter(
+        (entry) =>
+          entry.actor.toLowerCase().includes(search.toLowerCase()) ||
+          entry.action.toLowerCase().includes(search.toLowerCase()) ||
+          entry.target.toLowerCase().includes(search.toLowerCase())
+      )
+    : entries;
+
+  const resetPage = () => setCurrentPage(1);
+
+  const handleExportCsv = async () => {
+    const allEntries = await fetchAllAuditLog({
+      actor: actorFilter,
+      action: actionFilter,
+      type: typeFilter,
     });
-  }, [search, actorFilter, actionFilter]);
 
-  const visibleEntries = filtered.slice(0, visibleCount);
-  const hasMore = filtered.length > visibleCount;
-
-  const handleExportCsv = () => {
     const rows = [
       ["Timestamp", "Actor", "Action", "Target", "IP Address"],
-      ...filtered.map((e) => [e.timestamp, e.actor, e.action, e.target, e.ip]),
+      ...allEntries.map((e) => [e.timestamp, e.actor, e.action, e.target, e.ip]),
     ];
 
     const csvContent = rows
@@ -185,7 +95,6 @@ export default function AuditLogPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-[var(--text-strong)]">Audit Log</h1>
         <p className="text-[var(--muted)] text-sm mt-1">
@@ -193,7 +102,6 @@ export default function AuditLogPage() {
         </p>
       </div>
 
-      {/* Toolbar */}
       <div className="bg-[var(--panel)] border border-[var(--border)] rounded-xl p-5">
         <div className="flex flex-col md:flex-row gap-3">
           <div className="flex-1">
@@ -202,7 +110,7 @@ export default function AuditLogPage() {
               value={search}
               onChange={(e) => {
                 setSearch(e.target.value);
-                setVisibleCount(PAGE_SIZE);
+                resetPage();
               }}
             />
           </div>
@@ -211,7 +119,7 @@ export default function AuditLogPage() {
               value={actorFilter}
               onChange={(e) => {
                 setActorFilter(e.target.value);
-                setVisibleCount(PAGE_SIZE);
+                resetPage();
               }}
               className="flex h-10 w-full rounded-md border border-border bg-panel-2 px-3 py-2 text-sm text-text"
             >
@@ -221,6 +129,13 @@ export default function AuditLogPage() {
                   {actor}
                 </option>
               ))}
+              {actors
+                .filter((a) => !ALL_ACTORS.includes(a))
+                .map((actor) => (
+                  <option key={actor} value={actor}>
+                    {actor}
+                  </option>
+                ))}
             </select>
           </div>
           <div className="w-full md:w-48">
@@ -228,7 +143,7 @@ export default function AuditLogPage() {
               value={actionFilter}
               onChange={(e) => {
                 setActionFilter(e.target.value);
-                setVisibleCount(PAGE_SIZE);
+                resetPage();
               }}
               className="flex h-10 w-full rounded-md border border-border bg-panel-2 px-3 py-2 text-sm text-text"
             >
@@ -236,6 +151,30 @@ export default function AuditLogPage() {
               {ALL_ACTIONS.map((action) => (
                 <option key={action} value={action}>
                   {action}
+                </option>
+              ))}
+              {actions
+                .filter((a) => !ALL_ACTIONS.includes(a))
+                .map((action) => (
+                  <option key={action} value={action}>
+                    {action}
+                  </option>
+                ))}
+            </select>
+          </div>
+          <div className="w-full md:w-48">
+            <select
+              value={typeFilter}
+              onChange={(e) => {
+                setTypeFilter(e.target.value);
+                resetPage();
+              }}
+              className="flex h-10 w-full rounded-md border border-border bg-panel-2 px-3 py-2 text-sm text-text"
+            >
+              <option value="all">All Types</option>
+              {types.map((type) => (
+                <option key={type} value={type}>
+                  {type}
                 </option>
               ))}
             </select>
@@ -246,17 +185,27 @@ export default function AuditLogPage() {
         </div>
       </div>
 
-      {/* Audit Entries */}
       <div className="bg-[var(--panel)] border border-[var(--border)] rounded-xl p-5">
-        {filtered.length === 0 ? (
+        {isLoading ? (
+          <LoadingState message="Loading audit log..." />
+        ) : error ? (
           <EmptyState
-            icon="activity"
+            icon="search"
+            title="Failed to load audit log"
+            description={
+              error instanceof Error
+                ? error.message
+                : "An unknown error occurred."
+            }
+          />
+        ) : filteredEntries.length === 0 ? (
+          <EmptyState
+            icon={<Activity className="h-12 w-12 text-muted" />}
             title="No audit entries"
             description="No records match your current filters. Try adjusting your search."
           />
         ) : (
           <>
-            {/* Desktop Table */}
             <div className="hidden md:block overflow-x-auto">
               <table className="w-full border-collapse">
                 <thead>
@@ -279,7 +228,7 @@ export default function AuditLogPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {visibleEntries.map((entry) => (
+                  {filteredEntries.map((entry) => (
                     <tr
                       key={entry.id}
                       className="border-b border-[var(--border)] last:border-b-0"
@@ -291,7 +240,7 @@ export default function AuditLogPage() {
                         {entry.actor}
                       </td>
                       <td className="py-3 pr-4">
-                        <Badge variant={actionBadgeVariant[entry.action]}>
+                        <Badge variant={actionBadgeVariant[entry.action] || "outline"}>
                           {entry.action}
                         </Badge>
                       </td>
@@ -307,9 +256,8 @@ export default function AuditLogPage() {
               </table>
             </div>
 
-            {/* Mobile Cards */}
             <div className="md:hidden space-y-4">
-              {visibleEntries.map((entry) => (
+              {filteredEntries.map((entry) => (
                 <div
                   key={entry.id}
                   className="border border-[var(--border)] rounded-lg p-4 space-y-3"
@@ -318,7 +266,7 @@ export default function AuditLogPage() {
                     <span className="text-xs text-[var(--muted)]">
                       {entry.timestamp}
                     </span>
-                    <Badge variant={actionBadgeVariant[entry.action]}>
+                    <Badge variant={actionBadgeVariant[entry.action] || "outline"}>
                       {entry.action}
                     </Badge>
                   </div>
@@ -335,17 +283,27 @@ export default function AuditLogPage() {
               ))}
             </div>
 
-            {/* Load More */}
-            {hasMore && (
-              <div className="mt-4 text-center">
-                <Button
-                  variant="ghost"
-                  onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
-                >
-                  Load More
-                </Button>
-              </div>
-            )}
+            <div className="mt-4 flex items-center justify-between">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={currentPage <= 1}
+                onClick={() => setCurrentPage((p) => p - 1)}
+              >
+                Previous
+              </Button>
+              <span className="text-sm text-[var(--muted)]">
+                Page {currentDataPage} of {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={currentPage >= totalPages}
+                onClick={() => setCurrentPage((p) => p + 1)}
+              >
+                Next
+              </Button>
+            </div>
           </>
         )}
       </div>

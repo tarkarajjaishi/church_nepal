@@ -23,6 +23,10 @@ pub struct Config {
     /// Bootstrap super-admin (seeded on first startup if missing).
     pub super_admin_email: String,
     pub super_admin_password: String,
+    pub stripe_secret_key: String,
+    pub stripe_webhook_secret: String,
+    pub stripe_price_basic_id: String,
+    pub stripe_price_pro_id: String,
 }
 
 impl Config {
@@ -41,6 +45,10 @@ impl Config {
             base_domain: env::var("BASE_DOMAIN").unwrap_or_else(|_| "churchnepal.com".into()),
             super_admin_email: env::var("SUPER_ADMIN_EMAIL").unwrap_or_else(|_| "owner@churchnepal.com".into()),
             super_admin_password: env::var("SUPER_ADMIN_PASSWORD").unwrap_or_else(|_| "changeme123".into()),
+            stripe_secret_key: env::var("STRIPE_SECRET_KEY").unwrap_or_else(|_| String::new()),
+            stripe_webhook_secret: env::var("STRIPE_WEBHOOK_SECRET").unwrap_or_else(|_| String::new()),
+            stripe_price_basic_id: env::var("STRIPE_PRICE_BASIC").unwrap_or_else(|_| String::new()),
+            stripe_price_pro_id: env::var("STRIPE_PRICE_PRO").unwrap_or_else(|_| String::new()),
         }
     }
 

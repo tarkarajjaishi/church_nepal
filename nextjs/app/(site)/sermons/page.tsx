@@ -1,8 +1,10 @@
 'use client'
 
-import { useMemo, useState } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from 'next/link';
-import { Play, Search, FileText, Headphones, Video, X, SlidersHorizontal, ArrowUpDown } from "lucide-react";
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
+import { Play, Search, FileText, Headphones, Video, X, SlidersHorizontal, ArrowUpDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -16,19 +18,88 @@ import { ErrorDisplay } from "@/components/site/ErrorDisplay";
 import { ImageWithFallback } from "@/components/figma/ImageWithFallback";
 import { EditableBlock } from "@/components/site/EditableBlock";
 import { images } from "@/lib/data";
-import { useSermons, useContentBlock } from "@/lib/hooks";
+import { useContentBlock } from "@/lib/hooks";
+import api from "@/lib/api";
+import type { Sermon } from "@/lib/data";
 
 type SortOption = "date-desc" | "date-asc" | "title-asc" | "title-desc";
 
+function useDebouncedValue<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState(value)
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedValue(value), delay)
+    return () => clearTimeout(timer)
+  }, [value, delay])
+  return debouncedValue
+}
+
 export default function Sermons() {
-  const { data: sermons = [], isLoading, error, refetch } = useSermons();
-  const [query, setQuery] = useState("");
-  const [speaker, setSpeaker] = useState("all");
-  const [topic, setTopic] = useState("all");
-  const [series, setSeries] = useState("all");
-  const [sort, setSort] = useState<SortOption>("date-desc");
-  const [visible, setVisible] = useState(6);
-  const [showFilters, setShowFilters] = useState(true);
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const pathname = usePathname()
+
+  const q = searchParams.get('q') ?? ''
+  const speaker = searchParams.get('speaker') ?? 'all'
+  const topic = searchParams.get('topic') ?? 'all'
+  const seriesParam = searchParams.get('series') ?? 'all'
+  const sort = (searchParams.get('sort') as SortOption) ?? 'date-desc'
+  const page = parseInt(searchParams.get('page') ?? '1') || 1
+  const perPage = parseInt(searchParams.get('per_page') ?? '12') || 12
+
+  const [searchInput, setSearchInput] = useState(q)
+  const [showFilters, setShowFilters] = useState(true)
+
+  useEffect(() => {
+    setSearchInput(q)
+  }, [q])
+
+  const debouncedQ = useDebouncedValue(searchInput, 300)
+
+  const updateParams = useCallback((updates: Record<string, string | number | undefined>) => {
+    const params = new URLSearchParams(searchParams.toString())
+    for (const [key, value] of Object.entries(updates)) {
+      if (value !== undefined && value !== '' && value !== 'all' && value !== 1 && value !== 'date-desc') {
+        params.set(key, String(value))
+      } else {
+        params.delete(key)
+      }
+    }
+    const qs = params.toString()
+    router.replace(`${pathname}${qs ? '?' + qs : ''}`)
+  }, [searchParams, router, pathname])
+
+  useEffect(() => {
+    updateParams({ q: debouncedQ })
+  }, [debouncedQ, updateParams])
+
+  const { data: pageData, isLoading, error, refetch } = useQuery({
+    queryKey: ['sermons', 'public', { q: debouncedQ, speaker, topic, series: seriesParam, sort, page, perPage }],
+    queryFn: async () => {
+      const params = new URLSearchParams()
+      if (q) params.set('q', q)
+      if (speaker !== 'all') params.set('speaker', speaker)
+      if (topic !== 'all') params.set('topic', topic)
+      if (seriesParam !== 'all') params.set('series', seriesParam)
+      if (sort !== 'date-desc') params.set('sort', sort)
+      if (page > 1) params.set('page', String(page))
+      params.set('per_page', String(perPage))
+      const qs = params.toString()
+      const { data } = await api.get('/sermons/public' + (qs ? '?' + qs : ''))
+      return data
+    },
+  })
+
+  const { data: allSermons = [] } = useQuery({
+    queryKey: ['sermons', 'all', 'filters'],
+    queryFn: async () => {
+      const { data } = await api.get('/sermons/public?per_page=200')
+      return (data.data ?? []) as Sermon[]
+    },
+  })
+
+  const speakers = useMemo(() => ["all", ...Array.from(new Set(allSermons.map((s) => s.speaker)))], [allSermons]);
+  const topics = useMemo(() => ["all", ...Array.from(new Set(allSermons.map((s) => s.topic)))], [allSermons]);
+  const seriesList = useMemo(() => ["all", ...Array.from(new Set(allSermons.map((s) => s.series)))], [allSermons]);
 
   const hero = useContentBlock('sermons_hero');
   const heading = useContentBlock('sermons_heading');
@@ -41,47 +112,20 @@ export default function Sermons() {
   const emptyDescription = emptyState?.subtitle ?? "Try adjusting your search or filters to find what you're looking for.";
   const emptyBtnLabel = emptyState?.items?.[0]?.btn_label ?? "Clear all filters";
 
-  const speakers = useMemo(() => ["all", ...Array.from(new Set(sermons.map((s) => s.speaker)))], [sermons]);
-  const topics = useMemo(() => ["all", ...Array.from(new Set(sermons.map((s) => s.topic)))], [sermons]);
-  const seriesList = useMemo(() => ["all", ...Array.from(new Set(sermons.map((s) => s.series)))], [sermons]);
+  const items = pageData?.data ?? []
+  const total = (pageData as any)?.total ?? 0
+  const returnedPerPage = (pageData as any)?.per_page ?? (pageData as any)?.perPage ?? perPage
+  const totalPages = Math.max(1, Math.ceil(total / returnedPerPage))
 
-  const filtered = useMemo(() => {
-    let result = sermons.filter(
-      (s) =>
-        (speaker === "all" || s.speaker === speaker) &&
-        (topic === "all" || s.topic === topic) &&
-        (series === "all" || s.series === series) &&
-        (s.title.toLowerCase().includes(query.toLowerCase()) ||
-          s.description.toLowerCase().includes(query.toLowerCase()) ||
-          s.series.toLowerCase().includes(query.toLowerCase()) ||
-          s.speaker.toLowerCase().includes(query.toLowerCase()))
-    );
-
-    result.sort((a, b) => {
-      switch (sort) {
-        case "date-desc": return new Date(b.date).getTime() - new Date(a.date).getTime();
-        case "date-asc": return new Date(a.date).getTime() - new Date(b.date).getTime();
-        case "title-asc": return a.title.localeCompare(b.title);
-        case "title-desc": return b.title.localeCompare(a.title);
-        default: return 0;
-      }
-    });
-
-    return result;
-  }, [sermons, query, speaker, topic, series, sort]);
-
-  const activeFilters = [speaker !== "all", topic !== "all", series !== "all", query.length > 0].filter(Boolean).length;
+  const activeFilters = [speaker !== 'all', topic !== 'all', seriesParam !== 'all', q.length > 0].filter(Boolean).length
 
   const clearFilters = () => {
-    setQuery("");
-    setSpeaker("all");
-    setTopic("all");
-    setSeries("all");
-    setSort("date-desc");
-    setVisible(6);
-  };
+    setSearchInput('')
+    updateParams({ q: '', speaker: 'all', topic: 'all', series: 'all', sort: 'date-desc', page: 1, per_page: 12 })
+  }
 
-  const displayed = filtered.slice(0, visible);
+  const startItem = (page - 1) * returnedPerPage + 1
+  const endItem = Math.min(page * returnedPerPage, total)
 
   return (
     <div>
@@ -94,7 +138,6 @@ export default function Sermons() {
         />
       </EditableBlock>
 
-      {/* Section heading with search */}
       <section className="py-12 bg-section">
         <div className="mx-auto max-w-7xl px-4">
           <EditableBlock block={heading}>
@@ -105,24 +148,22 @@ export default function Sermons() {
             />
           </EditableBlock>
 
-          {/* Search & Filters */}
           <div className="mt-8">
             <Card className="p-4 border-border/60">
-              {/* Main search row */}
               <div className="flex items-center gap-3">
                 <div className="relative flex-1">
                   <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                   <Input
-                    value={query}
-                    onChange={(e) => { setQuery(e.target.value); setVisible(6); }}
+                    value={searchInput}
+                    onChange={(e) => { setSearchInput(e.target.value) }}
                     placeholder={searchPlaceholder}
                     className="pl-9"
                   />
-                  {query && (
-                    <button onClick={() => setQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                      <X className="size-4" />
-                    </button>
-                  )}
+                   {searchInput && (
+                     <button onClick={() => setSearchInput('')} aria-label="Clear search" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                       <X className="size-4" />
+                     </button>
+                   )}
                 </div>
                 <Button
                   variant="outline"
@@ -140,29 +181,28 @@ export default function Sermons() {
                 </Button>
               </div>
 
-              {/* Expanded filters */}
               {showFilters && (
                 <div className="mt-3 pt-3 border-t border-border/40">
                   <div className="grid gap-3 md:grid-cols-4">
-                    <Select value={speaker} onValueChange={(v) => { setSpeaker(v); setVisible(6); }}>
+                    <Select value={speaker} onValueChange={(v) => updateParams({ speaker: v, page: 1 })}>
                       <SelectTrigger><SelectValue placeholder="Speaker" /></SelectTrigger>
                       <SelectContent>
                         {speakers.map((s) => <SelectItem key={s} value={s}>{s === "all" ? "All Speakers" : s}</SelectItem>)}
                       </SelectContent>
                     </Select>
-                    <Select value={topic} onValueChange={(v) => { setTopic(v); setVisible(6); }}>
+                    <Select value={topic} onValueChange={(v) => updateParams({ topic: v, page: 1 })}>
                       <SelectTrigger><SelectValue placeholder="Topic" /></SelectTrigger>
                       <SelectContent>
                         {topics.map((t) => <SelectItem key={t} value={t}>{t === "all" ? "All Topics" : t}</SelectItem>)}
                       </SelectContent>
                     </Select>
-                    <Select value={series} onValueChange={(v) => { setSeries(v); setVisible(6); }}>
+                    <Select value={seriesParam} onValueChange={(v) => updateParams({ series: v, page: 1 })}>
                       <SelectTrigger><SelectValue placeholder="Series" /></SelectTrigger>
                       <SelectContent>
                         {seriesList.map((s) => <SelectItem key={s} value={s}>{s === "all" ? "All Series" : s}</SelectItem>)}
                       </SelectContent>
                     </Select>
-                    <Select value={sort} onValueChange={(v) => setSort(v as SortOption)}>
+                    <Select value={sort} onValueChange={(v) => updateParams({ sort: v, page: 1 })}>
                       <SelectTrigger className="gap-1.5"><ArrowUpDown className="size-3.5" /><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="date-desc">Newest First</SelectItem>
@@ -173,32 +213,31 @@ export default function Sermons() {
                     </Select>
                   </div>
 
-                  {/* Active filter tags */}
                   {activeFilters > 0 && (
                     <div className="mt-3 flex flex-wrap items-center gap-2">
                       <span className="text-xs text-muted-foreground">Active:</span>
-                      {query && (
+                      {q && (
                         <Badge variant="secondary" className="gap-1 pr-1">
-                          &quot;{query}&quot;
-                          <button onClick={() => setQuery("")} className="ml-0.5 hover:text-foreground"><X className="size-3" /></button>
+                          "{q}"
+                          <button onClick={() => { setSearchInput(''); updateParams({ q: '', page: 1 }) }} aria-label="Clear search query" className="ml-0.5 hover:text-foreground"><X className="size-3" /></button>
                         </Badge>
                       )}
-                      {speaker !== "all" && (
+                      {speaker !== 'all' && (
                         <Badge variant="secondary" className="gap-1 pr-1">
                           {speaker}
-                          <button onClick={() => setSpeaker("all")} className="ml-0.5 hover:text-foreground"><X className="size-3" /></button>
+                          <button onClick={() => updateParams({ speaker: 'all', page: 1 })} aria-label="Clear speaker filter" className="ml-0.5 hover:text-foreground"><X className="size-3" /></button>
                         </Badge>
                       )}
-                      {topic !== "all" && (
+                      {topic !== 'all' && (
                         <Badge variant="secondary" className="gap-1 pr-1">
                           {topic}
-                          <button onClick={() => setTopic("all")} className="ml-0.5 hover:text-foreground"><X className="size-3" /></button>
+                          <button onClick={() => updateParams({ topic: 'all', page: 1 })} aria-label="Clear topic filter" className="ml-0.5 hover:text-foreground"><X className="size-3" /></button>
                         </Badge>
                       )}
-                      {series !== "all" && (
+                      {seriesParam !== 'all' && (
                         <Badge variant="secondary" className="gap-1 pr-1">
-                          {series}
-                          <button onClick={() => setSeries("all")} className="ml-0.5 hover:text-foreground"><X className="size-3" /></button>
+                          {seriesParam}
+                          <button onClick={() => updateParams({ series: 'all', page: 1 })} aria-label="Clear series filter" className="ml-0.5 hover:text-foreground"><X className="size-3" /></button>
                         </Badge>
                       )}
                       <button onClick={clearFilters} className="text-xs text-church-blue hover:underline ml-1">Clear all</button>
@@ -211,16 +250,14 @@ export default function Sermons() {
         </div>
       </section>
 
-      {/* Results */}
       <section className="py-16">
         <div className="mx-auto max-w-7xl px-4">
-          {/* Results count */}
           {!isLoading && !error && (
             <div className="mb-6 flex items-center justify-between">
               <p className="text-sm text-muted-foreground">
-                {filtered.length === sermons.length
-                  ? `Showing all ${sermons.length} sermons`
-                  : `${filtered.length} of ${sermons.length} sermons`}
+                {total === 0
+                  ? "No sermons found"
+                  : `Showing ${startItem}–${endItem} of ${total} sermons`}
               </p>
             </div>
           )}
@@ -229,7 +266,7 @@ export default function Sermons() {
             <CardSkeleton count={6} />
           ) : error ? (
             <ErrorDisplay message="Failed to load sermons. Please try again." onRetry={() => refetch()} />
-          ) : filtered.length === 0 ? (
+          ) : items.length === 0 ? (
             <div className="text-center py-16">
               <div className="size-16 rounded-full bg-gray-100 grid place-items-center mx-auto mb-4">
                 <Search className="size-7 text-gray-400" />
@@ -244,16 +281,8 @@ export default function Sermons() {
             </div>
           ) : (
             <>
-              <EditableBlock block={recentHeading}>
-                <SectionHeading
-                  eyebrow={recentHeading?.items?.[0]?.eyebrow || "Watch & Listen"}
-                  title={recentHeading?.title || "Recent Sermons"}
-                  center={false}
-                />
-              </EditableBlock>
-
-              <div className="mt-8 grid gap-6 md:grid-cols-3">
-                {displayed.map((s, i) => (
+              <div className="grid gap-6 md:grid-cols-3">
+                {items.map((s, i) => (
                   <Reveal key={s.id} delay={(i % 3) * 0.08}>
                     <Link href={`/sermons/${s.id}`}>
                       <Card className="group overflow-hidden h-full border-border/60 hover:shadow-xl transition-all gap-0">
@@ -269,8 +298,8 @@ export default function Sermons() {
                           <h3 className="mt-1 text-church-blue" style={{ fontFamily: "var(--font-heading)", fontWeight: 600 }}>{s.title}</h3>
                           <p className="mt-2 text-sm text-muted-foreground line-clamp-2">{s.description}</p>
                           <div className="mt-4 flex gap-2">
-                            <Button size="sm" className="bg-church-blue hover:bg-church-blue/90"><Video className="size-4" /> Video</Button>
-                            <Button size="sm" variant="outline"><Headphones className="size-4" /> Audio</Button>
+                            {s.videoUrl && <Button size="sm" className="bg-church-blue hover:bg-church-blue/90"><Video className="size-4" /> Video</Button>}
+                            {s.audioUrl && <Button size="sm" variant="outline"><Headphones className="size-4" /> Audio</Button>}
                             <Button size="sm" variant="outline"><FileText className="size-4" /> Notes</Button>
                           </div>
                         </div>
@@ -280,10 +309,28 @@ export default function Sermons() {
                 ))}
               </div>
 
-              {visible < filtered.length && (
-                <div className="mt-10 text-center">
-                  <Button variant="outline" onClick={() => setVisible((v) => v + 6)} className="border-church-blue text-church-blue hover:bg-church-blue hover:text-white">
-                    Load More ({filtered.length - visible} remaining)
+              {totalPages > 1 && (
+                <div className="mt-10 flex items-center justify-center gap-3">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={page <= 1}
+                    onClick={() => updateParams({ page: page - 1 })}
+                    className="gap-1"
+                  >
+                    <ChevronLeft className="size-4" /> Previous
+                  </Button>
+                  <span className="text-sm text-muted-foreground">
+                    Page {page} of {totalPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={page >= totalPages}
+                    onClick={() => updateParams({ page: page + 1 })}
+                    className="gap-1"
+                  >
+                    Next <ChevronRight className="size-4" />
                   </Button>
                 </div>
               )}

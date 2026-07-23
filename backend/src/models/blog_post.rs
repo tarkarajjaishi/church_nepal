@@ -13,6 +13,7 @@ pub struct BlogPost {
     pub image: String,
     pub published: bool,
     pub featured: bool,
+    pub published_at: Option<chrono::NaiveDateTime>,
     pub created_at: chrono::NaiveDateTime,
     pub updated_at: chrono::NaiveDateTime,
 }
@@ -34,6 +35,8 @@ pub struct CreateBlogPost {
     pub published: Option<bool>,
     #[serde(default)]
     pub featured: Option<bool>,
+    #[serde(default)]
+    pub published_at: Option<chrono::NaiveDateTime>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -47,4 +50,5 @@ pub struct UpdateBlogPost {
     pub image: Option<String>,
     pub published: Option<bool>,
     pub featured: Option<bool>,
+    pub published_at: Option<chrono::NaiveDateTime>,
 }

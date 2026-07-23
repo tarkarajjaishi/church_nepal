@@ -21,7 +21,7 @@ pub async fn get(Db(pool): Db, Path(id): Path<uuid::Uuid>) -> Result<Json<Church
 
 pub async fn create(_auth: AuthUser, Db(pool): Db, Json(input): Json<CreateEvent>) -> Result<Json<ChurchEvent>, AppError> {
     let row = sqlx::query_as::<_, ChurchEvent>(
-        r#"INSERT INTO events (title, date, display_date, time, location, image, description) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *"#,
+        r#"INSERT INTO events (title, date, display_date, time, location, image, description, capacity) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *"#,
     )
     .bind(&input.title)
     .bind(&input.date)
@@ -30,6 +30,7 @@ pub async fn create(_auth: AuthUser, Db(pool): Db, Json(input): Json<CreateEvent
     .bind(&input.location)
     .bind(&input.image)
     .bind(&input.description)
+    .bind(input.capacity.unwrap_or(0))
     .fetch_one(&pool).await?;
     Ok(Json(row))
 }
@@ -39,7 +40,7 @@ pub async fn update(_auth: AuthUser, Db(pool): Db, Path(id): Path<uuid::Uuid>, J
         .bind(id)
         .fetch_optional(&pool).await?.ok_or_else(|| AppError::not_found("Event not found"))?;
     let row = sqlx::query_as::<_, ChurchEvent>(
-        r#"UPDATE events SET title=COALESCE($2,title), date=COALESCE($3,date), display_date=COALESCE($4,display_date), time=COALESCE($5,time), location=COALESCE($6,location), image=COALESCE($7,image), description=COALESCE($8,description) WHERE id=$1 RETURNING *"#,
+        r#"UPDATE events SET title=COALESCE($2,title), date=COALESCE($3,date), display_date=COALESCE($4,display_date), time=COALESCE($5,time), location=COALESCE($6,location), image=COALESCE($7,image), description=COALESCE($8,description), capacity=COALESCE($9,capacity) WHERE id=$1 RETURNING *"#,
     )
     .bind(id)
     .bind(input.title.as_deref().unwrap_or(&existing.title))
@@ -49,6 +50,7 @@ pub async fn update(_auth: AuthUser, Db(pool): Db, Path(id): Path<uuid::Uuid>, J
     .bind(input.location.as_deref().unwrap_or(&existing.location))
     .bind(input.image.as_deref().unwrap_or(&existing.image))
     .bind(input.description.as_deref().unwrap_or(&existing.description))
+    .bind(input.capacity.unwrap_or(existing.capacity.unwrap_or(0)))
     .fetch_one(&pool).await?;
     Ok(Json(row))
 }

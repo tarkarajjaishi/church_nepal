@@ -7,7 +7,7 @@ import { EditableBlock } from "@/components/site/EditableBlock"
 import { useContentBlock } from "@/lib/hooks"
 import { useLang } from "@/lib/language"
 
-const socialIconMap: Record<string, any> = { facebook: Facebook, youtube: Youtube, instagram: Instagram }
+const socialIconMap: Record<string, { Icon: any; label: string }> = { facebook: { Icon: Facebook, label: 'Facebook' }, youtube: { Icon: Youtube, label: 'YouTube' }, instagram: { Icon: Instagram, label: 'Instagram' } }
 
 export default function Pastor() {
   const { lang } = useLang()
@@ -59,17 +59,18 @@ export default function Pastor() {
               <EditableBlock block={social}>
                 <div className="mt-6 flex gap-4">
                   {(social?.items || []).map((item: any, i: number) => {
-                    const Icon = socialIconMap[item.platform]
-                    if (!Icon || !item.url) return null
+                    const entry = socialIconMap[item.platform]
+                    if (!entry?.Icon || !item.url) return null
                     return (
                       <a
                         key={i}
                         href={item.url}
                         target="_blank"
                         rel="noopener noreferrer"
+                        aria-label={entry.label}
                         className="grid place-items-center size-10 rounded-full bg-secondary text-church-blue hover:bg-gold transition-colors"
                       >
-                        <Icon className="size-4" />
+                        <entry.Icon className="size-4" />
                       </a>
                     )
                   })}

@@ -1,9 +1,9 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Database, ExternalLink, Copy, CreditCard } from "lucide-react";
+import { ArrowLeft, Database, ExternalLink, Copy, CreditCard, LogIn } from "lucide-react";
 import Link from "next/link";
-import { useChurch, useDeleteChurch, usePlans } from "@/components/hooks";
+import { useChurch, useDeleteChurch, usePlans, useImpersonateChurch } from "@/components/hooks";
 import { LoadingState, ErrorState } from "@/components";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,7 @@ export default function ChurchDetailPage() {
   const { data: plans } = usePlans();
   const { confirm, ConfirmDialog } = useConfirmDialog();
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
+  const impersonateMutation = useImpersonateChurch();
 
   const handleDelete = () => {
     if (!church) return;
@@ -58,6 +59,23 @@ export default function ChurchDetailPage() {
     if (!plans || plans.length === 0) return;
     const currentPlan = plans.find((p: Plan) => p.name === church?.plan) ?? plans[0];
     setSelectedPlan(currentPlan);
+  };
+
+  const handleLogInAs = () => {
+    if (!church) return;
+    confirm({
+      title: "Log in as church admin?",
+      description: `You are about to impersonate "${church.name}". This action is audited and will be logged.`,
+      confirmLabel: "Log in as",
+      variant: "destructive",
+      onConfirm: () => {
+        impersonateMutation.mutate(church.id, {
+          onSuccess: (url) => {
+            window.open(url, "_blank");
+          },
+        });
+      },
+    });
   };
 
   const formatDate = (dateStr: string | null | undefined) => {
@@ -135,6 +153,10 @@ export default function ChurchDetailPage() {
               Open Church
             </Button>
           </a>
+          <Button variant="outline" onClick={handleLogInAs}>
+            <LogIn className="h-4 w-4 mr-2" />
+            Log in as
+          </Button>
           <Button variant="outline" onClick={handleCopyEmail}>
             <Copy className="h-4 w-4 mr-2" />
             Copy Email

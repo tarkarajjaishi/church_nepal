@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Search, X, BookOpen, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react'
 import api from '@/lib/api'
@@ -56,6 +56,8 @@ export function BibleModal({ open, onClose }: BibleModalProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [showBookPicker, setShowBookPicker] = useState(false)
   const [activeTab, setActiveTab] = useState<'read' | 'search'>('read')
+  const modalRef = useRef<HTMLDivElement>(null)
+  const closeRef = useRef<HTMLButtonElement>(null)
 
   const { data: chapterData, isLoading: chapterLoading } = useQuery({
     queryKey: ['bible-chapter', selectedBook, selectedChapter],
@@ -75,6 +77,23 @@ export function BibleModal({ open, onClose }: BibleModalProps) {
     setShowBookPicker(false)
   }
 
+  useEffect(() => {
+    if (!open) return
+    const previouslyFocused = document.activeElement as HTMLElement | null
+    closeRef.current?.focus()
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        onClose()
+      }
+    }
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      previouslyFocused?.focus()
+    }
+  }, [open, onClose])
+
   if (!open) return null
 
   return (
@@ -93,14 +112,18 @@ export function BibleModal({ open, onClose }: BibleModalProps) {
               <p className="text-[10px] text-gray-400">NNRV — नेपाली नयाँ संशोधित संस्करण</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors">
+          <button onClick={onClose} ref={closeRef} aria-label="Close Bible modal" className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors">
             <X className="size-5 text-gray-400" />
           </button>
         </div>
 
         {/* Tabs */}
-        <div className="flex border-b border-gray-100 shrink-0">
+        <div className="flex border-b border-gray-100 shrink-0" role="tablist" aria-label="Bible tabs">
           <button
+            role="tab"
+            aria-selected={activeTab === 'read'}
+            aria-controls="bible-read-panel"
+            id="bible-read-tab"
             onClick={() => setActiveTab('read')}
             className={`flex-1 py-2.5 text-sm font-medium transition-colors ${
               activeTab === 'read' ? 'text-[#0b3c5d] border-b-2 border-[#0b3c5d]' : 'text-gray-500 hover:text-gray-700'
@@ -109,6 +132,10 @@ export function BibleModal({ open, onClose }: BibleModalProps) {
             पढ्नुहोस्
           </button>
           <button
+            role="tab"
+            aria-selected={activeTab === 'search'}
+            aria-controls="bible-search-panel"
+            id="bible-search-tab"
             onClick={() => setActiveTab('search')}
             className={`flex-1 py-2.5 text-sm font-medium transition-colors ${
               activeTab === 'search' ? 'text-[#0b3c5d] border-b-2 border-[#0b3c5d]' : 'text-gray-500 hover:text-gray-700'
@@ -119,11 +146,12 @@ export function BibleModal({ open, onClose }: BibleModalProps) {
         </div>
 
         {activeTab === 'read' ? (
-          <>
+          <div id="bible-read-panel" role="tabpanel" aria-labelledby="bible-read-tab">
             {/* Book & Chapter Selector */}
             <div className="px-4 py-2.5 flex items-center gap-2 border-b border-gray-100 shrink-0">
               <button
                 onClick={() => setShowBookPicker(!showBookPicker)}
+                aria-haspopup="listbox" aria-expanded={showBookPicker}
                 className="flex items-center gap-1 px-3 py-1.5 bg-[#0b3c5d]/10 rounded-lg text-sm font-medium text-[#0b3c5d] hover:bg-[#0b3c5d]/20 transition-colors"
               >
                 {BOOK_NAMES[selectedBook] || selectedBook}
@@ -132,6 +160,7 @@ export function BibleModal({ open, onClose }: BibleModalProps) {
               <div className="flex items-center gap-1 ml-auto">
                 <button
                   onClick={() => setSelectedChapter(Math.max(1, selectedChapter - 1))}
+                  aria-label="Previous chapter"
                   className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
                 >
                   <ChevronLeft className="size-4 text-gray-500" />
@@ -141,6 +170,7 @@ export function BibleModal({ open, onClose }: BibleModalProps) {
                 </span>
                 <button
                   onClick={() => setSelectedChapter(selectedChapter + 1)}
+                  aria-label="Next chapter"
                   className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
                 >
                   <ChevronRight className="size-4 text-gray-500" />
@@ -194,30 +224,31 @@ export function BibleModal({ open, onClose }: BibleModalProps) {
                     <div key={i} className="animate-pulse h-10 bg-gray-100 rounded-lg" />
                   ))}
                 </div>
-              ) : chapterData?.verses ? (
-                <div className="space-y-1">
-                  {chapterData.verses.map((v: { text: string }, i: number) => (
-                    <div
-                      key={i}
-                      onClick={() => setSelectedVerse(selectedVerse === i + 1 ? null : i + 1)}
-                      className={`px-3 py-2 rounded-lg cursor-pointer transition-all text-sm leading-relaxed ${
-                        selectedVerse === i + 1
-                          ? 'bg-[#0b3c5d]/10 border border-[#0b3c5d]/30'
-                          : 'hover:bg-gray-50 border border-transparent'
-                      }`}
-                    >
-                      <span className="text-xs font-bold text-[#d4a017] mr-1.5">{i + 1}</span>
-                      <span className="text-gray-700">{v.text}</span>
-                    </div>
-                  ))}
-                </div>
+               ) : chapterData?.verses ? (
+                 <div className="space-y-1">
+                   {chapterData.verses.map((v: { text: string }, i: number) => (
+                     <button
+                       key={i}
+                       onClick={() => setSelectedVerse(selectedVerse === i + 1 ? null : i + 1)}
+                       className={`w-full text-left px-3 py-2 rounded-lg cursor-pointer transition-all text-sm leading-relaxed ${
+                         selectedVerse === i + 1
+                           ? 'bg-[#0b3c5d]/10 border border-[#0b3c5d]/30'
+                           : 'hover:bg-gray-50 border border-transparent'
+                       }`}
+                     >
+                       <span className="text-xs font-bold text-[#d4a017] mr-1.5">{i + 1}</span>
+                       <span className="text-gray-700">{v.text}</span>
+                     </button>
+                   ))}
+                 </div>
               ) : (
                 <p className="text-center text-gray-400 text-sm py-8">अध्याय भेटिएन</p>
               )}
             </div>
-          </>
+          </div>
         ) : (
-          /* Search Tab */
+          <div id="bible-search-panel" role="tabpanel" aria-labelledby="bible-search-tab">
+            {/* Search Tab */}
           <div className="flex-1 overflow-y-auto px-4 py-3">
             <div className="relative mb-4">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />

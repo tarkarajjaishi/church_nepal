@@ -1,39 +1,47 @@
 'use client'
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Heart, QrCode, Building2, Smartphone, Check } from "lucide-react";
+import { Heart, QrCode, Building2, Smartphone, Check, Wallet, User, Mail, Phone } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import { PageHero } from "@/components/site/PageHero";
 import { SectionHeading } from "@/components/site/SectionHeading";
 import { Reveal } from "@/components/site/Reveal";
 import { EditableBlock } from "@/components/site/EditableBlock";
-import { useContentBlock, useCampaigns } from "@/lib/hooks";
+import { useContentBlock, useCampaigns, useFunds } from "@/lib/hooks";
 import { images } from "@/lib/data";
 
 const defaultMethods = [
   { id: "esewa", label: "eSewa" },
   { id: "khalti", label: "Khalti" },
+  { id: "stripe", label: "Credit Card" },
   { id: "bank", label: "Bank Transfer" },
   { id: "qr", label: "QR Code" },
 ];
 
 const defaultAmounts = [500, 1000, 2500, 5000];
 
-const methodIconMap: Record<string, any> = { esewa: Smartphone, khalti: Smartphone, bank: Building2, qr: QrCode };
+const methodIconMap: Record<string, any> = { esewa: Smartphone, khalti: Smartphone, stripe: Smartphone, bank: Building2, qr: QrCode };
 
 export default function Give() {
-  const router = useRouter();
   const { data: campaigns = [] } = useCampaigns();
+  const { data: funds = [] } = useFunds();
+  const enabledCampaigns = (campaigns as any[]).filter((c: any) => c.enabled !== false)
   const [freq, setFreq] = useState("one");
   const [amount, setAmount] = useState<number | "">(1000);
   const [method, setMethod] = useState("esewa");
   const [donating, setDonating] = useState(false);
+  const [donorName, setDonorName] = useState("");
+  const [donorEmail, setDonorEmail] = useState("");
+  const [donorPhone, setDonorPhone] = useState("");
+  const [fundId, setFundId] = useState<string>("");
+  const [campaignId, setCampaignId] = useState<string>("");
 
   // CMS content blocks
   const hero = useContentBlock('give_hero');
@@ -77,7 +85,49 @@ export default function Give() {
                   </TabsList>
                 </Tabs>
 
-                <div className="mt-6 grid grid-cols-4 gap-2" role="group" aria-label="Amount presets">
+                <div className="mt-6 grid grid-cols-2 gap-3">
+                  <div>
+                    <Label htmlFor="fund" className="text-church-blue mb-1 block"><Wallet className="size-4 inline mr-1" />Fund</Label>
+                    <Select value={fundId} onValueChange={setFundId}>
+                      <SelectTrigger id="fund">
+                        <SelectValue placeholder="Select a fund" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {funds.map((f: any) => (
+                          <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="campaign" className="text-church-blue mb-1 block"><Target className="size-4 inline mr-1" />Campaign</Label>
+                    <Select value={campaignId} onValueChange={setCampaignId}>
+                      <SelectTrigger id="campaign">
+                        <SelectValue placeholder="Select a campaign" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {enabledCampaigns.map((c: any) => (
+                          <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="mt-4 grid grid-cols-1 gap-3">
+                  <div>
+                    <Label htmlFor="amount" className="text-church-blue mb-1 block">Amount (Rs)</Label>
+                    <Input
+                      id="amount"
+                      type="number"
+                      placeholder="Other amount"
+                      value={amount}
+                      onChange={(e) => setAmount(e.target.value ? Number(e.target.value) : "")}
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-4 grid grid-cols-4 gap-2" role="group" aria-label="Amount presets">
                   {amounts.map((a: number) => (
                     <button
                       key={a}
@@ -89,14 +139,6 @@ export default function Give() {
                     </button>
                   ))}
                 </div>
-                <Input
-                  type="number"
-                  className="mt-3"
-                  placeholder={formData.otherAmountPlaceholder || "Other amount"}
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value ? Number(e.target.value) : "")}
-                  aria-label={formData.otherAmountPlaceholder || "Other amount"}
-                />
 
                 <div className="mt-6 grid grid-cols-2 gap-3" role="group" aria-label="Payment method">
                   {methods.map((m: any) => {
@@ -116,6 +158,41 @@ export default function Give() {
                   })}
                 </div>
 
+                <div className="mt-6 space-y-3">
+                  <div>
+                    <Label htmlFor="donor-name" className="text-church-blue mb-1 block"><User className="size-4 inline mr-1" />Full Name</Label>
+                    <Input
+                      id="donor-name"
+                      type="text"
+                      placeholder="Your full name"
+                      value={donorName}
+                      onChange={(e) => setDonorName(e.target.value)}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label htmlFor="donor-email" className="text-church-blue mb-1 block"><Mail className="size-4 inline mr-1" />Email</Label>
+                      <Input
+                        id="donor-email"
+                        type="email"
+                        placeholder="you@example.com"
+                        value={donorEmail}
+                        onChange={(e) => setDonorEmail(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="donor-phone" className="text-church-blue mb-1 block"><Phone className="size-4 inline mr-1" />Phone</Label>
+                      <Input
+                        id="donor-phone"
+                        type="tel"
+                        placeholder="98XXXXXXXX"
+                        value={donorPhone}
+                        onChange={(e) => setDonorPhone(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </div>
+
                 <Button
                   size="lg"
                   disabled={donating || !amount}
@@ -124,24 +201,29 @@ export default function Give() {
                     if (!amount) return;
                     setDonating(true);
                     try {
-                      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002'}/api/donations/initiate`, {
+                      const res = await fetch('/api/give', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                           amount: Number(amount),
                           payment_method: method,
                           frequency: freq,
+                          donor_name: donorName,
+                          donor_email: donorEmail,
+                          donor_phone: donorPhone,
+                          fund_id: fundId || undefined,
+                          campaign_id: campaignId || undefined,
                         }),
                       });
                       const data = await res.json();
-                      if (res.ok && data.redirect_url) {
-                        router.push(data.redirect_url);
+                      if (res.ok && data.payment_url) {
+                        window.location.href = data.payment_url;
                       } else if (res.ok) {
                         toast.success(formData.successMessage || `Thank you for your ${freq === "one" ? "gift" : "monthly pledge"}!`, {
                           description: `Rs ${amount} via ${methods.find((m: any) => m.id === method)?.label}`,
                         });
                       } else {
-                        toast.error(data.error || "Could not initiate payment. Please try again.");
+                        toast.error(data.error || data.detail || "Could not initiate payment. Please try again.");
                       }
                     } catch {
                       toast.error("Network error. Please try again.");

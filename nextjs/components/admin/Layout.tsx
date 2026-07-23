@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/lib/auth'
-import { LayoutDashboard, BookOpen, Calendar, Users, Image, Quote, Bell, UserCheck, Clock, BookMarked, DollarSign, Settings, LogOut, Church, Shield, LayoutGrid, Heart, CheckSquare, UserCircle, Newspaper, Briefcase, Globe, Mail, Contact, Palette, Receipt, HandHelping, TrendingUp, Wallet, Target, ClipboardCheck, Radio, FileText, BarChart3, HandHeart } from 'lucide-react'
+import { LayoutDashboard, BookOpen, Calendar, Users, Image, Quote, Bell, UserCheck, Clock, BookMarked, DollarSign, Settings, LogOut, Church, Shield, LayoutGrid, Heart, CheckSquare, UserCircle, Newspaper, Briefcase, Globe, Mail, Contact, Palette, Receipt, HandHelping, TrendingUp, Wallet, Target, ClipboardCheck, Radio, FileText, BarChart3, HandHeart, MessageSquare } from 'lucide-react'
 
 const navItems = [
   { to: '/admin/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -23,6 +23,7 @@ const navItems = [
   { divider: true, label: 'CRM & Finance' },
   { to: '/admin/people', icon: Users, label: 'People' },
   { to: '/admin/prayer-requests', icon: HandHeart, label: 'Prayer Requests' },
+  { to: '/admin/contact-messages', icon: MessageSquare, label: 'Contact Messages' },
   { to: '/admin/offerings', icon: DollarSign, label: 'Offerings' },
   { to: '/admin/giving', icon: Receipt, label: 'Giving Dashboard' },
   { to: '/admin/funds', icon: Wallet, label: 'Funds' },
@@ -33,6 +34,7 @@ const navItems = [
   { to: '/admin/todos', icon: CheckSquare, label: 'Todos' },
   { divider: true, label: 'Operations' },
   { to: '/admin/attendance', icon: ClipboardCheck, label: 'Attendance' },
+  { to: '/admin/rsvps', icon: Users, label: 'Event RSVPs' },
   { to: '/admin/volunteers', icon: HandHelping, label: 'Volunteers' },
   { to: '/admin/broadcasts', icon: Radio, label: 'Broadcasts' },
   { to: '/admin/forms', icon: FileText, label: 'Forms' },

@@ -35,6 +35,13 @@ export interface Campaign {
   goal: number
 }
 
+export interface Fund {
+  id: string
+  name: string
+  description: string
+  fund_type: string
+}
+
 // Generic hook wrapper for react-query with loading/error properties
 function wrapQuery<T>(query: any) {
   return {
@@ -201,6 +208,14 @@ export function useCampaigns() {
   })
 }
 
+export function useFunds() {
+  return useQuery({
+    queryKey: ["funds"],
+    queryFn: () => fetchAll<Fund>("funds"),
+    placeholderData: [] as Fund[],
+  })
+}
+
 // Enabled-only variants for homepage (filter by enabled=true)
 export function useEnabledServiceTimes() {
   const q = useServiceTimes()
@@ -219,8 +234,11 @@ export function useEnabledEvents() {
   return { ...q, data: (q.data ?? []).filter((e: any) => e.enabled !== false) }
 }
 export function useEnabledTestimonies() {
-  const q = useTestimonies()
-  return { ...q, data: (q.data ?? []).filter((t: any) => t.enabled !== false) }
+  return useQuery({
+    queryKey: ["testimonies", "enabled"],
+    queryFn: () => fetchAll<Testimony>("testimonies/public"),
+    placeholderData: fallbackTestimonies,
+  })
 }
 export function useEnabledGallery() {
   const q = useGallery()

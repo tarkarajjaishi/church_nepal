@@ -17,12 +17,15 @@ export default function AdminLoginPage() {
   const [ready, setReady] = useState(false);
   const [email, setEmail] = useState("owner@churchnepal.com");
   const [password, setPassword] = useState("");
+  const [twofaCode, setTwofaCode] = useState("");
+  const [twofaRequired, setTwofaRequired] = useState(false);
 
   // Initialize token from localStorage on mount
   useEffect(() => {
     const token = localStorage.getItem("control_token");
+    const refreshToken = localStorage.getItem("control_refresh_token");
     if (token) {
-      setAuthToken(token);
+      setAuthToken(token, refreshToken);
     }
     setReady(true);
   }, []);
@@ -41,15 +44,19 @@ export default function AdminLoginPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) return;
-    loginMutation.mutate({ email, password });
+    loginMutation.mutate({ email, password, code: twofaRequired ? twofaCode : undefined });
   };
 
   // Handle successful login
   useEffect(() => {
-    if (loginMutation.isSuccess && loginMutation.data?.token) {
-      router.replace("/admin");
+    if (loginMutation.isSuccess) {
+      if (loginMutation.data?.token) {
+        router.replace("/admin");
+      } else if (loginMutation.data?.twofa_required) {
+        setTwofaRequired(true);
+      }
     }
-  }, [loginMutation.isSuccess, loginMutation.data?.token, router]);
+  }, [loginMutation.isSuccess, loginMutation.data, router]);
 
   if (!ready || checkingAuth) {
     return (
@@ -123,7 +130,7 @@ export default function AdminLoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter" && email && password) {
+                    if (e.key === "Enter" && email && password && (!twofaRequired || twofaCode)) {
                       handleSubmit(e);
                     }
                   }}
@@ -132,6 +139,34 @@ export default function AdminLoginPage() {
                   autoComplete="current-password"
                 />
               </div>
+
+              {/* 2FA Code Field */}
+              {twofaRequired && (
+                <div>
+                  <label 
+                    htmlFor="twofa" 
+                    className="block text-sm font-medium text-[var(--muted)] mb-2"
+                  >
+                    Two-Factor Code
+                  </label>
+                  <Input
+                    id="twofa"
+                    type="text"
+                    placeholder="Enter your 2FA code"
+                    value={twofaCode}
+                    onChange={(e) => setTwofaCode(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && email && password && twofaCode) {
+                        handleSubmit(e);
+                      }
+                    }}
+                    disabled={loginMutation.isPending}
+                    required
+                    autoComplete="off"
+                    autoFocus
+                  />
+                </div>
+              )}
 
               {/* Error State */}
               {loginMutation.error && (
@@ -148,9 +183,9 @@ export default function AdminLoginPage() {
                 variant="primary" 
                 size="lg" 
                 className="w-full"
-                disabled={loginMutation.isPending || !email || !password}
+                disabled={loginMutation.isPending || !email || !password || (twofaRequired && !twofaCode)}
               >
-                {loginMutation.isPending ? "Signing in..." : "Sign in to Master Control"}
+                {loginMutation.isPending ? "Signing in..." : twofaRequired ? "Verify & Sign in" : "Sign in to Master Control"}
               </Button>
 
               <div className="text-center space-y-2 mt-2">

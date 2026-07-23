@@ -49,6 +49,7 @@ export default function Leadership() {
                 className={`px-4 py-2 rounded-full text-sm transition-colors ${
                   filter === c ? "bg-church-blue text-white" : "bg-secondary text-church-blue hover:bg-gold hover:text-church-blue"
                 }`}
+                aria-pressed={filter === c}
               >
                 {c}
               </button>

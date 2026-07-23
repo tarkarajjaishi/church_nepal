@@ -10,9 +10,15 @@ pub struct Donation {
     pub amount: i64,
     pub payment_method: String,
     pub campaign_id: Option<uuid::Uuid>,
+    pub fund_id: Option<uuid::Uuid>,
     pub transaction_id: String,
     pub status: String,
     pub notes: String,
+    pub refund_amount: i64,
+    pub refund_status: String,
+    pub refunded_at: Option<chrono::NaiveDateTime>,
+    pub refund_reason: String,
+    pub gateway_refund_id: String,
     pub created_at: chrono::NaiveDateTime,
     pub updated_at: chrono::NaiveDateTime,
 }
@@ -26,6 +32,8 @@ pub struct InitiateDonation {
     pub payment_method: String,
     pub campaign_id: Option<uuid::Uuid>,
     pub notes: Option<String>,
+    pub fund_id: Option<uuid::Uuid>,
+    pub frequency: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -42,4 +50,9 @@ pub struct EsewaCallback {
 pub struct KhaltiCallback {
     pub token: String,
     pub amount: i64,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct StripeCallback {
+    pub session_id: String,
 }

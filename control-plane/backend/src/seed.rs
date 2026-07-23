@@ -1,6 +1,7 @@
 use crate::config::Config;
 use crate::error::AppError;
 use crate::provision::{provision_church, Provisioned};
+use bcrypt;
 use sqlx::postgres::PgPoolOptions;
 
 /// Dummy church data for seeding.
@@ -17,6 +18,31 @@ const DUMMY_CHURCHES: &[DummyChurch] = &[
     DummyChurch { name: "Cornerstone Church Biratnagar", plan: "Free" },
     DummyChurch { name: "New Life Church Dharan", plan: "Pro" },
 ];
+
+/// Seed super admin into the admins table if empty (idempotent).
+pub async fn seed_admins(cfg: &Config, pool: &sqlx::PgPool) -> Result<(), AppError> {
+    let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM admins")
+        .fetch_one(pool)
+        .await
+        .map_err(|e| AppError::internal(format!("count admins: {e}")))?;
+
+    if count.0 > 0 {
+        return Ok(());
+    }
+
+    let hash = bcrypt::hash(&cfg.super_admin_password, bcrypt::DEFAULT_COST)
+        .map_err(|e| AppError::internal(format!("hash super admin password: {e}")))?;
+
+    sqlx::query("INSERT INTO admins (email, password_hash, role) VALUES ($1, $2, 'super_admin')")
+        .bind(&cfg.super_admin_email)
+        .bind(&hash)
+        .execute(pool)
+        .await
+        .map_err(|e| AppError::internal(format!("insert super admin: {e}")))?;
+
+    println!("Seeded super-admin into admins table: {}", cfg.super_admin_email);
+    Ok(())
+}
 
 /// Seed 5 dummy churches on startup (dev only). Idempotent - checks if slug exists first.
 pub async fn seed_dummy_churches(cfg: &Config, control_pool: &sqlx::PgPool) -> Result<Vec<Provisioned>, AppError> {
@@ -42,20 +68,30 @@ pub async fn seed_dummy_churches(cfg: &Config, control_pool: &sqlx::PgPool) -> R
         match provision_church(cfg, church.name).await {
             Ok(provisioned) => {
                 // Insert into control DB with plan
-                sqlx::query(
+                let church_id: uuid::Uuid = sqlx::query_scalar(
                     "INSERT INTO churches (name, slug, db_name, storage_path, subdomain, admin_email, plan, status) \
-                     VALUES ($1, $2, $3, $4, $5, $6, $7, 'active')"
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, 'active') \
+                     RETURNING id",
                 )
                 .bind(church.name)
                 .bind(&provisioned.slug)
-                .bind(&provisioned.slug) // db_name
+                .bind(&provisioned.slug)
                 .bind(&provisioned.storage_path)
                 .bind(&provisioned.subdomain)
                 .bind(&provisioned.admin_email)
                 .bind(church.plan)
-                .execute(control_pool)
+                .fetch_one(control_pool)
                 .await
                 .map_err(|e| AppError::internal(format!("insert church {}: {e}", church.name)))?;
+
+                let _ = crate::provision::emit_notification(
+                    control_pool,
+                    "church_provisioned",
+                    "Church provisioned",
+                    &format!("'{}' has been provisioned", church.name),
+                    Some(&church_id),
+                )
+                .await;
 
                 // Seed additional demo data in the church's database
                 seed_church_demo_data(cfg, &provisioned.slug).await?;

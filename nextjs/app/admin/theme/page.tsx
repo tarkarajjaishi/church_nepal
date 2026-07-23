@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTheme } from 'next-themes'
 import { Palette, Monitor, Sun, Moon, Check, Loader2, RotateCcw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -13,13 +13,18 @@ import {
   DEFAULT_SKIN,
   DEFAULT_HEADING_FONT,
   DEFAULT_BODY_FONT,
+  DEFAULT_RADIUS,
+  DEFAULT_LOGO,
   applyPrimaryColor,
   applySkin,
   applyFonts,
+  applyRadius,
   applyPreset,
   loadGoogleFont,
   findPresetByName,
   isValidHex,
+  saveThemeDraft,
+  publishTheme,
   type ThemePreset,
   type ThemeSkin,
 } from '@/lib/theme'
@@ -33,204 +38,297 @@ const MODES = [
 
 export default function ThemePage() {
   const { theme, setTheme } = useTheme()
-  const [activePreset, setActivePreset] = useState<string | null>(null)
-  const [primary, setPrimary] = useState<string>(DEFAULT_PRIMARY)
-  const [skin, setSkin] = useState<ThemeSkin>(DEFAULT_SKIN)
-  const [homepageLayout, setHomepageLayout] = useState<HomepageLayout>('default')
+  const [themeSettings, setThemeSettings] = useState<Record<string, string>>({})
+  const [draftExists, setDraftExists] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [publishing, setPublishing] = useState(false)
+  const [published, setPublished] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState(false)
+  const saveTimer = useRef<ReturnType<typeof setTimeout>>()
 
-  // Load current settings
+  const activePreset = findPresetByName(themeSettings[THEME_SETTING_KEYS.theme_preset] || '')
+  const primary = isValidHex(themeSettings[THEME_SETTING_KEYS.primary]) && themeSettings[THEME_SETTING_KEYS.primary].length >= 7
+    ? themeSettings[THEME_SETTING_KEYS.primary]
+    : DEFAULT_PRIMARY
+  const skin = (themeSettings[THEME_SETTING_KEYS.skin] as ThemeSkin) || DEFAULT_SKIN
+  const mode = themeSettings[THEME_SETTING_KEYS.mode] || DEFAULT_MODE
+  const homepageLayout = themeSettings[THEME_SETTING_KEYS.homepage_layout] || 'default'
+  const radius = themeSettings[THEME_SETTING_KEYS.radius] || DEFAULT_RADIUS
+  const logo = themeSettings[THEME_SETTING_KEYS.logo] || ''
+
   useEffect(() => {
-    api
-      .get('/settings')
-      .then(({ data }) => {
-        if (!Array.isArray(data)) return
-        const map = new Map<string, string>(data.map((r: any) => [r.key, r.value]))
+    async function load() {
+      try {
+        const { data: settings } = await api.get('/settings')
+        const pubMap = new Map<string, string>(settings.map((r: any) => [r.key, r.value]))
 
-        const presetName = map.get(THEME_SETTING_KEYS.theme_preset)
-        if (presetName) {
-          const preset = findPresetByName(presetName)
-          if (preset) {
-            setActivePreset(preset.name)
-            applyPreset(preset)
-            setPrimary(preset.primary)
+        let draftData: Record<string, string> | null = null
+        try {
+          const { data: draftRes } = await api.get('/settings/theme/draft')
+          if (draftRes && Object.keys(draftRes).length > 0) {
+            draftData = draftRes
           }
-        } else {
-          const p = map.get(THEME_SETTING_KEYS.primary)
-          if (p && isValidHex(p)) {
-            setPrimary(p)
-            applyPrimaryColor(p)
-          }
-          const hFont = map.get(THEME_SETTING_KEYS.heading_font)
-          const bFont = map.get(THEME_SETTING_KEYS.body_font)
-          if (hFont && bFont) {
-            applyFonts(hFont, bFont)
-            loadGoogleFont(hFont)
-            loadGoogleFont(bFont)
-          }
+        } catch {}
+
+        const effective = draftData ? { ...Object.fromEntries(pubMap), ...draftData } : Object.fromEntries(pubMap)
+        setDraftExists(!!draftData)
+        setThemeSettings(effective)
+
+        const p = effective[THEME_SETTING_KEYS.primary]
+        if (p && isValidHex(p)) applyPrimaryColor(p)
+
+        const s = effective[THEME_SETTING_KEYS.skin]
+        if (s === 'bordered' || s === 'default') applySkin(s)
+
+        const hFont = effective[THEME_SETTING_KEYS.heading_font]
+        const bFont = effective[THEME_SETTING_KEYS.body_font]
+        if (hFont && bFont) {
+          applyFonts(hFont, bFont)
+          loadGoogleFont(hFont)
+          loadGoogleFont(bFont)
         }
 
-        const s = map.get(THEME_SETTING_KEYS.skin)
-        if (s === 'bordered' || s === 'default') {
-          setSkin(s)
-          applySkin(s)
+        if (effective[THEME_SETTING_KEYS.theme_preset]) {
+          const preset = findPresetByName(effective[THEME_SETTING_KEYS.theme_preset])
+          if (preset) applyPreset(preset)
         }
 
-        const layout = map.get(THEME_SETTING_KEYS.homepage_layout)
-        if (layout && HOMEPAGE_LAYOUTS.some(l => l.value === layout)) {
-          setHomepageLayout(layout as HomepageLayout)
-          document.documentElement.setAttribute('data-homepage-layout', layout)
-        }
-      })
-      .catch(() => {})
+        const layout = effective[THEME_SETTING_KEYS.homepage_layout]
+        if (layout) document.documentElement.setAttribute('data-homepage-layout', layout)
+
+        const r = effective[THEME_SETTING_KEYS.radius]
+        if (r) applyRadius(r)
+
+        const l = effective[THEME_SETTING_KEYS.logo]
+        if (l) document.documentElement.setAttribute('data-theme-logo', l)
+      } catch {}
+      setLoading(false)
+    }
+    load()
   }, [])
 
-  const saveSetting = useCallback(async (key: string, value: string) => {
-    return api.put(`/settings/${key}`, { value }).catch(() => {})
+  const debouncedSave = useCallback((next: Record<string, string>) => {
+    if (saveTimer.current) clearTimeout(saveTimer.current)
+    setSaving(true)
+    saveTimer.current = setTimeout(async () => {
+      await saveThemeDraft(api, next)
+      setDraftExists(true)
+      setSaving(false)
+    }, 400)
   }, [])
+
+  const updateSetting = useCallback((key: string, value: string) => {
+    setThemeSettings(prev => {
+      const next = { ...prev, [key]: value }
+      debouncedSave(next)
+      return next
+    })
+  }, [debouncedSave])
 
   const selectPreset = async (preset: ThemePreset) => {
-    setActivePreset(preset.name)
-    setPrimary(preset.primary)
+    const next = {
+      ...themeSettings,
+      [THEME_SETTING_KEYS.primary]: preset.primary,
+      [THEME_SETTING_KEYS.heading_font]: preset.headingFont,
+      [THEME_SETTING_KEYS.body_font]: preset.bodyFont,
+      [THEME_SETTING_KEYS.theme_preset]: preset.name,
+      [THEME_SETTING_KEYS.homepage_layout]: preset.layout,
+    }
+    setThemeSettings(next)
     applyPreset(preset)
+    loadGoogleFont(preset.headingFont)
+    loadGoogleFont(preset.bodyFont)
+    if (saveTimer.current) clearTimeout(saveTimer.current)
     setSaving(true)
-    await Promise.all([
-      saveSetting(THEME_SETTING_KEYS.primary, preset.primary),
-      saveSetting(THEME_SETTING_KEYS.heading_font, preset.headingFont),
-      saveSetting(THEME_SETTING_KEYS.body_font, preset.bodyFont),
-      saveSetting(THEME_SETTING_KEYS.theme_preset, preset.name),
-      saveSetting(THEME_SETTING_KEYS.homepage_layout, preset.layout),
-    ])
-    setHomepageLayout(preset.layout as HomepageLayout)
+    await saveThemeDraft(api, next)
+    setDraftExists(true)
     setSaving(false)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
   }
 
   const changeLayout = async (layout: HomepageLayout) => {
-    setHomepageLayout(layout)
+    const next = { ...themeSettings, [THEME_SETTING_KEYS.homepage_layout]: layout }
+    setThemeSettings(next)
     document.documentElement.setAttribute('data-homepage-layout', layout)
-    await saveSetting(THEME_SETTING_KEYS.homepage_layout, layout)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
+    await saveThemeDraft(api, next)
+    setDraftExists(true)
   }
 
   const changePrimary = async (hex: string) => {
-    setPrimary(hex)
-    setActivePreset(null)
-    if (isValidHex(hex)) {
-      applyPrimaryColor(hex)
-    }
-    await Promise.all([
-      saveSetting(THEME_SETTING_KEYS.primary, hex),
-      saveSetting(THEME_SETTING_KEYS.theme_preset, ''),
-    ])
+    const next = { ...themeSettings, [THEME_SETTING_KEYS.primary]: hex, [THEME_SETTING_KEYS.theme_preset]: '' }
+    setThemeSettings(next)
+    if (isValidHex(hex)) applyPrimaryColor(hex)
+    await saveThemeDraft(api, next)
+    setDraftExists(true)
   }
 
   const changeSkin = async (s: ThemeSkin) => {
-    setSkin(s)
+    const next = { ...themeSettings, [THEME_SETTING_KEYS.skin]: s }
+    setThemeSettings(next)
     applySkin(s)
-    await saveSetting(THEME_SETTING_KEYS.skin, s)
+    await saveThemeDraft(api, next)
+    setDraftExists(true)
   }
 
   const changeMode = async (m: string) => {
+    const next = { ...themeSettings, [THEME_SETTING_KEYS.mode]: m }
+    setThemeSettings(next)
     setTheme(m)
-    await saveSetting(THEME_SETTING_KEYS.mode, m)
+    await saveThemeDraft(api, next)
+    setDraftExists(true)
+  }
+
+  const changeRadius = async (r: string) => {
+    const next = { ...themeSettings, [THEME_SETTING_KEYS.radius]: r }
+    setThemeSettings(next)
+    applyRadius(r)
+    await saveThemeDraft(api, next)
+    setDraftExists(true)
+  }
+
+  const changeLogo = async (l: string) => {
+    const next = { ...themeSettings, [THEME_SETTING_KEYS.logo]: l }
+    setThemeSettings(next)
+    if (l) document.documentElement.setAttribute('data-theme-logo', l)
+    else document.documentElement.removeAttribute('data-theme-logo')
+    await saveThemeDraft(api, next)
+    setDraftExists(true)
   }
 
   const reset = async () => {
-    setPrimary(DEFAULT_PRIMARY)
-    setSkin(DEFAULT_SKIN)
-    setHomepageLayout('default')
-    setActivePreset(null)
+    const next: Record<string, string> = {
+      [THEME_SETTING_KEYS.primary]: DEFAULT_PRIMARY,
+      [THEME_SETTING_KEYS.skin]: DEFAULT_SKIN,
+      [THEME_SETTING_KEYS.mode]: DEFAULT_MODE,
+      [THEME_SETTING_KEYS.heading_font]: DEFAULT_HEADING_FONT,
+      [THEME_SETTING_KEYS.body_font]: DEFAULT_BODY_FONT,
+      [THEME_SETTING_KEYS.theme_preset]: '',
+      [THEME_SETTING_KEYS.homepage_layout]: 'default',
+      [THEME_SETTING_KEYS.radius]: DEFAULT_RADIUS,
+      [THEME_SETTING_KEYS.logo]: '',
+    }
+    setThemeSettings(next)
     applyPrimaryColor(DEFAULT_PRIMARY)
     applySkin(DEFAULT_SKIN)
     applyFonts(DEFAULT_HEADING_FONT, DEFAULT_BODY_FONT)
-    document.documentElement.setAttribute('data-homepage-layout', 'default')
+    applyRadius(DEFAULT_RADIUS)
     setTheme('system')
-    await Promise.all([
-      saveSetting(THEME_SETTING_KEYS.primary, DEFAULT_PRIMARY),
-      saveSetting(THEME_SETTING_KEYS.skin, DEFAULT_SKIN),
-      saveSetting(THEME_SETTING_KEYS.mode, 'system'),
-      saveSetting(THEME_SETTING_KEYS.heading_font, ''),
-      saveSetting(THEME_SETTING_KEYS.body_font, ''),
-      saveSetting(THEME_SETTING_KEYS.theme_preset, ''),
-      saveSetting(THEME_SETTING_KEYS.homepage_layout, 'default'),
-    ])
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
+    document.documentElement.setAttribute('data-homepage-layout', 'default')
+    document.documentElement.removeAttribute('data-theme-logo')
+    await saveThemeDraft(api, next)
+    setDraftExists(true)
+  }
+
+  const handlePublish = async () => {
+    setPublishing(true)
+    try {
+      await publishTheme(api, themeSettings)
+      setPublished(true)
+      setDraftExists(true)
+      setTimeout(() => setPublished(false), 2000)
+    } catch {}
+    setPublishing(false)
+  }
+
+  useEffect(() => {
+    const timers = saveTimer.current
+    return () => { if (timers) clearTimeout(timers) }
+  }, [])
+
+  if (loading) {
+    return <div className="flex items-center justify-center py-20">
+      <Loader2 className="size-8 animate-spin text-church-blue" />
+    </div>
   }
 
   return (
     <div className="max-w-5xl space-y-8">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-[#0b3c5d] flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-church-blue flex items-center gap-2">
             <Palette className="size-6" /> Theme & Layout
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Customize the site-wide appearance. Changes apply to all visitors instantly.
+            {draftExists ? 'Editing draft · changes are not public until published' : 'Customize the site-wide appearance. Changes are saved as a draft.'}
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {saved && (
+          {published && (
             <span className="flex items-center gap-1.5 text-sm text-green-600">
-              <Check className="size-4" /> Saved
+              <Check className="size-4" /> Published
             </span>
+          )}
+          {saving && (
+            <span className="text-xs text-muted-foreground">Saving…</span>
           )}
           <Button variant="outline" size="sm" onClick={reset}>
             <RotateCcw className="size-4 mr-1.5" /> Reset
+          </Button>
+          <Button size="sm" onClick={handlePublish} disabled={publishing || !draftExists}>
+            {publishing && <Loader2 className="size-4 mr-1.5 animate-spin" />}
+            Publish
           </Button>
         </div>
       </div>
 
       <Separator />
 
-      {/* Theme Presets */}
-      <ThemePresets activePresetName={activePreset} onSelect={selectPreset} />
+      <ThemePresets activePresetName={activePreset?.name || null} onSelect={selectPreset} />
 
       <Separator />
 
-      {/* Homepage Layout */}
       <div className="space-y-4">
         <div>
-          <h3 className="text-sm font-semibold text-foreground">Homepage Layout</h3>
-          <p className="text-xs text-muted-foreground mt-1">
-            Choose how the homepage sections are arranged and styled.
-          </p>
+          <h3 className="text-sm font-semibold text-foreground">Border Radius</h3>
+          <p className="text-xs text-muted-foreground mt-1">Controls the roundness of buttons, cards, and inputs.</p>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {HOMEPAGE_LAYOUTS.map(layout => (
-            <button
-              key={layout.value}
-              onClick={() => changeLayout(layout.value)}
-              className={`flex flex-col items-start gap-1.5 rounded-xl border-2 p-4 text-left transition-all duration-200 ${
-                homepageLayout === layout.value
-                  ? 'border-church-blue bg-church-blue/5 shadow-md ring-2 ring-church-blue/20'
-                  : 'border-border hover:border-church-blue/40 hover:shadow-sm'
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold text-foreground">{layout.label}</span>
-                {homepageLayout === layout.value && <Check className="size-4 text-church-blue" />}
-              </div>
-              <p className="text-xs text-muted-foreground">{layout.description}</p>
-            </button>
-          ))}
+        <div className="flex items-center gap-3">
+          <select
+            value={radius}
+            onChange={e => changeRadius(e.target.value)}
+            className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring"
+          >
+            <option value="0rem">None (0rem)</option>
+            <option value="0.375rem">Small (0.375rem)</option>
+            <option value="0.5rem">Medium (0.5rem)</option>
+            <option value="0.875rem">Default (0.875rem)</option>
+            <option value="1rem">Large (1rem)</option>
+            <option value="1.5rem">XL (1.5rem)</option>
+            <option value="2rem">2XL (2rem)</option>
+          </select>
+          <span className="text-xs text-muted-foreground">Current: {radius}</span>
         </div>
       </div>
 
       <Separator />
 
-      {/* Custom Color */}
+      <div className="space-y-4">
+        <div>
+          <h3 className="text-sm font-semibold text-foreground">Logo URL</h3>
+          <p className="text-xs text-muted-foreground mt-1">Set a custom logo image URL for the site header.</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <input
+            type="text"
+            value={logo}
+            onChange={e => changeLogo(e.target.value)}
+            placeholder="https://example.com/logo.png"
+            spellCheck={false}
+            className="flex-1 font-mono text-sm border border-border rounded-lg px-3 py-2 bg-background text-foreground outline-none focus:ring-2 focus:ring-ring"
+          />
+          {logo && (
+            <div className="relative size-10 shrink-0 rounded-lg border border-border overflow-hidden">
+              <img src={logo} alt="Logo preview" className="size-full object-cover" />
+            </div>
+          )}
+        </div>
+      </div>
+
+      <Separator />
+
       <div className="space-y-4">
         <div>
           <h3 className="text-sm font-semibold text-foreground">Custom Color</h3>
-          <p className="text-xs text-muted-foreground mt-1">
-            Pick a primary color when no preset is active.
-          </p>
+          <p className="text-xs text-muted-foreground mt-1">Pick a primary color when no preset is active.</p>
         </div>
         <div className="flex items-center gap-3">
           <span className="relative size-10 shrink-0 overflow-hidden rounded-lg border border-border">
@@ -245,24 +343,21 @@ export default function ThemePage() {
           </span>
           <input
             type="text"
-            value={primary}
+            value={themeSettings[THEME_SETTING_KEYS.primary] || ''}
             onChange={e => changePrimary(e.target.value)}
             placeholder="#0b3c5d"
             spellCheck={false}
-            className="w-32 font-mono text-sm border border-border rounded-lg px-3 py-2 bg-background text-foreground"
+            className="w-32 font-mono text-sm border border-border rounded-lg px-3 py-2 bg-background text-foreground outline-none focus:ring-2 focus:ring-ring"
           />
         </div>
       </div>
 
       <Separator />
 
-      {/* Mode */}
       <div className="space-y-4">
         <div>
           <h3 className="text-sm font-semibold text-foreground">Default Mode</h3>
-          <p className="text-xs text-muted-foreground mt-1">
-            Set the default light/dark mode for visitors who haven't chosen yet.
-          </p>
+          <p className="text-xs text-muted-foreground mt-1">Set the default light/dark mode for visitors who haven't chosen yet.</p>
         </div>
         <div className="grid grid-cols-3 gap-3 max-w-md">
           {MODES.map(m => (
@@ -270,7 +365,7 @@ export default function ThemePage() {
               key={m.value}
               onClick={() => changeMode(m.value)}
               className={`flex flex-col items-center gap-1.5 rounded-xl border-2 py-4 text-xs transition-all ${
-                theme === m.value
+                mode === m.value
                   ? 'border-church-blue bg-church-blue/5 text-church-blue'
                   : 'border-border text-muted-foreground hover:border-church-blue/40'
               }`}
@@ -284,13 +379,10 @@ export default function ThemePage() {
 
       <Separator />
 
-      {/* Skin */}
       <div className="space-y-4">
         <div>
           <h3 className="text-sm font-semibold text-foreground">Skin</h3>
-          <p className="text-xs text-muted-foreground mt-1">
-            Default uses shadows; Bordered adds visible card outlines.
-          </p>
+          <p className="text-xs text-muted-foreground mt-1">Default uses shadows; Bordered adds visible card outlines.</p>
         </div>
         <div className="grid grid-cols-2 gap-3 max-w-sm">
           {(['default', 'bordered'] as ThemeSkin[]).map(s => (

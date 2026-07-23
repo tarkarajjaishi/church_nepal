@@ -117,9 +117,9 @@ export default function Prayer() {
                         <div className="space-y-2"><Label htmlFor="email">Email</Label><Input id="email" name="email" type="email" placeholder="you@email.com" /></div>
                       )}
                       <div className="space-y-2">
-                        <Label>Prayer Category</Label>
+                        <Label htmlFor="category">Prayer Category</Label>
                         <Select value={category} onValueChange={setCategory}>
-                          <SelectTrigger><SelectValue placeholder="Select a category" /></SelectTrigger>
+                          <SelectTrigger id="category"><SelectValue placeholder="Select a category" /></SelectTrigger>
                           <SelectContent>{categories.map((c: string) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
                         </Select>
                       </div>

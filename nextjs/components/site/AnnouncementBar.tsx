@@ -50,7 +50,7 @@ export function AnnouncementBar() {
   );
 
   return (
-    <div className="sticky top-0 z-[60] bg-primary text-primary-foreground shadow-sm" role="banner" aria-label="Announcement">
+    <div className="sticky top-0 z-[60] bg-primary text-primary-foreground shadow-sm" role="region" aria-label="Announcement">
       <div className="mx-auto max-w-7xl px-4 py-2 flex items-center justify-center gap-3 text-sm relative">
         <span className="relative flex h-2 w-2 shrink-0">
           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-gold opacity-75" />

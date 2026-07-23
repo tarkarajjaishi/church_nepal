@@ -4,6 +4,7 @@ use axum::Json;
 use crate::auth::AuthUser;
 use crate::error::AppError;
 use crate::models::{Setting, UpdateSetting};
+use serde_json::json;
 
 pub async fn list(Db(pool): Db) -> Result<Json<Vec<Setting>>, AppError> {
     let rows = sqlx::query_as::<_, Setting>("SELECT * FROM settings ORDER BY key ASC")
@@ -61,4 +62,54 @@ pub async fn get_sections(
         sections.insert(section_name.to_string(), serde_json::Value::Bool(row.value == "true"));
     }
     Ok(Json(serde_json::Value::Object(sections)))
+}
+
+pub async fn get_theme_draft(Db(pool): Db) -> Result<Json<serde_json::Value>, AppError> {
+    let row = sqlx::query_as::<_, Setting>("SELECT * FROM settings WHERE key = $1")
+        .bind("theme_draft")
+        .fetch_optional(&pool)
+        .await?;
+
+    let value = row
+        .map(|r| serde_json::from_str(&r.value).unwrap_or_else(|_| json!({})))
+        .unwrap_or_else(|| json!({}));
+
+    Ok(Json(value))
+}
+
+pub async fn save_theme_draft(
+    _auth: AuthUser,
+    Db(pool): Db,
+    Json(draft): Json<serde_json::Value>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    sqlx::query(
+        r#"INSERT INTO settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = NOW()"#,
+    )
+    .bind("theme_draft")
+    .bind(draft.to_string())
+    .execute(&pool)
+    .await?;
+
+    Ok(Json(draft))
+}
+
+pub async fn publish_theme(
+    _auth: AuthUser,
+    Db(pool): Db,
+    Json(draft): Json<serde_json::Value>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    if let Some(obj) = draft.as_object() {
+        for (key, val) in obj {
+            if let Some(s) = val.as_str() {
+                sqlx::query(
+                    r#"INSERT INTO settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = NOW()"#,
+                )
+                .bind(key)
+                .bind(s)
+                .execute(&pool)
+                .await?;
+            }
+        }
+    }
+    Ok(Json(draft))
 }

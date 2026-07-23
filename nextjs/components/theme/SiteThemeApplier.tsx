@@ -3,7 +3,7 @@
 import { useEffect } from 'react'
 import { useTheme } from 'next-themes'
 import api from '@/lib/api'
-import { applyPrimaryColor, applySkin, applyFonts, loadGoogleFont, THEME_SETTING_KEYS } from '@/lib/theme'
+import { applyPrimaryColor, applySkin, applyFonts, applyRadius, loadGoogleFont, THEME_SETTING_KEYS } from '@/lib/theme'
 
 /**
  * Reads the site-wide theme the admin saved to the backend (public GET /settings)
@@ -38,11 +38,21 @@ export function SiteThemeApplier() {
         const skin = map.get(THEME_SETTING_KEYS.skin)
         if (skin) applySkin(skin)
 
+        const radius = map.get(THEME_SETTING_KEYS.radius)
+        if (radius) applyRadius(radius)
+
         const homepageLayout = map.get(THEME_SETTING_KEYS.homepage_layout)
         if (homepageLayout) {
           document.documentElement.setAttribute('data-homepage-layout', homepageLayout)
         } else {
           document.documentElement.removeAttribute('data-homepage-layout')
+        }
+
+        const logo = map.get(THEME_SETTING_KEYS.logo)
+        if (logo) {
+          document.documentElement.setAttribute('data-theme-logo', logo)
+        } else {
+          document.documentElement.removeAttribute('data-theme-logo')
         }
 
         // next-themes persists the visitor's own choice under localStorage 'theme'.

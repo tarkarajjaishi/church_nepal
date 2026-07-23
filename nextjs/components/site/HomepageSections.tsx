@@ -878,6 +878,9 @@ function TestimoniesSection({ block, allTestimonies }: {
               <Button variant="outline" size="icon" className="size-9" onClick={() => emblaApi?.scrollNext()} disabled={!canScrollNext} aria-label="Next testimony">
                 <ChevronRight className="size-4" />
               </Button>
+              <Button asChild variant="ghost" size="sm" className="text-church-blue hover:text-gold">
+                <Link href="/testimonies">View All <ArrowRight className="size-4" /></Link>
+              </Button>
             </div>
           </div>
 

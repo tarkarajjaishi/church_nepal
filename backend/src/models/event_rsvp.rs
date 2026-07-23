@@ -18,6 +18,6 @@ pub struct CreateEventRsvp {
     pub event_id: uuid::Uuid,
     pub name: String,
     pub email: String,
-    pub phone: String,
+    pub phone: Option<String>,
     pub guests: Option<i32>,
 }

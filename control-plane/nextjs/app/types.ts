@@ -15,7 +15,7 @@ export interface Church {
   giving_total?: number;
 }
 
-export type ChurchStatus = "active" | "suspended" | "archived";
+export type ChurchStatus = "active" | "suspended" | "archived" | "provisioning";
 export type ChurchPlan = "Free" | "Standard" | "Pro";
 export type AdminRole = "owner" | "admin" | "editor" | "viewer";
 
@@ -38,6 +38,8 @@ export interface ChurchAdmin {
 }
 
 export interface NewChurch {
+  id: string;
+  name: string;
   slug: string;
   subdomain: string;
   url: string;
@@ -103,4 +105,31 @@ export interface PaginatedResponse<T> {
   total: number;
   limit: number;
   offset: number;
+}
+
+export interface AuditLogEntry {
+  id: string;
+  timestamp: string;
+  actor: string;
+  action: string;
+  target: string;
+  ip: string;
+  type?: string;
+}
+
+export interface PaginatedAuditLog {
+  data: AuditLogEntry[];
+  total: number;
+  page: number;
+  per_page: number;
+  total_pages: number;
+}
+
+export interface Notification {
+  id: string;
+  type: string;
+  title: string;
+  description: string;
+  timestamp: string;
+  read: boolean;
 }

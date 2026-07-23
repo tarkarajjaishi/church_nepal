@@ -11,6 +11,7 @@ pub struct ChurchEvent {
     pub location: String,
     pub image: String,
     pub description: String,
+    pub capacity: Option<i32>,
     pub enabled: Option<bool>,
     pub sort_order: Option<i32>,
     pub created_at: chrono::NaiveDateTime,
@@ -25,6 +26,7 @@ pub struct CreateEvent {
     pub location: String,
     pub image: String,
     pub description: String,
+    pub capacity: Option<i32>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -36,4 +38,5 @@ pub struct UpdateEvent {
     pub location: Option<String>,
     pub image: Option<String>,
     pub description: Option<String>,
+    pub capacity: Option<i32>,
 }

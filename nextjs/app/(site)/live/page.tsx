@@ -114,7 +114,7 @@ export default function Live() {
                 </div>
                 <form className="p-4 border-t flex gap-2" onSubmit={sendMessage}>
                   <Input value={message} onChange={(e) => setMessage(e.target.value)} placeholder={chatHeadingItems.placeholder || "Say something kind..."} />
-                  <Button type="submit" size="icon" className="bg-church-blue hover:bg-church-blue/90 shrink-0"><Send className="size-4" /></Button>
+                   <Button type="submit" size="icon" className="bg-church-blue hover:bg-church-blue/90 shrink-0" aria-label="Send message"><Send className="size-4" /></Button>
                 </form>
               </Card>
             </Reveal>

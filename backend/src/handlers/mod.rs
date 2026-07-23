@@ -37,3 +37,4 @@ pub mod funds;
 pub mod pledges;
 pub mod reports;
 pub mod member_applications;
+pub mod prayer_requests;

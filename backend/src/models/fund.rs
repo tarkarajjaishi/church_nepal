@@ -31,26 +31,22 @@ pub struct UpdateFund {
 #[derive(Debug, Serialize, Deserialize, FromRow)]
 pub struct RecurringDonation {
     pub id: uuid::Uuid,
-    pub donor_name: String,
-    pub donor_email: String,
-    pub donor_phone: String,
-    pub fund_id: Option<uuid::Uuid>,
+    pub member_id: Option<uuid::Uuid>,
     pub amount: i64,
-    pub frequency: String,
-    pub payment_method: String,
-    pub status: String,
-    pub next_date: Option<chrono::NaiveDate>,
+    pub interval: String,
+    pub gateway: String,
+    pub next_charge_at: Option<chrono::NaiveDateTime>,
+    pub active: bool,
+    pub stripe_subscription_id: Option<String>,
     pub created_at: chrono::NaiveDateTime,
     pub updated_at: chrono::NaiveDateTime,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct CreateRecurringDonation {
-    pub donor_name: String,
-    pub donor_email: String,
-    pub donor_phone: Option<String>,
-    pub fund_id: Option<uuid::Uuid>,
+    pub member_id: Option<uuid::Uuid>,
     pub amount: i64,
-    pub frequency: Option<String>,
-    pub payment_method: Option<String>,
+    pub interval: Option<String>,
+    pub gateway: Option<String>,
+    pub stripe_customer_id: Option<String>,
 }

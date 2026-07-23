@@ -50,15 +50,18 @@ export interface Sermon {
   topic: string;
   image: string;
   description: string;
+  videoUrl?: string;
+  audioUrl?: string;
+  enabled?: boolean;
 }
 
 export const sermons: Sermon[] = [
-  { id: "s1", title: "The Anchor of Hope", speaker: "Ps. Bishal Rai", date: "July 6, 2026", duration: "42 min", series: "Living Hope", topic: "Hope", image: images.worship1, description: "In a shifting world, our hope is anchored in the risen Christ. Discover what it means to hold fast." },
-  { id: "s2", title: "Walking in Grace", speaker: "Ps. Bishal Rai", date: "June 29, 2026", duration: "38 min", series: "Grace Upon Grace", topic: "Grace", image: images.band, description: "Grace is not just how we are saved, but how we live each day. A message on daily dependence on God." },
-  { id: "s3", title: "A Heart for Prayer", speaker: "Elder Suman Tamang", date: "June 22, 2026", duration: "35 min", series: "Foundations", topic: "Prayer", image: images.study, description: "Learn how a life of prayer transforms the ordinary into the extraordinary." },
-  { id: "s4", title: "Light on the Mountain", speaker: "Ps. Bishal Rai", date: "June 15, 2026", duration: "45 min", series: "Living Hope", topic: "Faith", image: images.mountains, description: "The gospel is reaching every village of Nepal. A stirring call to be light where God has placed us." },
-  { id: "s5", title: "Love in Action", speaker: "Ps. Anita Gurung", date: "June 8, 2026", duration: "40 min", series: "The Way of Love", topic: "Love", image: images.crowd, description: "True love serves. A challenge to move from good intentions to faithful action." },
-  { id: "s6", title: "Rooted and Built Up", speaker: "Elder Suman Tamang", date: "June 1, 2026", duration: "37 min", series: "Foundations", topic: "Discipleship", image: images.study2, description: "Spiritual maturity grows from being deeply rooted in Christ. A message on discipleship." },
+  { id: "s1", title: "The Anchor of Hope", speaker: "Ps. Bishal Rai", date: "July 6, 2026", duration: "42 min", series: "Living Hope", topic: "Hope", image: images.worship1, description: "In a shifting world, our hope is anchored in the risen Christ. Discover what it means to hold fast.", videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4", audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3", enabled: true },
+  { id: "s2", title: "Walking in Grace", speaker: "Ps. Bishal Rai", date: "June 29, 2026", duration: "38 min", series: "Grace Upon Grace", topic: "Grace", image: images.band, description: "Grace is not just how we are saved, but how we live each day. A message on daily dependence on God.", videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4", audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3", enabled: true },
+  { id: "s3", title: "A Heart for Prayer", speaker: "Elder Suman Tamang", date: "June 22, 2026", duration: "35 min", series: "Foundations", topic: "Prayer", image: images.study, description: "Learn how a life of prayer transforms the ordinary into the extraordinary.", videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4", audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3", enabled: true },
+  { id: "s4", title: "Light on the Mountain", speaker: "Ps. Bishal Rai", date: "June 15, 2026", duration: "45 min", series: "Living Hope", topic: "Faith", image: images.mountains, description: "The gospel is reaching every village of Nepal. A stirring call to be light where God has placed us.", videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4", audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3", enabled: true },
+  { id: "s5", title: "Love in Action", speaker: "Ps. Anita Gurung", date: "June 8, 2026", duration: "40 min", series: "The Way of Love", topic: "Love", image: images.crowd, description: "True love serves. A challenge to move from good intentions to faithful action.", videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4", audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3", enabled: true },
+  { id: "s6", title: "Rooted and Built Up", speaker: "Elder Suman Tamang", date: "June 1, 2026", duration: "37 min", series: "Foundations", topic: "Discipleship", image: images.study2, description: "Spiritual maturity grows from being deeply rooted in Christ. A message on discipleship.", videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4", audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-6.mp3", enabled: true },
 ];
 
 export interface Ministry {
@@ -94,6 +97,7 @@ export interface ChurchEvent {
   location: string;
   image: string;
   description: string;
+  capacity?: number;
 }
 
 export const events: ChurchEvent[] = [

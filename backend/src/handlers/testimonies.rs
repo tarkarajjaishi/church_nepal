@@ -4,10 +4,25 @@ use axum::Json;
 use crate::auth::AuthUser;
 use crate::error::AppError;
 use crate::models::{CreateTestimony, Paginated, Pagination, Testimony, UpdateTestimony};
+use crate::email;
+use crate::handlers::audit::create_audit_entry;
+
+#[derive(Debug, Deserialize)]
+pub struct RejectTestimonyInput {
+    pub reason: Option<String>,
+}
 
 pub async fn list(Db(pool): Db, Query(p): Query<Pagination>) -> Result<Json<Paginated<Testimony>>, AppError> {
     let total: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM testimonies").fetch_one(&pool).await?;
     let rows = sqlx::query_as::<_, Testimony>("SELECT * FROM testimonies ORDER BY created_at DESC LIMIT $1 OFFSET $2")
+        .bind(p.limit()).bind(p.offset()).fetch_all(&pool).await?;
+    Ok(Json(Paginated::new(rows, total, &p)))
+}
+
+pub async fn list_public(Db(pool): Db, Query(p): Query<Pagination>) -> Result<Json<Paginated<Testimony>>, AppError> {
+    let total: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM testimonies WHERE status = 'approved' AND (enabled IS NULL OR enabled = true)")
+        .fetch_one(&pool).await?;
+    let rows = sqlx::query_as::<_, Testimony>("SELECT * FROM testimonies WHERE status = 'approved' AND (enabled IS NULL OR enabled = true) ORDER BY created_at DESC LIMIT $1 OFFSET $2")
         .bind(p.limit()).bind(p.offset()).fetch_all(&pool).await?;
     Ok(Json(Paginated::new(rows, total, &p)))
 }
@@ -21,7 +36,21 @@ pub async fn get(Db(pool): Db, Path(id): Path<uuid::Uuid>) -> Result<Json<Testim
 
 pub async fn create(_auth: AuthUser, Db(pool): Db, Json(input): Json<CreateTestimony>) -> Result<Json<Testimony>, AppError> {
     let row = sqlx::query_as::<_, Testimony>(
-        r#"INSERT INTO testimonies (name, role, quote, image, rating) VALUES ($1,$2,$3,$4,$5) RETURNING *"#,
+        r#"INSERT INTO testimonies (name, role, quote, image, rating, status) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *"#,
+    )
+    .bind(&input.name)
+    .bind(&input.role)
+    .bind(&input.quote)
+    .bind(&input.image)
+    .bind(input.rating)
+    .bind("approved")
+    .fetch_one(&pool).await?;
+    Ok(Json(row))
+}
+
+pub async fn submit_public(Db(pool): Db, Json(input): Json<CreateTestimony>) -> Result<Json<Testimony>, AppError> {
+    let row = sqlx::query_as::<_, Testimony>(
+        r#"INSERT INTO testimonies (name, role, quote, image, rating, status) VALUES ($1,$2,$3,$4,$5,'pending') RETURNING *"#,
     )
     .bind(&input.name)
     .bind(&input.role)
@@ -29,6 +58,14 @@ pub async fn create(_auth: AuthUser, Db(pool): Db, Json(input): Json<CreateTesti
     .bind(&input.image)
     .bind(input.rating)
     .fetch_one(&pool).await?;
+
+    let testimony_name = input.name.clone();
+    let row_id = row.id;
+    let pool_for_email = pool.clone();
+    tokio::spawn(async move {
+        let _ = email::notify_admin_new_testimony(&pool_for_email, &testimony_name, &row_id).await;
+    });
+
     Ok(Json(row))
 }
 
@@ -37,7 +74,7 @@ pub async fn update(_auth: AuthUser, Db(pool): Db, Path(id): Path<uuid::Uuid>, J
         .bind(id)
         .fetch_optional(&pool).await?.ok_or_else(|| AppError::not_found("Testimony not found"))?;
     let row = sqlx::query_as::<_, Testimony>(
-        r#"UPDATE testimonies SET name=COALESCE($2,name), role=COALESCE($3,role), quote=COALESCE($4,quote), image=COALESCE($5,image), rating=COALESCE($6,rating) WHERE id=$1 RETURNING *"#,
+        r#"UPDATE testimonies SET name=COALESCE($2,name), role=COALESCE($3,role), quote=COALESCE($4,quote), image=COALESCE($5,image), rating=COALESCE($6,rating), status=COALESCE($7,status) WHERE id=$1 RETURNING *"#,
     )
     .bind(id)
     .bind(input.name.as_deref().unwrap_or(&existing.name))
@@ -45,6 +82,7 @@ pub async fn update(_auth: AuthUser, Db(pool): Db, Path(id): Path<uuid::Uuid>, J
     .bind(input.quote.as_deref().unwrap_or(&existing.quote))
     .bind(input.image.as_deref().unwrap_or(&existing.image))
     .bind(input.rating.unwrap_or(existing.rating))
+    .bind(input.status.unwrap_or(existing.status))
     .fetch_one(&pool).await?;
     Ok(Json(row))
 }
@@ -55,6 +93,67 @@ pub async fn delete(_auth: AuthUser, Db(pool): Db, Path(id): Path<uuid::Uuid>) -
         .execute(&pool).await?;
     Ok(Json(serde_json::json!({ "deleted": true })))
 }
+
+pub async fn approve(_auth: AuthUser, Db(pool): Db, Path(id): Path<uuid::Uuid>) -> Result<Json<Testimony>, AppError> {
+    let row = sqlx::query_as::<_, Testimony>(
+        "UPDATE testimonies SET status = 'approved' WHERE id = $1 RETURNING *",
+    )
+    .bind(id)
+    .fetch_optional(&pool)
+    .await?
+    .ok_or_else(|| AppError::not_found("Testimony not found"))?;
+
+    let _ = create_audit_entry(
+        &pool,
+        &_auth.email,
+        "approve_testimony",
+        &id.to_string(),
+        "testimony",
+        Some(serde_json::json!({
+            "testimony_name": row.name,
+        })),
+    )
+    .await;
+
+    Ok(Json(row))
+}
+
+pub async fn reject(
+    _auth: AuthUser,
+    Db(pool): Db,
+    Path(id): Path<uuid::Uuid>,
+    Json(input): Json<RejectTestimonyInput>,
+) -> Result<Json<Testimony>, AppError> {
+    let existing = sqlx::query_as::<_, Testimony>("SELECT * FROM testimonies WHERE id = $1")
+        .bind(id)
+        .fetch_optional(&pool)
+        .await?
+        .ok_or_else(|| AppError::not_found("Testimony not found"))?;
+
+    let row = sqlx::query_as::<_, Testimony>(
+        "UPDATE testimonies SET status = 'rejected' WHERE id = $1 RETURNING *",
+    )
+    .bind(id)
+    .fetch_optional(&pool)
+    .await?
+    .ok_or_else(|| AppError::not_found("Testimony not found"))?;
+
+    let _ = create_audit_entry(
+        &pool,
+        &_auth.email,
+        "reject_testimony",
+        &id.to_string(),
+        "testimony",
+        Some(serde_json::json!({
+            "testimony_name": existing.name,
+            "reason": input.reason,
+        })),
+    )
+    .await;
+
+    Ok(Json(row))
+}
+
 pub async fn toggle(
     _auth: AuthUser,
     Db(pool): Db,

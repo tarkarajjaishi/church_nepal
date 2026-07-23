@@ -6,43 +6,43 @@ pub async fn giving_summary(
     Db(pool): Db,
 ) -> Result<Json<serde_json::Value>, AppError> {
     let total_raised: (i64,) = sqlx::query_as(
-        "SELECT COALESCE(SUM(amount)::bigint, 0) FROM donations WHERE status = 'completed'",
+        "SELECT COALESCE(SUM(amount - COALESCE(refund_amount, 0))::bigint, 0) FROM donations WHERE status = 'completed'",
     )
     .fetch_one(&pool)
     .await?;
 
     let total_count: (i64,) = sqlx::query_as(
-        "SELECT COUNT(*) FROM donations WHERE status = 'completed'",
+        "SELECT COUNT(*) FROM donations WHERE status = 'completed' AND refund_status != 'refunded'",
     )
     .fetch_one(&pool)
     .await?;
 
     let month_raised: (i64,) = sqlx::query_as(
-        "SELECT COALESCE(SUM(amount)::bigint, 0) FROM donations WHERE status = 'completed' AND created_at >= date_trunc('month', CURRENT_DATE)",
+        "SELECT COALESCE(SUM(amount - COALESCE(refund_amount, 0))::bigint, 0) FROM donations WHERE status = 'completed' AND created_at >= date_trunc('month', CURRENT_DATE) AND refund_status != 'refunded'",
     )
     .fetch_one(&pool)
     .await?;
 
     let year_raised: (i64,) = sqlx::query_as(
-        "SELECT COALESCE(SUM(amount)::bigint, 0) FROM donations WHERE status = 'completed' AND created_at >= date_trunc('year', CURRENT_DATE)",
+        "SELECT COALESCE(SUM(amount - COALESCE(refund_amount, 0))::bigint, 0) FROM donations WHERE status = 'completed' AND created_at >= date_trunc('year', CURRENT_DATE) AND refund_status != 'refunded'",
     )
     .fetch_one(&pool)
     .await?;
 
     let month_count: (i64,) = sqlx::query_as(
-        "SELECT COUNT(*) FROM donations WHERE status = 'completed' AND created_at >= date_trunc('month', CURRENT_DATE)",
+        "SELECT COUNT(*) FROM donations WHERE status = 'completed' AND created_at >= date_trunc('month', CURRENT_DATE) AND refund_status != 'refunded'",
     )
     .fetch_one(&pool)
     .await?;
 
     let avg_donation: (i64,) = sqlx::query_as(
-        "SELECT COALESCE(AVG(amount)::bigint, 0) FROM donations WHERE status = 'completed' AND created_at >= date_trunc('year', CURRENT_DATE)",
+        "SELECT COALESCE(AVG(amount - COALESCE(refund_amount, 0))::bigint, 0) FROM donations WHERE status = 'completed' AND created_at >= date_trunc('year', CURRENT_DATE) AND refund_status != 'refunded'",
     )
     .fetch_one(&pool)
     .await?;
 
     let top_donors = sqlx::query_as::<_, (Option<String>, Option<String>, i64, i64)>(
-        r#"SELECT donor_email, donor_name, COALESCE(SUM(amount), 0)::bigint AS total, COUNT(*) AS count
+        r#"SELECT donor_email, donor_name, COALESCE(SUM(amount - COALESCE(refund_amount, 0))::bigint, 0) AS total, COUNT(CASE WHEN refund_status != 'refunded' THEN 1 END) AS count
            FROM donations WHERE status = 'completed'
            GROUP BY donor_email, donor_name
            ORDER BY total DESC LIMIT 10"#,

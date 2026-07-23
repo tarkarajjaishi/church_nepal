@@ -9,6 +9,7 @@ export interface ChurchEvent {
   location: string
   image: string
   description: string
+  capacity?: number
   enabled?: boolean
   sortOrder?: number
   createdAt?: string

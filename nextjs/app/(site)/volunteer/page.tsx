@@ -131,9 +131,9 @@ export default function VolunteerPage() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label>Area of Interest *</Label>
+                      <Label htmlFor="interest">Area of Interest *</Label>
                       <Select value={interest} onValueChange={setInterest}>
-                        <SelectTrigger>
+                        <SelectTrigger id="interest">
                           <SelectValue placeholder="Select an area" />
                         </SelectTrigger>
                         <SelectContent>

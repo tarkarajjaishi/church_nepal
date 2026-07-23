@@ -78,6 +78,7 @@ export default function Ministries() {
                 key={f.key}
                 onClick={() => setActive(f.key)}
                 className={`rounded-full px-4 py-2 text-sm transition-colors ${active === f.key ? "bg-church-blue text-white" : "bg-secondary text-church-blue hover:bg-gold hover:text-church-blue"}`}
+                aria-pressed={active === f.key}
               >
                 {f.label}
               </button>

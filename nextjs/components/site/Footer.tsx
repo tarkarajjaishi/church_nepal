@@ -86,13 +86,13 @@ export function Footer() {
                   <Clock className="size-4 text-gold mt-0.5 shrink-0" />
                   <div>
                     <div className="text-white/90">{lang === "en" ? s.name : s.nameNe}</div>
-                    <div className="text-xs text-white/50">{s.day} · {s.time}</div>
+                     <div className="text-xs text-white/75">{s.day} · {s.time}</div>
                   </div>
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="text-sm text-white/50">{lang === "en" ? "Sunday 10:00 AM" : "आइतबार १०:०० बजे"}</p>
+            <p className="text-sm text-white/75">{lang === "en" ? "Sunday 10:00 AM" : "आइतबार १०:०० बजे"}</p>
           )}
         </div>
 
@@ -165,7 +165,7 @@ export function Footer() {
       </div>
 
       <div className="border-t border-white/10">
-        <div className="mx-auto max-w-7xl px-4 py-5 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-white/60">
+        <div className="mx-auto max-w-7xl px-4 py-5 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-white/70">
           <span>&copy; {new Date().getFullYear()} {churchName}. All rights reserved.</span>
           <div className="flex gap-5">
             <Link href="/privacy" className="hover:text-gold transition-colors">{t("privacy_policy")}</Link>

@@ -14,6 +14,8 @@ export const THEME_SETTING_KEYS = {
   heading_font: 'theme_heading_font',
   body_font: 'theme_body_font',
   homepage_layout: 'homepage_layout',
+  radius: 'theme_radius',
+  logo: 'theme_logo',
 } as const
 
 export type ThemeMode = 'light' | 'dark' | 'system'
@@ -24,6 +26,9 @@ export const DEFAULT_MODE: ThemeMode = 'system'
 export const DEFAULT_SKIN: ThemeSkin = 'default'
 export const DEFAULT_HEADING_FONT = "'Poppins', sans-serif"
 export const DEFAULT_BODY_FONT = "'Inter', sans-serif"
+export const DEFAULT_RADIUS = '0.875rem'
+export const DEFAULT_LOGO = ''
+export const THEME_DRAFT_KEY = 'theme_draft'
 
 export interface ThemePreset {
   name: string
@@ -183,6 +188,11 @@ export function applySkin(skin: string): void {
   document.documentElement.classList.toggle('skin-bordered', skin === 'bordered')
 }
 
+export function applyRadius(radius: string): void {
+  if (typeof document === 'undefined') return
+  document.documentElement.style.setProperty('--radius', radius)
+}
+
 // ---- font helpers --------------------------------------------------------
 
 const FONT_STYLE_EL_ID = 'site-theme-fonts'
@@ -224,4 +234,24 @@ export function applyPreset(preset: ThemePreset): void {
 
 export function findPresetByName(name: string): ThemePreset | undefined {
   return THEME_PRESETS.find(p => p.name === name)
+}
+
+export type ThemeDraft = Record<string, string>
+
+export async function getThemeDraft(apiClient: any): Promise<ThemeDraft> {
+  try {
+    const { data } = await apiClient.get('/settings/theme/draft')
+    return data || {}
+  } catch {
+    return {}
+  }
+}
+
+export async function saveThemeDraft(apiClient: any, draft: ThemeDraft): Promise<void> {
+  await apiClient.put('/settings/theme/draft', draft)
+}
+
+export async function publishTheme(apiClient: any, draft: ThemeDraft): Promise<ThemeDraft> {
+  const { data } = await apiClient.post('/settings/theme/publish', draft)
+  return data
 }

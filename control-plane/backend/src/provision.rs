@@ -1,5 +1,6 @@
 use crate::config::Config;
 use crate::error::AppError;
+use chrono::NaiveDateTime;
 use rand::Rng;
 use sqlx::postgres::PgPoolOptions;
 use sqlx::Executor;
@@ -166,5 +167,59 @@ pub async fn deprovision(cfg: &Config, slug: &str) -> Result<(), AppError> {
         .map_err(|e| AppError::internal(format!("drop database: {e}")))?;
     let path = Path::new(&cfg.storage_root).join(slug);
     let _ = std::fs::remove_dir_all(&path);
+    Ok(())
+}
+
+/// Insert a notification row into the control database.
+pub async fn emit_notification(
+    pool: &sqlx::PgPool,
+    event_type: &str,
+    title: &str,
+    body: &str,
+    church_id: Option<&uuid::Uuid>,
+) -> Result<(), AppError> {
+    sqlx::query(
+        "INSERT INTO notifications (type, title, body, church_id) VALUES ($1, $2, $3, $4)",
+    )
+    .bind(event_type)
+    .bind(title)
+    .bind(body)
+    .bind(church_id)
+    .execute(pool)
+    .await?;
+
+    Ok(())
+}
+
+/// Update (or clear) the shared suspension flag in a church's own database.
+/// This lets the church backend enforce suspension without reaching back to
+/// the control plane on every request.
+pub async fn update_church_suspended_flag(
+    cfg: &Config,
+    slug: &str,
+    suspended_at: Option<&chrono::NaiveDateTime>,
+) -> Result<(), AppError> {
+    let pool = PgPoolOptions::new()
+        .max_connections(1)
+        .connect(&cfg.church_db_url(slug))
+        .await?;
+
+    if let Some(ts) = suspended_at {
+        sqlx::query(
+            "INSERT INTO settings (key, value) VALUES ('suspended_at', $1) \
+             ON CONFLICT (key) DO UPDATE SET value = $1, updated_at = NOW()",
+        )
+        .bind(ts.and_utc().to_rfc3339())
+        .execute(&pool)
+        .await?;
+    } else {
+        sqlx::query(
+            "INSERT INTO settings (key, value) VALUES ('suspended_at', '') \
+             ON CONFLICT (key) DO UPDATE SET value = '', updated_at = NOW()",
+        )
+        .execute(&pool)
+        .await?;
+    }
+
     Ok(())
 }

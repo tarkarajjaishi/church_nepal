@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '@/lib/admin/api'
-import { Users, CheckCircle, XCircle, Clock, Eye, Trash2 } from 'lucide-react'
+import { Users, CheckCircle, XCircle, Clock, Eye, Trash2, Filter } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
 import { Loading, TableSkeleton, TableEmpty } from '@/components/LoadingStates'
 
@@ -22,13 +23,19 @@ const statusColors: Record<string, string> = {
 
 export default function MemberApplicationsPage() {
   const qc = useQueryClient()
+  const [statusFilter, setStatusFilter] = useState('all')
   const [selected, setSelected] = useState<any>(null)
   const [reviewNotes, setReviewNotes] = useState('')
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
 
   const { data: applications = [], isLoading } = useQuery({
-    queryKey: ['member-applications'],
-    queryFn: () => api.get('/member-applications').then(r => r.data),
+    queryKey: ['member-applications', statusFilter],
+    queryFn: async () => {
+      const { data } = await api.get('/member-applications')
+      const list: any[] = Array.isArray(data) ? data : data.data ?? []
+      if (statusFilter === 'all') return list
+      return list.filter((a: any) => a.status === statusFilter)
+    },
   })
 
   const { data: stats } = useQuery({
@@ -36,10 +43,26 @@ export default function MemberApplicationsPage() {
     queryFn: () => api.get('/member-applications/stats').then(r => r.data),
   })
 
+  const approveMut = useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason?: string }) => api.put(`/member-applications/${id}/approve`, { reason }).then(r => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['member-applications'], exact: false }); qc.invalidateQueries({ queryKey: ['member-applications-stats'], exact: false })
+      setSelected(null); setReviewNotes(''); toast.success('Application approved')
+    },
+  })
+
+  const rejectMut = useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason?: string }) => api.put(`/member-applications/${id}/reject`, { reason }).then(r => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['member-applications'], exact: false }); qc.invalidateQueries({ queryKey: ['member-applications-stats'], exact: false })
+      setSelected(null); setReviewNotes(''); toast.success('Application rejected')
+    },
+  })
+
   const updateMut = useMutation({
     mutationFn: ({ id, data }: any) => api.put(`/member-applications/${id}`, data),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['member-applications'] }); qc.invalidateQueries({ queryKey: ['member-applications-stats'] })
+      qc.invalidateQueries({ queryKey: ['member-applications'], exact: false }); qc.invalidateQueries({ queryKey: ['member-applications-stats'], exact: false })
       setSelected(null); setReviewNotes(''); toast.success('Application updated')
     },
   })
@@ -47,21 +70,27 @@ export default function MemberApplicationsPage() {
   const deleteMut = useMutation({
     mutationFn: (id: string) => api.delete(`/member-applications/${id}`),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['member-applications'] }); qc.invalidateQueries({ queryKey: ['member-applications-stats'] })
+      qc.invalidateQueries({ queryKey: ['member-applications'], exact: false }); qc.invalidateQueries({ queryKey: ['member-applications-stats'], exact: false })
       setConfirmDelete(null); toast.success('Deleted')
     },
   })
 
   const handleApprove = (app: any) => {
-    updateMut.mutate({ id: app.id, data: { status: 'approved', notes: reviewNotes } })
+    approveMut.mutate({ id: app.id, reason: reviewNotes })
   }
 
   const handleReject = (app: any) => {
-    updateMut.mutate({ id: app.id, data: { status: 'rejected', notes: reviewNotes } })
+    rejectMut.mutate({ id: app.id, reason: reviewNotes })
   }
 
   return (
     <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-[#0b3c5d] flex items-center gap-2">
+          Member Applications
+        </h1>
+      </div>
+
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
@@ -84,10 +113,34 @@ export default function MemberApplicationsPage() {
         ))}
       </div>
 
+      {/* Filters */}
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex items-center gap-4 flex-wrap">
+            <div className="flex items-center gap-2">
+              <Filter className="size-4 text-muted-foreground" />
+              <span className="text-sm font-medium">Status:</span>
+            </div>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-40">
+                <SelectValue placeholder="All statuses" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="approved">Approved</SelectItem>
+                <SelectItem value="rejected">Rejected</SelectItem>
+              </SelectContent>
+            </Select>
+            <span className="text-sm text-muted-foreground">{applications.length} applications</span>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Applications Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Member Applications</CardTitle>
+          <CardTitle>Applications</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
@@ -107,7 +160,7 @@ export default function MemberApplicationsPage() {
                 {isLoading ? (
                   <TableSkeleton rows={5} cols={7} />
                 ) : applications.length === 0 ? (
-                  <TableEmpty colSpan={7} message="No applications yet" />
+                  <TableEmpty colSpan={7} message="No applications found" />
                 ) : applications.map((app: any) => (
                   <tr key={app.id} className="border-b hover:bg-muted/50 cursor-pointer" onClick={() => { setSelected(app); setReviewNotes(app.notes || '') }}>
                     <td className="p-2 font-medium">{app.firstName} {app.lastName}</td>
@@ -166,18 +219,18 @@ export default function MemberApplicationsPage() {
 
                 {/* Review Notes */}
                 <div className="space-y-2">
-                  <Label>Review Notes</Label>
-                  <Textarea value={reviewNotes} onChange={e => setReviewNotes(e.target.value)} rows={3} placeholder="Add notes about this application..." />
+                  <Label>Reason / Review Notes</Label>
+                  <Textarea value={reviewNotes} onChange={e => setReviewNotes(e.target.value)} rows={3} placeholder="Add notes or reason for this decision..." />
                 </div>
               </div>
 
               <DialogFooter className="gap-2">
                 {selected.status === 'pending' && (
                   <>
-                    <Button variant="destructive" onClick={() => handleReject(selected)} disabled={updateMut.isPending}>
+                    <Button variant="destructive" onClick={() => handleReject(selected)} disabled={rejectMut.isPending || approveMut.isPending}>
                       <XCircle className="size-4 mr-1" /> Reject
                     </Button>
-                    <Button onClick={() => handleApprove(selected)} disabled={updateMut.isPending} className="bg-green-600 hover:bg-green-700">
+                    <Button onClick={() => handleApprove(selected)} disabled={rejectMut.isPending || approveMut.isPending} className="bg-green-600 hover:bg-green-700">
                       <CheckCircle className="size-4 mr-1" /> Approve
                     </Button>
                   </>

@@ -11,6 +11,7 @@ pub struct Notice {
     pub urgent: bool,
     pub enabled: Option<bool>,
     pub sort_order: Option<i32>,
+    pub published_at: Option<chrono::NaiveDateTime>,
     pub created_at: chrono::NaiveDateTime,
 }
 
@@ -21,6 +22,10 @@ pub struct CreateNotice {
     pub category: String,
     pub text: String,
     pub urgent: Option<bool>,
+    #[serde(default)]
+    pub enabled: Option<bool>,
+    #[serde(default)]
+    pub published_at: Option<chrono::NaiveDateTime>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -30,4 +35,6 @@ pub struct UpdateNotice {
     pub category: Option<String>,
     pub text: Option<String>,
     pub urgent: Option<bool>,
+    pub enabled: Option<bool>,
+    pub published_at: Option<chrono::NaiveDateTime>,
 }

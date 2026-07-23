@@ -137,18 +137,19 @@ ALTER TABLE donations ADD COLUMN IF NOT EXISTS fund_id UUID;
 -- Recurring Donations
 CREATE TABLE IF NOT EXISTS recurring_donations (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    donor_name VARCHAR(255) NOT NULL DEFAULT '',
-    donor_email VARCHAR(255) NOT NULL DEFAULT '',
-    donor_phone VARCHAR(100) NOT NULL DEFAULT '',
-    fund_id UUID REFERENCES funds(id),
+    member_id UUID REFERENCES members(id),
     amount BIGINT NOT NULL DEFAULT 0,
-    frequency VARCHAR(50) NOT NULL DEFAULT 'monthly',
-    payment_method VARCHAR(50) NOT NULL DEFAULT 'bank',
-    status VARCHAR(50) NOT NULL DEFAULT 'active',
-    next_date DATE,
+    interval VARCHAR(50) NOT NULL DEFAULT 'monthly',
+    gateway VARCHAR(50) NOT NULL DEFAULT 'stripe',
+    next_charge_at TIMESTAMP,
+    active BOOLEAN NOT NULL DEFAULT true,
+    stripe_subscription_id VARCHAR(255),
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
+CREATE INDEX IF NOT EXISTS idx_recurring_donations_active ON recurring_donations(active);
+CREATE INDEX IF NOT EXISTS idx_recurring_donations_next_charge ON recurring_donations(next_charge_at);
+CREATE INDEX IF NOT EXISTS idx_recurring_donations_member ON recurring_donations(member_id);
 
 -- Pledges
 CREATE TABLE IF NOT EXISTS pledges (

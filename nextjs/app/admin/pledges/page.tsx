@@ -44,6 +44,8 @@ export default function PledgesPage() {
     queryFn: () => api.get('/campaigns').then(r => r.data),
   })
 
+  const campaignMap = Object.fromEntries((campaigns as any[]).map((c: any) => [c.id, c.title]))
+
   const createMut = useMutation({
     mutationFn: (data: any) => api.post('/pledges', data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['pledges'] }); setShowForm(false); setForm({}); toast.success('Pledge created') },
@@ -143,7 +145,7 @@ export default function PledgesPage() {
                     <tr key={p.id} className="border-b last:border-0 hover:bg-muted/50">
                       <td className="p-2 font-medium">{p.personName || p.name || '-'}</td>
                       <td className="p-2 text-muted-foreground text-xs">{p.personEmail || p.email || '-'}</td>
-                      <td className="p-2 text-muted-foreground">{p.campaignTitle || p.campaignName || '-'}</td>
+                       <td className="p-2 text-muted-foreground">{campaignMap[p.campaignId] || '-'}</td>
                       <td className="p-2 text-right font-semibold">Rs {(p.amount || 0).toLocaleString()}</td>
                       <td className="p-2">
                         <Badge variant="secondary" className={`text-xs ${statusColors[p.status] || ''}`}>{p.status}</Badge>

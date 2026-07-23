@@ -6,7 +6,7 @@ export interface EventRsvp {
   eventId: string
   name: string
   email: string
-  phone: string
+  phone?: string
   guests: number
   status: string
   createdAt?: string
@@ -33,6 +33,6 @@ export function useDeleteEventRsvp() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => api.delete(`/rsvps/${id}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['events'] }),
+    onSuccess: () => qc.invalidateQueries({ predicate: (q: any) => Array.isArray(q.queryKey) && q.queryKey[0] === 'events' }),
   })
 }
