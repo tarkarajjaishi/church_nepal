@@ -202,9 +202,12 @@ export const getBlogPostBySlug = (slug: string): BlogPost | undefined => {
   return mockBlogPosts.find(post => post.slug === slug);
 };
 
-// Get blog posts by category
+// Get blog posts by category (case-insensitive — slugs arrive lowercased)
 export const getBlogPostsByCategory = (category: string): BlogPost[] => {
-  return mockBlogPosts.filter(post => post.categories.includes(category));
+  const target = category.toLowerCase();
+  return mockBlogPosts.filter(post =>
+    post.categories.some(cat => cat.toLowerCase() === target)
+  );
 };
 
 // Get blog posts by tag
@@ -212,8 +215,9 @@ export const getBlogPostsByTag = (tag: string): BlogPost[] => {
   return mockBlogPosts.filter(post => post.tags.includes(tag));
 };
 
-// Get blog posts by author
+// Get blog posts by author (case-insensitive — slugs arrive lowercased)
 export const getBlogPostsByAuthor = (authorName: string): BlogPost[] => {
-  return mockBlogPosts.filter(post => post.author.name === authorName);
+  const target = authorName.toLowerCase();
+  return mockBlogPosts.filter(post => post.author.name.toLowerCase() === target);
 };
 
