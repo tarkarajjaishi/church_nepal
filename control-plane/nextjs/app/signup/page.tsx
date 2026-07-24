@@ -350,7 +350,7 @@ export default function SignupPage() {
                       </div>
                       <div>
                         <p className="text-sm text-muted mb-1">Plan</p>
-                        <Badge variant="accent">
+                        <Badge variant="secondary">
                           {plans.find((p) => p.id === form.plan)?.name}
                         </Badge>
                       </div>

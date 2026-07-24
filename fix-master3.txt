@@ -1,0 +1,305 @@
+# fix round 3
+
+@@@TASK@@@
+Fix ALL TypeScript errors in this ONE file: control-plane/nextjs/app/academy/[course]/page.tsx
+Read the file first; make MINIMAL correct edits. Fix imports (default vs named export), object shapes, and types. If a file imports 'recharts' (not installed), replace the chart with a simple inline-SVG chart instead. Do NOT run build/tsc/npm. Do NOT touch unrelated code.
+Errors (1):
+  - line 5: error TS2614: Module '"@/public-layout"' has no exported member 'PublicLayout'. Did you mean to use 'import PublicLayout from "@/public-layout"' instead?
+
+@@@TASK@@@
+Fix ALL TypeScript errors in this ONE file: control-plane/nextjs/app/academy/page.tsx
+Read the file first; make MINIMAL correct edits. Fix imports (default vs named export), object shapes, and types. If a file imports 'recharts' (not installed), replace the chart with a simple inline-SVG chart instead. Do NOT run build/tsc/npm. Do NOT touch unrelated code.
+Errors (1):
+  - line 4: error TS2614: Module '"@/public-layout"' has no exported member 'PublicLayout'. Did you mean to use 'import PublicLayout from "@/public-layout"' instead?
+
+@@@TASK@@@
+Fix ALL TypeScript errors in this ONE file: control-plane/nextjs/app/admin/analytics/page.tsx
+Read the file first; make MINIMAL correct edits. Fix imports (default vs named export), object shapes, and types. If a file imports 'recharts' (not installed), replace the chart with a simple inline-SVG chart instead. Do NOT run build/tsc/npm. Do NOT touch unrelated code.
+Errors (1):
+  - line 3: error TS2307: Cannot find module 'recharts' or its corresponding type declarations.
+
+@@@TASK@@@
+Fix ALL TypeScript errors in this ONE file: control-plane/nextjs/app/admin/audit-log/page.tsx
+Read the file first; make MINIMAL correct edits. Fix imports (default vs named export), object shapes, and types. If a file imports 'recharts' (not installed), replace the chart with a simple inline-SVG chart instead. Do NOT run build/tsc/npm. Do NOT touch unrelated code.
+Errors (8):
+  - line 159: error TS2322: Type '{ id: string; name: string; filters: { actor?: undefined; action?: undefined; }; } | { id: string; name: string; filters: { actor: string; action?: undefined; }; } | { id: string; name: string; filters: { action: string; actor?: undefined; }; } | { ...; }' is not assignable to type '{ id: string; name: string; filters: { actor?: undefined; action?: undefined; }; } | { id: string; name: string; filters: { actor: string; action?: undefined; }; } | { id: string; name: string; filters: { action: string; actor?: undefined; }; }'.
+  - line 159: error TS2322: Type '{ id: string; name: string; filters: { actor: string; action: string; target_type: string; ip_address: string; date_from: string; date_to: string; }; }' is not assignable to type '{ id: string; name: string; filters: { actor?: undefined; action?: undefined; }; } | { id: string; name: string; filters: { actor: string; action?: undefined; }; } | { id: string; name: string; filters: { action: string; actor?: undefined; }; }'.
+  - line 169: error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type '{ id: string; timestamp: string; actor: string; action: string; target_type: string; target_id: string; ip_address: string; user_agent: string; metadata: { new_user_id: string; role: string; event_id?: undefined; ... 4 more ...; name?: undefined; }; } | { ...; } | { ...; }'.
+  - line 187: error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type '{ id: string; timestamp: string; actor: string; action: string; target_type: string; target_id: string; ip_address: string; user_agent: string; metadata: { new_user_id: string; role: string; event_id?: undefined; ... 4 more ...; name?: undefined; }; } | { ...; } | { ...; }'.
+  - line 223: error TS2322: Type '{ children: Element; asChild: true; }' is not assignable to type 'IntrinsicAttributes & ButtonHTMLAttributes<HTMLButtonElement> & RefAttributes<HTMLButtonElement>'.
+  - line 245: error TS2322: Type '{ children: Element; asChild: true; }' is not assignable to type 'IntrinsicAttributes & ButtonHTMLAttributes<HTMLButtonElement> & RefAttributes<HTMLButtonElement>'.
+  - line 274: error TS2322: Type '{ placeholder: string; }' is not assignable to type 'IntrinsicAttributes & HTMLAttributes<HTMLSpanElement> & RefAttributes<HTMLSpanElement>'.
+  - line 286: error TS2322: Type '{ placeholder: string; }' is not assignable to type 'IntrinsicAttributes & HTMLAttributes<HTMLSpanElement> & RefAttributes<HTMLSpanElement>'.
+
+@@@TASK@@@
+Fix ALL TypeScript errors in this ONE file: control-plane/nextjs/app/admin/billing/coupons/page.tsx
+Read the file first; make MINIMAL correct edits. Fix imports (default vs named export), object shapes, and types. If a file imports 'recharts' (not installed), replace the chart with a simple inline-SVG chart instead. Do NOT run build/tsc/npm. Do NOT touch unrelated code.
+Errors (1):
+  - line 7: error TS2307: Cannot find module '@heroicons/react/24/outline' or its corresponding type declarations.
+
+@@@TASK@@@
+Fix ALL TypeScript errors in this ONE file: control-plane/nextjs/app/admin/blog/page.tsx
+Read the file first; make MINIMAL correct edits. Fix imports (default vs named export), object shapes, and types. If a file imports 'recharts' (not installed), replace the chart with a simple inline-SVG chart instead. Do NOT run build/tsc/npm. Do NOT touch unrelated code.
+Errors (2):
+  - line 190: error TS2322: Type '"primary"' is not assignable to type '"link" | "default" | "destructive" | "outline" | "secondary" | "ghost" | null | undefined'.
+  - line 555: error TS2322: Type '"primary"' is not assignable to type '"link" | "default" | "destructive" | "outline" | "secondary" | "ghost" | null | undefined'.
+
+@@@TASK@@@
+Fix ALL TypeScript errors in this ONE file: control-plane/nextjs/app/admin/login/page.tsx
+Read the file first; make MINIMAL correct edits. Fix imports (default vs named export), object shapes, and types. If a file imports 'recharts' (not installed), replace the chart with a simple inline-SVG chart instead. Do NOT run build/tsc/npm. Do NOT touch unrelated code.
+Errors (2):
+  - line 47: error TS2345: Argument of type '{ email: string; password: string; code: string | undefined; }' is not assignable to parameter of type 'void'.
+  - line 183: error TS2322: Type '"primary"' is not assignable to type '"link" | "default" | "destructive" | "outline" | "secondary" | "ghost" | null | undefined'.
+
+@@@TASK@@@
+Fix ALL TypeScript errors in this ONE file: control-plane/nextjs/app/admin/page.tsx
+Read the file first; make MINIMAL correct edits. Fix imports (default vs named export), object shapes, and types. If a file imports 'recharts' (not installed), replace the chart with a simple inline-SVG chart instead. Do NOT run build/tsc/npm. Do NOT touch unrelated code.
+Errors (3):
+  - line 230: error TS2322: Type '"accent"' is not assignable to type '"default" | "destructive" | "outline" | "secondary" | null | undefined'.
+  - line 236: error TS2322: Type '"destructive" | "success"' is not assignable to type '"default" | "destructive" | "outline" | "secondary" | null | undefined'.
+  - line 270: error TS2322: Type '"primary"' is not assignable to type '"link" | "default" | "destructive" | "outline" | "secondary" | "ghost" | null | undefined'.
+
+@@@TASK@@@
+Fix ALL TypeScript errors in this ONE file: control-plane/nextjs/app/admin/settings/storage/page.tsx
+Read the file first; make MINIMAL correct edits. Fix imports (default vs named export), object shapes, and types. If a file imports 'recharts' (not installed), replace the chart with a simple inline-SVG chart instead. Do NOT run build/tsc/npm. Do NOT touch unrelated code.
+Errors (2):
+  - line 93: error TS2322: Type '"warning"' is not assignable to type '"default" | "destructive" | "outline" | "secondary" | null | undefined'.
+  - line 95: error TS2322: Type '"success"' is not assignable to type '"default" | "destructive" | "outline" | "secondary" | null | undefined'.
+
+@@@TASK@@@
+Fix ALL TypeScript errors in this ONE file: control-plane/nextjs/app/blog/[slug]/page.tsx
+Read the file first; make MINIMAL correct edits. Fix imports (default vs named export), object shapes, and types. If a file imports 'recharts' (not installed), replace the chart with a simple inline-SVG chart instead. Do NOT run build/tsc/npm. Do NOT touch unrelated code.
+Errors (1):
+  - line 112: error TS2686: 'React' refers to a UMD global, but the current file is a module. Consider adding an import instead.
+
+@@@TASK@@@
+Fix ALL TypeScript errors in this ONE file: control-plane/nextjs/app/careers/page.tsx
+Read the file first; make MINIMAL correct edits. Fix imports (default vs named export), object shapes, and types. If a file imports 'recharts' (not installed), replace the chart with a simple inline-SVG chart instead. Do NOT run build/tsc/npm. Do NOT touch unrelated code.
+Errors (2):
+  - line 307: error TS2322: Type '"primary"' is not assignable to type '"link" | "default" | "destructive" | "outline" | "secondary" | "ghost" | null | undefined'.
+  - line 356: error TS2322: Type '"primary"' is not assignable to type '"link" | "default" | "destructive" | "outline" | "secondary" | "ghost" | null | undefined'.
+
+@@@TASK@@@
+Fix ALL TypeScript errors in this ONE file: control-plane/nextjs/app/changelog/page.tsx
+Read the file first; make MINIMAL correct edits. Fix imports (default vs named export), object shapes, and types. If a file imports 'recharts' (not installed), replace the chart with a simple inline-SVG chart instead. Do NOT run build/tsc/npm. Do NOT touch unrelated code.
+Errors (1):
+  - line 173: error TS2322: Type '"primary"' is not assignable to type '"link" | "default" | "destructive" | "outline" | "secondary" | "ghost" | null | undefined'.
+
+@@@TASK@@@
+Fix ALL TypeScript errors in this ONE file: control-plane/nextjs/app/components/admin/coupon-modal.tsx
+Read the file first; make MINIMAL correct edits. Fix imports (default vs named export), object shapes, and types. If a file imports 'recharts' (not installed), replace the chart with a simple inline-SVG chart instead. Do NOT run build/tsc/npm. Do NOT touch unrelated code.
+Errors (1):
+  - line 8: error TS2307: Cannot find module '@heroicons/react/24/outline' or its corresponding type declarations.
+
+@@@TASK@@@
+Fix ALL TypeScript errors in this ONE file: control-plane/nextjs/app/components/admin/create-church-modal.tsx
+Read the file first; make MINIMAL correct edits. Fix imports (default vs named export), object shapes, and types. If a file imports 'recharts' (not installed), replace the chart with a simple inline-SVG chart instead. Do NOT run build/tsc/npm. Do NOT touch unrelated code.
+Errors (2):
+  - line 193: error TS2322: Type '"primary"' is not assignable to type '"link" | "default" | "destructive" | "outline" | "secondary" | "ghost" | null | undefined'.
+  - line 230: error TS2322: Type '"primary"' is not assignable to type '"link" | "default" | "destructive" | "outline" | "secondary" | "ghost" | null | undefined'.
+
+@@@TASK@@@
+Fix ALL TypeScript errors in this ONE file: control-plane/nextjs/app/components/admin/edit-plan-modal.tsx
+Read the file first; make MINIMAL correct edits. Fix imports (default vs named export), object shapes, and types. If a file imports 'recharts' (not installed), replace the chart with a simple inline-SVG chart instead. Do NOT run build/tsc/npm. Do NOT touch unrelated code.
+Errors (1):
+  - line 157: error TS2322: Type '"primary"' is not assignable to type '"link" | "default" | "destructive" | "outline" | "secondary" | "ghost" | null | undefined'.
+
+@@@TASK@@@
+Fix ALL TypeScript errors in this ONE file: control-plane/nextjs/app/components/admin/health-score.tsx
+Read the file first; make MINIMAL correct edits. Fix imports (default vs named export), object shapes, and types. If a file imports 'recharts' (not installed), replace the chart with a simple inline-SVG chart instead. Do NOT run build/tsc/npm. Do NOT touch unrelated code.
+Errors (2):
+  - line 56: error TS18048: 'givingActivity' is possibly 'undefined'.
+  - line 58: error TS18048: 'givingActivity' is possibly 'undefined'.
+
+@@@TASK@@@
+Fix ALL TypeScript errors in this ONE file: control-plane/nextjs/app/components/admin/responsive-table.tsx
+Read the file first; make MINIMAL correct edits. Fix imports (default vs named export), object shapes, and types. If a file imports 'recharts' (not installed), replace the chart with a simple inline-SVG chart instead. Do NOT run build/tsc/npm. Do NOT touch unrelated code.
+Errors (2):
+  - line 42: error TS2686: 'React' refers to a UMD global, but the current file is a module. Consider adding an import instead.
+  - line 45: error TS2686: 'React' refers to a UMD global, but the current file is a module. Consider adding an import instead.
+
+@@@TASK@@@
+Fix ALL TypeScript errors in this ONE file: control-plane/nextjs/app/components/confirm-dialog.tsx
+Read the file first; make MINIMAL correct edits. Fix imports (default vs named export), object shapes, and types. If a file imports 'recharts' (not installed), replace the chart with a simple inline-SVG chart instead. Do NOT run build/tsc/npm. Do NOT touch unrelated code.
+Errors (1):
+  - line 54: error TS2322: Type '"destructive" | "primary"' is not assignable to type '"link" | "default" | "destructive" | "outline" | "secondary" | "ghost" | null | undefined'.
+
+@@@TASK@@@
+Fix ALL TypeScript errors in this ONE file: control-plane/nextjs/app/components/hooks/use-auth.ts
+Read the file first; make MINIMAL correct edits. Fix imports (default vs named export), object shapes, and types. If a file imports 'recharts' (not installed), replace the chart with a simple inline-SVG chart instead. Do NOT run build/tsc/npm. Do NOT touch unrelated code.
+Errors (1):
+  - line 8: error TS2322: Type '(credentials: { email: string; password: string; code?: string; }) => Promise<{ token?: string; refresh_token?: string; email?: string; twofa_required?: boolean; }>' is not assignable to type 'MutationFunction<{ token?: string | undefined; refresh_token?: string | undefined; email?: string | undefined; twofa_required?: boolean | undefined; }, void>'.
+
+@@@TASK@@@
+Fix ALL TypeScript errors in this ONE file: control-plane/nextjs/app/components/landing/hero-animated.tsx
+Read the file first; make MINIMAL correct edits. Fix imports (default vs named export), object shapes, and types. If a file imports 'recharts' (not installed), replace the chart with a simple inline-SVG chart instead. Do NOT run build/tsc/npm. Do NOT touch unrelated code.
+Errors (1):
+  - line 4: error TS2307: Cannot find module 'framer-motion' or its corresponding type declarations.
+
+@@@TASK@@@
+Fix ALL TypeScript errors in this ONE file: control-plane/nextjs/app/components/navbar.tsx
+Read the file first; make MINIMAL correct edits. Fix imports (default vs named export), object shapes, and types. If a file imports 'recharts' (not installed), replace the chart with a simple inline-SVG chart instead. Do NOT run build/tsc/npm. Do NOT touch unrelated code.
+Errors (2):
+  - line 8: error TS2305: Module '"./i18n-hook"' has no exported member 'useTranslation'.
+  - line 24: error TS2339: Property 'toggleTheme' does not exist on type 'ThemeContextType'.
+
+@@@TASK@@@
+Fix ALL TypeScript errors in this ONE file: control-plane/nextjs/app/components/plan-quiz.tsx
+Read the file first; make MINIMAL correct edits. Fix imports (default vs named export), object shapes, and types. If a file imports 'recharts' (not installed), replace the chart with a simple inline-SVG chart instead. Do NOT run build/tsc/npm. Do NOT touch unrelated code.
+Errors (3):
+  - line 64: error TS2365: Operator '<' cannot be applied to types 'string | number' and 'number'.
+  - line 74: error TS2365: Operator '>=' cannot be applied to types 'string | number' and 'number'.
+  - line 74: error TS2365: Operator '<=' cannot be applied to types 'string | number' and 'number'.
+
+@@@TASK@@@
+Fix ALL TypeScript errors in this ONE file: control-plane/nextjs/app/components/pricing-currency.tsx
+Read the file first; make MINIMAL correct edits. Fix imports (default vs named export), object shapes, and types. If a file imports 'recharts' (not installed), replace the chart with a simple inline-SVG chart instead. Do NOT run build/tsc/npm. Do NOT touch unrelated code.
+Errors (2):
+  - line 60: error TS2367: This comparison appears to be unintentional because the types '"NPR"' and '"USD"' have no overlap.
+  - line 60: error TS2367: This comparison appears to be unintentional because the types '"USD"' and '"NPR"' have no overlap.
+
+@@@TASK@@@
+Fix ALL TypeScript errors in this ONE file: control-plane/nextjs/app/components/support-widget.tsx
+Read the file first; make MINIMAL correct edits. Fix imports (default vs named export), object shapes, and types. If a file imports 'recharts' (not installed), replace the chart with a simple inline-SVG chart instead. Do NOT run build/tsc/npm. Do NOT touch unrelated code.
+Errors (1):
+  - line 21: error TS2322: Type '{ children: Element[]; variant: string; className: string; }' is not assignable to type 'IntrinsicAttributes & HTMLAttributes<HTMLDivElement> & RefAttributes<HTMLDivElement>'.
+
+@@@TASK@@@
+Fix ALL TypeScript errors in this ONE file: control-plane/nextjs/app/components/ui/button.tsx
+Read the file first; make MINIMAL correct edits. Fix imports (default vs named export), object shapes, and types. If a file imports 'recharts' (not installed), replace the chart with a simple inline-SVG chart instead. Do NOT run build/tsc/npm. Do NOT touch unrelated code.
+Errors (1):
+  - line 2: error TS2307: Cannot find module '@radix-ui/react-slot' or its corresponding type declarations.
+
+@@@TASK@@@
+Fix ALL TypeScript errors in this ONE file: control-plane/nextjs/app/components/ui/pricing-cta-section.tsx
+Read the file first; make MINIMAL correct edits. Fix imports (default vs named export), object shapes, and types. If a file imports 'recharts' (not installed), replace the chart with a simple inline-SVG chart instead. Do NOT run build/tsc/npm. Do NOT touch unrelated code.
+Errors (1):
+  - line 3: error TS2305: Module '"@/components/i18n-hook"' has no exported member 'useTranslation'.
+
+@@@TASK@@@
+Fix ALL TypeScript errors in this ONE file: control-plane/nextjs/app/components/ui/tabs.tsx
+Read the file first; make MINIMAL correct edits. Fix imports (default vs named export), object shapes, and types. If a file imports 'recharts' (not installed), replace the chart with a simple inline-SVG chart instead. Do NOT run build/tsc/npm. Do NOT touch unrelated code.
+Errors (7):
+  - line 108: error TS2339: Property 'onValueChange' does not exist on type 'Context<{ value: string; onValueChange: (value: string) => void; } | null>'.
+  - line 127: error TS2698: Spread types may only be created from object types.
+  - line 148: error TS2339: Property 'value' does not exist on type 'Context<{ value: string; onValueChange: (value: string) => void; } | null>'.
+  - line 151: error TS2339: Property 'onValueChange' does not exist on type 'Context<{ value: string; onValueChange: (value: string) => void; } | null>'.
+  - line 185: error TS18046: 'child.props' is of type 'unknown'.
+  - line 185: error TS2339: Property 'value' does not exist on type 'Context<{ value: string; onValueChange: (value: string) => void; } | null>'.
+  - line 195: error TS2339: Property 'value' does not exist on type 'Context<{ value: string; onValueChange: (value: string) => void; } | null>'.
+
+@@@TASK@@@
+Fix ALL TypeScript errors in this ONE file: control-plane/nextjs/app/components/ui/toast.tsx
+Read the file first; make MINIMAL correct edits. Fix imports (default vs named export), object shapes, and types. If a file imports 'recharts' (not installed), replace the chart with a simple inline-SVG chart instead. Do NOT run build/tsc/npm. Do NOT touch unrelated code.
+Errors (1):
+  - line 77: error TS2353: Object literal may only specify known properties, and 'class' does not exist in type 'ToastOptions'.
+
+@@@TASK@@@
+Fix ALL TypeScript errors in this ONE file: control-plane/nextjs/app/customers/page.tsx
+Read the file first; make MINIMAL correct edits. Fix imports (default vs named export), object shapes, and types. If a file imports 'recharts' (not installed), replace the chart with a simple inline-SVG chart instead. Do NOT run build/tsc/npm. Do NOT touch unrelated code.
+Errors (2):
+  - line 116: error TS2322: Type '"accent"' is not assignable to type '"default" | "destructive" | "outline" | "secondary" | null | undefined'.
+  - line 168: error TS2322: Type '"primary"' is not assignable to type '"link" | "default" | "destructive" | "outline" | "secondary" | "ghost" | null | undefined'.
+
+@@@TASK@@@
+Fix ALL TypeScript errors in this ONE file: control-plane/nextjs/app/docs/page.tsx
+Read the file first; make MINIMAL correct edits. Fix imports (default vs named export), object shapes, and types. If a file imports 'recharts' (not installed), replace the chart with a simple inline-SVG chart instead. Do NOT run build/tsc/npm. Do NOT touch unrelated code.
+Errors (2):
+  - line 247: error TS2322: Type '"primary"' is not assignable to type '"link" | "default" | "destructive" | "outline" | "secondary" | "ghost" | null | undefined'.
+  - line 267: error TS2322: Type '"primary"' is not assignable to type '"link" | "default" | "destructive" | "outline" | "secondary" | "ghost" | null | undefined'.
+
+@@@TASK@@@
+Fix ALL TypeScript errors in this ONE file: control-plane/nextjs/app/faq-section.tsx
+Read the file first; make MINIMAL correct edits. Fix imports (default vs named export), object shapes, and types. If a file imports 'recharts' (not installed), replace the chart with a simple inline-SVG chart instead. Do NOT run build/tsc/npm. Do NOT touch unrelated code.
+Errors (1):
+  - line 93: error TS2322: Type '{ children: Element[]; key: string; variant: string; className: string; }' is not assignable to type 'IntrinsicAttributes & HTMLAttributes<HTMLDivElement> & RefAttributes<HTMLDivElement>'.
+
+@@@TASK@@@
+Fix ALL TypeScript errors in this ONE file: control-plane/nextjs/app/how-section.tsx
+Read the file first; make MINIMAL correct edits. Fix imports (default vs named export), object shapes, and types. If a file imports 'recharts' (not installed), replace the chart with a simple inline-SVG chart instead. Do NOT run build/tsc/npm. Do NOT touch unrelated code.
+Errors (1):
+  - line 3: error TS2305: Module '"@/components/i18n-hook"' has no exported member 'useTranslation'.
+
+@@@TASK@@@
+Fix ALL TypeScript errors in this ONE file: control-plane/nextjs/app/newsletter/page.tsx
+Read the file first; make MINIMAL correct edits. Fix imports (default vs named export), object shapes, and types. If a file imports 'recharts' (not installed), replace the chart with a simple inline-SVG chart instead. Do NOT run build/tsc/npm. Do NOT touch unrelated code.
+Errors (1):
+  - line 4: error TS2614: Module '"@/public-layout"' has no exported member 'PublicLayout'. Did you mean to use 'import PublicLayout from "@/public-layout"' instead?
+
+@@@TASK@@@
+Fix ALL TypeScript errors in this ONE file: control-plane/nextjs/app/page.tsx
+Read the file first; make MINIMAL correct edits. Fix imports (default vs named export), object shapes, and types. If a file imports 'recharts' (not installed), replace the chart with a simple inline-SVG chart instead. Do NOT run build/tsc/npm. Do NOT touch unrelated code.
+Errors (6):
+  - line 3: error TS2614: Module '"./public-layout"' has no exported member 'PublicLayout'. Did you mean to use 'import PublicLayout from "./public-layout"' instead?
+  - line 4: error TS2614: Module '"./cta-section"' has no exported member 'CtaSection'. Did you mean to use 'import CtaSection from "./cta-section"' instead?
+  - line 5: error TS2614: Module '"./features-section"' has no exported member 'FeaturesSection'. Did you mean to use 'import FeaturesSection from "./features-section"' instead?
+  - line 6: error TS2614: Module '"./stats-section"' has no exported member 'StatsSection'. Did you mean to use 'import StatsSection from "./stats-section"' instead?
+  - line 7: error TS2614: Module '"./faq-section"' has no exported member 'FaqSection'. Did you mean to use 'import FaqSection from "./faq-section"' instead?
+  - line 8: error TS2614: Module '"./how-section"' has no exported member 'HowSection'. Did you mean to use 'import HowSection from "./how-section"' instead?
+
+@@@TASK@@@
+Fix ALL TypeScript errors in this ONE file: control-plane/nextjs/app/pricing/page.tsx
+Read the file first; make MINIMAL correct edits. Fix imports (default vs named export), object shapes, and types. If a file imports 'recharts' (not installed), replace the chart with a simple inline-SVG chart instead. Do NOT run build/tsc/npm. Do NOT touch unrelated code.
+Errors (2):
+  - line 3: error TS2614: Module '"../public-layout"' has no exported member 'PublicLayout'. Did you mean to use 'import PublicLayout from "../public-layout"' instead?
+  - line 4: error TS2614: Module '"../cta-section"' has no exported member 'CtaSection'. Did you mean to use 'import CtaSection from "../cta-section"' instead?
+
+@@@TASK@@@
+Fix ALL TypeScript errors in this ONE file: control-plane/nextjs/app/pricing/pricing-cta-section.tsx
+Read the file first; make MINIMAL correct edits. Fix imports (default vs named export), object shapes, and types. If a file imports 'recharts' (not installed), replace the chart with a simple inline-SVG chart instead. Do NOT run build/tsc/npm. Do NOT touch unrelated code.
+Errors (1):
+  - line 15: error TS2322: Type '"primary"' is not assignable to type '"link" | "default" | "destructive" | "outline" | "secondary" | "ghost" | null | undefined'.
+
+@@@TASK@@@
+Fix ALL TypeScript errors in this ONE file: control-plane/nextjs/app/pricing/pricing-faq-section.tsx
+Read the file first; make MINIMAL correct edits. Fix imports (default vs named export), object shapes, and types. If a file imports 'recharts' (not installed), replace the chart with a simple inline-SVG chart instead. Do NOT run build/tsc/npm. Do NOT touch unrelated code.
+Errors (1):
+  - line 83: error TS2322: Type '{ children: Element[]; key: string; variant: string; className: string; }' is not assignable to type 'IntrinsicAttributes & HTMLAttributes<HTMLDivElement> & RefAttributes<HTMLDivElement>'.
+
+@@@TASK@@@
+Fix ALL TypeScript errors in this ONE file: control-plane/nextjs/app/pricing/pricing-plans-section.tsx
+Read the file first; make MINIMAL correct edits. Fix imports (default vs named export), object shapes, and types. If a file imports 'recharts' (not installed), replace the chart with a simple inline-SVG chart instead. Do NOT run build/tsc/npm. Do NOT touch unrelated code.
+Errors (2):
+  - line 193: error TS2322: Type '{ children: (false | Element)[]; key: string; variant: string; className: string; }' is not assignable to type 'IntrinsicAttributes & HTMLAttributes<HTMLDivElement> & RefAttributes<HTMLDivElement>'.
+  - line 266: error TS2322: Type '"outline" | "primary"' is not assignable to type '"link" | "default" | "destructive" | "outline" | "secondary" | "ghost" | null | undefined'.
+
+@@@TASK@@@
+Fix ALL TypeScript errors in this ONE file: control-plane/nextjs/app/public-layout.tsx
+Read the file first; make MINIMAL correct edits. Fix imports (default vs named export), object shapes, and types. If a file imports 'recharts' (not installed), replace the chart with a simple inline-SVG chart instead. Do NOT run build/tsc/npm. Do NOT touch unrelated code.
+Errors (4):
+  - line 1: error TS2613: Module '"C:/Tarkaproject/church_nepal/control-plane/nextjs/app/components/navbar"' has no default export. Did you mean to use 'import { Navbar } from "C:/Tarkaproject/church_nepal/control-plane/nextjs/app/components/navbar"' instead?
+  - line 2: error TS2613: Module '"C:/Tarkaproject/church_nepal/control-plane/nextjs/app/components/footer"' has no default export. Did you mean to use 'import { Footer } from "C:/Tarkaproject/church_nepal/control-plane/nextjs/app/components/footer"' instead?
+  - line 7: error TS2613: Module '"C:/Tarkaproject/church_nepal/control-plane/nextjs/app/components/query-provider"' has no default export. Did you mean to use 'import { QueryProvider } from "C:/Tarkaproject/church_nepal/control-plane/nextjs/app/components/query-provider"' instead?
+  - line 20: error TS2322: Type '{ children: Element[]; attribute: string; defaultTheme: string; enableSystem: true; }' is not assignable to type 'IntrinsicAttributes & { children: ReactNode; }'.
+
+@@@TASK@@@
+Fix ALL TypeScript errors in this ONE file: control-plane/nextjs/app/security/page.tsx
+Read the file first; make MINIMAL correct edits. Fix imports (default vs named export), object shapes, and types. If a file imports 'recharts' (not installed), replace the chart with a simple inline-SVG chart instead. Do NOT run build/tsc/npm. Do NOT touch unrelated code.
+Errors (1):
+  - line 294: error TS2322: Type '"primary"' is not assignable to type '"link" | "default" | "destructive" | "outline" | "secondary" | "ghost" | null | undefined'.
+
+@@@TASK@@@
+Fix ALL TypeScript errors in this ONE file: control-plane/nextjs/app/signup/page.tsx
+Read the file first; make MINIMAL correct edits. Fix imports (default vs named export), object shapes, and types. If a file imports 'recharts' (not installed), replace the chart with a simple inline-SVG chart instead. Do NOT run build/tsc/npm. Do NOT touch unrelated code.
+Errors (1):
+  - line 353: error TS2322: Type '"accent"' is not assignable to type '"default" | "destructive" | "outline" | "secondary" | null | undefined'.
+
+@@@TASK@@@
+Fix ALL TypeScript errors in this ONE file: control-plane/nextjs/app/stats-section.tsx
+Read the file first; make MINIMAL correct edits. Fix imports (default vs named export), object shapes, and types. If a file imports 'recharts' (not installed), replace the chart with a simple inline-SVG chart instead. Do NOT run build/tsc/npm. Do NOT touch unrelated code.
+Errors (1):
+  - line 129: error TS2322: Type '{ children: Element[]; key: number; variant: string; className: string; }' is not assignable to type 'IntrinsicAttributes & HTMLAttributes<HTMLDivElement> & RefAttributes<HTMLDivElement>'.
+
+@@@TASK@@@
+Fix ALL TypeScript errors in this ONE file: control-plane/nextjs/app/status/page.tsx
+Read the file first; make MINIMAL correct edits. Fix imports (default vs named export), object shapes, and types. If a file imports 'recharts' (not installed), replace the chart with a simple inline-SVG chart instead. Do NOT run build/tsc/npm. Do NOT touch unrelated code.
+Errors (1):
+  - line 217: error TS2322: Type '"primary"' is not assignable to type '"link" | "default" | "destructive" | "outline" | "secondary" | "ghost" | null | undefined'.
+
+@@@TASK@@@
+Fix ALL TypeScript errors in this ONE file: control-plane/nextjs/lib/api-client.ts
+Read the file first; make MINIMAL correct edits. Fix imports (default vs named export), object shapes, and types. If a file imports 'recharts' (not installed), replace the chart with a simple inline-SVG chart instead. Do NOT run build/tsc/npm. Do NOT touch unrelated code.
+Errors (3):
+  - line 82: error TS2353: Object literal may only specify known properties, and '_skipAuthRefresh' does not exist in type 'AxiosRequestConfig<any>'.
+  - line 85: error TS2339: Property 'token' does not exist on type 'unknown'.
+  - line 85: error TS2339: Property 'refresh_token' does not exist on type 'unknown'.

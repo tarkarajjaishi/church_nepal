@@ -1,0 +1,16 @@
+[ADMIN] Subscription lifecycle manager (per church)
+Goal: Upgrade/downgrade/pause/cancel a church's subscription.
+Files (repo-root-relative): control-plane/nextjs/app/admin/churches/[id]/billing/page.tsx
+Implement:
+  - A church billing tab: current plan, next invoice, actions to change plan (with proration note), pause, resume, cancel (with confirm + reason).
+  - Show status badges (active/past_due/paused/canceled). Wire to endpoints if present, else optimistic UI + toast.
+Verify: Admins can change/pause/cancel a church's subscription with clear status.
+
+CONTEXT: This is churchnepal.com -- the Master Control SaaS site. Frontend: control-plane/nextjs
+(Next 16, React 19, App Router, Tailwind, CSS-variable theming). Backend: control-plane/backend (Rust/Axum/SQLx).
+DESIGN SYSTEM: "use client" for interactive files. Colors ONLY via CSS vars (never hardcode):
+--bg --panel --panel-2 --panel-3 --border --border-soft --text --text-strong --muted --accent
+--accent-2 --accent-soft --gold-soft --good --good-soft --max  (e.g. bg-[var(--panel)] text-[var(--muted)]).
+UI kit: @/components/ui/{card,badge,button,input}. Marketing pages wrap in PublicLayout (import from the
+right relative depth). Admin cards: "card bg-[var(--panel)] border border-[var(--border)] rounded-xl p-5".
+No new npm deps; inline SVG icons. Fully responsive; works light + dark automatically. Must compile (valid TS/TSX).

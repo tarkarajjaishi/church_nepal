@@ -187,7 +187,7 @@ export default function AdminBlogPage() {
             Manage blog posts, draft content, and control publishing.
           </p>
         </div>
-        <Button variant="primary" onClick={openCreateModal}>
+        <Button variant="default" onClick={openCreateModal}>
           <Plus className="h-4 w-4 mr-2" />
           New Post
         </Button>
@@ -552,7 +552,7 @@ export default function AdminBlogPage() {
               Cancel
             </Button>
             <Button
-              variant="primary"
+              variant="default"
               onClick={handleSubmit}
               disabled={isSubmitting}
             >

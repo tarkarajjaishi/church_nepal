@@ -4,6 +4,7 @@ import { ToasterProvider } from "@/components/ui/toaster";
 import { QueryProvider } from "@/components/query-provider";
 import { ThemeProvider } from "@/components/theme-provider";
 import StructuredData from "@/components/landing/structured-data";
+import { I18nProvider } from "@/components/i18n-hook";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://churchnepal.com";
 
@@ -64,7 +65,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ThemeProvider>
           <QueryProvider>
             <ToasterProvider />
-            {children}
+            <I18nProvider>
+              {children}
+            </I18nProvider>
           </QueryProvider>
         </ThemeProvider>
       </body>

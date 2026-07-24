@@ -1,25 +1,28 @@
-"use client";
+import * as React from 'react';
+import { cva, type VariantProps } from 'class-variance-authority';
 
-import { forwardRef } from "react";
-import { cva, type VariantProps } from "class-variance-authority";
-import { cn } from "@/lib/utils";
+import { cn } from '@/lib/utils';
 
 const badgeVariants = cva(
-  "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold transition-all",
+  'inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
   {
     variants: {
       variant: {
-        default: "bg-[var(--good-soft)] text-[var(--good)]",
-        success: "bg-[var(--good-soft)] text-[var(--good)]",
-        warning: "bg-[var(--gold-soft)] text-[var(--gold)]",
-        destructive: "bg-[var(--danger-soft)] text-[var(--danger)]",
-        outline: "border border-border bg-transparent text-text",
-        secondary: "bg-panel-2 text-muted",
-        accent: "bg-[var(--accent-soft)] text-[var(--accent)]",
+        default:
+          'border-transparent bg-primary text-primary-foreground shadow hover:bg-primary/80',
+        secondary:
+          'border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/60',
+        destructive:
+          'border-transparent bg-destructive text-destructive-foreground shadow hover:bg-destructive/80',
+        outline: 'text-foreground',
+        primary: 'border-transparent bg-[var(--accent)] text-white',
+        accent: 'border-transparent bg-[var(--accent-soft)] text-[var(--accent)]',
+        success: 'border-transparent bg-[var(--good-soft)] text-[var(--good)]',
+        warning: 'border-transparent bg-[var(--gold-soft)] text-[var(--text-strong)]',
       },
     },
     defaultVariants: {
-      variant: "default",
+      variant: 'default',
     },
   }
 );
@@ -28,17 +31,12 @@ export interface BadgeProps
   extends React.HTMLAttributes<HTMLDivElement>,
     VariantProps<typeof badgeVariants> {}
 
-const Badge = forwardRef<HTMLDivElement, BadgeProps>(
-  ({ className, variant, ...props }, ref) => {
-    return (
-      <div
-        className={cn(badgeVariants({ variant }), className)}
-        ref={ref}
-        {...props}
-      />
-    );
-  }
-);
-Badge.displayName = "Badge";
+function Badge({ className, variant, ...props }: BadgeProps) {
+  return (
+    <div className={cn(badgeVariants({ variant }), className)} {...props} />
+  );
+}
 
 export { Badge, badgeVariants };
+
+

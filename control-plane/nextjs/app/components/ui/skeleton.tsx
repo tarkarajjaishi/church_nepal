@@ -1,18 +1,22 @@
 "use client";
 
-import { forwardRef } from "react";
 import { cn } from "@/lib/utils";
 
-const Skeleton = forwardRef<
-  HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement>
->(({ className, ...props }, ref) => (
-  <div
-    ref={ref}
-    className={cn("animate-pulse rounded-md bg-panel-2/60", className)}
-    {...props}
-  />
-));
-Skeleton.displayName = "Skeleton";
+interface SkeletonProps {
+  className?: string;
+  children?: React.ReactNode;
+}
 
-export { Skeleton };
+export function Skeleton({ className, children }: SkeletonProps) {
+  return (
+    <div
+      className={cn(
+        "animate-pulse bg-[var(--muted)]/20 rounded-md",
+        className
+      )}
+      aria-hidden="true"
+    >
+      {children}
+    </div>
+  );
+}

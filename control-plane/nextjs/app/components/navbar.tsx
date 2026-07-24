@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "./theme-provider";
-import { useTranslation } from "./i18n-hook";
+import { useI18n } from "./i18n-hook";
 import Logo from "@/components/logo";
 
 // Nav links configuration
@@ -21,8 +21,11 @@ const navLinks = [
 
 export function Navbar() {
   const pathname = usePathname();
-  const { theme, toggleTheme } = useTheme();
-  const { t, language, setLanguage } = useTranslation();
+  const { theme, setTheme } = useTheme();
+  const toggleTheme = () => {
+    setTheme(theme === "dark" ? "light" : "dark");
+  };
+  const { t, locale, setLocale } = useI18n();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isLangOpen, setIsLangOpen] = useState(false);
@@ -173,13 +176,13 @@ export function Navbar() {
               <button
                 onClick={() => setIsLangOpen(!isLangOpen)}
                 className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-[var(--muted)] hover:text-[var(--text-strong)] bg-[var(--panel-2)] hover:bg-[var(--panel-3)] rounded-md transition-colors"
-                aria-label="Select language"
+                aria-label="Select locale"
                 aria-expanded={isLangOpen}
               >
                 <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M4.083 9h11.834c.076-.429-.068-.91-.37-1.238l-4.918-5.41c-.448-.5-1.152-.5-1.598 0L4.453 7.762c-.3.329-.408.81-.282 1.238zm0 2h11.834c.076.429-.068.91-.37 1.238l-4.918 5.41c-.448.5-1.152.5-1.598 0L4.453 12.238c-.3-.329-.408-.81-.282-1.238H4.083z" clipRule="evenodd" />
                 </svg>
-                {language === "en" ? "EN" : "ने"}
+                {locale === "en" ? "EN" : "ने"}
                 <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
                 </svg>
@@ -190,21 +193,21 @@ export function Navbar() {
                   <button
                     className="w-full px-3 py-2 text-left text-sm hover:bg-[var(--panel-2)] transition-colors"
                     onClick={() => {
-                      setLanguage("en");
+                      setLocale("en");
                       setIsLangOpen(false);
                     }}
                   >
-                    {language === "en" && <span className="float-right ml-1">✓</span>}
+                    {locale === "en" && <span className="float-right ml-1">✓</span>}
                     English
                   </button>
                   <button
                     className="w-full px-3 py-2 text-left text-sm hover:bg-[var(--panel-2)] transition-colors"
                     onClick={() => {
-                      setLanguage("ne");
+                      setLocale("ne");
                       setIsLangOpen(false);
                     }}
                   >
-                    {language === "ne" && <span className="float-right ml-1">✓</span>}
+                    {locale === "ne" && <span className="float-right ml-1">✓</span>}
                     नेपाली
                   </button>
                 </div>

@@ -12,7 +12,7 @@ export default function PricingCtaSection() {
           Start your 14-day free trial today. No credit card required.
         </p>
         <Link href="/admin">
-          <Button variant="primary" size="lg">
+          <Button variant="default" size="lg">
             Start free trial
           </Button>
         </Link>

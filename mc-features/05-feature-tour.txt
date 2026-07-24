@@ -1,0 +1,19 @@
+Create an interactive tabbed feature tour section.
+CREATE: control-plane/nextjs/app/components/landing/feature-tour.tsx
+- Left: vertical tab list (Website, Giving, Members, Sermons, Admin). Right: a stylized preview panel per tab
+  (built with divs/CSS, no real screenshots). useState active tab, smooth switch.
+
+DESIGN SYSTEM (control-plane/nextjs -- match the existing churchnepal.com site):
+- Interactive files start with:  "use client";
+- COLORS: ONLY CSS variables via Tailwind arbitrary values, NEVER hardcode hex. Vars:
+  --bg --panel --panel-2 --panel-3 --border --border-soft --text --text-strong --muted
+  --accent --accent-2 --accent-soft --gold-soft --good --good-soft --max
+  e.g. bg-[var(--panel)] text-[var(--text-strong)] text-[var(--muted)] border-[var(--border)] text-[var(--accent)]
+- Reusable UI (import as needed): { Card, CardContent } from "@/components/ui/card";
+  { Badge } from "@/components/ui/badge"; { Button } from "@/components/ui/button"; Link from "next/link".
+- Marketing PAGES at app/<name>/page.tsx: wrap the whole page in PublicLayout ->
+  import PublicLayout from "../public-layout";  (a [slug] page uses "../../public-layout").
+- Admin components: outer card = className="card bg-[var(--panel)] border border-[var(--border)] rounded-xl p-5".
+- Fully responsive (grid-cols-1 md:grid-cols-2/3). Works in BOTH light and dark automatically (guaranteed by CSS vars).
+- NO new npm dependencies. Use inline SVG icons (stroke="currentColor"). Self-contained (client-side sample data is fine).
+Output the COMPLETE file for the given path as a file block. Must be valid TypeScript/TSX.

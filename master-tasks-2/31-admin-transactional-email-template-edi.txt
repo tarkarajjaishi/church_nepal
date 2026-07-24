@@ -1,0 +1,16 @@
+[ADMIN] Transactional email template editor
+Goal: Edit the platform's transactional emails.
+Files (repo-root-relative): control-plane/nextjs/app/admin/settings/emails/page.tsx; control-plane/nextjs/app/components/admin/email-editor.tsx
+Implement:
+  - List of templates (welcome, receipt, password reset, invoice, suspension). An editor with subject + body (with {{variables}}), a live preview pane, and a 'send test' button (toast).
+  - Variable helper chips insert tokens.
+Verify: Admins can edit a template, preview it with variables, and send a test.
+
+CONTEXT: This is churchnepal.com -- the Master Control SaaS site. Frontend: control-plane/nextjs
+(Next 16, React 19, App Router, Tailwind, CSS-variable theming). Backend: control-plane/backend (Rust/Axum/SQLx).
+DESIGN SYSTEM: "use client" for interactive files. Colors ONLY via CSS vars (never hardcode):
+--bg --panel --panel-2 --panel-3 --border --border-soft --text --text-strong --muted --accent
+--accent-2 --accent-soft --gold-soft --good --good-soft --max  (e.g. bg-[var(--panel)] text-[var(--muted)]).
+UI kit: @/components/ui/{card,badge,button,input}. Marketing pages wrap in PublicLayout (import from the
+right relative depth). Admin cards: "card bg-[var(--panel)] border border-[var(--border)] rounded-xl p-5".
+No new npm deps; inline SVG icons. Fully responsive; works light + dark automatically. Must compile (valid TS/TSX).

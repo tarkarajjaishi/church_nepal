@@ -126,7 +126,7 @@ export default function StatsSection() {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {testimonials.map((testimonial, index) => (
-            <Card key={index} variant="elevated" className="flex flex-col h-full">
+            <Card key={index} className="flex flex-col h-full">
               <div className="flex-1">
                 <svg
                   className="w-8 h-8 text-[var(--accent)] mb-4"

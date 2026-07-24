@@ -18,7 +18,6 @@ export default function SupportWidget() {
     <div className="fixed bottom-6 right-6 z-40">
       {open && (
         <Card
-          variant="elevated"
           className="mb-4 w-80 max-w-[calc(100vw-2rem)]"
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">

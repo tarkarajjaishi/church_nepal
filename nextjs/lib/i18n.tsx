@@ -62,7 +62,7 @@ export const dict = {
   // Detail pages
   related_sermons: { en: 'Related Sermons', ne: 'सम्बन्धित प्रवacan' },
   related_ministries: { en: 'Other Ministries', ne: 'अन्य सेवाकार्य' },
-  related_events: { en: 'Other Events': 'अन्य कार्यक्रम' },
+  related_events: { en: 'Other Events', ne: 'अन्य कार्यक्रम' },
   sermon_not_found: { en: 'Sermon not found', ne: 'प्रवacan भेटिएन' },
   event_not_found: { en: 'Event not found', ne: 'कार्यक्रम भेटिएन' },
   ministry_not_found: { en: 'Ministry not found', ne: 'सेवाकार्य भेटिएन' },

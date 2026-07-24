@@ -80,7 +80,6 @@ export default function PricingFaqSection() {
             return (
               <Card
                 key={faq.id}
-                variant="elevated"
                 className="overflow-hidden transition-all duration-[var(--dur)]"
               >
                 <h3>

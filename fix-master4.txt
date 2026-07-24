@@ -1,0 +1,174 @@
+# fix round 4
+
+@@@TASK@@@
+Fix ALL TypeScript errors in this ONE file: control-plane/nextjs/app/admin/analytics/page.tsx
+Read it first; minimal correct edits (fix imports/default-vs-named, object shapes, types, possibly-undefined). If it imports 'recharts', replace with inline SVG. Do NOT run build/tsc/npm.
+Errors (1):
+  - line 3: error TS2307: Cannot find module 'recharts' or its corresponding type declarations.
+
+@@@TASK@@@
+Fix ALL TypeScript errors in this ONE file: control-plane/nextjs/app/admin/audit-log/page.tsx
+Read it first; minimal correct edits (fix imports/default-vs-named, object shapes, types, possibly-undefined). If it imports 'recharts', replace with inline SVG. Do NOT run build/tsc/npm.
+Errors (6):
+  - line 150: error TS2339: Property 'target_type' does not exist on type '{ actor?: undefined; action?: undefined; } | { actor: string; action?: undefined; } | { action: string; actor?: undefined; }'.
+  - line 151: error TS2339: Property 'ip_address' does not exist on type '{ actor?: undefined; action?: undefined; } | { actor: string; action?: undefined; } | { action: string; actor?: undefined; }'.
+  - line 152: error TS2339: Property 'date_from' does not exist on type '{ actor?: undefined; action?: undefined; } | { actor: string; action?: undefined; } | { action: string; actor?: undefined; }'.
+  - line 153: error TS2339: Property 'date_to' does not exist on type '{ actor?: undefined; action?: undefined; } | { actor: string; action?: undefined; } | { action: string; actor?: undefined; }'.
+  - line 167: error TS2322: Type '{ id: string; name: string; filters: { actor?: undefined; action?: undefined; }; } | { id: string; name: string; filters: { actor: string; action?: undefined; }; } | { id: string; name: string; filters: { action: string; actor?: undefined; }; } | { ...; }' is not assignable to type '{ id: string; name: string; filters: { actor?: undefined; action?: undefined; }; } | { id: string; name: string; filters: { actor: string; action?: undefined; }; } | { id: string; name: string; filters: { action: string; actor?: undefined; }; }'.
+  - line 167: error TS2322: Type '{ id: string; name: string; filters: { actor: string; action: string; target_type: string; ip_address: string; date_from: string; date_to: string; }; }' is not assignable to type '{ id: string; name: string; filters: { actor?: undefined; action?: undefined; }; } | { id: string; name: string; filters: { actor: string; action?: undefined; }; } | { id: string; name: string; filters: { action: string; actor?: undefined; }; }'.
+
+@@@TASK@@@
+Fix ALL TypeScript errors in this ONE file: control-plane/nextjs/app/admin/billing/coupons/page.tsx
+Read it first; minimal correct edits (fix imports/default-vs-named, object shapes, types, possibly-undefined). If it imports 'recharts', replace with inline SVG. Do NOT run build/tsc/npm.
+Errors (1):
+  - line 7: error TS2307: Cannot find module '@heroicons/react/24/outline' or its corresponding type declarations.
+
+@@@TASK@@@
+Fix ALL TypeScript errors in this ONE file: control-plane/nextjs/app/admin/login/page.tsx
+Read it first; minimal correct edits (fix imports/default-vs-named, object shapes, types, possibly-undefined). If it imports 'recharts', replace with inline SVG. Do NOT run build/tsc/npm.
+Errors (2):
+  - line 47: error TS2345: Argument of type '{ email: string; password: string; code: string | undefined; }' is not assignable to parameter of type 'void'.
+  - line 183: error TS2322: Type '"primary"' is not assignable to type '"link" | "default" | "destructive" | "outline" | "secondary" | "ghost" | null | undefined'.
+
+@@@TASK@@@
+Fix ALL TypeScript errors in this ONE file: control-plane/nextjs/app/admin/page.tsx
+Read it first; minimal correct edits (fix imports/default-vs-named, object shapes, types, possibly-undefined). If it imports 'recharts', replace with inline SVG. Do NOT run build/tsc/npm.
+Errors (3):
+  - line 230: error TS2322: Type '"accent"' is not assignable to type '"default" | "destructive" | "outline" | "secondary" | null | undefined'.
+  - line 236: error TS2322: Type '"destructive" | "success"' is not assignable to type '"default" | "destructive" | "outline" | "secondary" | null | undefined'.
+  - line 270: error TS2322: Type '"primary"' is not assignable to type '"link" | "default" | "destructive" | "outline" | "secondary" | "ghost" | null | undefined'.
+
+@@@TASK@@@
+Fix ALL TypeScript errors in this ONE file: control-plane/nextjs/app/admin/settings/storage/page.tsx
+Read it first; minimal correct edits (fix imports/default-vs-named, object shapes, types, possibly-undefined). If it imports 'recharts', replace with inline SVG. Do NOT run build/tsc/npm.
+Errors (2):
+  - line 93: error TS2322: Type '"warning"' is not assignable to type '"default" | "destructive" | "outline" | "secondary" | null | undefined'.
+  - line 95: error TS2322: Type '"success"' is not assignable to type '"default" | "destructive" | "outline" | "secondary" | null | undefined'.
+
+@@@TASK@@@
+Fix ALL TypeScript errors in this ONE file: control-plane/nextjs/app/blog/[slug]/page.tsx
+Read it first; minimal correct edits (fix imports/default-vs-named, object shapes, types, possibly-undefined). If it imports 'recharts', replace with inline SVG. Do NOT run build/tsc/npm.
+Errors (1):
+  - line 112: error TS2686: 'React' refers to a UMD global, but the current file is a module. Consider adding an import instead.
+
+@@@TASK@@@
+Fix ALL TypeScript errors in this ONE file: control-plane/nextjs/app/careers/page.tsx
+Read it first; minimal correct edits (fix imports/default-vs-named, object shapes, types, possibly-undefined). If it imports 'recharts', replace with inline SVG. Do NOT run build/tsc/npm.
+Errors (2):
+  - line 307: error TS2322: Type '"primary"' is not assignable to type '"link" | "default" | "destructive" | "outline" | "secondary" | "ghost" | null | undefined'.
+  - line 356: error TS2322: Type '"primary"' is not assignable to type '"link" | "default" | "destructive" | "outline" | "secondary" | "ghost" | null | undefined'.
+
+@@@TASK@@@
+Fix ALL TypeScript errors in this ONE file: control-plane/nextjs/app/changelog/page.tsx
+Read it first; minimal correct edits (fix imports/default-vs-named, object shapes, types, possibly-undefined). If it imports 'recharts', replace with inline SVG. Do NOT run build/tsc/npm.
+Errors (1):
+  - line 173: error TS2322: Type '"primary"' is not assignable to type '"link" | "default" | "destructive" | "outline" | "secondary" | "ghost" | null | undefined'.
+
+@@@TASK@@@
+Fix ALL TypeScript errors in this ONE file: control-plane/nextjs/app/components/admin/coupon-modal.tsx
+Read it first; minimal correct edits (fix imports/default-vs-named, object shapes, types, possibly-undefined). If it imports 'recharts', replace with inline SVG. Do NOT run build/tsc/npm.
+Errors (1):
+  - line 8: error TS2307: Cannot find module '@heroicons/react/24/outline' or its corresponding type declarations.
+
+@@@TASK@@@
+Fix ALL TypeScript errors in this ONE file: control-plane/nextjs/app/components/admin/create-church-modal.tsx
+Read it first; minimal correct edits (fix imports/default-vs-named, object shapes, types, possibly-undefined). If it imports 'recharts', replace with inline SVG. Do NOT run build/tsc/npm.
+Errors (2):
+  - line 193: error TS2322: Type '"primary"' is not assignable to type '"link" | "default" | "destructive" | "outline" | "secondary" | "ghost" | null | undefined'.
+  - line 230: error TS2322: Type '"primary"' is not assignable to type '"link" | "default" | "destructive" | "outline" | "secondary" | "ghost" | null | undefined'.
+
+@@@TASK@@@
+Fix ALL TypeScript errors in this ONE file: control-plane/nextjs/app/components/admin/edit-plan-modal.tsx
+Read it first; minimal correct edits (fix imports/default-vs-named, object shapes, types, possibly-undefined). If it imports 'recharts', replace with inline SVG. Do NOT run build/tsc/npm.
+Errors (1):
+  - line 157: error TS2322: Type '"primary"' is not assignable to type '"link" | "default" | "destructive" | "outline" | "secondary" | "ghost" | null | undefined'.
+
+@@@TASK@@@
+Fix ALL TypeScript errors in this ONE file: control-plane/nextjs/app/components/admin/health-score.tsx
+Read it first; minimal correct edits (fix imports/default-vs-named, object shapes, types, possibly-undefined). If it imports 'recharts', replace with inline SVG. Do NOT run build/tsc/npm.
+Errors (2):
+  - line 56: error TS18048: 'givingActivity' is possibly 'undefined'.
+  - line 58: error TS18048: 'givingActivity' is possibly 'undefined'.
+
+@@@TASK@@@
+Fix ALL TypeScript errors in this ONE file: control-plane/nextjs/app/components/admin/responsive-table.tsx
+Read it first; minimal correct edits (fix imports/default-vs-named, object shapes, types, possibly-undefined). If it imports 'recharts', replace with inline SVG. Do NOT run build/tsc/npm.
+Errors (2):
+  - line 42: error TS2686: 'React' refers to a UMD global, but the current file is a module. Consider adding an import instead.
+  - line 45: error TS2686: 'React' refers to a UMD global, but the current file is a module. Consider adding an import instead.
+
+@@@TASK@@@
+Fix ALL TypeScript errors in this ONE file: control-plane/nextjs/app/components/confirm-dialog.tsx
+Read it first; minimal correct edits (fix imports/default-vs-named, object shapes, types, possibly-undefined). If it imports 'recharts', replace with inline SVG. Do NOT run build/tsc/npm.
+Errors (1):
+  - line 54: error TS2322: Type '"destructive" | "primary"' is not assignable to type '"link" | "default" | "destructive" | "outline" | "secondary" | "ghost" | null | undefined'.
+
+@@@TASK@@@
+Fix ALL TypeScript errors in this ONE file: control-plane/nextjs/app/components/hooks/use-auth.ts
+Read it first; minimal correct edits (fix imports/default-vs-named, object shapes, types, possibly-undefined). If it imports 'recharts', replace with inline SVG. Do NOT run build/tsc/npm.
+Errors (1):
+  - line 8: error TS2322: Type '(credentials: { email: string; password: string; code?: string; }) => Promise<{ token?: string; refresh_token?: string; email?: string; twofa_required?: boolean; }>' is not assignable to type 'MutationFunction<{ token?: string | undefined; refresh_token?: string | undefined; email?: string | undefined; twofa_required?: boolean | undefined; }, void>'.
+
+@@@TASK@@@
+Fix ALL TypeScript errors in this ONE file: control-plane/nextjs/app/components/landing/hero-animated.tsx
+Read it first; minimal correct edits (fix imports/default-vs-named, object shapes, types, possibly-undefined). If it imports 'recharts', replace with inline SVG. Do NOT run build/tsc/npm.
+Errors (1):
+  - line 4: error TS2307: Cannot find module 'framer-motion' or its corresponding type declarations.
+
+@@@TASK@@@
+Fix ALL TypeScript errors in this ONE file: control-plane/nextjs/app/components/navbar.tsx
+Read it first; minimal correct edits (fix imports/default-vs-named, object shapes, types, possibly-undefined). If it imports 'recharts', replace with inline SVG. Do NOT run build/tsc/npm.
+Errors (2):
+  - line 8: error TS2305: Module '"./i18n-hook"' has no exported member 'useTranslation'.
+  - line 24: error TS2339: Property 'toggleTheme' does not exist on type 'ThemeContextType'.
+
+@@@TASK@@@
+Fix ALL TypeScript errors in this ONE file: control-plane/nextjs/app/components/plan-quiz.tsx
+Read it first; minimal correct edits (fix imports/default-vs-named, object shapes, types, possibly-undefined). If it imports 'recharts', replace with inline SVG. Do NOT run build/tsc/npm.
+Errors (3):
+  - line 64: error TS2365: Operator '<' cannot be applied to types 'string | number' and 'number'.
+  - line 74: error TS2365: Operator '>=' cannot be applied to types 'string | number' and 'number'.
+  - line 74: error TS2365: Operator '<=' cannot be applied to types 'string | number' and 'number'.
+
+@@@TASK@@@
+Fix ALL TypeScript errors in this ONE file: control-plane/nextjs/app/components/pricing-currency.tsx
+Read it first; minimal correct edits (fix imports/default-vs-named, object shapes, types, possibly-undefined). If it imports 'recharts', replace with inline SVG. Do NOT run build/tsc/npm.
+Errors (2):
+  - line 60: error TS2367: This comparison appears to be unintentional because the types '"NPR"' and '"USD"' have no overlap.
+  - line 60: error TS2367: This comparison appears to be unintentional because the types '"USD"' and '"NPR"' have no overlap.
+
+@@@TASK@@@
+Fix ALL TypeScript errors in this ONE file: control-plane/nextjs/app/components/support-widget.tsx
+Read it first; minimal correct edits (fix imports/default-vs-named, object shapes, types, possibly-undefined). If it imports 'recharts', replace with inline SVG. Do NOT run build/tsc/npm.
+Errors (1):
+  - line 21: error TS2322: Type '{ children: Element[]; variant: string; className: string; }' is not assignable to type 'IntrinsicAttributes & HTMLAttributes<HTMLDivElement> & RefAttributes<HTMLDivElement>'.
+
+@@@TASK@@@
+Fix ALL TypeScript errors in this ONE file: control-plane/nextjs/app/components/ui/button.tsx
+Read it first; minimal correct edits (fix imports/default-vs-named, object shapes, types, possibly-undefined). If it imports 'recharts', replace with inline SVG. Do NOT run build/tsc/npm.
+Errors (1):
+  - line 2: error TS2307: Cannot find module '@radix-ui/react-slot' or its corresponding type declarations.
+
+@@@TASK@@@
+Fix ALL TypeScript errors in this ONE file: control-plane/nextjs/app/components/ui/pricing-cta-section.tsx
+Read it first; minimal correct edits (fix imports/default-vs-named, object shapes, types, possibly-undefined). If it imports 'recharts', replace with inline SVG. Do NOT run build/tsc/npm.
+Errors (1):
+  - line 3: error TS2305: Module '"@/components/i18n-hook"' has no exported member 'useTranslation'.
+
+@@@TASK@@@
+Fix ALL TypeScript errors in this ONE file: control-plane/nextjs/app/components/ui/tabs.tsx
+Read it first; minimal correct edits (fix imports/default-vs-named, object shapes, types, possibly-undefined). If it imports 'recharts', replace with inline SVG. Do NOT run build/tsc/npm.
+Errors (1):
+  - line 183: error TS18046: 'child.props' is of type 'unknown'.
+
+@@@TASK@@@
+Fix ALL TypeScript errors in this ONE file: control-plane/nextjs/app/components/ui/toast.tsx
+Read it first; minimal correct edits (fix imports/default-vs-named, object shapes, types, possibly-undefined). If it imports 'recharts', replace with inline SVG. Do NOT run build/tsc/npm.
+Errors (1):
+  - line 77: error TS2353: Object literal may only specify known properties, and 'class' does not exist in type 'ToastOptions'.
+
+@@@TASK@@@
+Fix ALL TypeScript errors in this ONE file: control-plane/nextjs/app/public-layout.tsx
+Read it first; minimal correct edits (fix imports/default-vs-named, object shapes, types, possibly-undefined). If it imports 'recharts', replace with inline SVG. Do NOT run build/tsc/npm.
+Errors (1):
+  - line 20: error TS2322: Type '{ children: Element[]; attribute: string; defaultTheme: string; enableSystem: string; }' is not assignable to type 'IntrinsicAttributes & { children: ReactNode; }'.

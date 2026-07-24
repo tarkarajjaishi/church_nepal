@@ -1,0 +1,16 @@
+[ADMIN] Storage & quota manager
+Goal: Per-church storage usage, limits, and alerts.
+Files (repo-root-relative): control-plane/nextjs/app/admin/settings/storage/page.tsx; control-plane/nextjs/app/components/admin/quota-gauge.tsx
+Implement:
+  - A table of churches with used/limit storage gauges, over-quota flags, and per-plan default limits editor. Alert threshold config.
+  - Reuse the quota-gauge component.
+Verify: Storage per church is visible with limits and over-quota alerts.
+
+CONTEXT: This is churchnepal.com -- the Master Control SaaS site. Frontend: control-plane/nextjs
+(Next 16, React 19, App Router, Tailwind, CSS-variable theming). Backend: control-plane/backend (Rust/Axum/SQLx).
+DESIGN SYSTEM: "use client" for interactive files. Colors ONLY via CSS vars (never hardcode):
+--bg --panel --panel-2 --panel-3 --border --border-soft --text --text-strong --muted --accent
+--accent-2 --accent-soft --gold-soft --good --good-soft --max  (e.g. bg-[var(--panel)] text-[var(--muted)]).
+UI kit: @/components/ui/{card,badge,button,input}. Marketing pages wrap in PublicLayout (import from the
+right relative depth). Admin cards: "card bg-[var(--panel)] border border-[var(--border)] rounded-xl p-5".
+No new npm deps; inline SVG icons. Fully responsive; works light + dark automatically. Must compile (valid TS/TSX).

@@ -113,7 +113,7 @@ export default function CustomersPage() {
                   <p className="text-sm text-[var(--muted)] mb-4 italic">"{story.quote}"</p>
                   <div className="flex flex-wrap gap-2">
                     {story.stats.map((stat) => (
-                      <Badge key={stat} variant="accent">{stat}</Badge>
+                      <Badge key={stat} variant="secondary">{stat}</Badge>
                     ))}
                   </div>
                 </CardContent>
@@ -165,7 +165,7 @@ export default function CustomersPage() {
             </p>
             <div className="flex flex-wrap justify-center gap-4">
               <Link href="/signup">
-                <Button variant="primary" size="lg">
+                <Button variant="default" size="lg">
                   Get Started
                 </Button>
               </Link>

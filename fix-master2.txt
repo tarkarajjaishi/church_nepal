@@ -1,0 +1,86 @@
+# fix round 2
+
+@@@TASK@@@
+Fix ALL TypeScript compile errors in this ONE file: control-plane/nextjs/app/admin/admins/error.tsx
+Read the file first; make MINIMAL correct edits to resolve every error. Do NOT run build/tsc/npm. Do NOT touch unrelated code.
+Errors (1):
+  - line 23: error TS17002: Expected corresponding JSX closing tag for 'h2'.
+
+@@@TASK@@@
+Fix ALL TypeScript compile errors in this ONE file: control-plane/nextjs/app/blog/[slug]/page.tsx
+Read the file first; make MINIMAL correct edits to resolve every error. Do NOT run build/tsc/npm. Do NOT touch unrelated code.
+Errors (1):
+  - line 300: error TS1128: Declaration or statement expected.
+
+@@@TASK@@@
+Fix ALL TypeScript compile errors in this ONE file: control-plane/nextjs/app/blog/author/[slug]/page.tsx
+Read the file first; make MINIMAL correct edits to resolve every error. Do NOT run build/tsc/npm. Do NOT touch unrelated code.
+Errors (1):
+  - line 62: error TS1128: Declaration or statement expected.
+
+@@@TASK@@@
+Fix ALL TypeScript compile errors in this ONE file: control-plane/nextjs/app/blog/category/[slug]/page.tsx
+Read the file first; make MINIMAL correct edits to resolve every error. Do NOT run build/tsc/npm. Do NOT touch unrelated code.
+Errors (1):
+  - line 67: error TS1128: Declaration or statement expected.
+
+@@@TASK@@@
+Fix ALL TypeScript compile errors in this ONE file: control-plane/nextjs/app/blog/page.tsx
+Read the file first; make MINIMAL correct edits to resolve every error. Do NOT run build/tsc/npm. Do NOT touch unrelated code.
+Errors (1):
+  - line 110: error TS1128: Declaration or statement expected.
+
+@@@TASK@@@
+Fix ALL TypeScript compile errors in this ONE file: control-plane/nextjs/app/blog/tag/[slug]/page.tsx
+Read the file first; make MINIMAL correct edits to resolve every error. Do NOT run build/tsc/npm. Do NOT touch unrelated code.
+Errors (1):
+  - line 67: error TS1128: Declaration or statement expected.
+
+@@@TASK@@@
+Fix ALL TypeScript compile errors in this ONE file: control-plane/nextjs/app/components/admin/whats-new.tsx
+Read the file first; make MINIMAL correct edits to resolve every error. Do NOT run build/tsc/npm. Do NOT touch unrelated code.
+Errors (1):
+  - line 130: error TS1185: Merge conflict marker encountered.
+
+@@@TASK@@@
+Fix ALL TypeScript compile errors in this ONE file: control-plane/nextjs/app/components/i18n-hook.ts
+Read the file first; make MINIMAL correct edits to resolve every error. Do NOT run build/tsc/npm. Do NOT touch unrelated code.
+Errors (8):
+  - line 184: error TS1005: '>' expected.
+  - line 184: error TS1005: ')' expected.
+  - line 184: error TS1136: Property assignment expected.
+  - line 184: error TS1005: ';' expected.
+  - line 184: error TS1005: ',' expected.
+  - line 186: error TS1161: Unterminated regular expression literal.
+  - line 187: error TS1128: Declaration or statement expected.
+  - line 188: error TS1128: Declaration or statement expected.
+
+@@@TASK@@@
+Fix ALL TypeScript compile errors in this ONE file: control-plane/nextjs/app/components/ui/badge.tsx
+Read the file first; make MINIMAL correct edits to resolve every error. Do NOT run build/tsc/npm. Do NOT touch unrelated code.
+Errors (1):
+  - line 37: error TS1128: Declaration or statement expected.
+
+@@@TASK@@@
+Fix ALL TypeScript compile errors in this ONE file: control-plane/nextjs/app/components/ui/button.tsx
+Read the file first; make MINIMAL correct edits to resolve every error. Do NOT run build/tsc/npm. Do NOT touch unrelated code.
+Errors (1):
+  - line 57: error TS1128: Declaration or statement expected.
+
+@@@TASK@@@
+Fix ALL TypeScript compile errors in this ONE file: control-plane/nextjs/app/components/ui/card.tsx
+Read the file first; make MINIMAL correct edits to resolve every error. Do NOT run build/tsc/npm. Do NOT touch unrelated code.
+Errors (1):
+  - line 77: error TS1128: Declaration or statement expected.
+
+@@@TASK@@@
+Fix ALL TypeScript compile errors in this ONE file: control-plane/nextjs/lib/blog-data.ts
+Read the file first; make MINIMAL correct edits to resolve every error. Do NOT run build/tsc/npm. Do NOT touch unrelated code.
+Errors (1):
+  - line 219: error TS1110: Type expected.
+
+@@@TASK@@@
+Fix ALL TypeScript compile errors in this ONE file: control-plane/nextjs/lib/changelog-data.ts
+Read the file first; make MINIMAL correct edits to resolve every error. Do NOT run build/tsc/npm. Do NOT touch unrelated code.
+Errors (1):
+  - line 50: error TS1185: Merge conflict marker encountered.

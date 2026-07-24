@@ -154,7 +154,7 @@ export default function EditPlanModal({ plan, onClose }: EditPlanModalProps) {
             </Button>
             <Button 
               type="submit" 
-              variant="primary" 
+              variant="default" 
               disabled={saving}
             >
               {saving ? "Saving..." : "Save Changes"}

@@ -1,0 +1,16 @@
+[UX] In-app changelog / 'What's new' widget
+Goal: Surface product updates inside the admin.
+Files (repo-root-relative): control-plane/nextjs/app/components/admin/whats-new.tsx; control-plane/nextjs/lib/changelog-data.ts
+Implement:
+  - A bell-adjacent 'What's new' popover listing recent releases (from changelog-data) with New/Improved/Fixed tags; an unread dot until opened.
+  - Link to the full /changelog.
+Verify: Admins see a 'What's new' popover with recent updates and an unread indicator.
+
+CONTEXT: This is churchnepal.com -- the Master Control SaaS site. Frontend: control-plane/nextjs
+(Next 16, React 19, App Router, Tailwind, CSS-variable theming). Backend: control-plane/backend (Rust/Axum/SQLx).
+DESIGN SYSTEM: "use client" for interactive files. Colors ONLY via CSS vars (never hardcode):
+--bg --panel --panel-2 --panel-3 --border --border-soft --text --text-strong --muted --accent
+--accent-2 --accent-soft --gold-soft --good --good-soft --max  (e.g. bg-[var(--panel)] text-[var(--muted)]).
+UI kit: @/components/ui/{card,badge,button,input}. Marketing pages wrap in PublicLayout (import from the
+right relative depth). Admin cards: "card bg-[var(--panel)] border border-[var(--border)] rounded-xl p-5".
+No new npm deps; inline SVG icons. Fully responsive; works light + dark automatically. Must compile (valid TS/TSX).

@@ -1,0 +1,16 @@
+[MKT] Academy / courses hub
+Goal: A learning hub teaching church admins to run their site.
+Files (repo-root-relative): control-plane/nextjs/app/academy/page.tsx; control-plane/nextjs/app/academy/[course]/page.tsx
+Implement:
+  - Grid of course cards (title, lessons count, duration, level). Course page: lesson list with a progress rail + a video/article placeholder per lesson.
+  - Client-side 'mark complete' progress in localStorage.
+Verify: Academy lists courses; a course page tracks lesson completion.
+
+CONTEXT: This is churchnepal.com -- the Master Control SaaS site. Frontend: control-plane/nextjs
+(Next 16, React 19, App Router, Tailwind, CSS-variable theming). Backend: control-plane/backend (Rust/Axum/SQLx).
+DESIGN SYSTEM: "use client" for interactive files. Colors ONLY via CSS vars (never hardcode):
+--bg --panel --panel-2 --panel-3 --border --border-soft --text --text-strong --muted --accent
+--accent-2 --accent-soft --gold-soft --good --good-soft --max  (e.g. bg-[var(--panel)] text-[var(--muted)]).
+UI kit: @/components/ui/{card,badge,button,input}. Marketing pages wrap in PublicLayout (import from the
+right relative depth). Admin cards: "card bg-[var(--panel)] border border-[var(--border)] rounded-xl p-5".
+No new npm deps; inline SVG icons. Fully responsive; works light + dark automatically. Must compile (valid TS/TSX).

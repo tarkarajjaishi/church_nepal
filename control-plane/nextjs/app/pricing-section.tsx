@@ -1,194 +1,164 @@
-"use client";
+'use client';
 
-import { usePlans } from "@/components/hooks/use-plans";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import Link from "next/link";
+import { useState, useEffect } from 'react';
+import { PricingCurrencyToggle, convertPrice } from '@/components/pricing-currency';
+import { Button } from '@/components/ui/button';
 
-interface PlanFeature {
-  text: string;
-  included: boolean;
-}
-
-// Feature labels for mapping plan features
-const featureLabels: Record<string, string> = {
-  own_subdomain: "Own subdomain (yourchurch.churchnepal.com)",
-  isolated_database: "Isolated PostgreSQL database",
-  private_storage: "Private media storage",
-  headless_cms: "Headless CMS for content",
-  instant_admin: "Instant admin login",
-  beautiful_themes: "Beautiful themes",
-  max_members: "Members",
-  max_storage_mb: "Storage (MB)",
-  max_emails: "Email sends",
-  max_churches: "Churches",
+type Plan = {
+  id: string;
+  name: string;
+  description: string;
+  priceMonthlyNPR: number;
+  priceYearlyNPR: number;
+  features: string[];
 };
 
-function formatPrice(price: number): string {
-  return new Intl.NumberFormat("en-NP", {
-    style: "currency",
-    currency: "NPR",
-    minimumFractionDigits: 0,
-  }).format(price);
-}
+const PLANS: Plan[] = [
+  {
+    id: 'basic',
+    name: 'Basic',
+    description: 'Perfect for small churches starting their online presence',
+    priceMonthlyNPR: 2500,
+    priceYearlyNPR: 25000,
+    features: [
+      'Up to 100 members',
+      'Basic website',
+      'Email support',
+      'Online giving'
+    ]
+  },
+  {
+    id: 'pro',
+    name: 'Pro',
+    description: 'For growing churches with more engagement needs',
+    priceMonthlyNPR: 5000,
+    priceYearlyNPR: 50000,
+    features: [
+      'Up to 500 members',
+      'Advanced website',
+      'Priority support',
+      'Online giving',
+      'Event management',
+      'Member directory'
+    ]
+  },
+  {
+    id: 'enterprise',
+    name: 'Enterprise',
+    description: 'For large churches with complex needs',
+    priceMonthlyNPR: 10000,
+    priceYearlyNPR: 100000,
+    features: [
+      'Unlimited members',
+      'Custom website',
+      '24/7 dedicated support',
+      'Advanced analytics',
+      'Custom integrations',
+      'Multi-site management'
+    ]
+  }
+];
 
-export default function PricingSection() {
-  const { data: plans, isLoading, isError } = usePlans();
+export function PricingSection() {
+  const [currency, setCurrency] = useState<'NPR' | 'USD'>('USD');
+  const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
 
-  // Static fallback plan data matching the use-plans structure
-  const staticPlans: PlanFeature[][] = [
-    // Free plan features
-    [
-      { text: "Own subdomain (yourchurch.churchnepal.com)", included: true },
-      { text: "Isolated PostgreSQL database", included: true },
-      { text: "Private media storage (100 MB)", included: true },
-      { text: "Headless CMS for content", included: true },
-      { text: "Instant admin login", included: true },
-      { text: "Beautiful themes", included: true },
-      { text: "Up to 10 members", included: true },
-      { text: "Up to 500 email sends/month", included: true },
-    ],
-    // Standard plan features
-    [
-      { text: "Own subdomain (yourchurch.churchnepal.com)", included: true },
-      { text: "Isolated PostgreSQL database", included: true },
-      { text: "Private media storage (1 GB)", included: true },
-      { text: "Headless CMS for content", included: true },
-      { text: "Instant admin login", included: true },
-      { text: "Beautiful themes", included: true },
-      { text: "Up to 100 members", included: true },
-      { text: "Up to 5,000 email sends/month", included: true },
-      { text: "Priority support", included: true },
-    ],
-    // Pro plan features
-    [
-      { text: "Own subdomain (yourchurch.churchnepal.com)", included: true },
-      { text: "Isolated PostgreSQL database", included: true },
-      { text: "Private media storage (10 GB)", included: true },
-      { text: "Headless CMS for content", included: true },
-      { text: "Instant admin login", included: true },
-      { text: "Beautiful themes", included: true },
-      { text: "Up to 1,000 members", included: true },
-      { text: "Up to 50,000 email sends/month", included: true },
-      { text: "Priority support", included: true },
-      { text: "Custom domain support", included: true },
-      { text: "Advanced analytics", included: true },
-    ],
-  ];
+  useEffect(() => {
+    const saved = localStorage.getItem('preferred_currency');
+    if (saved === 'NPR' || saved === 'USD') {
+      setCurrency(saved as 'NPR' | 'USD');
+    } else {
+      // Default logic for Nepal users
+      const lang = navigator.language || 'en-US';
+      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      
+      if (lang.startsWith('ne') || timezone === 'Asia/Kathmandu') {
+        setCurrency('NPR');
+      } else {
+        setCurrency('USD');
+      }
+    }
+  }, []);
 
-  const planData = plans ?? [
-    { id: "free", name: "Free", price_monthly: 0, price_annual: 0 },
-    { id: "standard", name: "Standard", price_monthly: 2499, price_annual: 29988 },
-    { id: "pro", name: "Pro", price_monthly: 14999, price_annual: 179988 },
-  ];
-
-  const isRecommended = (planId: string) => planId === "standard";
+  const handleCurrencyChange = (newCurrency: 'NPR' | 'USD') => {
+    setCurrency(newCurrency);
+    localStorage.setItem('preferred_currency', newCurrency);
+  };
 
   return (
-    <section id="pricing" className="lp-section">
-      <div className="text-center mb-[var(--space-10)]">
-        <h2 className="lp-h2">Simple, transparent pricing</h2>
-        <p className="lp-sub2">
-          Choose the plan that fits your church's needs. All plans include core features.
-        </p>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-[var(--max)] mx-auto">
-        {planData.map((plan, index) => {
-          const features = staticPlans[index] || [];
-          const price = plan.price_monthly; // Use the monthly price for display
-          const recommended = isRecommended(plan.id);
-
-          return (
-            <Card
-              key={plan.id}
-              variant={recommended ? "elevated" : "default"}
-              className={`
-                flex flex-col h-full relative transition-all
-                ${recommended 
-                  ? "border-[var(--accent)] shadow-md scale-105 md:scale-105 z-10" 
-                  : "hover:border-[var(--accent)]"
-                }
-              `}
+    <section className="py-16 bg-[var(--bg)]">
+      <div className="container mx-auto px-4 max-w-6xl">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-4">
+          <div>
+            <h2 className="text-3xl font-bold text-[var(--text)]">Simple, transparent pricing</h2>
+            <p className="text-[var(--muted)] mt-2">Choose the plan that fits your church's needs</p>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <span className={`text-sm ${currency === 'NPR' ? 'text-[var(--text)] font-medium' : 'text-[var(--muted)]'}`}>NPR</span>
+            <button 
+              onClick={() => handleCurrencyChange(currency === 'NPR' ? 'USD' : 'NPR')}
+              className="relative rounded-full w-12 h-6 bg-[var(--accent-soft)]"
             >
-              {/* Recommended badge */}
-              {recommended && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                  <span className="bg-gradient-to-r from-accent to-accent-2 text-[var(--accent-contrast)] px-3 py-1 rounded-full text-xs font-semibold shadow">
-                    Recommended
-                  </span>
-                </div>
-              )}
+              <span 
+                className={`absolute top-1 w-4 h-4 rounded-full transition-all ${
+                  currency === 'NPR' 
+                    ? 'left-1 bg-[var(--accent)]' 
+                    : 'left-7 bg-[var(--accent)]'
+                }`}
+              />
+            </button>
+            <span className={`text-sm ${currency === 'USD' ? 'text-[var(--text)] font-medium' : 'text-[var(--muted)]'}`}>USD</span>
+            
+            <PricingCurrencyToggle />
+          </div>
+        </div>
 
-              <CardHeader className={recommended ? "pt-8" : ""}>
-                <CardTitle className="text-2xl font-bold text-[var(--text-strong)] mb-2">
-                  {plan.name}
-                </CardTitle>
-                <p className="text-[var(--muted)] text-sm">
-                  {recommended 
-                    ? "Perfect for growing churches" 
-                    : index === 0 
-                    ? "For small ministries" 
-                    : "For large congregations"
-                  }
-                </p>
-              </CardHeader>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          {PLANS.map((plan) => {
+            const monthlyPrice = billingCycle === 'monthly' 
+              ? plan[`price${billingCycle.charAt(0).toUpperCase() + billingCycle.slice(1)}NPR` as keyof Plan] as number
+              : plan[`price${billingCycle.charAt(0).toUpperCase() + billingCycle.slice(1)}NPR` as keyof Plan] as number;
+              
+            const convertedPrice = convertPrice(monthlyPrice, currency);
 
-              <CardContent className="flex-1">
-                <div className="mb-2">
-                  <span className="text-5xl font-bold text-[var(--text-strong)]">
-                    {formatPrice(price)}
-                  </span>
-                  <span className="text-[var(--muted)] text-base"> / per month</span>
+            return (
+              <div 
+                key={plan.id} 
+                className="card bg-[var(--panel)] border border-[var(--border)] rounded-xl p-6 flex flex-col"
+              >
+                <h3 className="text-xl font-bold text-[var(--text)]">{plan.name}</h3>
+                <p className="text-[var(--muted)] text-sm mt-1">{plan.description}</p>
+                
+                <div className="my-4">
+                  <div className="text-3xl font-bold text-[var(--text)]">
+                    {currency === 'NPR' ? 'रू' : '$'}{convertedPrice.toLocaleString(undefined, { minimumFractionDigits: currency === 'USD' ? 2 : 0 })}
+                    <span className="text-base font-normal text-[var(--muted)]">/{billingCycle}</span>
+                  </div>
                 </div>
-                <div className="mb-6">
-                  <span className="text-sm text-[var(--muted)]">billed annually</span>
-                </div>
-
-                <ul className="space-y-3">
-                  {features.map((feature, idx) => (
-                    <li key={idx} className="flex items-start gap-2">
-                      {feature.included ? (
-                        <svg 
-                          className="w-5 h-5 text-[var(--good)] flex-shrink-0 mt-0.5" 
-                          fill="currentColor" 
-                          viewBox="0 0 20 20"
-                          aria-hidden="true"
-                        >
-                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                        </svg>
-                      ) : (
-                        <svg 
-                          className="w-5 h-5 text-[var(--muted-2)] flex-shrink-0 mt-0.5" 
-                          fill="currentColor" 
-                          viewBox="0 0 20 20"
-                          aria-hidden="true"
-                        >
-                          <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 011.414 1.414L11.414 10l4.293-4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                        </svg>
-                      )}
-                      <span className={`text-sm ${feature.included ? "text-[var(--text)]" : "text-[var(--muted-2)]"}`}>
-                        {feature.text}
-                      </span>
+                
+                <ul className="mb-6 space-y-2 flex-grow">
+                  {plan.features.map((feature, idx) => (
+                    <li key={idx} className="flex items-center">
+                      <svg className="w-4 h-4 mr-2 text-[var(--good)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+                      </svg>
+                      <span className="text-[var(--text)] text-sm">{feature}</span>
                     </li>
                   ))}
                 </ul>
-              </CardContent>
-
-              <CardFooter>
-                <Link href="/contact" className="w-full">
-                  <Button 
-                    variant={recommended ? "primary" : "outline"} 
-                    size="lg" 
-                    className="w-full"
-                  >
-                    {index === 0 ? "Get started free" : "Start free trial"}
-                  </Button>
-                </Link>
-              </CardFooter>
-            </Card>
-          );
-        })}
+                
+                <Button className="w-full mt-auto">
+                  Get Started
+                </Button>
+              </div>
+            );
+          })}
+        </div>
+        
+        <div className="mt-8 text-center text-sm text-[var(--muted)]">
+          All prices are exclusive of applicable taxes where required. Prices shown in {currency}.
+        </div>
       </div>
     </section>
   );

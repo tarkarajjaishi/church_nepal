@@ -32,7 +32,7 @@ export default function CommandPalette() {
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchSearch = useCallback(async (query: string) => {
     setLoading(true);

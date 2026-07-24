@@ -258,8 +258,8 @@ export default function Live() {
                     )}
                   </>
                 ) : (
-                  {/* Offline state: show schedule and countdown */}
                   <>
+                    {/* Offline state: show schedule and countdown */}
                     <div className="relative aspect-video bg-church-blue grid place-items-center">
                       <img
                         src={streamBlock?.image || images.praise}

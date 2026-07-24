@@ -1,0 +1,188 @@
+# fix-master.txt -- fix real TS errors, one task per file.
+# python kilo_master.py --master fix-master.txt --dir . --rotate --model-attempts 4
+
+@@@TASK@@@
+Fix ALL TypeScript compile errors in this ONE file: control-plane/nextjs/app/admin/churches/[id]/page.tsx
+Read the file first, then make MINIMAL correct edits to resolve every error below.
+Do NOT run build/tsc/cargo/docker/npm. Do NOT touch unrelated code.
+Typical fixes: add explicit param types (implicit any), correct property names
+(e.g. per_page not perPage), import/rename the correct hook/member, fix union mismatches.
+Errors (9):
+  - line 6: error TS2724: '"@/components/hooks"' has no exported member named 'useChurchDetail'. Did you mean 'useChurches'?
+  - line 54: error TS7006: Parameter 'err' implicitly has an 'any' type.
+  - line 72: error TS7006: Parameter 'p' implicitly has an 'any' type.
+  - line 79: error TS7006: Parameter 'p' implicitly has an 'any' type.
+  - line 100: error TS7006: Parameter 'err' implicitly has an 'any' type.
+  - line 120: error TS7006: Parameter 'err' implicitly has an 'any' type.
+  - line 144: error TS7006: Parameter 'url' implicitly has an 'any' type.
+  - line 147: error TS7006: Parameter 'err' implicitly has an 'any' type.
+  - line 425: error TS7006: Parameter 'plan' implicitly has an 'any' type.
+
+@@@TASK@@@
+Fix ALL TypeScript compile errors in this ONE file: control-plane/nextjs/app/admin/login/page.tsx
+Read the file first, then make MINIMAL correct edits to resolve every error below.
+Do NOT run build/tsc/cargo/docker/npm. Do NOT touch unrelated code.
+Typical fixes: add explicit param types (implicit any), correct property names
+(e.g. per_page not perPage), import/rename the correct hook/member, fix union mismatches.
+Errors (2):
+  - line 53: error TS2339: Property 'token' does not exist on type 'NonNullable<T>'.
+  - line 55: error TS2339: Property 'twofa_required' does not exist on type 'NonNullable<T>'.
+
+@@@TASK@@@
+Fix ALL TypeScript compile errors in this ONE file: control-plane/nextjs/app/admin/settings/page.tsx
+Read the file first, then make MINIMAL correct edits to resolve every error below.
+Do NOT run build/tsc/cargo/docker/npm. Do NOT touch unrelated code.
+Typical fixes: add explicit param types (implicit any), correct property names
+(e.g. per_page not perPage), import/rename the correct hook/member, fix union mismatches.
+Errors (1):
+  - line 76: error TS2345: Argument of type '(prev: { platformName: string; baseUrl: string; defaultPlan: "Standard" | "Pro" | "Free"; maintenanceMode: boolean; }) => { platformName: string; baseUrl: string; defaultPlan: string; maintenanceMode: boolean; }' is not assignable to parameter of type 'SetStateAction<{ platformName: string; baseUrl: string; defaultPlan: "Standard" | "Pro" | "Free"; maintenanceMode: boolean; }>'.
+
+@@@TASK@@@
+Fix ALL TypeScript compile errors in this ONE file: control-plane/nextjs/app/components/admin/command-palette.tsx
+Read the file first, then make MINIMAL correct edits to resolve every error below.
+Do NOT run build/tsc/cargo/docker/npm. Do NOT touch unrelated code.
+Typical fixes: add explicit param types (implicit any), correct property names
+(e.g. per_page not perPage), import/rename the correct hook/member, fix union mismatches.
+Errors (1):
+  - line 35: error TS2554: Expected 1 arguments, but got 0.
+
+@@@TASK@@@
+Fix ALL TypeScript compile errors in this ONE file: control-plane/nextjs/app/components/hooks/use-audit-log.ts
+Read the file first, then make MINIMAL correct edits to resolve every error below.
+Do NOT run build/tsc/cargo/docker/npm. Do NOT touch unrelated code.
+Typical fixes: add explicit param types (implicit any), correct property names
+(e.g. per_page not perPage), import/rename the correct hook/member, fix union mismatches.
+Errors (3):
+  - line 98: error TS2551: Property 'perPage' does not exist on type '{ data: any[]; total: number; page: number; per_page: number; total_pages: number; }'. Did you mean 'per_page'?
+  - line 99: error TS2551: Property 'totalPages' does not exist on type '{ data: any[]; total: number; page: number; per_page: number; total_pages: number; }'. Did you mean 'total_pages'?
+  - line 138: error TS2551: Property 'totalPages' does not exist on type '{ data: any[]; total: number; page: number; per_page: number; total_pages: number; }'. Did you mean 'total_pages'?
+
+@@@TASK@@@
+Fix ALL TypeScript compile errors in this ONE file: control-plane/nextjs/app/components/hooks/use-auth.ts
+Read the file first, then make MINIMAL correct edits to resolve every error below.
+Do NOT run build/tsc/cargo/docker/npm. Do NOT touch unrelated code.
+Typical fixes: add explicit param types (implicit any), correct property names
+(e.g. per_page not perPage), import/rename the correct hook/member, fix union mismatches.
+Errors (7):
+  - line 12: error TS2353: Object literal may only specify known properties, and '_skipAuthRefresh' does not exist in type 'AxiosRequestConfig<any>'.
+  - line 17: error TS2339: Property 'token' does not exist on type 'T'.
+  - line 17: error TS2339: Property 'refresh_token' does not exist on type 'T'.
+  - line 19: error TS2339: Property 'token' does not exist on type 'T'.
+  - line 20: error TS2339: Property 'token' does not exist on type 'T'.
+  - line 22: error TS2339: Property 'refresh_token' does not exist on type 'T'.
+  - line 23: error TS2339: Property 'refresh_token' does not exist on type 'T'.
+
+@@@TASK@@@
+Fix ALL TypeScript compile errors in this ONE file: control-plane/nextjs/app/components/mobile-nav.tsx
+Read the file first, then make MINIMAL correct edits to resolve every error below.
+Do NOT run build/tsc/cargo/docker/npm. Do NOT touch unrelated code.
+Typical fixes: add explicit param types (implicit any), correct property names
+(e.g. per_page not perPage), import/rename the correct hook/member, fix union mismatches.
+Errors (1):
+  - line 118: error TS2322: Type '{ children: Element; asChild: true; className: string; onClick: () => void; }' is not assignable to type 'IntrinsicAttributes & ButtonProps & RefAttributes<HTMLButtonElement>'.
+
+@@@TASK@@@
+Fix ALL TypeScript compile errors in this ONE file: control-plane/nextjs/app/components/ui/breadcrumbs.tsx
+Read the file first, then make MINIMAL correct edits to resolve every error below.
+Do NOT run build/tsc/cargo/docker/npm. Do NOT touch unrelated code.
+Typical fixes: add explicit param types (implicit any), correct property names
+(e.g. per_page not perPage), import/rename the correct hook/member, fix union mismatches.
+Errors (1):
+  - line 5: error TS2307: Cannot find module '@heroicons/react/24/outline' or its corresponding type declarations.
+
+@@@TASK@@@
+Fix ALL TypeScript compile errors in this ONE file: control-plane/nextjs/app/components/ui/empty-state.tsx
+Read the file first, then make MINIMAL correct edits to resolve every error below.
+Do NOT run build/tsc/cargo/docker/npm. Do NOT touch unrelated code.
+Typical fixes: add explicit param types (implicit any), correct property names
+(e.g. per_page not perPage), import/rename the correct hook/member, fix union mismatches.
+Errors (1):
+  - line 50: error TS2322: Type '"default"' is not assignable to type '"link" | "destructive" | "outline" | "primary" | "secondary" | "ghost" | null | undefined'.
+
+@@@TASK@@@
+Fix ALL TypeScript compile errors in this ONE file: control-plane/nextjs/app/components/ui/tabs.tsx
+Read the file first, then make MINIMAL correct edits to resolve every error below.
+Do NOT run build/tsc/cargo/docker/npm. Do NOT touch unrelated code.
+Typical fixes: add explicit param types (implicit any), correct property names
+(e.g. per_page not perPage), import/rename the correct hook/member, fix union mismatches.
+Errors (7):
+  - line 108: error TS2339: Property 'onValueChange' does not exist on type 'Context<{ value: string; onValueChange: (value: string) => void; } | null>'.
+  - line 127: error TS2698: Spread types may only be created from object types.
+  - line 148: error TS2339: Property 'value' does not exist on type 'Context<{ value: string; onValueChange: (value: string) => void; } | null>'.
+  - line 151: error TS2339: Property 'onValueChange' does not exist on type 'Context<{ value: string; onValueChange: (value: string) => void; } | null>'.
+  - line 185: error TS18046: 'child.props' is of type 'unknown'.
+  - line 185: error TS2339: Property 'value' does not exist on type 'Context<{ value: string; onValueChange: (value: string) => void; } | null>'.
+  - line 195: error TS2339: Property 'value' does not exist on type 'Context<{ value: string; onValueChange: (value: string) => void; } | null>'.
+
+@@@TASK@@@
+Fix ALL TypeScript compile errors in this ONE file: control-plane/nextjs/app/components/ui/toast.tsx
+Read the file first, then make MINIMAL correct edits to resolve every error below.
+Do NOT run build/tsc/cargo/docker/npm. Do NOT touch unrelated code.
+Typical fixes: add explicit param types (implicit any), correct property names
+(e.g. per_page not perPage), import/rename the correct hook/member, fix union mismatches.
+Errors (1):
+  - line 77: error TS2353: Object literal may only specify known properties, and 'class' does not exist in type 'ToastOptions'.
+
+@@@TASK@@@
+Fix ALL TypeScript compile errors in this ONE file: control-plane/nextjs/app/resources/page.tsx
+Read the file first, then make MINIMAL correct edits to resolve every error below.
+Do NOT run build/tsc/cargo/docker/npm. Do NOT touch unrelated code.
+Typical fixes: add explicit param types (implicit any), correct property names
+(e.g. per_page not perPage), import/rename the correct hook/member, fix union mismatches.
+Errors (1):
+  - line 247: error TS2322: Type '"default"' is not assignable to type '"link" | "destructive" | "outline" | "primary" | "secondary" | "ghost" | null | undefined'.
+
+@@@TASK@@@
+Fix ALL TypeScript compile errors in this ONE file: control-plane/nextjs/app/templates/page.tsx
+Read the file first, then make MINIMAL correct edits to resolve every error below.
+Do NOT run build/tsc/cargo/docker/npm. Do NOT touch unrelated code.
+Typical fixes: add explicit param types (implicit any), correct property names
+(e.g. per_page not perPage), import/rename the correct hook/member, fix union mismatches.
+Errors (2):
+  - line 90: error TS2322: Type '"outline" | "default"' is not assignable to type '"link" | "destructive" | "outline" | "primary" | "secondary" | "ghost" | null | undefined'.
+  - line 102: error TS2322: Type '"outline" | "default"' is not assignable to type '"link" | "destructive" | "outline" | "primary" | "secondary" | "ghost" | null | undefined'.
+
+@@@TASK@@@
+Fix ALL TypeScript compile errors in this ONE file: control-plane/nextjs/lib/api-client.ts
+Read the file first, then make MINIMAL correct edits to resolve every error below.
+Do NOT run build/tsc/cargo/docker/npm. Do NOT touch unrelated code.
+Typical fixes: add explicit param types (implicit any), correct property names
+(e.g. per_page not perPage), import/rename the correct hook/member, fix union mismatches.
+Errors (3):
+  - line 82: error TS2353: Object literal may only specify known properties, and '_skipAuthRefresh' does not exist in type 'AxiosRequestConfig<any>'.
+  - line 85: error TS2339: Property 'token' does not exist on type 'unknown'.
+  - line 85: error TS2339: Property 'refresh_token' does not exist on type 'unknown'.
+
+@@@TASK@@@
+Fix ALL TypeScript compile errors in this ONE file: nextjs/app/(site)/live/page.tsx
+Read the file first, then make MINIMAL correct edits to resolve every error below.
+Do NOT run build/tsc/cargo/docker/npm. Do NOT touch unrelated code.
+Typical fixes: add explicit param types (implicit any), correct property names
+(e.g. per_page not perPage), import/rename the correct hook/member, fix union mismatches.
+Errors (13):
+  - line 197: error TS17008: JSX element 'section' has no corresponding closing tag.
+  - line 262: error TS1109: Expression expected.
+  - line 291: error TS1005: ')' expected.
+  - line 297: error TS1003: Identifier expected.
+  - line 298: error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+  - line 307: error TS17002: Expected corresponding JSX closing tag for 'Reveal'.
+  - line 308: error TS17002: Expected corresponding JSX closing tag for 'EditableBlock'.
+  - line 309: error TS17002: Expected corresponding JSX closing tag for 'div'.
+  - line 378: error TS1005: ')' expected.
+  - line 381: error TS1005: ';' expected.
+  - line 409: error TS1128: Declaration or statement expected.
+  - line 410: error TS1109: Expression expected.
+  - line 411: error TS1109: Expression expected.
+
+@@@TASK@@@
+Fix ALL TypeScript compile errors in this ONE file: nextjs/components/site/BibleModal.tsx
+Read the file first, then make MINIMAL correct edits to resolve every error below.
+Do NOT run build/tsc/cargo/docker/npm. Do NOT touch unrelated code.
+Typical fixes: add explicit param types (implicit any), correct property names
+(e.g. per_page not perPage), import/rename the correct hook/member, fix union mismatches.
+Errors (5):
+  - line 100: error TS17008: JSX element 'div' has no corresponding closing tag.
+  - line 284: error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+  - line 286: error TS1005: ')' expected.
+  - line 288: error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+  - line 289: error TS1005: '</' expected.

@@ -51,7 +51,7 @@ export function ConfirmDialog({
             {cancelLabel}
           </Button>
           <Button 
-            variant={variant === "destructive" ? "destructive" : "primary"}
+            variant={variant === "destructive" ? "destructive" : "default"}
             onClick={() => {
               onConfirm();
               onOpenChange(false);

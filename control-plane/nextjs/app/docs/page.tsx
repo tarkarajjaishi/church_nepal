@@ -244,7 +244,7 @@ export default function DocsPage() {
                 Can't find what you're looking for? Our support team is ready to assist you with any questions or issues.
               </p>
               <Link href="/contact">
-                <Button variant="primary" size="lg">
+                <Button variant="default" size="lg">
                   Contact Support
                 </Button>
               </Link>
@@ -264,7 +264,7 @@ export default function DocsPage() {
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Link href="/signup">
-                  <Button variant="primary" size="lg">
+                  <Button variant="default" size="lg">
                     Start Free Trial
                   </Button>
                 </Link>

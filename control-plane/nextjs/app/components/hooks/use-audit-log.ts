@@ -95,8 +95,8 @@ export function useAuditLog(params?: AuditLogQueryParams) {
         entries: paginated.data.map(mapAuditLogItem),
         total: paginated.total,
         page: paginated.page,
-        per_page: paginated.perPage,
-        total_pages: paginated.totalPages,
+        per_page: paginated.per_page,
+        total_pages: paginated.total_pages,
       };
     },
     staleTime: 30000,
@@ -135,7 +135,7 @@ export async function fetchAllAuditLog(params?: Omit<AuditLogQueryParams, "page"
     const mapped = paginated.data.map(mapAuditLogItem);
     allEntries.push(...mapped);
 
-    totalPages = paginated.totalPages;
+    totalPages = paginated.total_pages;
     hasMore = page < totalPages;
     page++;
   }

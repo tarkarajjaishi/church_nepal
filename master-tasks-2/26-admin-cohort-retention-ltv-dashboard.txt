@@ -1,0 +1,16 @@
+[ADMIN] Cohort retention + LTV dashboard
+Goal: Retention heatmap + lifetime-value analysis.
+Files (repo-root-relative): control-plane/nextjs/app/admin/analytics/retention/page.tsx
+Implement:
+  - A page combining the retention heatmap (reuse if present) with an LTV summary (avg lifetime months, avg LTV, by plan) and a retention curve line chart. Sample data + date range.
+  - Wrap in the admin layout.
+Verify: The retention page shows cohort retention + LTV metrics.
+
+CONTEXT: This is churchnepal.com -- the Master Control SaaS site. Frontend: control-plane/nextjs
+(Next 16, React 19, App Router, Tailwind, CSS-variable theming). Backend: control-plane/backend (Rust/Axum/SQLx).
+DESIGN SYSTEM: "use client" for interactive files. Colors ONLY via CSS vars (never hardcode):
+--bg --panel --panel-2 --panel-3 --border --border-soft --text --text-strong --muted --accent
+--accent-2 --accent-soft --gold-soft --good --good-soft --max  (e.g. bg-[var(--panel)] text-[var(--muted)]).
+UI kit: @/components/ui/{card,badge,button,input}. Marketing pages wrap in PublicLayout (import from the
+right relative depth). Admin cards: "card bg-[var(--panel)] border border-[var(--border)] rounded-xl p-5".
+No new npm deps; inline SVG icons. Fully responsive; works light + dark automatically. Must compile (valid TS/TSX).

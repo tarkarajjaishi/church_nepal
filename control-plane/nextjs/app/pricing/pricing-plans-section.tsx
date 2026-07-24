@@ -190,7 +190,6 @@ export default function PricingPlansSection() {
           return (
             <Card
               key={plan.id}
-              variant={recommended ? "elevated" : "default"}
               className={`
                 flex flex-col h-full relative transition-all
                 ${recommended
@@ -263,7 +262,7 @@ export default function PricingPlansSection() {
               <CardFooter>
                 <Link href="/admin" className="w-full">
                   <Button
-                    variant={recommended ? "primary" : "outline"}
+                    variant={recommended ? "default" : "outline"}
                     size="lg"
                     className="w-full"
                   >

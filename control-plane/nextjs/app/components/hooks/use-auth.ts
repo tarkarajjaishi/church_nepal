@@ -4,16 +4,20 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiClient, setAuthToken, getAuthToken } from "@/lib/api-client";
 
 export function useLogin() {
-  return useMutation({
+  return useMutation<
+    { token?: string; refresh_token?: string; email?: string; twofa_required?: boolean },
+    Error,
+    { email: string; password: string; code?: string }
+  >({
     mutationFn: async (credentials: { email: string; password: string; code?: string }) => {
       const response = await apiClient.post<{ token?: string; refresh_token?: string; email?: string; twofa_required?: boolean }>(
         "/auth/login",
         credentials,
-        { _skipAuthRefresh: true }
+        { _skipAuthRefresh: true } as any
       );
       return response.data;
     },
-    onSuccess: (data) => {
+    onSuccess: (data: { token?: string; refresh_token?: string; email?: string; twofa_required?: boolean }) => {
       setAuthToken(data.token || null, data.refresh_token || null);
       if (typeof window !== "undefined") {
         if (data.token) {

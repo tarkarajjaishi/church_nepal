@@ -214,7 +214,7 @@ export default function StatusPage() {
                 </p>
                 <div className="flex flex-wrap justify-center gap-4">
                   <Link href="/signup">
-                    <Button variant="primary" size="lg">
+                    <Button variant="default" size="lg">
                       Get Started
                     </Button>
                   </Link>

@@ -1,0 +1,16 @@
+[UX] Responsive/mobile admin
+Goal: Make the admin fully usable on phones.
+Files (repo-root-relative): control-plane/nextjs/app/admin/**; control-plane/nextjs/app/admin/sidebar.tsx
+Implement:
+  - Collapse the sidebar into a slide-in drawer on mobile; make data tables scroll or stack into cards; ensure 44px touch targets and readable spacing.
+  - A mobile topbar with menu + search + bell.
+Verify: Admin pages are usable and legible on a phone-width viewport.
+
+CONTEXT: This is churchnepal.com -- the Master Control SaaS site. Frontend: control-plane/nextjs
+(Next 16, React 19, App Router, Tailwind, CSS-variable theming). Backend: control-plane/backend (Rust/Axum/SQLx).
+DESIGN SYSTEM: "use client" for interactive files. Colors ONLY via CSS vars (never hardcode):
+--bg --panel --panel-2 --panel-3 --border --border-soft --text --text-strong --muted --accent
+--accent-2 --accent-soft --gold-soft --good --good-soft --max  (e.g. bg-[var(--panel)] text-[var(--muted)]).
+UI kit: @/components/ui/{card,badge,button,input}. Marketing pages wrap in PublicLayout (import from the
+right relative depth). Admin cards: "card bg-[var(--panel)] border border-[var(--border)] rounded-xl p-5".
+No new npm deps; inline SVG icons. Fully responsive; works light + dark automatically. Must compile (valid TS/TSX).

@@ -281,6 +281,7 @@ export function BibleModal({ open, onClose }: BibleModalProps) {
               <p className="text-center text-gray-400 text-sm py-8">खोज गर्न कुनै शब्द लेख्नुहोस्</p>
             )}
           </div>
+          </div>
         )}
       </div>
     </div>

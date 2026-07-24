@@ -1,6 +1,6 @@
 "use client";
 
-import { useTranslation } from "@/components/i18n-hook";
+import { useI18n as useTranslation } from "@/components/i18n-hook";
 
 interface Step {
   number: number;

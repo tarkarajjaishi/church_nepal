@@ -1,0 +1,16 @@
+[UX] Theme polish + high-contrast + per-user preference
+Goal: Refined dark/light theming with accessibility options.
+Files (repo-root-relative): control-plane/nextjs/app/components/theme-provider.tsx; control-plane/nextjs/app/globals.css
+Implement:
+  - Add 'system' theme option (follow OS) and a high-contrast variant; persist per-user; ensure all new components read the CSS vars cleanly in every mode.
+  - A theme switcher with Light/Dark/System.
+Verify: Theme switches among Light/Dark/System + high-contrast; all pages respect it.
+
+CONTEXT: This is churchnepal.com -- the Master Control SaaS site. Frontend: control-plane/nextjs
+(Next 16, React 19, App Router, Tailwind, CSS-variable theming). Backend: control-plane/backend (Rust/Axum/SQLx).
+DESIGN SYSTEM: "use client" for interactive files. Colors ONLY via CSS vars (never hardcode):
+--bg --panel --panel-2 --panel-3 --border --border-soft --text --text-strong --muted --accent
+--accent-2 --accent-soft --gold-soft --good --good-soft --max  (e.g. bg-[var(--panel)] text-[var(--muted)]).
+UI kit: @/components/ui/{card,badge,button,input}. Marketing pages wrap in PublicLayout (import from the
+right relative depth). Admin cards: "card bg-[var(--panel)] border border-[var(--border)] rounded-xl p-5".
+No new npm deps; inline SVG icons. Fully responsive; works light + dark automatically. Must compile (valid TS/TSX).

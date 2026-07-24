@@ -1,5 +1,6 @@
 // Hooks - Re-export all resource hooks
 export * from "./use-churches";
+export * from "./use-church";
 export * from "./use-admins";
 export * from "./use-plans";
 export * from "./use-billing";

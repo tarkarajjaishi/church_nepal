@@ -79,10 +79,10 @@ apiClient.interceptors.response.use(
         const response = await apiClient.post<{ token: string; refresh_token: string }>(
           "/auth/refresh",
           { refresh_token: refreshToken },
-          { _skipAuthRefresh: true }
+          { _skipAuthRefresh: true } as any
         );
 
-        const { token, refresh_token } = response.data;
+        const { token, refresh_token } = response.data as { token: string; refresh_token: string };
         onRefreshed(token, refresh_token);
         return apiClient(originalRequest);
       } catch {

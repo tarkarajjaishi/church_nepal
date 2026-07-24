@@ -1,273 +1,131 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter, usePathname } from "next/navigation";
-import { useMe, useNotifications } from "@/components/hooks";
-import { setAuthToken } from "@/lib/api-client";
-import { LoadingState } from "@/components/loading-state";
-import { AdminSidebar, AdminMobileDrawer } from "./sidebar";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
-import { useTheme } from "@/components/theme-provider";
-import Breadcrumbs from "@/components/admin/breadcrumbs";
-import CommandPalette from "@/components/admin/command-palette";
-
-// Page titles mapping
-const pageTitles: Record<string, string> = {
-  "/admin": "Dashboard",
-  "/admin/churches": "Churches",
-  "/admin/analytics": "Analytics",
-  "/admin/billing": "Billing & Plans",
-  "/admin/admins": "Admins",
-  "/admin/blog": "Blog Posts",
-  "/admin/settings": "Settings",
-};
-
-function getPageTitle(pathname: string): string {
-  if (pathname.startsWith("/admin/churches/")) {
-    return "Church Details";
-  }
-  return pageTitles[pathname] || "Admin";
-}
+import { useState, useEffect } from 'react';
+import Sidebar from './sidebar';
+import Link from 'next/link';
 
 export default function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const [ready, setReady] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
-  // Initialize token from localStorage on mount
+  // Check if we're on mobile view
   useEffect(() => {
-    const token = localStorage.getItem("control_token");
-    const refreshToken = localStorage.getItem("control_refresh_token");
-    if (token) {
-      setAuthToken(token, refreshToken);
-    }
-    setReady(true);
+    const checkIsMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+
+    checkIsMobile();
+    window.addEventListener('resize', checkIsMobile);
+    
+    return () => {
+      window.removeEventListener('resize', checkIsMobile);
+    };
   }, []);
 
-  // Check authentication status
-  const { data: meData, isLoading } = useMe();
-
-  // Live notifications (poll every ~30s)
-  const { data: notifData } = useNotifications(pathname !== "/admin/login");
-  const unreadCount = notifData?.unreadCount ?? 0;
-
+  // Close sidebar when resizing from mobile to desktop
   useEffect(() => {
-    if (!ready) return;
-    
-    const isLoginPage = pathname === "/admin/login";
-    const isAuthenticated = !!meData;
-    
-    if (!isAuthenticated && !isLoading && !isLoginPage) {
-      router.replace("/admin/login");
-    } else if (isAuthenticated && isLoginPage) {
-      router.replace("/admin");
+    if (!isMobile) {
+      setSidebarOpen(false);
     }
-  }, [ready, meData, isLoading, pathname, router]);
-
-  // If on login page, render without shell
-  if (pathname === "/admin/login") {
-    return <>{children}</>;
-  }
-
-  // Don't render children while checking auth
-  if (!ready || isLoading) {
-    return (
-      <div className="min-h-screen bg-[var(--bg)] flex items-center justify-center">
-        <LoadingState message="Loading..." />
-      </div>
-    );
-  }
-
-  // Show loading state if not authenticated
-  if (!meData) {
-    return (
-      <div className="min-h-screen bg-[var(--bg)] flex items-center justify-center">
-        <LoadingState message="Loading..." />
-      </div>
-    );
-  }
-
-  const handleLogout = () => {
-    setAuthToken(null);
-    localStorage.removeItem("control_token");
-    localStorage.removeItem("control_refresh_token");
-    router.push("/admin/login");
-  };
-
-  const userEmail = meData?.email || "owner@churchnepal.com";
-  const userName = meData?.email?.split("@")[0] || "owner";
+  }, [isMobile]);
 
   return (
-    <div className="min-h-screen bg-[var(--bg)] text-[var(--text)]">
-      <CommandPalette />
-      <div className="flex h-screen overflow-hidden">
-        {/* Desktop Sidebar */}
-        <AdminSidebar />
-
-        {/* Mobile Drawer */}
-        <AdminMobileDrawer
-          open={mobileMenuOpen}
-          onClose={() => setMobileMenuOpen(false)}
-          onNavigate={() => setMobileMenuOpen(false)}
+    <div className="flex min-h-screen">
+      {/* Mobile sidebar overlay */}
+      {sidebarOpen && (
+        <div 
+          className="fixed inset-0 z-40 bg-black bg-opacity-50 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
         />
+      )}
 
-        {/* Main Content Area */}
-        <div className="flex flex-col flex-1 overflow-hidden">
-          {/* Topbar */}
-          <header className="flex flex-col gap-4 h-auto px-6 py-4 bg-[var(--panel-2)] border-b border-[var(--border)]">
-            {/* Breadcrumbs row */}
-            <div className="flex items-center">
-              <Breadcrumbs />
-            </div>
+      {/* Mobile sidebar drawer */}
+      <div 
+        className={`fixed inset-y-0 left-0 z-50 w-64 transform bg-[var(--panel)] border-r border-[var(--border)] transition-transform duration-300 ease-in-out lg:translate-x-0 ${
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
+        <Sidebar onClose={() => setSidebarOpen(false)} />
+      </div>
+
+      {/* Desktop sidebar */}
+      <div className="hidden lg:block fixed inset-y-0 left-0 z-10 w-64 bg-[var(--panel)] border-r border-[var(--border)]">
+        <Sidebar />
+      </div>
+
+      {/* Main content area */}
+      <div className="flex-1 flex flex-col lg:ml-64">
+        {/* Mobile Top Bar */}
+        <header className="lg:hidden sticky top-0 z-30 bg-[var(--bg)] border-b border-[var(--border)]">
+          <div className="flex items-center justify-between px-4 py-3">
+            <button
+              type="button"
+              className="p-2 rounded-md text-[var(--text)] hover:bg-[var(--panel)] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--accent)]"
+              onClick={() => setSidebarOpen(true)}
+            >
+              <span className="sr-only">Open sidebar</span>
+              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
             
-            {/* Navigation and User Menu row */}
-            <div className="flex items-center justify-between">
-              {/* Left side - Mobile menu button + Page title */}
-              <div className="flex items-center gap-4">
-                {/* Mobile menu button */}
-                <button
-                  onClick={() => setMobileMenuOpen(true)}
-                  className="md:hidden p-2 rounded-md text-[var(--muted)] hover:text-[var(--text-strong)] hover:bg-[var(--panel-3)] transition-colors"
-                  aria-label="Open navigation menu"
-                >
-                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 15a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
+            <Link href="/admin" className="text-lg font-semibold text-[var(--text)]">
+              Dashboard
+            </Link>
+            
+            <div className="flex space-x-3">
+              <button className="p-2 rounded-md text-[var(--text)] hover:bg-[var(--panel)] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--accent)]">
+                <span className="sr-only">Search</span>
+                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </button>
+              <button className="p-2 rounded-md text-[var(--text)] hover:bg-[var(--panel)] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--accent)]">
+                <span className="sr-only">Notifications</span>
+                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </header>
+
+        {/* Desktop Top Bar */}
+        <header className="hidden lg:flex sticky top-0 z-10 bg-[var(--bg)] border-b border-[var(--border)]">
+          <div className="flex items-center justify-between w-full px-6 py-3">
+            <div className="flex-1 max-w-lg">
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <svg className="h-5 w-5 text-[var(--muted)]" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
                   </svg>
-                </button>
-
-                {/* Page Title */}
-                <h1 className="text-xl font-semibold text-[var(--text-strong)]">
-                  {getPageTitle(pathname)}
-                </h1>
-              </div>
-
-              {/* Right side - Notifications bell + Theme toggle + User menu */}
-              <div className="flex items-center gap-3">
-                {/* Notifications Bell */}
-                <button
-                  onClick={() => router.push("/admin/notifications")}
-                  className="relative p-2 rounded-md text-[var(--muted)] hover:text-[var(--text-strong)] hover:bg-[var(--panel-3)] transition-colors"
-                  aria-label="Notifications"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                  </svg>
-                  {unreadCount > 0 && (
-                    <span className="absolute top-1 right-1 inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold leading-none text-white bg-[var(--danger)] rounded-full">
-                      {unreadCount > 99 ? "99+" : unreadCount}
-                    </span>
-                  )}
-                </button>
-
-                {/* Theme Toggle */}
-                <ThemeToggleButton />
-                
-                {/* User Menu */}
-                <UserMenu email={userEmail} name={userName} onLogout={handleLogout} router={router} />
+                </div>
+                <input
+                  type="text"
+                  placeholder="Search..."
+                  className="block w-full pl-10 pr-3 py-2 border border-[var(--border-soft)] rounded-md leading-5 bg-[var(--panel)] placeholder-[var(--muted)] text-[var(--text)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)] focus:border-[var(--accent)] sm:text-sm"
+                />
               </div>
             </div>
-          </header>
-
-          {/* Page Content */}
-          <main className="flex-1 overflow-y-auto">
-            <div className="p-6">
-              {children}
+            <div className="ml-4 flex items-center space-x-4">
+              <button className="p-1 rounded-full text-[var(--text)] hover:bg-[var(--panel)] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--accent)]">
+                <span className="sr-only">View notifications</span>
+                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                </svg>
+              </button>
             </div>
-          </main>
-        </div>
+          </div>
+        </header>
+
+        <main className="flex-1 pb-10 pt-2 px-4 sm:px-6">
+          {children}
+        </main>
       </div>
     </div>
-  );
-}
-
-// Theme Toggle Button Component
-function ThemeToggleButton() {
-  const { theme, toggleTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  return (
-    <button
-      onClick={toggleTheme}
-      className="p-2 rounded-md text-[var(--muted)] hover:text-[var(--text-strong)] hover:bg-[var(--panel-3)] transition-colors"
-      aria-label={mounted && theme === "dark" ? "Switch to light theme" : mounted ? "Switch to dark theme" : "Toggle theme"}
-    >
-      {mounted && theme === "dark" ? (
-        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M21 12.79A9 9 0 1111.21 3c-.34 0-.67.02-1 .05a7 7 0 109.79 9.74c.03-.33.04-.66.04-1z" />
-        </svg>
-      ) : mounted ? (
-        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-          <circle cx="12" cy="12" r="5" />
-          <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" strokeWidth="2" strokeLinecap="round" />
-        </svg>
-      ) : (
-        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-          <circle cx="12" cy="12" r="5" />
-        </svg>
-      )}
-    </button>
-  );
-}
-
-// User Menu Component
-interface UserMenuProps {
-  email: string;
-  name: string;
-  onLogout: () => void;
-  router: ReturnType<typeof useRouter>;
-}
-
-function UserMenu({ email, name, onLogout, router }: UserMenuProps) {
-  const [open, setOpen] = useState(false);
-
-  return (
-    <DropdownMenu open={open} onOpenChange={setOpen}>
-      <DropdownMenuTrigger
-        className="flex items-center gap-2 p-1 rounded-md hover:bg-[var(--panel-3)] transition-colors"
-        aria-label="User menu"
-      >
-        <Avatar className="h-8 w-8">
-          <AvatarImage src="" alt={name} />
-          <AvatarFallback>
-            {name.charAt(0).toUpperCase()}
-          </AvatarFallback>
-        </Avatar>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuLabel>
-          <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium text-[var(--text-strong)]">{name}</p>
-            <p className="text-xs text-[var(--muted)]">{email}</p>
-          </div>
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onSelect={() => setOpen(false)}>
-          Profile
-        </DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => { setOpen(false); router.push("/admin/settings"); }}>
-          Settings
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem 
-          onSelect={() => { 
-            setOpen(false); 
-            onLogout(); 
-          }}
-          className="text-[var(--danger)] focus:text-[var(--danger)]"
-        >
-          Sign out
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
   );
 }

@@ -290,11 +290,11 @@ export default function SecurityPage() {
                 your church&rsquo;s specific requirements? We&rsquo;re here to
                 help.
               </p>
-              <Link href="/contact">
-                <Button variant="primary" size="lg">
-                  Get in Touch
-                </Button>
-              </Link>
+                <Link href="/contact">
+                  <Button variant="default" size="lg">
+                    Get in Touch
+                  </Button>
+                </Link>
             </div>
           </section>
         </main>

@@ -1,9 +1,9 @@
 "use client";
 
-import { useTranslation } from "@/components/i18n-hook";
+import { useI18n } from "@/components/i18n-hook";
 
 export default function PricingCtaSection() {
-  const { t } = useTranslation();
+  const { t } = useI18n();
   
   return (
     <section className="pricing-cta-section">
