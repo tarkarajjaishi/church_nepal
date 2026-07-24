@@ -3,6 +3,7 @@ use axum::extract::{Path, Query};
 use axum::Json;
 use crate::auth::AuthUser;
 use crate::error::AppError;
+use crate::handlers::audit::create_audit_entry;
 use crate::models::{CreateGalleryItem, GalleryItem, Paginated, Pagination, UpdateGalleryItem};
 
 pub async fn list(Db(pool): Db, Query(p): Query<Pagination>) -> Result<Json<Paginated<GalleryItem>>, AppError> {
@@ -27,6 +28,7 @@ pub async fn create(_auth: AuthUser, Db(pool): Db, Json(input): Json<CreateGalle
     .bind(&input.category)
     .bind(&input.image)
     .fetch_one(&pool).await?;
+    let _ = create_audit_entry(_auth.clone(), &pool, "create", "gallery", &row.id.to_string(), json!({"id": row.id, "title": row.title})).await;
     Ok(Json(row))
 }
 
@@ -42,6 +44,7 @@ pub async fn update(_auth: AuthUser, Db(pool): Db, Path(id): Path<uuid::Uuid>, J
     .bind(input.category.as_deref().unwrap_or(&existing.category))
     .bind(input.image.as_deref().unwrap_or(&existing.image))
     .fetch_one(&pool).await?;
+    let _ = create_audit_entry(_auth.clone(), &pool, "update", "gallery", &row.id.to_string(), json!({"id": row.id, "title": row.title})).await;
     Ok(Json(row))
 }
 
@@ -49,6 +52,7 @@ pub async fn delete(_auth: AuthUser, Db(pool): Db, Path(id): Path<uuid::Uuid>) -
     sqlx::query("DELETE FROM gallery WHERE id = $1")
         .bind(id)
         .execute(&pool).await?;
+    let _ = create_audit_entry(_auth.clone(), &pool, "delete", "gallery", "deleted", json!({"deleted": true})).await;
     Ok(Json(serde_json::json!({ "deleted": true })))
 }
 pub async fn toggle(
@@ -63,6 +67,7 @@ pub async fn toggle(
     .fetch_optional(&pool)
     .await?
     .ok_or_else(|| AppError::not_found("GalleryItem not found"))?;
+    let _ = create_audit_entry(_auth.clone(), &pool, "toggle", "gallery", &row.id.to_string(), json!({"id": row.id, "title": row.title})).await;
     Ok(Json(row))
 }
 

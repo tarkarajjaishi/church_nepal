@@ -1,8 +1,11 @@
+use crate::handlers::ValidatedJson;
+use crate::security::xss;
 use crate::tenant::Db;
 use axum::extract::{Path, Query};
 use axum::Json;
 use crate::auth::AuthUser;
 use crate::error::AppError;
+use crate::handlers::audit::create_audit_entry;
 use crate::models::{ContentBlock, CreateContentBlock, Paginated, Pagination, UpdateContentBlock};
 
 #[derive(serde::Deserialize)]
@@ -48,45 +51,52 @@ pub async fn get(Db(pool): Db, Path(id): Path<uuid::Uuid>) -> Result<Json<Conten
     Ok(Json(row))
 }
 
-pub async fn create(_auth: AuthUser, Db(pool): Db, Json(input): Json<CreateContentBlock>) -> Result<Json<ContentBlock>, AppError> {
-    let row = sqlx::query_as::<_, ContentBlock>(
-        "INSERT INTO content_blocks (section_key, title, subtitle, body, image, icon, items) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *"
-    )
-    .bind(&input.section_key).bind(&input.title).bind(&input.subtitle)
-    .bind(&input.body).bind(&input.image).bind(&input.icon).bind(&input.items)
-    .fetch_one(&pool).await?;
-    Ok(Json(row))
-}
+pub async fn create(_auth: AuthUser, Db(pool): Db, ValidatedJson(input): ValidatedJson<CreateContentBlock>) -> Result<Json<ContentBlock>, AppError> {
+     let title = xss::sanitize_html(&input.title);
+     let subtitle = xss::sanitize_plain(&input.subtitle);
+     let body = xss::sanitize_html(&input.body);
+     let row = sqlx::query_as::<_, ContentBlock>(
+         "INSERT INTO content_blocks (section_key, title, subtitle, body, image, icon, items) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *"
+     )
+     .bind(&input.section_key).bind(&title).bind(&subtitle)
+     .bind(&body).bind(&input.image).bind(&input.icon).bind(&input.items)
+      .fetch_one(&pool).await?;
+      let _ = create_audit_entry(&pool, &_auth.email, "create", "content_block", &row.id.to_string(), json!({"id": row.id, "section_key": row.section_key})).await;
+     Ok(Json(row))
+ }
 
-pub async fn update(_auth: AuthUser, Db(pool): Db, Path(id): Path<uuid::Uuid>, Json(input): Json<UpdateContentBlock>) -> Result<Json<ContentBlock>, AppError> {
-    let existing = sqlx::query_as::<_, ContentBlock>("SELECT * FROM content_blocks WHERE id = $1")
-        .bind(id)
-        .fetch_optional(&pool).await?.ok_or_else(|| AppError::not_found("Content block not found"))?;
-    let row = sqlx::query_as::<_, ContentBlock>(
-        "UPDATE content_blocks SET title=COALESCE($2,title), subtitle=COALESCE($3,subtitle), body=COALESCE($4,body), image=COALESCE($5,image), icon=COALESCE($6,icon), items=COALESCE($7,items), sort_order=COALESCE($8,sort_order), updated_at=NOW() WHERE id=$1 RETURNING *"
-    )
-    .bind(id)
-    .bind(input.title.as_deref().unwrap_or(&existing.title))
-    .bind(input.subtitle.as_deref().or(existing.subtitle.as_deref()).unwrap_or(""))
-    .bind(input.body.as_deref().or(existing.body.as_deref()).unwrap_or(""))
-    .bind(input.image.as_deref().or(existing.image.as_deref()).unwrap_or(""))
-    .bind(input.icon.as_deref().or(existing.icon.as_deref()).unwrap_or(""))
-    .bind(input.items.as_ref().or(existing.items.as_ref()))
-    .bind(input.sort_order)
-    .fetch_one(&pool).await?;
-    Ok(Json(row))
-}
+pub async fn update(_auth: AuthUser, Db(pool): Db, Path(id): Path<uuid::Uuid>, ValidatedJson(input): ValidatedJson<UpdateContentBlock>) -> Result<Json<ContentBlock>, AppError> {
+     let existing = sqlx::query_as::<_, ContentBlock>("SELECT * FROM content_blocks WHERE id = $1")
+         .bind(id)
+         .fetch_optional(&pool).await?.ok_or_else(|| AppError::not_found("Content block not found"))?;
+     let row = sqlx::query_as::<_, ContentBlock>(
+         "UPDATE content_blocks SET title=COALESCE($2,title), subtitle=COALESCE($3,subtitle), body=COALESCE($4,body), image=COALESCE($5,image), icon=COALESCE($6,icon), items=COALESCE($7,items), sort_order=COALESCE($8,sort_order), updated_at=NOW() WHERE id=$1 RETURNING *"
+     )
+     .bind(id)
+     .bind(input.title.as_deref().map(|t| xss::sanitize_html(t)).unwrap_or_else(|| existing.title.clone()))
+     .bind(input.subtitle.as_deref().map(|t| xss::sanitize_plain(t)).or(existing.subtitle.as_deref()).unwrap_or(""))
+     .bind(input.body.as_deref().map(|t| xss::sanitize_html(t)).or(existing.body.as_deref()).unwrap_or(""))
+     .bind(input.image.as_deref().or(existing.image.as_deref()).unwrap_or_else(|| "".to_string()))
+     .bind(input.icon.as_deref().or(existing.icon.as_deref()).unwrap_or_else(|| "".to_string()))
+     .bind(input.items.as_ref().or(existing.items.as_ref()))
+      .bind(input.sort_order)
+      .fetch_one(&pool).await?;
+      let _ = create_audit_entry(&pool, &_auth.email, "update", "content_block", &row.id.to_string(), json!({"id": row.id, "section_key": row.section_key})).await;
+      Ok(Json(row))
+  }
 
 pub async fn delete(_auth: AuthUser, Db(pool): Db, Path(id): Path<uuid::Uuid>) -> Result<Json<serde_json::Value>, AppError> {
     sqlx::query("DELETE FROM content_blocks WHERE id = $1")
         .bind(id)
         .execute(&pool).await?;
+    let _ = create_audit_entry(&pool, &_auth.email, "delete", "content_block", &id.to_string(), json!({"id": id})).await;
     Ok(Json(serde_json::json!({ "deleted": true })))
 }
 
 pub async fn toggle(_auth: AuthUser, Db(pool): Db, Path(id): Path<uuid::Uuid>) -> Result<Json<ContentBlock>, AppError> {
     let row = sqlx::query_as::<_, ContentBlock>("UPDATE content_blocks SET enabled = NOT enabled WHERE id = $1 RETURNING *")
         .bind(id).fetch_optional(&pool).await?.ok_or_else(|| AppError::not_found("Content block not found"))?;
+    let _ = create_audit_entry(&pool, &_auth.email, "toggle", "content_block", &row.id.to_string(), json!({"id": row.id, "enabled": row.enabled})).await;
     Ok(Json(row))
 }
 

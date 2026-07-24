@@ -1,11 +1,13 @@
+use crate::handlers::ValidatedJson;
+use crate::security::xss;
 use crate::tenant::Db;
 use axum::extract::Path;
 use axum::Json;
 use crate::error::AppError;
-use crate::models::prayer_request::*;
 use crate::handlers::audit::create_audit_entry;
 use crate::email;
 use crate::auth::AuthUser;
+use crate::models::prayer_request::*;
 
 #[derive(Debug, Deserialize)]
 pub struct ApprovePrayerInput {
@@ -18,24 +20,25 @@ pub struct RejectPrayerInput {
 }
 
 pub async fn create(
-    Db(pool): Db,
-    Json(input): Json<CreatePrayerRequest>,
-) -> Result<Json<PrayerRequest>, AppError> {
-    let row = sqlx::query_as::<_, PrayerRequest>(
-        r#"INSERT INTO prayer_requests (name, email, phone, category, message, anonymous, is_public, pray_count, status)
-           VALUES ($1, $2, $3, $4, $5, $6, false, 0, 'pending')
-           RETURNING *"#,
-    )
-    .bind(input.name.unwrap_or_default())
-    .bind(input.email.unwrap_or_default())
-    .bind(input.phone.unwrap_or_default())
-    .bind(input.category.unwrap_or_default())
-    .bind(input.message)
-    .bind(input.anonymous.unwrap_or(false))
-    .fetch_one(&pool)
-    .await?;
-    Ok(Json(row))
-}
+     Db(pool): Db,
+     ValidatedJson(input): ValidatedJson<CreatePrayerRequest>,
+ ) -> Result<Json<PrayerRequest>, AppError> {
+     let message = xss::sanitize_plain(&input.message);
+     let row = sqlx::query_as::<_, PrayerRequest>(
+         r#"INSERT INTO prayer_requests (name, email, phone, category, message, anonymous, is_public, pray_count, status)
+            VALUES ($1, $2, $3, $4, $5, $6, false, 0, 'pending')
+            RETURNING *"#,
+     )
+     .bind(xss::sanitize_plain(&input.name.unwrap_or_default()))
+     .bind(xss::sanitize_plain(&input.email.unwrap_or_default()))
+     .bind(xss::sanitize_plain(&input.phone.unwrap_or_default()))
+     .bind(xss::sanitize_plain(&input.category.unwrap_or_default()))
+     .bind(&message)
+     .bind(input.anonymous.unwrap_or(false))
+     .fetch_one(&pool)
+     .await?;
+     Ok(Json(row))
+ }
 
 pub async fn list_public(
     Db(pool): Db,

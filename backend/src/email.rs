@@ -270,6 +270,67 @@ pub async fn notify_prayer_request_decision(
 
     Ok(())
 }
+
+pub async fn volunteer_confirmation(
+    pool: &PgPool,
+    visitor_name: &str,
+    visitor_email: &str,
+    visitor_phone: Option<String>,
+    interests: Option<String>,
+    availability: Option<String>,
+    message: Option<String>,
+) -> anyhow::Result<()> {
+    let smtp_host = match std::env::var("SMTP_HOST") {
+        Ok(h) if !h.is_empty() => h,
+        _ => return Ok(()),
+    };
+
+    let church_email: Option<String> =
+        sqlx::query_scalar("SELECT value FROM settings WHERE key = 'church_email'")
+            .fetch_optional(pool)
+            .await?;
+
+    let from_email = church_email.unwrap_or_else(|| "info@gracenepal.org".to_string());
+
+    let smtp_username = std::env::var("SMTP_USERNAME").unwrap_or_default();
+    let smtp_password = std::env::var("SMTP_PASSWORD").unwrap_or_default();
+    let smtp_from = std::env::var("SMTP_FROM").unwrap_or(|_| smtp_username.clone());
+
+    let subject = "Thank you for volunteering with Grace Nepal Church";
+    let mut body = format!(
+        "Dear {},\n\nThank you for your interest in volunteering with Grace Nepal Church. We have received your volunteer application.\n\n",
+        visitor_name
+    );
+    if let Some(ref interests) = interests {
+        body.push_str(&format!("Areas of interest: {}\n", interests));
+    }
+    if let Some(ref availability) = availability {
+        body.push_str(&format!("Availability: {}\n", availability));
+    }
+    if let Some(ref message) = message {
+        if !message.trim().is_empty() {
+            body.push_str(&format!("Additional message:\n{}\n", message));
+        }
+    }
+    body.push_str("\nWe will review your application and get back to you soon.\n\nBlessings,\nThe Grace Nepal Church Team");
+
+    let email = lettre::Message::builder()
+        .from(format!("Grace Nepal Church <{}>", from_email).parse()?)
+        .to(visitor_email.parse()?)
+        .subject(subject)
+        .body(body)?;
+
+    let creds = lettre::transport::smtp::authentication::Credentials::new(
+        smtp_username,
+        smtp_password,
+    );
+
+    let host = smtp_host.clone();
+    tokio::task::spawn_blocking(move || {
+        if let Ok(mut mailer) = lettre::SmtpTransport::relay(&host) {
+            let built = mailer.credentials(creds).build();
+            let _ = built.send(&email);
+        }
     })
     .await?;
 

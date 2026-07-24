@@ -35,6 +35,7 @@ pub mod fund;
 pub mod pledge;
 pub mod member_application;
 pub mod prayer_request;
+pub mod webhook;
 
 pub use pagination::*;
 pub use user::*;
@@ -72,3 +73,4 @@ pub use fund::*;
 pub use pledge::*;
 pub use member_application::*;
 pub use prayer_request::*;
+pub use webhook::*;

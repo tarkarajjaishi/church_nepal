@@ -4,7 +4,7 @@ import api from '../admin/api'
 export interface AttendanceRecord {
   id: string
   eventId: string
-  personId: string
+  personId?: string
   name: string
   serviceDate: string
   serviceName: string

@@ -1,14 +1,15 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { use } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import PublicLayout from "../../public-layout";
 import { Badge } from "@/components/ui/badge";
-import { getPostBySlug, getRelatedPosts } from "@/lib/blog-data";
-import type { BlogPost } from "@/lib/blog-data";
+import { fetchPublicPost, fetchPublicPosts, type BlogPost } from "@/lib/blog-data";
 
 const formatDate = (dateString: string) => {
+  if (!dateString) return "";
   const date = new Date(dateString);
   return date.toLocaleDateString("en-US", {
     year: "numeric",
@@ -32,7 +33,9 @@ function RelatedCard({ post }: { post: BlogPost }) {
       <div className="flex items-center gap-2 text-xs text-[var(--muted)]">
         <span>{post.author}</span>
         <span aria-hidden="true">•</span>
-        <time dateTime={post.date}>{formatDate(post.date)}</time>
+        {post.date && (
+          <time dateTime={post.date}>{formatDate(post.date)}</time>
+        )}
       </div>
     </Link>
   );
@@ -44,13 +47,64 @@ export default function BlogPostPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = use(params);
-  const post = getPostBySlug(slug);
+  const [post, setPost] = useState<BlogPost | null>(null);
+  const [related, setRelated] = useState<BlogPost[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  if (!post) {
-    notFound();
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(false);
+
+    fetchPublicPost(slug)
+      .then((data) => {
+        if (!cancelled) {
+          setPost(data);
+          setLoading(false);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setLoading(false);
+          setError(true);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [slug]);
+
+  useEffect(() => {
+    if (!post) return;
+    let cancelled = false;
+    setLoading(false);
+
+    fetchPublicPostsForRelated(post.slug, post.category).then((data) => {
+      if (!cancelled) {
+        setRelated(data);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [post]);
+
+  if (loading) {
+    return (
+      <PublicLayout>
+        <div className="min-h-screen bg-[var(--bg)] flex items-center justify-center">
+          <p className="text-[var(--muted)]">Loading post...</p>
+        </div>
+      </PublicLayout>
+    );
   }
 
-  const related = getRelatedPosts(post.slug, 3);
+  if (error || !post) {
+    notFound();
+  }
 
   return (
     <PublicLayout>
@@ -71,7 +125,9 @@ export default function BlogPostPage({
             <div className="flex flex-wrap items-center gap-3 text-[var(--muted)]">
               <span>{post.author}</span>
               <span aria-hidden="true">•</span>
-              <time dateTime={post.date}>{formatDate(post.date)}</time>
+              {post.date && (
+                <time dateTime={post.date}>{formatDate(post.date)}</time>
+              )}
               <span aria-hidden="true">•</span>
               <span>{post.readTime}</span>
             </div>
@@ -79,7 +135,7 @@ export default function BlogPostPage({
 
           <div
             className="h-64 rounded-xl mb-12"
-            style={{ background: post.coverImage }}
+            style={{ background: post.coverImage || "var(--accent-soft)" }}
             aria-hidden="true"
           />
 
@@ -112,4 +168,23 @@ export default function BlogPostPage({
       </div>
     </PublicLayout>
   );
+}
+
+async function fetchPublicPostsForRelated(
+  currentSlug: string,
+  currentCategory: string,
+): Promise<BlogPost[]> {
+  try {
+    const posts = await fetchPublicPosts();
+    return posts
+      .filter((p) => p.slug !== currentSlug)
+      .sort((a, b) => {
+        if (a.category === currentCategory && b.category !== currentCategory) return -1
+        if (b.category === currentCategory && a.category !== currentCategory) return 1
+        return 0
+      })
+      .slice(0, 3)
+  } catch {
+    return []
+  }
 }

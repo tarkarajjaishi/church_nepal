@@ -4,6 +4,7 @@ use axum::Json;
 use crate::auth::AuthUser;
 use crate::error::AppError;
 use crate::models::{Setting, UpdateSetting};
+use crate::handlers::audit::create_audit_entry;
 use serde_json::json;
 
 pub async fn list(Db(pool): Db) -> Result<Json<Vec<Setting>>, AppError> {
@@ -19,18 +20,19 @@ pub async fn get(Db(pool): Db, Path(key): Path<String>) -> Result<Json<Setting>,
     Ok(Json(row))
 }
 
-pub async fn upsert(_auth: AuthUser, Db(pool): Db, Path(key): Path<String>, Json(input): Json<UpdateSetting>) -> Result<Json<Setting>, AppError> {
+pub async fn upsert(auth: AuthUser, Db(pool): Db, Path(key): Path<String>, Json(input): Json<UpdateSetting>) -> Result<Json<Setting>, AppError> {
     let row = sqlx::query_as::<_, Setting>(
         r#"INSERT INTO settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = NOW() RETURNING *"#,
     )
     .bind(&key)
     .bind(&input.value)
     .fetch_one(&pool).await?;
+    let _ = create_audit_entry(&pool, &auth.email, "upsert", "setting", &row.key, Some(serde_json::json!({"id": row.key}))).await;
     Ok(Json(row))
 }
 
 pub async fn toggle_section(
-    _auth: AuthUser,
+    auth: AuthUser,
     Db(pool): Db,
     Path(section): Path<String>,
 ) -> Result<Json<serde_json::Value>, AppError> {
@@ -44,6 +46,7 @@ pub async fn toggle_section(
     .bind(&key)
     .fetch_one(&pool)
     .await?;
+    let _ = create_audit_entry(&pool, &auth.email, "toggle", "setting", &key, Some(serde_json::json!({"id": key}))).await;
     Ok(Json(serde_json::json!({ "key": row.key, "enabled": row.value == "true" })))
 }
 
@@ -90,6 +93,8 @@ pub async fn save_theme_draft(
     .execute(&pool)
     .await?;
 
+    let _ = create_audit_entry(&pool, &auth.email, "update", "setting", "theme_draft", Some(serde_json::json!({"id": "theme_draft"}))).await;
+
     Ok(Json(draft))
 }
 
@@ -100,16 +105,21 @@ pub async fn publish_theme(
 ) -> Result<Json<serde_json::Value>, AppError> {
     if let Some(obj) = draft.as_object() {
         for (key, val) in obj {
-            if let Some(s) = val.as_str() {
-                sqlx::query(
-                    r#"INSERT INTO settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = NOW()"#,
-                )
-                .bind(key)
-                .bind(s)
-                .execute(&pool)
-                .await?;
-            }
+            let s = match val {
+                serde_json::Value::String(s) => s.clone(),
+                _ => val.to_string(),
+            };
+            sqlx::query(
+                r#"INSERT INTO settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = NOW()"#,
+            )
+            .bind(key)
+            .bind(s)
+            .execute(&pool)
+            .await?;
         }
     }
+
+    let _ = create_audit_entry(&pool, &auth.email, "publish", "setting", "theme_draft", Some(serde_json::json!({"id": "theme_draft"}))).await;
+
     Ok(Json(draft))
 }

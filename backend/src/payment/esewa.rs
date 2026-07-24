@@ -18,6 +18,31 @@ impl EsewaConfig {
     }
 }
 
+pub fn generate_signature(amount: i64, transaction_uuid: &str, product_code: &str, secret: &str) -> String {
+    use hmac::{Hmac, Mac};
+    use sha2::Sha256;
+    type HmacSha256 = Hmac<Sha256>;
+
+    let msg = format!("total_amount={},transaction_uuid={},product_code={}", amount, transaction_uuid, product_code);
+    let mut mac = HmacSha256::new_from_slice(secret.as_bytes()).unwrap();
+    mac.update(msg.as_bytes());
+    let result = mac.finalize();
+    base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &result.into_bytes())
+}
+
+pub fn verify_signature_with_product_code(params: &EsewaCallback, product_code: &str, secret: &str) -> bool {
+    use hmac::{Hmac, Mac};
+    use sha2::Sha256;
+    type HmacSha256 = Hmac<Sha256>;
+
+    let msg = format!("total_amount={},transaction_uuid={},product_code={}", params.amt, params.oid, product_code);
+    let mut mac = HmacSha256::new_from_slice(secret.as_bytes()).unwrap();
+    mac.update(msg.as_bytes());
+    let result = mac.finalize();
+    let computed = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &result.into_bytes());
+    computed == params.ref_id
+}
+
 pub fn build_payment_url(
     config: &EsewaConfig,
     donation_id: &str,
@@ -33,16 +58,7 @@ pub fn build_payment_url(
 }
 
 pub fn verify_signature(params: &EsewaCallback, secret: &str) -> bool {
-    use hmac::{Hmac, Mac};
-    use sha2::Sha256;
-    type HmacSha256 = Hmac<Sha256>;
-
-    let msg = format!("total_amount={},transaction_uuid={},product_code={}", params.amt, params.oid, "EPAYTEST");
-    let mut mac = HmacSha256::new_from_slice(secret.as_bytes()).unwrap();
-    mac.update(msg.as_bytes());
-    let result = mac.finalize();
-    let computed = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &result.into_bytes());
-    computed == params.ref_id
+    verify_signature_with_product_code(params, "EPAYTEST", secret)
 }
 
 #[derive(Debug, Serialize, Deserialize)]

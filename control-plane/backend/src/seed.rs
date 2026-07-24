@@ -44,6 +44,36 @@ pub async fn seed_admins(cfg: &Config, pool: &sqlx::PgPool) -> Result<(), AppErr
     Ok(())
 }
 
+/// Seed a dedicated test admin for E2E/QA (idempotent).
+pub async fn seed_test_admin(_cfg: &Config, pool: &sqlx::PgPool) -> Result<(), AppError> {
+    let exists: Option<i32> = sqlx::query_scalar("SELECT 1 FROM admins WHERE email = $1")
+        .bind("test@churchnepal.com")
+        .fetch_optional(pool)
+        .await
+        .map_err(|e| AppError::internal(format!("check test admin: {e}")))?;
+
+    if exists.is_some() {
+        return Ok(());
+    }
+
+    let password_hash = bcrypt::hash("testpass123", bcrypt::DEFAULT_COST)
+        .map_err(|e| AppError::internal(format!("hash test admin password: {e}")))?;
+
+    sqlx::query(
+        "INSERT INTO admins (email, password_hash, role, status, twofa_enabled, totp_secret) \
+         VALUES ($1, $2, 'admin', 'active', true, $3)",
+    )
+    .bind("test@churchnepal.com")
+    .bind(&password_hash)
+    .bind("JBSWY3DPEHPK3PXP")
+    .execute(pool)
+    .await
+    .map_err(|e| AppError::internal(format!("insert test admin: {e}")))?;
+
+    println!("Seeded test admin with 2FA: test@churchnepal.com");
+    Ok(())
+}
+
 /// Seed 5 dummy churches on startup (dev only). Idempotent - checks if slug exists first.
 pub async fn seed_dummy_churches(cfg: &Config, control_pool: &sqlx::PgPool) -> Result<Vec<Provisioned>, AppError> {
     let mut seeded = Vec::new();

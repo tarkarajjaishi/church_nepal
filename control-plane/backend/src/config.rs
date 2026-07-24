@@ -1,4 +1,5 @@
 use std::env;
+use std::time::Duration;
 
 /// Configuration for the master control plane.
 ///
@@ -27,6 +28,18 @@ pub struct Config {
     pub stripe_webhook_secret: String,
     pub stripe_price_basic_id: String,
     pub stripe_price_pro_id: String,
+    pub smtp_host: String,
+    pub smtp_username: String,
+    pub smtp_password: String,
+    pub smtp_from: String,
+    pub dunning_grace_period_days: u64,
+    pub db_min_connections: u32,
+    pub db_max_connections: u32,
+    pub db_idle_timeout_secs: u64,
+    pub db_max_lifetime_secs: u64,
+    pub db_connect_timeout_secs: u64,
+    pub db_connect_max_retries: u32,
+    pub db_migrate_on_startup: bool,
 }
 
 impl Config {
@@ -49,6 +62,42 @@ impl Config {
             stripe_webhook_secret: env::var("STRIPE_WEBHOOK_SECRET").unwrap_or_else(|_| String::new()),
             stripe_price_basic_id: env::var("STRIPE_PRICE_BASIC").unwrap_or_else(|_| String::new()),
             stripe_price_pro_id: env::var("STRIPE_PRICE_PRO").unwrap_or_else(|_| String::new()),
+            smtp_host: env::var("SMTP_HOST").unwrap_or_else(|_| String::new()),
+            smtp_username: env::var("SMTP_USERNAME").unwrap_or_default(),
+            smtp_password: env::var("SMTP_PASSWORD").unwrap_or_default(),
+            smtp_from: env::var("SMTP_FROM").unwrap_or_default(),
+            dunning_grace_period_days: env::var("DUNNING_GRACE_PERIOD_DAYS")
+                .unwrap_or_else(|_| "7".into())
+                .parse()
+                .expect("DUNNING_GRACE_PERIOD_DAYS must be a number"),
+            db_min_connections: env::var("DB_MIN_CONNECTIONS")
+                .unwrap_or_else(|_| "2".into())
+                .parse()
+                .expect("DB_MIN_CONNECTIONS must be a number"),
+            db_max_connections: env::var("DB_MAX_CONNECTIONS")
+                .unwrap_or_else(|_| "10".into())
+                .parse()
+                .expect("DB_MAX_CONNECTIONS must be a number"),
+            db_idle_timeout_secs: env::var("DB_IDLE_TIMEOUT_SECS")
+                .unwrap_or_else(|_| "600".into())
+                .parse()
+                .expect("DB_IDLE_TIMEOUT_SECS must be a number"),
+            db_max_lifetime_secs: env::var("DB_MAX_LIFETIME_SECS")
+                .unwrap_or_else(|_| "1800".into())
+                .parse()
+                .expect("DB_MAX_LIFETIME_SECS must be a number"),
+            db_connect_timeout_secs: env::var("DB_CONNECT_TIMEOUT_SECS")
+                .unwrap_or_else(|_| "5".into())
+                .parse()
+                .expect("DB_CONNECT_TIMEOUT_SECS must be a number"),
+            db_connect_max_retries: env::var("DB_CONNECT_MAX_RETRIES")
+                .unwrap_or_else(|_| "10".into())
+                .parse()
+                .expect("DB_CONNECT_MAX_RETRIES must be a number"),
+            db_migrate_on_startup: env::var("DB_MIGRATE_ON_STARTUP")
+                .unwrap_or_else(|_| "true".into())
+                .parse()
+                .expect("DB_MIGRATE_ON_STARTUP must be true or false"),
         }
     }
 
@@ -59,5 +108,15 @@ impl Config {
             Some(i) => format!("{}/{}", &self.pg_super_url[..i], slug),
             None => format!("{}/{}", self.pg_super_url, slug),
         }
+    }
+
+    /// Trailing database name from the control connection URL.
+    pub fn control_db_name(&self) -> String {
+        self.control_database_url
+            .rsplit('/')
+            .next()
+            .and_then(|s| s.split('?').next())
+            .unwrap_or("churchnepal_control")
+            .to_string()
     }
 }

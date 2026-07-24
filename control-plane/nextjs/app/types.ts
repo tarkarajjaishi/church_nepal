@@ -89,10 +89,9 @@ export interface Analytics {
   total_churches: number;
   active_churches: number;
   suspended_churches: number;
-  total_members: number;
-  total_giving: number;
   mrr: number;
   churches_this_month: number;
+  churches_by_plan: Array<{ plan: string; count: number }>;
 }
 
 export interface ApiResponse<T> {

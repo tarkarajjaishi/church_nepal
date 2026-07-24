@@ -1,8 +1,11 @@
+use crate::handlers::ValidatedJson;
+use crate::security::xss;
 use crate::tenant::Db;
 use axum::extract::{Path, Query};
 use axum::Json;
 use crate::auth::AuthUser;
 use crate::error::AppError;
+use crate::handlers::audit::create_audit_entry;
 use crate::models::broadcast::{Broadcast, BroadcastRecipient, BroadcastStats, CreateBroadcast, UpdateBroadcast};
 
 pub async fn list(
@@ -33,61 +36,63 @@ pub async fn get(
 }
 
 pub async fn create(
-    _auth: AuthUser,
-    Db(pool): Db,
-    Json(input): Json<CreateBroadcast>,
-) -> Result<Json<Broadcast>, AppError> {
-    let row = sqlx::query_as::<_, Broadcast>(
-        r#"INSERT INTO broadcasts (subject, body, broadcast_type, recipient_group, template_body, scheduled_at)
-           VALUES ($1, $2, $3, $4, $5, $6) RETURNING *"#,
-    )
-    .bind(&input.subject)
-    .bind(&input.body)
-    .bind(input.broadcast_type.as_deref().unwrap_or("email"))
-    .bind(input.recipient_group.as_deref().unwrap_or("all"))
-    .bind(input.template_body.as_deref().unwrap_or(""))
-    .bind(input.scheduled_at.as_deref().and_then(|s| chrono::NaiveDateTime::parse_from_str(&s, "%Y-%m-%dT%H:%M:%S").ok()))
-    .fetch_one(&pool)
-    .await?;
-    Ok(Json(row))
-}
+     _auth: AuthUser,
+     Db(pool): Db,
+     ValidatedJson(input): ValidatedJson<CreateBroadcast>,
+ ) -> Result<Json<Broadcast>, AppError> {
+     let row = sqlx::query_as::<_, Broadcast>(
+         r#"INSERT INTO broadcasts (subject, body, broadcast_type, recipient_group, template_body, scheduled_at)
+            VALUES ($1, $2, $3, $4, $5, $6) RETURNING *"#,
+     )
+     .bind(xss::sanitize_plain(&input.subject))
+     .bind(xss::sanitize_html(&input.body))
+     .bind(input.broadcast_type.as_deref().unwrap_or("email"))
+     .bind(input.recipient_group.as_deref().unwrap_or("all"))
+     .bind(input.template_body.as_deref().map(|t| xss::sanitize_html(t)).unwrap_or_default())
+     .bind(input.scheduled_at.as_deref().and_then(|s| chrono::NaiveDateTime::parse_from_str(&s, "%Y-%m-%dT%H:%M:%S").ok()))
+     .fetch_one(&pool)
+     .await?;
+     let _ = create_audit_entry(&pool, &_auth.email, "create", "broadcast", &row.id.to_string(), Some(serde_json::json!({"id": row.id}))).await;
+     Ok(Json(row))
+ }
 
 pub async fn update(
-    _auth: AuthUser,
-    Db(pool): Db,
-    Path(id): Path<uuid::Uuid>,
-    Json(input): Json<UpdateBroadcast>,
-) -> Result<Json<Broadcast>, AppError> {
-    let existing = sqlx::query_as::<_, Broadcast>(
-        "SELECT * FROM broadcasts WHERE id = $1",
-    )
-    .bind(id)
-    .fetch_optional(&pool)
-    .await?
-    .ok_or_else(|| AppError::not_found("Broadcast not found"))?;
+     _auth: AuthUser,
+     Db(pool): Db,
+     Path(id): Path<uuid::Uuid>,
+     ValidatedJson(input): ValidatedJson<UpdateBroadcast>,
+ ) -> Result<Json<Broadcast>, AppError> {
+     let existing = sqlx::query_as::<_, Broadcast>(
+         "SELECT * FROM broadcasts WHERE id = $1",
+     )
+     .bind(id)
+     .fetch_optional(&pool)
+     .await?
+     .ok_or_else(|| AppError::not_found("Broadcast not found"))?;
 
-    let row = sqlx::query_as::<_, Broadcast>(
-        r#"UPDATE broadcasts SET
-            subject=COALESCE($2,subject),
-            body=COALESCE($3,body),
-            broadcast_type=COALESCE($4,broadcast_type),
-            recipient_group=COALESCE($5,recipient_group),
-            template_body=COALESCE($6,template_body),
-            scheduled_at=COALESCE($7,scheduled_at),
-            updated_at=NOW()
-           WHERE id=$1 RETURNING *"#,
-    )
-    .bind(id)
-    .bind(input.subject.as_deref().unwrap_or(&existing.subject))
-    .bind(input.body.as_deref().unwrap_or(&existing.body))
-    .bind(input.broadcast_type.as_deref().unwrap_or(&existing.broadcast_type))
-    .bind(input.recipient_group.as_deref().unwrap_or(&existing.recipient_group))
-    .bind(input.template_body.as_deref().unwrap_or(&existing.template_body))
-    .bind(input.scheduled_at.as_deref().and_then(|s| chrono::NaiveDateTime::parse_from_str(&s, "%Y-%m-%dT%H:%M:%S").ok()))
-    .fetch_one(&pool)
-    .await?;
-    Ok(Json(row))
-}
+     let row = sqlx::query_as::<_, Broadcast>(
+         r#"UPDATE broadcasts SET
+             subject=COALESCE($2,subject),
+             body=COALESCE($3,body),
+             broadcast_type=COALESCE($4,broadcast_type),
+             recipient_group=COALESCE($5,recipient_group),
+             template_body=COALESCE($6,template_body),
+             scheduled_at=COALESCE($7,scheduled_at),
+             updated_at=NOW()
+            WHERE id=$1 RETURNING *"#,
+     )
+     .bind(id)
+     .bind(input.subject.as_deref().map(|s| xss::sanitize_plain(s)).or(existing.subject.as_deref()))
+     .bind(input.body.as_deref().map(|s| xss::sanitize_html(s)).or(existing.body.as_deref()))
+     .bind(input.broadcast_type.as_deref().or(existing.broadcast_type.as_deref()))
+     .bind(input.recipient_group.as_deref().or(existing.recipient_group.as_deref()))
+     .bind(input.template_body.as_deref().map(|s| xss::sanitize_html(s)).or(existing.template_body.as_deref()))
+     .bind(input.scheduled_at.as_deref().and_then(|s| chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%S").ok()))
+     .fetch_one(&pool)
+     .await?;
+     let _ = create_audit_entry(&pool, &_auth.email, "update", "broadcast", &row.id.to_string(), Some(serde_json::json!({"id": row.id}))).await;
+     Ok(Json(row))
+ }
 
 pub async fn delete(
     _auth: AuthUser,
@@ -96,8 +101,9 @@ pub async fn delete(
 ) -> Result<Json<serde_json::Value>, AppError> {
     sqlx::query("DELETE FROM broadcasts WHERE id = $1")
         .bind(id)
-        .execute(&pool)
-        .await?;
+    .execute(&pool)
+    .await?;
+    let _ = create_audit_entry(&pool, &auth.email, "delete", "broadcast", &id.to_string(), Some(serde_json::json!({"id": id}))).await;
     Ok(Json(serde_json::json!({ "deleted": true })))
 }
 
@@ -126,6 +132,7 @@ pub async fn schedule(
     .await?
     .ok_or_else(|| AppError::not_found("Broadcast not found"))?;
 
+    let _ = create_audit_entry(&pool, &auth.email, "schedule", "broadcast", &row.id.to_string(), Some(serde_json::json!({"id": row.id}))).await;
     Ok(Json(row))
 }
 
@@ -185,61 +192,67 @@ pub async fn mark_opened(
 }
 
 fn build_email_html(broadcast: &Broadcast, recipient_name: &str, broadcast_id: uuid::Uuid, recipient_id: uuid::Uuid, unsubscribe_url: &str) -> String {
-    let name_placeholder = if recipient_name.is_empty() { "" } else { recipient_name };
-    let greeting = if name_placeholder.is_empty() {
-        "Hello".to_string()
-    } else {
-        format!("Hello {}", name_placeholder)
-    };
+     let name_placeholder = if recipient_name.is_empty() { "" } else { recipient_name };
+     let greeting = if name_placeholder.is_empty() {
+         "Hello".to_string()
+     } else {
+         format!("Hello {}", name_placeholder)
+     };
 
-    let template = if broadcast.template_body.is_empty() {
-        broadcast.body.clone()
-    } else {
-        broadcast.template_body.clone()
-            .replace("{{name}}", name_placeholder)
-            .replace("{{subject}}", &broadcast.subject)
-    };
+     let template = if broadcast.template_body.is_empty() {
+         broadcast.body.clone()
+     } else {
+         broadcast.template_body.clone()
+             .replace("{{name}}", xss::sanitize_plain(name_placeholder))
+             .replace("{{subject}}", xss::sanitize_plain(&broadcast.subject))
+     };
 
-    let tracking_url = format!("/api/broadcasts/open/{}/{}", broadcast_id, recipient_id);
+     let tracking_url = format!("/api/broadcasts/open/{}/{}", broadcast_id, recipient_id);
 
-    format!(
-        r#"<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
-<body style="margin:0;padding:0;background-color:#f4f4f4;font-family:Arial,Helvetica,sans-serif;">
-<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f4f4f4;padding:20px 0;">
-  <tr>
-    <td align="center">
-      <table width="600" cellpadding="0" cellspacing="0" border="0" style="background-color:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 2px 4px rgba(0,0,0,0.05);">
-        <tr>
-          <td style="background-color:#0b3c5d;padding:24px 32px;color:#ffffff;font-size:20px;font-weight:bold;">
-            {}
-          </td>
-        </tr>
-        <tr>
-          <td style="padding:24px 32px;color:#333333;font-size:15px;line-height:1.6;">
-            <p style="margin:0 0 16px 0;">{},</p>
-            <div style="margin:0 0 16px 0;">{}</div>
-            <p style="margin:24px 0 0 0;font-size:13px;color:#888888;">
-              If you no longer wish to receive these emails, you can <a href="{}">unsubscribe here</a>.
-            </p>
-          </td>
-        </tr>
-        <tr>
-          <td style="padding:16px 32px;background-color:#fafafa;border-top:1px solid #eeeeee;color:#888888;font-size:12px;text-align:center;">
-            Grace Nepal Church
-          </td>
-        </tr>
-      </table>
-      <img src="{}" width="1" height="1" style="display:none;" alt="">
-    </td>
-  </tr>
-</table>
-</body>
-</html>"#,
-        broadcast.subject, greeting, template, unsubscribe_url, tracking_url
-    )
-}
+     let safe_subject = xss::sanitize_plain(&broadcast.subject);
+     let safe_greeting = xss::sanitize_plain(&greeting);
+     let safe_template = xss::sanitize_email_template(&template);
+     let safe_unsubscribe = xss::sanitize_plain(unsubscribe_url);
+     let safe_tracking = xss::sanitize_plain(&tracking_url);
+
+     format!(
+         r#"<!DOCTYPE html>
+ <html>
+ <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
+ <body style="margin:0;padding:0;background-color:#f4f4f4;font-family:Arial,Helvetica,sans-serif;">
+ <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f4f4f4;padding:20px 0;">
+   <tr>
+     <td align="center">
+       <table width="600" cellpadding="0" cellspacing="0" border="0" style="background-color:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 2px 4px rgba(0,0,0,0.05);">
+         <tr>
+           <td style="background-color:#0b3c5d;padding:24px 32px;color:#ffffff;font-size:20px;font-weight:bold;">
+             {}
+           </td>
+         </tr>
+         <tr>
+           <td style="padding:24px 32px;color:#333333;font-size:15px;line-height:1.6;">
+             <p style="margin:0 0 16px 0;">{},</p>
+             <div style="margin:0 0 16px 0;">{}</div>
+             <p style="margin:24px 0 0 0;font-size:13px;color:#888888;">
+               If you no longer wish to receive these emails, you can <a href="{}">unsubscribe here</a>.
+             </p>
+           </td>
+         </tr>
+         <tr>
+           <td style="padding:16px 32px;background-color:#fafafa;border-top:1px solid #eeeeee;color:#888888;font-size:12px;text-align:center;">
+             Grace Nepal Church
+           </td>
+         </tr>
+       </table>
+       <img src="{}" width="1" height="1" style="display:none;" alt="">
+     </td>
+   </tr>
+ </table>
+ </body>
+ </html>"#,
+         safe_subject, safe_greeting, safe_template, safe_unsubscribe, safe_tracking
+     )
+ }
 
 pub async fn send_broadcast_email(
     pool: &sqlx::PgPool,

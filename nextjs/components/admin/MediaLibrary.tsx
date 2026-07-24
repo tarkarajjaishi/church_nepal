@@ -14,6 +14,7 @@ interface UploadItem {
   contentType: string
   size: number
   createdAt: string
+  variants: { width: number; url: string; size: number }[]
 }
 
 interface MediaLibraryProps {
@@ -25,6 +26,20 @@ function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+function buildSrcSet(img: UploadItem): string {
+  const parts = img.variants.map(v => `${v.url} ${v.width}w`)
+  if (img.variants.length > 0) {
+    const maxVariant = img.variants.reduce((max, v) => v.width > max ? v.width : max, 0)
+    const additionalWidth = Math.max(maxVariant, 1600)
+    if (!img.variants.some(v => v.width === additionalWidth)) {
+      parts.push(`${img.url} ${additionalWidth}w`)
+    }
+  } else {
+    parts.push(`${img.url} ${1600}w`)
+  }
+  return parts.join(', ')
 }
 
 export function MediaLibrary({ onSelect, onClose }: MediaLibraryProps) {
@@ -93,6 +108,8 @@ export function MediaLibrary({ onSelect, onClose }: MediaLibraryProps) {
               >
                 <img
                   src={img.url}
+                  srcSet={buildSrcSet(img)}
+                  sizes="(max-width: 600px) 100vw, (max-width: 1200px) 33vw, 33vw"
                   alt={img.originalName}
                   className="w-full aspect-square object-cover"
                   loading="lazy"

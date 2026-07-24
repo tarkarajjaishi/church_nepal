@@ -189,9 +189,18 @@ export function applySkin(skin: string): void {
 }
 
 export function applyRadius(radius: string): void {
-  if (typeof document === 'undefined') return
-  document.documentElement.style.setProperty('--radius', radius)
+   if (typeof document === 'undefined') return
+   document.documentElement.style.setProperty('--radius', radius)
 }
+
+export function applyLogo(logo: string): void {
+   if (typeof document === 'undefined') return
+   if (logo) {
+     document.documentElement.setAttribute('data-theme-logo', logo)
+   } else {
+     document.documentElement.removeAttribute('data-theme-logo')
+   }
+ }
 
 // ---- font helpers --------------------------------------------------------
 
@@ -223,13 +232,13 @@ export function loadGoogleFont(fontFamily: string): void {
 }
 
 export function applyPreset(preset: ThemePreset): void {
-  applyPrimaryColor(preset.primary)
-  applyFonts(preset.headingFont, preset.bodyFont)
-  loadGoogleFont(preset.headingFont)
-  loadGoogleFont(preset.bodyFont)
-  if (typeof document !== 'undefined') {
-    document.documentElement.setAttribute('data-homepage-layout', preset.layout)
-  }
+   applyPrimaryColor(preset.primary)
+   applyFonts(preset.headingFont, preset.bodyFont)
+   loadGoogleFont(preset.headingFont)
+   loadGoogleFont(preset.bodyFont)
+   if (typeof document !== 'undefined') {
+     document.documentElement.setAttribute('data-homepage-layout', preset.layout)
+   }
 }
 
 export function findPresetByName(name: string): ThemePreset | undefined {

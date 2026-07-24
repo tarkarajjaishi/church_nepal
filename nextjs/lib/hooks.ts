@@ -382,6 +382,29 @@ export function useUpsertSetting() {
   })
 }
 
+// Contact Info hooks
+export function useContactInfo() {
+  return useQuery({
+    queryKey: ["contact-info"],
+    queryFn: () => fetchAll<ContactInfo>("contact-info").then(list => list[0] ?? null),
+    placeholderData: null,
+  })
+}
+
+export function useUpdateContactInfo() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (values: Partial<ContactInfo> & { id: string }) => {
+      const { id, ...data } = values
+      return api.put(`/contact-info/${id}`, data).then(r => r.data)
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["contact-info"] })
+      qc.invalidateQueries({ queryKey: ["settings"] }) // in case contact info affects something else
+    },
+  })
+}
+
 // ── Report summaries ─────────────────────────────────────────────────────────
 export function useGivingSummary() {
   return useQuery({

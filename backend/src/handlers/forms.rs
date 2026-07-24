@@ -4,6 +4,7 @@ use axum::Json;
 use crate::auth::AuthUser;
 use crate::error::AppError;
 use crate::models::form::{Form, FormSubmission, CreateForm, UpdateForm, SubmitForm};
+use crate::handlers::audit::create_audit_entry;
 
 pub async fn list(
     _auth: AuthUser,
@@ -48,6 +49,7 @@ pub async fn create(
     .bind(input.submit_action.as_deref().unwrap_or("email"))
     .fetch_one(&pool)
     .await?;
+    let _ = create_audit_entry(&pool, &auth.email, "create", "form", &row.id.to_string(), Some(serde_json::json!({"id": row.id}))).await;
     Ok(Json(row))
 }
 
@@ -83,6 +85,7 @@ pub async fn update(
     .bind(input.submit_action.as_deref().unwrap_or(&existing.submit_action))
     .fetch_one(&pool)
     .await?;
+    let _ = create_audit_entry(&pool, &auth.email, "update", "form", &row.id.to_string(), Some(serde_json::json!({"id": row.id}))).await;
     Ok(Json(row))
 }
 
@@ -93,8 +96,9 @@ pub async fn delete(
 ) -> Result<Json<serde_json::Value>, AppError> {
     sqlx::query("DELETE FROM forms WHERE id = $1")
         .bind(id)
-        .execute(&pool)
-        .await?;
+    .execute(&pool)
+    .await?;
+    let _ = create_audit_entry(&pool, &auth.email, "delete", "form", &id.to_string(), Some(serde_json::json!({"id": id}))).await;
     Ok(Json(serde_json::json!({ "deleted": true })))
 }
 

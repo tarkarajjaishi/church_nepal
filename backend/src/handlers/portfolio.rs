@@ -5,6 +5,7 @@ use axum::Json;
 use crate::auth::AuthUser;
 use crate::error::AppError;
 use crate::models::{CreatePortfolioProject, Paginated, Pagination, PortfolioProject, UpdatePortfolioProject};
+use crate::handlers::audit::create_audit_entry;
 
 #[derive(serde::Deserialize)]
 pub struct ReorderRequest {

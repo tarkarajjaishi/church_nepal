@@ -4,6 +4,7 @@ use axum::Json;
 use crate::auth::AuthUser;
 use crate::error::AppError;
 use crate::models::fund::*;
+use crate::handlers::audit::create_audit_entry;
 
 // ===== Funds =====
 
@@ -39,13 +40,24 @@ pub async fn create(
 ) -> Result<Json<Fund>, AppError> {
     let row = sqlx::query_as::<_, Fund>(
         r#"INSERT INTO funds (name, description, fund_type)
-           VALUES ($1, $2, $3) RETURNING *"#,
+            VALUES ($1, $2, $3) RETURNING *"#,
     )
     .bind(&input.name)
     .bind(input.description.as_deref().unwrap_or(""))
     .bind(input.fund_type.as_deref().unwrap_or("general"))
     .fetch_one(&pool)
     .await?;
+
+    let _ = create_audit_entry(
+        &pool,
+        &_auth.email,
+        "create",
+        "fund",
+        &row.id.to_string(),
+        Some(serde_json::json!({"id": row.id, "name": row.name})),
+    )
+    .await;
+
     Ok(Json(row))
 }
 
@@ -74,11 +86,22 @@ pub async fn update(
     )
     .bind(id)
     .bind(input.name.as_deref().unwrap_or(&existing.name))
-    .bind(input.description.as_deref().unwrap_or(&existing.description))
-    .bind(input.fund_type.as_deref().unwrap_or(&existing.fund_type))
+    .bind(input.description.as_deref().or(existing.description.as_deref()))
+    .bind(input.fund_type.as_deref().or(existing.fund_type.as_deref()))
     .bind(input.is_active.unwrap_or(existing.is_active))
     .fetch_one(&pool)
     .await?;
+
+    let _ = create_audit_entry(
+        &pool,
+        &_auth.email,
+        "update",
+        "fund",
+        &row.id.to_string(),
+        Some(serde_json::json!({"id": row.id, "name": row.name})),
+    )
+    .await;
+
     Ok(Json(row))
 }
 
@@ -91,6 +114,17 @@ pub async fn delete(
         .bind(id)
         .execute(&pool)
         .await?;
+
+    let _ = create_audit_entry(
+        &pool,
+        &_auth.email,
+        "delete",
+        "fund",
+        &id.to_string(),
+        Some(serde_json::json!({"id": id})),
+    )
+    .await;
+
     Ok(Json(serde_json::json!({ "deleted": true })))
 }
 
@@ -122,5 +156,16 @@ pub async fn create_recurring(
     .bind(input.gateway.as_deref().unwrap_or("stripe"))
     .fetch_one(&pool)
     .await?;
+
+    let _ = create_audit_entry(
+        &pool,
+        &_auth.email,
+        "create",
+        "recurring_donation",
+        &row.id.to_string(),
+        Some(serde_json::json!({"id": row.id, "amount": row.amount, "interval": row.interval})),
+    )
+    .await;
+
     Ok(Json(row))
 }

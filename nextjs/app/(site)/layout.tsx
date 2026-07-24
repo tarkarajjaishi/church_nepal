@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react'
 import { Providers } from '@/lib/providers'
-import { LanguageProvider } from '@/lib/language'
+import { LanguageProvider } from '@/lib/i18n'
 import { Navbar } from '@/components/site/Navbar'
 import { Footer } from '@/components/site/Footer'
 import { AnnouncementBar } from '@/components/site/AnnouncementBar'

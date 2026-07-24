@@ -11,7 +11,9 @@ export interface BlogPost {
   content: { heading: string; body: string }[]
 }
 
-export const blogPosts: BlogPost[] = [
+import { apiClient } from "./api-client";
+
+export const staticBlogPosts: BlogPost[] = [
   {
     slug: "getting-started-with-churchnepal",
     title: "Getting Started with ChurchNepal",
@@ -250,23 +252,23 @@ export const blogPosts: BlogPost[] = [
 ]
 
 export function getAllPosts(): BlogPost[] {
-  return blogPosts
+  return staticBlogPosts
 }
 
 export function getPostBySlug(slug: string): BlogPost | undefined {
-  return blogPosts.find((post) => post.slug === slug)
+  return staticBlogPosts.find((post) => post.slug === slug)
 }
 
 export function getRelatedPosts(slug: string, count = 3): BlogPost[] {
   const current = getPostBySlug(slug)
-  if (!current) return blogPosts.slice(0, count)
+  if (!current) return staticBlogPosts.slice(0, count)
 
-  const sameCategory = blogPosts.filter(
+  const sameCategory = staticBlogPosts.filter(
     (post) => post.category === current.category && post.slug !== current.slug,
   )
   const remaining =
     count - sameCategory.length > 0
-      ? blogPosts.filter(
+      ? staticBlogPosts.filter(
           (post) => post.slug !== current.slug && post.category !== current.category,
         ).slice(0, count - sameCategory.length)
       : []
@@ -275,6 +277,62 @@ export function getRelatedPosts(slug: string, count = 3): BlogPost[] {
 }
 
 export function getCategories(): string[] {
-  const categories = new Set(blogPosts.map((post) => post.category))
+  const categories = new Set(staticBlogPosts.map((post) => post.category))
   return Array.from(categories)
+}
+
+// Backend API post type (DB row shape from mc_blog_posts)
+export interface BlogPostAPI {
+  id: string
+  slug: string
+  title: string
+  excerpt: string
+  body: string
+  cover: string | null
+  author: string
+  category: string
+  published: boolean
+  published_at: string | null
+  created_at: string
+}
+
+function estimateReadTime(body: string): string {
+  const wordCount = body.split(/\s+/).filter(Boolean).length
+  const minutes = Math.max(1, Math.round(wordCount / 200))
+  return `${minutes} min read`
+}
+
+export function apiPostToBlogPost(api: BlogPostAPI): BlogPost {
+  const paragraphs = api.body
+    .split(/\n\n+/)
+    .map((p) => p.trim())
+    .filter((p) => p.length > 0)
+    .map((p) => ({ heading: p.split("\n")[0].trim(), body: p }))
+
+  return {
+    slug: api.slug,
+    title: api.title,
+    excerpt: api.excerpt,
+    date: api.created_at,
+    readTime: estimateReadTime(api.body),
+    category: api.category,
+    author: api.author,
+    coverImage: api.cover ?? "linear-gradient(135deg, var(--accent-soft), var(--panel-2))",
+    featured: false,
+    content: paragraphs.length > 0 ? paragraphs : [{ heading: api.title, body: api.body }],
+  }
+}
+
+export async function fetchPublicPosts(): Promise<BlogPost[]> {
+  const response = await apiClient.get<BlogPostAPI[]>("/blog")
+  return response.data.map(apiPostToBlogPost)
+}
+
+export async function fetchPublicPost(slug: string): Promise<BlogPost | null> {
+  try {
+    const response = await apiClient.get<BlogPostAPI>(`/blog/${encodeURIComponent(slug)}`)
+    return apiPostToBlogPost(response.data)
+  } catch {
+    return null
+  }
 }

@@ -1,3 +1,5 @@
+use crate::handlers::ValidatedJson;
+use crate::security::xss;
 use crate::tenant::Db;
 use axum::extract::{Path, Query};
 use axum::Json;
@@ -19,31 +21,31 @@ pub async fn get(Db(pool): Db, Path(id): Path<uuid::Uuid>) -> Result<Json<Verse>
     Ok(Json(row))
 }
 
-pub async fn create(_auth: AuthUser, Db(pool): Db, Json(input): Json<CreateVerse>) -> Result<Json<Verse>, AppError> {
-    let row = sqlx::query_as::<_, Verse>(
-        r#"INSERT INTO verses (text, ref_text, ne) VALUES ($1,$2,$3) RETURNING *"#,
-    )
-    .bind(&input.text)
-    .bind(&input.ref_text)
-    .bind(&input.ne)
-    .fetch_one(&pool).await?;
-    Ok(Json(row))
-}
+pub async fn create(_auth: AuthUser, Db(pool): Db, ValidatedJson(input): ValidatedJson<CreateVerse>) -> Result<Json<Verse>, AppError> {
+     let row = sqlx::query_as::<_, Verse>(
+         r#"INSERT INTO verses (text, ref_text, ne) VALUES ($1,$2,$3) RETURNING *"#,
+     )
+     .bind(xss::sanitize_plain(&input.text))
+     .bind(xss::sanitize_plain(&input.ref_text))
+     .bind(xss::sanitize_plain(&input.ne))
+     .fetch_one(&pool).await?;
+     Ok(Json(row))
+ }
 
-pub async fn update(_auth: AuthUser, Db(pool): Db, Path(id): Path<uuid::Uuid>, Json(input): Json<UpdateVerse>) -> Result<Json<Verse>, AppError> {
-    let existing = sqlx::query_as::<_, Verse>("SELECT * FROM verses WHERE id = $1")
-        .bind(id)
-        .fetch_optional(&pool).await?.ok_or_else(|| AppError::not_found("Verse not found"))?;
-    let row = sqlx::query_as::<_, Verse>(
-        r#"UPDATE verses SET text=COALESCE($2,text), ref_text=COALESCE($3,ref_text), ne=COALESCE($4,ne) WHERE id=$1 RETURNING *"#,
-    )
-    .bind(id)
-    .bind(input.text.as_deref().unwrap_or(&existing.text))
-    .bind(input.ref_text.as_deref().unwrap_or(&existing.ref_text))
-    .bind(input.ne.as_deref().unwrap_or(&existing.ne))
-    .fetch_one(&pool).await?;
-    Ok(Json(row))
-}
+ pub async fn update(_auth: AuthUser, Db(pool): Db, Path(id): Path<uuid::Uuid>, ValidatedJson(input): ValidatedJson<UpdateVerse>) -> Result<Json<Verse>, AppError> {
+     let existing = sqlx::query_as::<_, Verse>("SELECT * FROM verses WHERE id = $1")
+         .bind(id)
+         .fetch_optional(&pool).await?.ok_or_else(|| AppError::not_found("Verse not found"))?;
+     let row = sqlx::query_as::<_, Verse>(
+         r#"UPDATE verses SET text=COALESCE($2,text), ref_text=COALESCE($3,ref_text), ne=COALESCE($4,ne) WHERE id=$1 RETURNING *"#,
+     )
+     .bind(id)
+     .bind(input.text.as_deref().map(|t| xss::sanitize_plain(t)).or(existing.text.as_deref()))
+     .bind(input.ref_text.as_deref().map(|t| xss::sanitize_plain(t)).or(existing.ref_text.as_deref()))
+     .bind(input.ne.as_deref().map(|t| xss::sanitize_plain(t)).or(existing.ne.as_deref()))
+     .fetch_one(&pool).await?;
+     Ok(Json(row))
+ }
 
 pub async fn delete(_auth: AuthUser, Db(pool): Db, Path(id): Path<uuid::Uuid>) -> Result<Json<serde_json::Value>, AppError> {
     sqlx::query("DELETE FROM verses WHERE id = $1")

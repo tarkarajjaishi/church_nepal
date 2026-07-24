@@ -1,14 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import PublicLayout from "../public-layout";
 import { useTranslation } from "@/components/i18n-hook";
-import { getAllPosts, getCategories, type BlogPost } from "@/lib/blog-data";
+import { fetchPublicPosts, type BlogPost } from "@/lib/blog-data";
 
 const formatDate = (dateString: string) => {
+  if (!dateString) return "";
   const date = new Date(dateString);
   return date.toLocaleDateString("en-US", {
     year: "numeric",
@@ -19,13 +20,40 @@ const formatDate = (dateString: string) => {
 
 export default function BlogPage() {
   const { t } = useTranslation();
-  const allPosts = getAllPosts();
+  const [posts, setPosts] = useState<BlogPost[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
-  const categories = getCategories();
-  const featuredPost = allPosts.find((post) => post.featured);
 
-  const filteredPosts = allPosts.filter((post) => {
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+
+    fetchPublicPosts()
+      .then((data) => {
+        if (!cancelled) {
+          setPosts(data);
+          setLoading(false);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : "Unable to load posts");
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const categories = Array.from(new Set(posts.map((p) => p.category)));
+  const featuredPost = posts.find((post) => post.featured);
+
+  const filteredPosts = posts.filter((post) => {
     const query = searchQuery.toLowerCase();
     const matchesSearch =
       !query ||
@@ -43,8 +71,28 @@ export default function BlogPage() {
 
   const gridPosts =
     !isFiltering && featuredPost
-      ? allPosts.filter((post) => post.slug !== featuredPost.slug)
+      ? posts.filter((post) => post.slug !== featuredPost.slug)
       : filteredPosts;
+
+  if (loading) {
+    return (
+      <PublicLayout>
+        <div className="min-h-screen bg-[var(--bg)] flex items-center justify-center">
+          <p className="text-[var(--muted)]">Loading posts...</p>
+        </div>
+      </PublicLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <PublicLayout>
+        <div className="min-h-screen bg-[var(--bg)] flex items-center justify-center">
+          <p className="text-danger">{error}</p>
+        </div>
+      </PublicLayout>
+    );
+  }
 
   return (
     <PublicLayout>
@@ -109,7 +157,7 @@ export default function BlogPage() {
                   {/* Cover Image */}
                   <div
                     className="h-64 md:h-full min-h-[280px] bg-gradient-to-br"
-                    style={{ background: featuredPost.coverImage }}
+                    style={{ background: featuredPost.coverImage || "var(--accent-soft)" }}
                     aria-hidden="true"
                   >
                     <div className="flex items-center justify-center h-full">
@@ -147,10 +195,14 @@ export default function BlogPage() {
                     <div className="flex items-center justify-between text-sm text-[var(--muted)]">
                       <span>By {featuredPost.author}</span>
                       <div className="flex items-center gap-3">
-                        <time dateTime={featuredPost.date}>
-                          {formatDate(featuredPost.date)}
-                        </time>
-                        <span aria-hidden="true">•</span>
+                        {featuredPost.date && (
+                          <>
+                            <time dateTime={featuredPost.date}>
+                              {formatDate(featuredPost.date)}
+                            </time>
+                            <span aria-hidden="true">•</span>
+                          </>
+                        )}
                         <span>{featuredPost.readTime}</span>
                       </div>
                     </div>
@@ -180,7 +232,7 @@ export default function BlogPage() {
                     {/* Cover Image */}
                     <div
                       className="h-48 bg-gradient-to-br"
-                      style={{ background: post.coverImage }}
+                      style={{ background: post.coverImage || "var(--accent-soft)" }}
                       aria-hidden="true"
                     >
                       <div className="flex items-center justify-center h-full">
@@ -214,10 +266,14 @@ export default function BlogPage() {
                       <div className="flex items-center justify-between text-xs text-[var(--muted)] pt-3 border-t border-[var(--border)]">
                         <span className="font-medium">{post.author}</span>
                         <div className="flex items-center gap-2">
-                          <time dateTime={post.date}>
-                            {formatDate(post.date)}
-                          </time>
-                          <span aria-hidden="true">•</span>
+                          {post.date && (
+                            <>
+                              <time dateTime={post.date}>
+                                {formatDate(post.date)}
+                              </time>
+                              <span aria-hidden="true">•</span>
+                            </>
+                          )}
                           <span>{post.readTime}</span>
                         </div>
                       </div>

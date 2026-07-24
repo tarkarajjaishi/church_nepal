@@ -79,6 +79,20 @@ pub async fn create_public(
 
     send_event_rsvp_confirmation(&row, &event);
 
+    let event_payload = serde_json::json!({
+        "id": row.id,
+        "event_id": event.id,
+        "event_title": event.title,
+        "event_date": event.date,
+        "name": row.name,
+        "email": row.email,
+        "phone": row.phone,
+        "guests": row.guests,
+        "status": row.status,
+        "created_at": row.created_at,
+    });
+    crate::handlers::webhooks::enqueue_webhook_delivery(&pool, "event.rsvp.created", event_payload);
+
     Ok(Json(row))
 }
 

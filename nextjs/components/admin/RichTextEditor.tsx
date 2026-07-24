@@ -12,6 +12,8 @@ import {
   Image as ImageIcon, Link as LinkIcon, Heading1, Heading2, Heading3,
   Undo, Redo, Code, Quote,
 } from 'lucide-react'
+import { useEffect, useRef } from 'react'
+import { uploadFile } from '@/lib/admin/api'
 
 interface RichTextEditorProps {
   value: string
@@ -43,10 +45,58 @@ export function RichTextEditor({ value, onChange, placeholder }: RichTextEditorP
 
   if (!editor) return null
 
-  const addImage = () => {
-    const url = window.prompt('Image URL:')
-    if (url) editor.chain().focus().setImage({ src: url }).run()
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const addImage = async () => {
+    fileInputRef.current?.click()
   }
+
+  const handleFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    try {
+      const result = await uploadFile(file)
+      editor.chain().focus().setImage({ src: result.url }).run()
+    } catch (err) {
+      console.error('Image upload failed', err)
+      // Optionally show a toast/error
+    } finally {
+      e.target.value = ''
+    }
+  }
+
+  useEffect(() => {
+    if (!editor) return
+    const handlePaste = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items
+      if (!items) return
+      let file: File | null = null
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.startsWith('image/')) {
+          file = items[i].getAsFile()
+          break
+        }
+      }
+      if (file) {
+        e.preventDefault() // prevent default paste (text)
+        ;(async () => {
+          try {
+            const result = await uploadFile(file)
+            editor.chain().focus().setImage({ src: result.url }).run()
+          } catch (err) {
+            console.error('Image upload from paste failed', err)
+          }
+        })()
+      }
+    }
+    const dom = editor.view?.dom as HTMLElement | null
+    if (dom) {
+      dom.addEventListener('paste', handlePaste as EventListener)
+      return () => {
+        dom.removeEventListener('paste', handlePaste as EventListener)
+      }
+    }
+  }, [editor])
 
   const addLink = () => {
     const url = window.prompt('Link URL:')
@@ -208,6 +258,15 @@ export function RichTextEditor({ value, onChange, placeholder }: RichTextEditorP
 
       {/* Editor */}
       <EditorContent editor={editor} className="bg-white min-h-[200px] max-h-[500px] overflow-y-auto" />
+      
+      {/* Hidden file input for image upload */}
+      <input
+        type="file"
+        accept="image/*"
+        ref={fileInputRef}
+        onChange={handleFileSelected}
+        style={{ display: 'none' }}
+      />
     </div>
   )
 }

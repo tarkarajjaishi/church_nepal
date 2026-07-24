@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { EmptyState, LoadingState } from "@/components";
 import { Activity } from "lucide-react";
+import { toast } from "sonner";
 
 const PAGE_SIZE = 10;
 
@@ -37,6 +38,7 @@ export default function AuditLogPage() {
   const [actionFilter, setActionFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
+  const [isExporting, setIsExporting] = useState(false);
 
   const { data, isLoading, error } = useAuditLog({
     actor: actorFilter === "all" ? undefined : actorFilter,
@@ -67,30 +69,38 @@ export default function AuditLogPage() {
   const resetPage = () => setCurrentPage(1);
 
   const handleExportCsv = async () => {
-    const allEntries = await fetchAllAuditLog({
-      actor: actorFilter,
-      action: actionFilter,
-      type: typeFilter,
-    });
+    setIsExporting(true);
+    try {
+      const allEntries = await fetchAllAuditLog({
+        actor: actorFilter,
+        action: actionFilter,
+        type: typeFilter,
+      });
 
-    const rows = [
-      ["Timestamp", "Actor", "Action", "Target", "IP Address"],
-      ...allEntries.map((e) => [e.timestamp, e.actor, e.action, e.target, e.ip]),
-    ];
+      const rows = [
+        ["Timestamp", "Actor", "Action", "Target", "IP Address"],
+        ...allEntries.map((e) => [e.timestamp, e.actor, e.action, e.target, e.ip]),
+      ];
 
-    const csvContent = rows
-      .map((row) => row.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(","))
-      .join("\n");
+      const csvContent = rows
+        .map((row) => row.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(","))
+        .join("\n");
 
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `audit-log-${new Date().toISOString().slice(0, 10)}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `audit-log-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      toast.success("CSV exported successfully");
+    } catch {
+      toast.error("Failed to export CSV");
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   return (
@@ -179,8 +189,8 @@ export default function AuditLogPage() {
               ))}
             </select>
           </div>
-          <Button variant="primary" onClick={handleExportCsv}>
-            Export CSV
+          <Button variant="primary" onClick={handleExportCsv} disabled={isExporting}>
+            {isExporting ? "Exporting..." : "Export CSV"}
           </Button>
         </div>
       </div>

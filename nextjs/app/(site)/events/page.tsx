@@ -1,11 +1,13 @@
-'use client'
+'use client';
 
+import { useState } from 'react';
 import { toast } from "sonner";
 import Link from 'next/link';
 import { Clock, MapPin, CalendarPlus, CalendarDays } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { PageHero } from "@/components/site/PageHero";
 import { Reveal } from "@/components/site/Reveal";
 import { Countdown } from "@/components/site/Countdown";
@@ -17,10 +19,26 @@ import { toBS } from "@/lib/nepaliDate";
 import { useEvents, useContentBlock } from "@/lib/hooks";
 import { CardSkeleton } from "@/components/site/LoadingSpinner";
 import { ErrorDisplay } from "@/components/site/ErrorDisplay";
+import { CalendarView } from "@/components/site/CalendarView";
+import { generateICalFeed } from "@/lib/ical";
 
 function EventCard({ e, upcoming }: { e: any; upcoming?: boolean }) {
   const { lang } = useLang();
   const bs = e.date ? toBS(e.date, lang) : "";
+
+  const handleAddToCalendar = () => {
+    // Generate iCal for a single event and trigger download
+    const icalContent = generateICalFeed([e]);
+    const blob = new Blob([icalContent], { type: 'text/calendar' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${e.title.replace(/\s+/g, '_')}.ics`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success('Added to calendar', { description: e.title });
+  };
+
   return (
     <Card className="group overflow-hidden h-full border-border/60 hover:shadow-xl transition-all gap-0 flex flex-col">
       <Link href={`/events/${e.id}`} className="relative h-48 overflow-hidden block">
@@ -40,7 +58,7 @@ function EventCard({ e, upcoming }: { e: any; upcoming?: boolean }) {
             <div className="mt-4"><Countdown date={e.date} /></div>
             <div className="mt-4 flex gap-2">
               <Button size="sm" className="bg-church-blue hover:bg-church-blue/90" onClick={() => toast.success("You're registered!", { description: e.title })}>Register</Button>
-              <Button size="sm" variant="outline" onClick={() => toast("Added to calendar")}><CalendarPlus className="size-4" /> Add</Button>
+              <Button size="sm" variant="outline" onClick={handleAddToCalendar}><CalendarPlus className="size-4" /> Add</Button>
             </div>
           </>
         )}
@@ -52,10 +70,21 @@ function EventCard({ e, upcoming }: { e: any; upcoming?: boolean }) {
 export default function Events() {
   const { data: events = [], isLoading, error, refetch } = useEvents();
   const now = Date.now();
-  const upcomingEvents = events
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+
+  // Get distinct categories from events
+  const categories = Array.from(new Set(events.map(e => e.category).filter(Boolean)));
+
+  // Filter events by selected category
+  const filteredEvents = events.filter(event => {
+    if (!selectedCategory) return true;
+    return event.category === selectedCategory;
+  });
+
+  const upcomingEvents = filteredEvents
     .filter((e) => new Date(e.date).getTime() >= now)
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-  const pastEvents = events
+  const pastEvents = filteredEvents
     .filter((e) => new Date(e.date).getTime() < now)
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
@@ -81,10 +110,29 @@ export default function Events() {
 
       <section className="py-16">
         <div className="mx-auto max-w-7xl px-4">
+          {/* Category filter */}
+          <div className="mb-6 flex flex-wrap items-center gap-4">
+            <span className="text-muted-foreground">Filter by category:</span>
+            <Select value={selectedCategory ?? ''} onValueChange={setSelectedCategory}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="All categories" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">All categories</SelectItem>
+                {categories.map(category => (
+                  <SelectItem key={category} value={category}>
+                    {category}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           <Tabs defaultValue="upcoming">
             <TabsList className="mx-auto">
               <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
               <TabsTrigger value="past">Past Events</TabsTrigger>
+              <TabsTrigger value="calendar">Calendar</TabsTrigger>
             </TabsList>
 
             <TabsContent value="upcoming" className="mt-10">
@@ -109,6 +157,10 @@ export default function Events() {
                   <Reveal key={e.id} delay={(i % 3) * 0.08}><EventCard e={e} /></Reveal>
                 ))}
               </div>
+            </TabsContent>
+
+            <TabsContent value="calendar" className="mt-10">
+              <CalendarView events={filteredEvents} selectedCategory={selectedCategory} />
             </TabsContent>
           </Tabs>
         </div>

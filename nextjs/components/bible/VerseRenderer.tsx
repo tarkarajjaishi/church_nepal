@@ -2,6 +2,7 @@
 
 import { Bookmark, BookmarkCheck, Share2, Copy, Check } from 'lucide-react'
 import { useState } from 'react'
+import { stripHtml } from '@/lib/sanitize-html'
 
 interface VerseRendererProps {
   text: string
@@ -31,25 +32,25 @@ export function VerseRenderer({
 }: VerseRendererProps) {
   const [copied, setCopied] = useState(false)
 
-  const renderText = (raw: string) => {
-    const parts = raw.split(/(<red>[\s\S]*?<\/red>)/g)
-    return parts.map((part, i) => {
-      if (part.startsWith('<red>') && part.endsWith('</red>')) {
-        const redText = part.slice(5, -6)
-        return (
-          <span key={i} className="text-red-700 font-medium">
-            {redText}
-          </span>
-        )
-      }
-      return <span key={i}>{part}</span>
-    })
-  }
+const renderText = (raw: string) => {
+  const parts = raw.split(/(<red>[\s\S]*?<\/red>)/g)
+  return parts.map((part, i) => {
+    if (part.startsWith('<red>') && part.endsWith('</red>')) {
+      const redText = part.slice(5, -6)
+      return (
+        <span key={i} className="text-red-700 font-medium">
+          {stripHtml(redText)}
+        </span>
+      )
+    }
+    return <span key={i}>{stripHtml(part)}</span>
+  })
+}
 
   const handleCopy = async (e: React.MouseEvent) => {
-    e.stopPropagation()
-    const plain = text.replace(/<\/?red>/g, '')
-    try {
+      e.stopPropagation()
+      const plain = stripHtml(text.replace(/<\/?red>/g, ''))
+      try {
       await navigator.clipboard.writeText(plain)
       setCopied(true)
       setTimeout(() => setCopied(false), 1500)

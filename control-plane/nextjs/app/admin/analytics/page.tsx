@@ -1,6 +1,7 @@
 "use client";
 
-import { useAnalytics, useChurches } from "@/components/hooks";
+import { useState } from "react";
+import { useAnalytics, useGrowthAnalytics, useTopChurches } from "@/components/hooks";
 import { LoadingState } from "@/components/loading-state";
 import { EmptyState } from "@/components/empty-state";
 import AreaChart from "@/components/admin/area-chart";
@@ -8,11 +9,21 @@ import DonutChart from "@/components/admin/donut-chart";
 import BarChart from "@/components/admin/bar-chart";
 import StatCard from "@/components/admin/stat-card";
 
-export default function AnalyticsPage() {
-  const { data: analytics, isLoading, error } = useAnalytics();
-  const { data: churches, isLoading: churchesLoading } = useChurches();
+type DateRange = "30d" | "90d" | "12m";
 
-  if (isLoading || churchesLoading) {
+const RANGES: { value: DateRange; label: string }[] = [
+  { value: "30d", label: "30 Days" },
+  { value: "90d", label: "90 Days" },
+  { value: "12m", label: "12 Months" },
+];
+
+export default function AnalyticsPage() {
+  const [dateRange, setDateRange] = useState<DateRange>("30d");
+  const { data: overview, isLoading, error } = useAnalytics();
+  const { data: growthData } = useGrowthAnalytics(dateRange);
+  const { data: topChurches } = useTopChurches();
+
+  if (isLoading) {
     return (
       <div className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -38,7 +49,7 @@ export default function AnalyticsPage() {
     );
   }
 
-  if (!analytics) {
+  if (!overview) {
     return (
       <EmptyState
         icon="chart"
@@ -48,59 +59,59 @@ export default function AnalyticsPage() {
     );
   }
 
-  // Prepare data for charts based on available data
-  let growthData: { label: string; value: number }[] = [];
-  let planDistribution: { label: string; value: number }[] = [];
-  let topChurchesData: { label: string; value: number }[] = [];
+  const growthSeries = (growthData ?? []).map(d => ({
+    label: d.period,
+    value: d.churches_created,
+  }));
 
-  if (churches) {
-    // Group churches by creation month for area chart
-    const monthlyCounts: Record<string, number> = {};
-    churches.forEach(church => {
-      if (church.created_at) {
-        const monthKey = new Date(church.created_at).toISOString().slice(0, 7); // YYYY-MM
-        monthlyCounts[monthKey] = (monthlyCounts[monthKey] || 0) + 1;
-      }
-    });
-    
-    growthData = Object.entries(monthlyCounts)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([date, count]) => ({ label: date, value: count }));
+  const planDistribution = (overview.churches_by_plan ?? []).map(p => ({
+    label: p.plan || "Unknown",
+    value: p.count,
+  }));
 
-    // Count churches by plan for donut chart
-    const planCounts: Record<string, number> = {};
-    churches.forEach(church => {
-      const planName = church.plan || 'Unknown';
-      planCounts[planName] = (planCounts[planName] || 0) + 1;
-    });
-    
-    planDistribution = Object.entries(planCounts).map(([name, value]) => ({ label: name, value }));
-
-    // Top churches by member count for bar chart
-    topChurchesData = [...churches]
-      .filter(c => c.member_count !== undefined && c.name)
-      .sort((a, b) => (b.member_count || 0) - (a.member_count || 0))
-      .slice(0, 10)
-      .map(c => ({ label: c.name || '', value: c.member_count || 0 }));
-  }
+  const topChurchesData = (topChurches ?? [])
+    .filter(c => c.member_count !== undefined && c.name)
+    .slice(0, 10)
+    .map(c => ({ label: c.name || "", value: c.member_count || 0 }));
 
   return (
     <div className="space-y-6">
-      {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Total Churches" value={analytics.total_churches.toString()} />
-        <StatCard label="Active Churches" value={analytics.active_churches.toString()} />
-        <StatCard label="Total Members" value={analytics.total_members?.toLocaleString() || "—"} />
-        <StatCard label="Total Giving" value={`Rs. ${analytics.total_giving?.toLocaleString() || "—"}`} />
+        <StatCard label="Total Churches" value={overview.total_churches.toLocaleString()} />
+        <StatCard label="Active Churches" value={overview.active_churches.toLocaleString()} />
+        <StatCard
+          label="Monthly Revenue"
+          value={`Rs. ${overview.mrr.toLocaleString()}`}
+        />
+        <StatCard
+          label="New This Month"
+          value={overview.churches_this_month.toLocaleString()}
+        />
       </div>
 
-      {/* Charts Grid */}
+      <div className="flex justify-end">
+        <div className="flex gap-1 bg-[var(--panel)] border border-[var(--border)] rounded-lg p-1">
+          {RANGES.map(range => (
+            <button
+              key={range.value}
+              onClick={() => setDateRange(range.value)}
+              className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+                dateRange === range.value
+                  ? "bg-[var(--accent)] text-white"
+                  : "text-[var(--muted)] hover:text-[var(--text)]"
+              }`}
+            >
+              {range.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Growth Chart */}
         <div className="card">
           <h3 className="text-lg font-semibold text-[var(--text-strong)] mb-4">Churches Over Time</h3>
-          {growthData.length > 0 ? (
-            <AreaChart data={growthData} />
+          {growthSeries.length > 0 ? (
+            <AreaChart data={growthSeries} />
           ) : (
             <div className="h-64 flex items-center justify-center">
               <p className="text-[var(--muted)]">No data available</p>
@@ -108,7 +119,6 @@ export default function AnalyticsPage() {
           )}
         </div>
 
-        {/* Plan Distribution */}
         <div className="card">
           <h3 className="text-lg font-semibold text-[var(--text-strong)] mb-4">Plan Distribution</h3>
           {planDistribution.length > 0 ? (
@@ -120,7 +130,6 @@ export default function AnalyticsPage() {
           )}
         </div>
 
-        {/* Top Churches by Members */}
         <div className="lg:col-span-2 card">
           <h3 className="text-lg font-semibold text-[var(--text-strong)] mb-4">Top Churches by Members</h3>
           {topChurchesData.length > 0 ? (

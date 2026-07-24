@@ -13,6 +13,8 @@ use crate::models::{
     CreateMemberCustomField,
 };
 use std::collections::HashMap;
+use jsonwebtoken::{decode, DecodingKey, Validation};
+use crate::handlers::audit::create_audit_entry;
 
 fn escape_csv(s: &str) -> String {
     if s.contains(',') || s.contains('"') || s.contains('\n') {
@@ -155,7 +157,30 @@ pub async fn create(_auth: AuthUser, Db(pool): Db, Json(input): Json<CreateMembe
     .bind(&input.notes)
     .bind(joined)
     .bind(input.household_id)
-    .fetch_one(&pool).await?;
+    .fetch_one(&pool)
+    .await?;
+
+    let event_payload = serde_json::json!({
+        "id": row.id,
+        "name": row.name,
+        "role": row.role,
+        "email": row.email,
+        "phone": row.phone,
+        "member_status": row.member_status,
+        "created_at": row.created_at,
+    });
+    crate::handlers::webhooks::enqueue_webhook_delivery(&pool, "member.created", event_payload);
+
+    let _ = create_audit_entry(
+        &pool,
+        &_auth.email,
+        "create",
+        "member",
+        &row.id.to_string(),
+        Some(serde_json::json!({"id": row.id, "name": row.name})),
+    )
+    .await;
+
     Ok(Json(row))
 }
 
@@ -191,13 +216,35 @@ pub async fn update(_auth: AuthUser, Db(pool): Db, Path(id): Path<uuid::Uuid>, J
     .bind(input.enabled.unwrap_or(existing.enabled.unwrap_or(true)))
     .bind(input.sort_order.unwrap_or(existing.sort_order.unwrap_or(0)))
     .fetch_one(&pool).await?;
+
+    let _ = create_audit_entry(
+        &pool,
+        &_auth.email,
+        "update",
+        "member",
+        &row.id.to_string(),
+        Some(serde_json::json!({"id": row.id, "name": row.name})),
+    )
+    .await;
+
     Ok(Json(row))
 }
 
 pub async fn delete(_auth: AuthUser, Db(pool): Db, Path(id): Path<uuid::Uuid>) -> Result<Json<serde_json::Value>, AppError> {
+    let member = sqlx::query_as::<_, Member>("SELECT name FROM members WHERE id = $1")
+        .bind(id).fetch_optional(&pool).await?.map(|m| m.name);
     sqlx::query("DELETE FROM members WHERE id = $1")
         .bind(id)
         .execute(&pool).await?;
+    let _ = create_audit_entry(
+        &pool,
+        &_auth.email,
+        "delete",
+        "member",
+        &id.to_string(),
+        Some(serde_json::json!({"id": id, "name": member})),
+    )
+    .await;
     Ok(Json(serde_json::json!({ "deleted": true })))
 }
 
@@ -213,6 +260,17 @@ pub async fn toggle(
     .fetch_optional(&pool)
     .await?
     .ok_or_else(|| AppError::not_found("Member not found"))?;
+
+    let _ = create_audit_entry(
+        &pool,
+        &_auth.email,
+        "toggle",
+        "member",
+        &row.id.to_string(),
+        Some(serde_json::json!({"id": row.id, "enabled": row.enabled})),
+    )
+    .await;
+
     Ok(Json(row))
 }
 
@@ -235,6 +293,17 @@ pub async fn reorder(
     .fetch_optional(&pool)
     .await?
     .ok_or_else(|| AppError::not_found("Member not found"))?;
+
+    let _ = create_audit_entry(
+        &pool,
+        &_auth.email,
+        "reorder",
+        "member",
+        &row.id.to_string(),
+        Some(serde_json::json!({"id": row.id, "sort_order": row.sort_order})),
+    )
+    .await;
+
     Ok(Json(row))
 }
 
@@ -259,6 +328,15 @@ pub async fn create_household(_auth: AuthUser, Db(pool): Db, Json(input): Json<C
     )
     .bind(&input.name).bind(&input.address).bind(&input.phone).bind(&input.notes)
     .fetch_one(&pool).await?;
+    let _ = create_audit_entry(
+        &pool,
+        &_auth.email,
+        "create",
+        "household",
+        &row.id.to_string(),
+        Some(serde_json::json!({"id": row.id, "name": row.name})),
+    )
+    .await;
     Ok(Json(row))
 }
 
@@ -269,12 +347,30 @@ pub async fn update_household(_auth: AuthUser, Db(pool): Db, Path(id): Path<uuid
     .bind(id).bind(&input.name).bind(&input.address).bind(&input.phone).bind(&input.notes).bind(input.enabled)
     .fetch_optional(&pool).await?
     .ok_or_else(|| AppError::not_found("Household not found"))?;
+    let _ = create_audit_entry(
+        &pool,
+        &_auth.email,
+        "update",
+        "household",
+        &row.id.to_string(),
+        Some(serde_json::json!({"id": row.id, "name": row.name})),
+    )
+    .await;
     Ok(Json(row))
 }
 
 pub async fn delete_household(_auth: AuthUser, Db(pool): Db, Path(id): Path<uuid::Uuid>) -> Result<Json<serde_json::Value>, AppError> {
     sqlx::query("UPDATE members SET household_id = NULL WHERE household_id = $1").bind(id).execute(&pool).await?;
     sqlx::query("DELETE FROM households WHERE id = $1").bind(id).execute(&pool).await?;
+    let _ = create_audit_entry(
+        &pool,
+        &_auth.email,
+        "delete",
+        "household",
+        &id.to_string(),
+        Some(serde_json::json!({"id": id})),
+    )
+    .await;
     Ok(Json(serde_json::json!({ "deleted": true })))
 }
 
@@ -292,11 +388,33 @@ pub async fn create_tag(_auth: AuthUser, Db(pool): Db, Json(input): Json<CreateM
     )
     .bind(&input.name).bind(input.color.as_deref().unwrap_or("#3B82F6"))
     .fetch_one(&pool).await?;
+    let _ = create_audit_entry(
+        &pool,
+        &_auth.email,
+        "create",
+        "member_tag",
+        &row.id.to_string(),
+        Some(serde_json::json!({"id": row.id, "name": row.name})),
+    )
+    .await;
     Ok(Json(row))
 }
 
 pub async fn delete_tag(_auth: AuthUser, Db(pool): Db, Path(id): Path<uuid::Uuid>) -> Result<Json<serde_json::Value>, AppError> {
+    let tag_name: Option<String> = sqlx::query_scalar("SELECT name FROM member_tags WHERE id = $1")
+        .bind(id)
+        .fetch_optional(&pool)
+        .await?;
     sqlx::query("DELETE FROM member_tags WHERE id = $1").bind(id).execute(&pool).await?;
+    let _ = create_audit_entry(
+        &pool,
+        &_auth.email,
+        "delete",
+        "member_tag",
+        &id.to_string(),
+        Some(serde_json::json!({"id": id, "name": tag_name})),
+    )
+    .await;
     Ok(Json(serde_json::json!({ "deleted": true })))
 }
 
@@ -311,12 +429,30 @@ pub async fn list_member_tags(Db(pool): Db, Path(member_id): Path<uuid::Uuid>) -
 pub async fn add_member_tag(_auth: AuthUser, Db(pool): Db, Path((member_id, tag_id)): Path<(uuid::Uuid, uuid::Uuid)>) -> Result<Json<serde_json::Value>, AppError> {
     sqlx::query("INSERT INTO member_tag_assignments (member_id, tag_id) VALUES ($1, $2) ON CONFLICT DO NOTHING")
         .bind(member_id).bind(tag_id).execute(&pool).await?;
+    let _ = create_audit_entry(
+        &pool,
+        &_auth.email,
+        "add_tag",
+        "member_tag_assignment",
+        &member_id.to_string(),
+        Some(serde_json::json!({"member_id": member_id, "tag_id": tag_id})),
+    )
+    .await;
     Ok(Json(serde_json::json!({ "added": true })))
 }
 
 pub async fn remove_member_tag(_auth: AuthUser, Db(pool): Db, Path((member_id, tag_id)): Path<(uuid::Uuid, uuid::Uuid)>) -> Result<Json<serde_json::Value>, AppError> {
     sqlx::query("DELETE FROM member_tag_assignments WHERE member_id = $1 AND tag_id = $2")
         .bind(member_id).bind(tag_id).execute(&pool).await?;
+    let _ = create_audit_entry(
+        &pool,
+        &_auth.email,
+        "remove_tag",
+        "member_tag_assignment",
+        &member_id.to_string(),
+        Some(serde_json::json!({"member_id": member_id, "tag_id": tag_id})),
+    )
+    .await;
     Ok(Json(serde_json::json!({ "removed": true })))
 }
 
@@ -334,6 +470,15 @@ pub async fn create_member_note(_auth: AuthUser, Db(pool): Db, Path(member_id): 
     )
     .bind(member_id).bind(input.author.as_deref().unwrap_or("Admin")).bind(&input.note)
     .fetch_one(&pool).await?;
+    let _ = create_audit_entry(
+        &pool,
+        &_auth.email,
+        "create",
+        "member_note",
+        &row.id.to_string(),
+        Some(serde_json::json!({"id": row.id, "member_id": row.member_id})),
+    )
+    .await;
     Ok(Json(row))
 }
 
@@ -584,4 +729,229 @@ pub async fn bulk_assign_tag(_auth: AuthUser, Db(pool): Db, Json(input): Json<se
             .bind(id).bind(tag_id).execute(&pool).await?;
     }
     Ok(Json(serde_json::json!({ "assigned": ids.len() })))
+}
+
+// ─── Member Portal ────────────────────────────────────────────────────────────
+
+#[derive(Debug, Deserialize)]
+pub struct PortalUpdateMember {
+    pub name: Option<String>,
+    pub phone: Option<String>,
+    pub email: Option<String>,
+    pub address: Option<String>,
+    pub city: Option<String>,
+    pub notes: Option<String>,
+}
+
+pub async fn portal_me(
+    auth: crate::auth::MemberGuard,
+    Db(pool): Db,
+) -> Result<Json<Member>, AppError> {
+    let row = sqlx::query_as::<_, Member>("SELECT * FROM members WHERE email = $1")
+        .bind(&auth.0.email)
+        .fetch_optional(&pool)
+        .await?
+        .ok_or_else(|| AppError::not_found("Member profile not found"))?;
+    Ok(Json(row))
+}
+
+pub async fn portal_update_me(
+    auth: crate::auth::MemberGuard,
+    Db(pool): Db,
+    Json(input): Json<PortalUpdateMember>,
+) -> Result<Json<Member>, AppError> {
+    let existing = sqlx::query_as::<_, Member>("SELECT * FROM members WHERE email = $1")
+        .bind(&auth.0.email)
+        .fetch_optional(&pool)
+        .await?
+        .ok_or_else(|| AppError::not_found("Member profile not found"))?;
+
+    let row = sqlx::query_as::<_, Member>(
+        r#"UPDATE members SET
+            name=COALESCE($2,name), email=COALESCE($3,email), phone=COALESCE($4,phone),
+            address=COALESCE($5,address), city=COALESCE($6,city), notes=COALESCE($7,notes),
+            updated_at=NOW()
+         WHERE id=$1 RETURNING *"#,
+    )
+    .bind(existing.id)
+    .bind(input.name.as_deref().unwrap_or(&existing.name))
+    .bind(input.email.as_deref().or(existing.email.as_deref()))
+    .bind(input.phone.as_deref().or(existing.phone.as_deref()))
+    .bind(input.address.as_deref().or(existing.address.as_deref()))
+    .bind(input.city.as_deref().or(existing.city.as_deref()))
+    .bind(input.notes.as_deref().or(existing.notes.as_deref()))
+    .fetch_one(&pool)
+    .await?;
+    Ok(Json(row))
+}
+
+pub async fn portal_donations(
+    auth: crate::auth::MemberGuard,
+    Db(pool): Db,
+) -> Result<Json<Vec<crate::models::donation::Donation>>, AppError> {
+    let rows = sqlx::query_as::<_, crate::models::donation::Donation>(
+        r#"SELECT * FROM donations
+           WHERE donor_email = $1 AND status = 'completed' AND refund_status != 'refunded'
+           ORDER BY created_at DESC"#,
+    )
+    .bind(&auth.0.email)
+    .fetch_all(&pool)
+    .await?;
+    Ok(Json(rows))
+}
+
+pub async fn portal_rsvps(
+    auth: crate::auth::MemberGuard,
+    Db(pool): Db,
+) -> Result<Json<Vec<serde_json::Value>>, AppError> {
+    let rows = sqlx::query_as::<_, (uuid::Uuid, uuid::Uuid, String, String, String, i32, String, chrono::NaiveDateTime, Option<String>, Option<String>, Option<String>, Option<String>)>(
+        r#"SELECT r.id, r.event_id, r.name, r.email, r.phone, r.guests, r.status, r.created_at,
+                  e.title, e.date, e.time, e.location
+           FROM event_rsvps r
+           LEFT JOIN events e ON e.id = r.event_id
+           WHERE r.email = $1
+           ORDER BY r.created_at DESC"#,
+    )
+    .bind(&auth.0.email)
+    .fetch_all(&pool)
+    .await?;
+
+    let result: Vec<serde_json::Value> = rows
+        .into_iter()
+        .map(
+            |(id, event_id, name, email, phone, guests, status, created_at, title, date, time, location)| {
+                serde_json::json!({
+                    "id": id,
+                    "eventId": event_id,
+                    "name": name,
+                    "email": email,
+                    "phone": phone,
+                    "guests": guests,
+                    "status": status,
+                    "createdAt": created_at,
+                    "eventTitle": title,
+                    "eventDate": date,
+                    "eventTime": time,
+                    "eventLocation": location,
+                })
+            },
+        )
+        .collect();
+
+    Ok(Json(result))
+}
+
+pub async fn portal_groups(
+    auth: crate::auth::MemberGuard,
+    Db(pool): Db,
+) -> Result<Json<Vec<crate::models::group::Group>>, AppError> {
+    let person_id: Option<uuid::Uuid> = sqlx::query_scalar(
+        "SELECT id FROM people WHERE email = $1 LIMIT 1"
+    )
+    .bind(&auth.0.email)
+    .fetch_optional(&pool)
+    .await?;
+
+    let rows = match person_id {
+        Some(pid) => {
+            sqlx::query_as::<_, crate::models::group::Group>(
+                r#"SELECT g.* FROM groups g
+                   INNER JOIN group_memberships gm ON g.id = gm.group_id
+                   WHERE gm.person_id = $1
+                   ORDER BY g.sort_order ASC, g.created_at ASC"#,
+            )
+            .bind(pid)
+            .fetch_all(&pool)
+            .await?
+        }
+        None => Vec::new(),
+    };
+
+    Ok(Json(rows))
+}
+
+// ─── Magic Link ──────────────────────────────────────────────────────────────
+
+pub async fn request_magic_link(
+    Db(pool): Db,
+    Json(input): Json<serde_json::Value>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let email = input.get("email").and_then(|v| v.as_str()).ok_or_else(|| AppError::bad_request("Email is required"))?;
+
+    let member_exists: Option<uuid::Uuid> = sqlx::query_scalar("SELECT id FROM members WHERE email = $1")
+        .bind(email)
+        .fetch_optional(&pool)
+        .await?;
+
+    if member_exists.is_none() {
+        return Err(AppError::bad_request("No member account found with this email"));
+    }
+
+    let token = crate::auth::create_token("", email, "member")?;
+
+    let domain = std::env::var("SITE_DOMAIN").unwrap_or_else(|_| "http://localhost:3000".to_string());
+    let magic_link = format!("{}/portal/verify-magic?token={}", domain, token);
+
+    let email_body = format!(
+        "Click the link below to sign in to your member portal:\n\n{}\n\nThis link will expire in 15 minutes.\n\nGrace Nepal Church",
+        magic_link
+    );
+
+    let _ = crate::email::send_donation_receipt(&pool, email, "Member", "Sign in to your Member Portal", &email_body).await;
+
+    Ok(Json(serde_json::json!({ "message": "Magic link sent", "email": email })))
+}
+
+pub async fn magic_login(
+    Db(pool): Db,
+    Json(input): Json<serde_json::Value>,
+) -> Result<Json<crate::models::AuthResponse>, AppError> {
+    let token = input.get("token").and_then(|v| v.as_str()).ok_or_else(|| AppError::bad_request("Token is required"))?;
+
+    let secret = std::env::var("JWT_SECRET").map_err(|_| AppError::internal("JWT secret not configured"))?;
+    let token_data = decode::<crate::auth::Claims>(
+        token,
+        &DecodingKey::from_secret(secret.as_bytes()),
+        &Validation::default(),
+    )
+    .map_err(|_| AppError::unauthorized("Invalid magic link"))?;
+
+    let email = &token_data.claims.email;
+
+    let user: Option<crate::models::UserPublic> = sqlx::query_as(
+        "SELECT id, email, name, role FROM users WHERE email = $1"
+    )
+    .bind(email)
+    .fetch_optional(&pool)
+    .await?
+    .ok_or_else(|| AppError::not_found("User account not found. Please contact the church office."))?;
+
+    let session_token = crate::auth::create_token(&user.id.to_string(), &user.email, &user.role)?;
+
+    Ok(Json(crate::models::AuthResponse {
+        token: session_token,
+        user,
+    }))
+}
+
+pub async fn portal_cancel_rsvp(
+    auth: crate::auth::MemberGuard,
+    Db(pool): Db,
+    Path(id): Path<uuid::Uuid>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let rsvp = sqlx::query_as::<_, crate::models::event_rsvp::EventRsvp>(
+        "SELECT * FROM event_rsvps WHERE id = $1 AND email = $2"
+    )
+    .bind(id)
+    .bind(&auth.0.email)
+    .fetch_optional(&pool)
+    .await?
+    .ok_or_else(|| AppError::not_found("RSVP not found"))?;
+
+    sqlx::query("DELETE FROM event_rsvps WHERE id = $1")
+        .bind(id)
+        .execute(&pool)
+        .await?;
+
+    Ok(Json(serde_json::json!({ "deleted": true, "event_id": rsvp.event_id })))
 }

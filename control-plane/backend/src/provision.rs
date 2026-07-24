@@ -223,3 +223,93 @@ pub async fn update_church_suspended_flag(
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_slugify() {
+        assert_eq!(slugify("Grace Church Kathmandu"), "gracechurchkathmandu");
+        assert_eq!(slugify("  Hello  World!  "), "helloworld");
+        assert_eq!(slugify("A&B"), "ab");
+        // truncation to 63 chars
+        let long = "a".repeat(70);
+        let slug = slugify(&long);
+        assert_eq!(slug.len(), 63);
+        assert_eq!(slug, "a".repeat(63));
+    }
+
+    #[test]
+    fn test_valid_slug() {
+        assert!(valid_slug("abc"));
+        assert!(valid_slug("abc123"));
+        assert!(valid_slug("ab1"));
+        assert!(!valid_slug("ab")); // too short
+        assert!(!valid_slug("")); // empty
+        // too long
+        let too_long = "a".repeat(64);
+        assert!(!valid_slug(&too_long));
+        // must start with a letter
+        assert!(!valid_slug("1abc"));
+        assert!(!valid_slug("1"));
+        // only lowercase letters and digits allowed
+        assert!(!valid_slug("ab_c")); // underscore not allowed
+        assert!(!valid_slug("ab-c")); // hyphen not allowed
+        assert!(!valid_slug("AB")); // uppercase not allowed
+        assert!(!valid_slug("ab1!")); // exclamation not allowed
+    }
+
+    #[test]
+    fn test_random_password_length_and_chars() {
+        let pwd = random_password();
+        assert_eq!(pwd.len(), 14);
+        let allowed = b"abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+        for c in pwd.chars() {
+            assert!(allowed.contains(&(c as u8)));
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    test_slugify() {
+        assert_eq!(slugify("Grace Church Kathmandu"), "gracechurchkathmandu");
+        assert_eq!(slugify("  Hello   WORLD  "), "helloworld");
+        assert_eq!(slugify("A&B"), "ab");
+        assert_eq!(slugify("123"), "123"); // starts with digit, but slugify doesn't enforce
+        assert_eq!(slugify(""), "");
+    }
+
+    #[test]
+    test_valid_slug() {
+        assert!(!valid_slug("")); // too short
+        assert!(!valid_slug("ab")); // length 2
+        assert!(valid_slug("abc")); // length 3, starts with letter
+        assert!(valid_slug("abcd1234")); // alnum
+        assert!(!valid_slug("1abc")); // starts with digit
+        assert!(!valid_slug("ab_cd")); // underscore not allowed
+        assert!(!valid_slug("ab-cd")); // hyphen not allowed
+        assert!(!valid_slug("ab cd")); // space not allowed
+        // length 64 should be invalid (max 63)
+        let too_long = "a".repeat(64);
+        assert!(!valid_slug(&too_long));
+        // length 63 should be valid if starts with letter and only alnum
+        let just_right = "a".repeat(63);
+        assert!(valid_slug(&just_right));
+    }
+
+    #[test]
+    fn test_random_password_length_and_charset() {
+        const CHARS: &[u8] = b"abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+        let pw = random_password();
+        assert_eq!(pw.len(), 14);
+        // Ensure all characters are in the allowed set
+        for c in pw.chars() {
+            assert!(CHARS.contains(&(c as u8)));
+        }
+    }
+}

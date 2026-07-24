@@ -17,6 +17,7 @@ pub struct Person {
     pub joined_date: Option<chrono::NaiveDate>,
     pub enabled: bool,
     pub sort_order: i32,
+    pub directory_opt_in: bool,
     pub created_at: chrono::NaiveDateTime,
     pub updated_at: chrono::NaiveDateTime,
 }

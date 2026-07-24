@@ -4,16 +4,15 @@ import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 import { Analytics, Church } from "@/types";
 
-// Analytics hooks
 export function useAnalytics() {
   return useQuery({
-    queryKey: ["analytics"],
+    queryKey: ["analytics", "overview"],
     queryFn: async () => {
-      const response = await apiClient.get<Analytics>("/analytics");
+      const response = await apiClient.get<Analytics>("/analytics/overview");
       return response.data;
     },
     staleTime: 60000,
-    refetchInterval: 60000, // Auto-refresh every minute
+    refetchInterval: 60000,
   });
 }
 
@@ -36,19 +35,19 @@ export function useChurchStats(slug?: string) {
   });
 }
 
-export function useGrowthAnalytics() {
+export function useGrowthAnalytics(range = "30d") {
   return useQuery({
-    queryKey: ["analytics", "growth"],
+    queryKey: ["analytics", "growth", range],
     queryFn: async () => {
       const response = await apiClient.get<Array<{
-        month: string;
+        period: string;
         churches_created: number;
         churches_churned: number;
         net_growth: number;
-      }>>("/analytics/growth");
+      }>>(`/analytics/growth?range=${encodeURIComponent(range)}`);
       return response.data;
     },
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 5 * 60 * 1000,
   });
 }
 

@@ -1,5 +1,7 @@
 mod auth;
 mod config;
+mod contract_tests;
+mod email;
 mod error;
 mod handlers;
 mod provision;
@@ -13,6 +15,7 @@ use config::Config;
 use sqlx::postgres::{PgPool, PgPoolOptions};
 use sqlx::Executor;
 use std::sync::Arc;
+use std::time::Duration;
 use std::time::Instant;
 use tower_http::cors::{Any, CorsLayer};
 
@@ -27,26 +30,28 @@ pub struct AppState {
 async fn main() {
     let cfg = Config::from_env();
 
-    ensure_control_db(&cfg).await;
+    let pool = connect_control_pool(&cfg).await;
 
-    let pool = PgPoolOptions::new()
-        .max_connections(5)
-        .connect(&cfg.control_database_url)
-        .await
-        .expect("connect control database");
-
-    sqlx::migrate!("./migrations")
-        .run(&pool)
-        .await
-        .expect("run control migrations");
+    if cfg.db_migrate_on_startup {
+        sqlx::migrate!("./migrations")
+            .run(&pool)
+            .await
+            .expect("run control migrations");
+    }
 
     seed_super_admin(&pool, &cfg).await;
     let _ = seed::seed_admins(&cfg, &pool).await;
+    let _ = seed::seed_test_admin(&cfg, &pool).await;
 
-    // Seed dummy churches (dev mode - idempotent)
     let _ = seed::seed_dummy_churches(&cfg, &pool).await;
 
     let state = AppState { pool, cfg: Arc::new(cfg.clone()), started_at: Instant::now() };
+
+    let dunning_pool = state.pool.clone();
+    let dunning_cfg = state.cfg.clone();
+    tokio::spawn(async move {
+        handlers::run_dunning_checker(dunning_pool, dunning_cfg).await;
+    });
 
     let cors = CorsLayer::new()
         .allow_origin(Any)
@@ -57,6 +62,8 @@ async fn main() {
         .route("/auth/login", post(handlers::login))
         .route("/auth/refresh", post(handlers::refresh_token))
         .route("/auth/logout", post(handlers::logout))
+        .route("/auth/forgot", post(handlers::forgot_password))
+        .route("/auth/reset", post(handlers::reset_password))
         .route("/auth/me", get(handlers::me))
         .route("/auth/reset-authenticated", post(handlers::reset_authenticated_password))
         // 2FA
@@ -82,10 +89,14 @@ async fn main() {
         // Billing
         .route("/billing", get(handlers::list_billing))
         .route("/billing/{church_id}", get(handlers::get_billing_for_church))
+        .route("/billing/overview", get(handlers::get_billing_overview))
         .route("/invoices", get(handlers::list_invoices).post(handlers::create_invoice))
         .route("/invoices/{id}/pay", post(handlers::mark_invoice_paid))
+        .route("/churches/{id}/billing-portal", post(handlers::create_billing_portal_session))
+        .route("/churches/{id}/invoices", get(handlers::list_church_stripe_invoices))
+        .route("/churches/{church_id}/donations/{donation_id}/refund", post(handlers::refund_donation))
         // Analytics
-        .route("/analytics", get(handlers::get_analytics))
+        .route("/analytics/overview", get(handlers::get_analytics_overview))
         .route("/analytics/growth", get(handlers::get_growth_analytics))
         .route("/analytics/top-churches", get(handlers::get_top_churches))
         .route("/analytics/refunds", get(handlers::get_refund_analytics))
@@ -110,6 +121,7 @@ async fn main() {
         .route("/readyz", get(handlers::readyz))
         .route("/api/webhooks/stripe", post(handlers::stripe_webhook))
         .route("/api/_routes", get(handlers::api_routes))
+        .route("/api/status", get(handlers::get_status))
         .nest("/api", api)
         .with_state(state)
         .layer(cors);
@@ -120,21 +132,19 @@ async fn main() {
     axum::serve(listener, app).await.unwrap();
 }
 
-/// Create the control database itself if it doesn't exist yet (one-time bootstrap).
-async fn ensure_control_db(cfg: &Config) {
-    let db_name = cfg
-        .control_database_url
-        .rsplit('/')
-        .next()
-        .and_then(|s| s.split('?').next())
-        .unwrap_or("churchnepal_control")
-        .to_string();
-
-    let admin = PgPoolOptions::new()
-        .max_connections(1)
-        .connect(&cfg.pg_super_url)
+/// Connect to the control database with retries, creating it first if needed.
+async fn connect_control_pool(cfg: &Config) -> PgPool {
+    ensure_control_db(cfg).await;
+    connect_with_retry(&cfg.control_database_url, cfg)
         .await
-        .expect("connect superuser db to bootstrap control database");
+        .expect("connect control database")
+}
+
+/// Bootstrap: create the control database if it doesn't yet exist (one-time).
+async fn ensure_control_db(cfg: &Config) {
+    let db_name = cfg.control_db_name();
+
+    let admin = connect_superuser_pool(cfg).await;
 
     let exists: Option<i32> = sqlx::query_scalar("SELECT 1 FROM pg_database WHERE datname = $1")
         .bind(&db_name)
@@ -146,9 +156,53 @@ async fn ensure_control_db(cfg: &Config) {
             .execute(format!("CREATE DATABASE \"{db_name}\"").as_str())
             .await
             .expect("create control database");
-        println!("Created control database '{db_name}'");
+        println!("Created control database '{}'", db_name);
     }
 }
+
+/// Connect to the superuser maintenance DB with retries (max_connections=1).
+async fn connect_superuser_pool(cfg: &Config) -> PgPool {
+    connect_with_retry(&cfg.pg_super_url, cfg)
+        .await
+        .expect("connect superuser db to bootstrap control database")
+}
+
+/// Core retry loop shared by control-pool and superuser-pool connections.
+///
+/// Uses exponential back-off: 200ms, 400ms, 600ms, … up to `max_retries`
+/// attempts before returning the final error.
+async fn connect_with_retry(url: &str, cfg: &Config) -> Result<PgPool, sqlx::Error> {
+    let timeout = Duration::from_secs(cfg.db_connect_timeout_secs);
+    let max_retries = cfg.db_connect_max_retries;
+    let mut attempt: u32 = 0;
+
+    loop {
+        match PgPoolOptions::new()
+            .min_connections(1)
+            .max_connections(cfg.db_max_connections)
+            .idle_timeout(Some(Duration::from_secs(cfg.db_idle_timeout_secs)))
+            .max_lifetime(Some(Duration::from_secs(cfg.db_max_lifetime_secs)))
+            .acquire_timeout(timeout)
+            .connect(url)
+            .await
+        {
+            Ok(pool) => return Ok(pool),
+            Err(e) => {
+                attempt += 1;
+                if attempt >= max_retries {
+                    return Err(e);
+                }
+                let backoff = Duration::from_millis(200 * u64::from(attempt));
+                eprintln!(
+                    "DB connect attempt {}/{} to '{}' failed: {} — retrying in {:?}",
+                    attempt, max_retries, url, e, backoff
+                );
+                tokio::time::sleep(backoff).await;
+            }
+        }
+    }
+}
+
 
 async fn seed_super_admin(pool: &PgPool, cfg: &Config) {
     let ctrl_exists: Option<i32> =

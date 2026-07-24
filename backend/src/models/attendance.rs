@@ -15,6 +15,7 @@ pub struct Attendance {
 #[derive(Debug, Deserialize)]
 pub struct CreateAttendance {
     pub event_id: Option<uuid::Uuid>,
+    pub person_id: Option<uuid::Uuid>,
     pub name: String,
     pub service_date: String,
     pub service_name: String,

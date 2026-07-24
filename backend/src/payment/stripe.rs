@@ -265,3 +265,34 @@ impl From<reqwest::Error> for StripeError {
         StripeError::Request(e)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_stripe_client_new() {
+        let client = StripeClient::new("sk_test_123");
+        assert_eq!(client.secret_key(), "sk_test_123");
+        assert!(client.enabled());
+    }
+
+    #[test]
+    fn test_stripe_client_from_env() {
+        std::env::set_var("STRIPE_SECRET_KEY", "sk_env_key");
+        let client = StripeClient::from_env();
+        assert_eq!(client.secret_key(), "sk_env_key");
+        assert!(client.enabled());
+        std::env::remove_var("STRIPE_SECRET_KEY");
+    }
+
+    #[test]
+    fn test_stripe_client_disabled_when_empty() {
+        let client = StripeClient::new("");
+        assert!(!client.enabled());
+        std::env::set_var("STRIPE_SECRET_KEY", "");
+        let client2 = StripeClient::from_env();
+        assert!(!client2.enabled());
+        std::env::remove_var("STRIPE_SECRET_KEY");
+    }
+}

@@ -9,26 +9,28 @@ import { Separator } from '@/components/ui/separator'
 import { useIsAdmin } from '@/lib/useIsAdmin'
 import api from '@/lib/admin/api'
 import {
-  THEME_PRESETS,
-  THEME_SETTING_KEYS,
-  DEFAULT_PRIMARY,
-  DEFAULT_SKIN,
-  DEFAULT_HEADING_FONT,
-  DEFAULT_BODY_FONT,
-  DEFAULT_RADIUS,
-  applyPrimaryColor,
-  applySkin,
-  applyFonts,
-  applyRadius,
-  applyPreset,
-  loadGoogleFont,
-  findPresetByName,
-  isValidHex,
-  saveThemeDraft,
-  publishTheme,
-  type ThemePreset,
-  type ThemeSkin,
-} from '@/lib/theme'
+   THEME_PRESETS,
+   THEME_SETTING_KEYS,
+   DEFAULT_PRIMARY,
+   DEFAULT_SKIN,
+   DEFAULT_HEADING_FONT,
+   DEFAULT_BODY_FONT,
+   DEFAULT_RADIUS,
+   DEFAULT_LOGO,
+   applyPrimaryColor,
+   applySkin,
+   applyFonts,
+   applyRadius,
+   applyPreset,
+   applyLogo,
+   loadGoogleFont,
+   findPresetByName,
+   isValidHex,
+   saveThemeDraft,
+   publishTheme,
+   type ThemePreset,
+   type ThemeSkin,
+ } from '@/lib/theme'
 
 const MODES = [
   { value: 'light', label: 'Light', icon: Sun },
@@ -54,9 +56,10 @@ export function ThemeCustomizer() {
   const [primary, setPrimary] = useState<string>(DEFAULT_PRIMARY)
   const [skin, setSkin] = useState<ThemeSkin>(DEFAULT_SKIN)
   const [radius, setRadius] = useState<string>(DEFAULT_RADIUS)
-  const [headingFont, setHeadingFont] = useState<string>(DEFAULT_HEADING_FONT)
-  const [bodyFont, setBodyFont] = useState<string>(DEFAULT_BODY_FONT)
-  const [activePreset, setActivePreset] = useState<string | null>(null)
+const [headingFont, setHeadingFont] = useState<string>(DEFAULT_HEADING_FONT)
+   const [bodyFont, setBodyFont] = useState<string>(DEFAULT_BODY_FONT)
+   const [logo, setLogo] = useState<string>(DEFAULT_LOGO)
+   const [activePreset, setActivePreset] = useState<string | null>(null)
   const [savingKey, setSavingKey] = useState<string | null>(null)
   const [draftExists, setDraftExists] = useState(false)
   const [publishing, setPublishing] = useState(false)
@@ -90,6 +93,9 @@ export function ThemeCustomizer() {
           const bFont = merged.get(THEME_SETTING_KEYS.body_font)
           if (bFont) setBodyFont(bFont)
 
+          const logoVal = merged.get(THEME_SETTING_KEYS.logo)
+          if (logoVal !== undefined) setLogo(logoVal)
+
           const presetName = merged.get(THEME_SETTING_KEYS.theme_preset)
           if (presetName) {
             const preset = findPresetByName(presetName)
@@ -111,23 +117,26 @@ export function ThemeCustomizer() {
           if (p && isValidHex(p)) setPrimary(p)
           const s = pubMap.get(THEME_SETTING_KEYS.skin)
           if (s === 'bordered' || s === 'default') setSkin(s)
+          const l = pubMap.get(THEME_SETTING_KEYS.logo)
+          if (l !== undefined) setLogo(l)
         })
       })
       .catch(() => {})
   }, [isAdmin])
 
-  const getCurrentDraft = useCallback(() => {
-    return {
-      [THEME_SETTING_KEYS.primary]: primary,
-      [THEME_SETTING_KEYS.skin]: skin,
-      [THEME_SETTING_KEYS.mode]: theme || 'system',
-      [THEME_SETTING_KEYS.heading_font]: headingFont,
-      [THEME_SETTING_KEYS.body_font]: bodyFont,
-      [THEME_SETTING_KEYS.theme_preset]: activePreset || '',
-      [THEME_SETTING_KEYS.homepage_layout]: activePreset ? findPresetByName(activePreset)?.layout || '' : '',
-      [THEME_SETTING_KEYS.radius]: radius,
-    }
-  }, [primary, skin, theme, headingFont, bodyFont, activePreset, radius])
+const getCurrentDraft = useCallback(() => {
+     return {
+       [THEME_SETTING_KEYS.primary]: primary,
+       [THEME_SETTING_KEYS.skin]: skin,
+       [THEME_SETTING_KEYS.mode]: theme || 'system',
+       [THEME_SETTING_KEYS.heading_font]: headingFont,
+       [THEME_SETTING_KEYS.body_font]: bodyFont,
+       [THEME_SETTING_KEYS.theme_preset]: activePreset || '',
+       [THEME_SETTING_KEYS.homepage_layout]: activePreset ? findPresetByName(activePreset)?.layout || '' : '',
+       [THEME_SETTING_KEYS.radius]: radius,
+       [THEME_SETTING_KEYS.logo]: logo,
+     }
+   }, [primary, skin, theme, headingFont, bodyFont, activePreset, radius, logo])
 
   const saveDraft = useCallback((draft: Record<string, string>) => {
     if (saveTimers.current._draft) clearTimeout(saveTimers.current._draft)
@@ -164,13 +173,21 @@ export function ThemeCustomizer() {
     saveDraft(draft)
   }
 
-  const changeRadius = (r: string) => {
-    setRadius(r)
-    applyRadius(r)
-    const draft = getCurrentDraft()
-    draft[THEME_SETTING_KEYS.radius] = r
-    saveDraft(draft)
-  }
+const changeRadius = (r: string) => {
+     setRadius(r)
+     applyRadius(r)
+     const draft = getCurrentDraft()
+     draft[THEME_SETTING_KEYS.radius] = r
+     saveDraft(draft)
+   }
+
+   const changeLogo = (url: string) => {
+     setLogo(url)
+     applyLogo(url)
+     const draft = getCurrentDraft()
+     draft[THEME_SETTING_KEYS.logo] = url
+     saveDraft(draft)
+   }
 
   const selectPreset = (preset: ThemePreset) => {
     applyPreset(preset)
@@ -203,11 +220,13 @@ export function ThemeCustomizer() {
     setRadius(DEFAULT_RADIUS)
     setHeadingFont(DEFAULT_HEADING_FONT)
     setBodyFont(DEFAULT_BODY_FONT)
+    setLogo(DEFAULT_LOGO)
     setActivePreset(null)
     applyPrimaryColor(DEFAULT_PRIMARY)
     applySkin(DEFAULT_SKIN)
     applyFonts(DEFAULT_HEADING_FONT, DEFAULT_BODY_FONT)
     applyRadius(DEFAULT_RADIUS)
+    applyLogo(DEFAULT_LOGO)
     const draft: Record<string, string> = {
       [THEME_SETTING_KEYS.primary]: DEFAULT_PRIMARY,
       [THEME_SETTING_KEYS.skin]: DEFAULT_SKIN,
@@ -217,6 +236,7 @@ export function ThemeCustomizer() {
       [THEME_SETTING_KEYS.theme_preset]: '',
       [THEME_SETTING_KEYS.homepage_layout]: 'default',
       [THEME_SETTING_KEYS.radius]: DEFAULT_RADIUS,
+      [THEME_SETTING_KEYS.logo]: DEFAULT_LOGO,
     }
     saveDraft(draft).then(() => setDraftExists(true)).catch(() => {})
   }

@@ -864,10 +864,19 @@ function ProvisioningModal({
     return () => clearInterval(interval);
   }, []);
 
+  const disableClose = step < 4;
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (disableClose && e.key === 'Escape') {
+      e.preventDefault();
+    }
+  };
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--overlay)] backdrop-blur-sm"
-      onClick={onDone}
+      onClick={disableClose ? undefined : onDone}
+      onKeyDown={handleKeyDown}
       role="dialog"
       aria-modal="true"
       aria-label="Provisioning church"

@@ -1,6 +1,6 @@
 use crate::tenant::Db;
 use crate::auth::{AuthUser, AdminGuard};
-use axum::extract::{Path, Query};
+use axum::extract::{Path, Query, Form};
 use axum::{Json, response::Response};
 use axum::http::header;
 use chrono::NaiveDateTime;
@@ -41,6 +41,17 @@ pub async fn initiate(
     .bind(input.fund_id)
     .bind(notes)
     .fetch_one(&pool).await?;
+
+    let event_payload = serde_json::json!({
+        "id": row.id,
+        "donor_name": row.donor_name,
+        "donor_email": row.donor_email,
+        "amount": row.amount,
+        "payment_method": row.payment_method,
+        "status": row.status,
+        "created_at": row.created_at,
+    });
+    crate::handlers::webhooks::enqueue_webhook_delivery(&pool, "donation.created", event_payload);
 
     let domain = std::env::var("SITE_DOMAIN")
         .unwrap_or_else(|_| "http://localhost:3000".to_string());
@@ -108,6 +119,8 @@ pub async fn initiate(
         _ => format!("{}/give/success?donation_id={}", domain, row.id),
     };
 
+    let _ = create_audit_entry(&pool, _auth.email, "create", "donation", &row.id.to_string(), Some(serde_json::json!({"id": row.id}))).await;
+
     Ok(Json(serde_json::json!({
         "donation_id": row.id,
         "payment_url": payment_url,
@@ -165,9 +178,205 @@ pub async fn callback_esewa(
     let domain = std::env::var("SITE_DOMAIN")
         .unwrap_or_else(|_| "http://localhost:3000".to_string());
 
+    // Create receipt entry for successful payment
+    let receipt_id = uuid::Uuid::new_v4();
+    sqlx::query(
+        r#"INSERT INTO donation_receipts (id, donation_id, created_at) VALUES ($1, $2, NOW())"#
+    )
+    .bind(receipt_id)
+    .bind(donation_id)
+    .execute(&pool)
+    .await?;
+
     Ok(Json(serde_json::json!({
         "status": "completed",
         "message": "Payment confirmed",
+        "redirect_url": format!("{}/give/success?donation_id={}&receipt={}", domain, donation_id, receipt_id),
+    })))
+}
+
+pub async fn init_esewa(
+    Db(pool): Db,
+    Json(input): Json<InitiateDonation>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    if input.payment_method != "esewa" {
+        return Err(AppError::bad_request("Payment method must be esewa"));
+    }
+
+    let mut extra_notes = Vec::new();
+    if let Some(fund_id) = input.fund_id {
+        extra_notes.push(format!("fund={}", fund_id));
+    }
+    if let Some(freq) = &input.frequency {
+        extra_notes.push(format!("frequency={}", freq));
+    }
+    let base_notes = input.notes.as_deref().unwrap_or("");
+    let notes = if extra_notes.is_empty() {
+        base_notes.to_string()
+    } else {
+        format!("{} {}", base_notes, extra_notes.join(" "))
+    };
+
+    let row = sqlx::query_as::<_, Donation>(
+        r#"INSERT INTO donations (donor_name, donor_email, donor_phone, amount, payment_method, campaign_id, fund_id, notes, status, transaction_id)
+           VALUES ($1, $2, $3, $4, 'esewa', $5, $6, $7, 'pending', '') RETURNING *"#
+    )
+    .bind(input.donor_name.as_deref().unwrap_or(""))
+    .bind(input.donor_email.as_deref().unwrap_or(""))
+    .bind(input.donor_phone.as_deref().unwrap_or(""))
+    .bind(input.amount)
+    .bind(input.campaign_id)
+    .bind(input.fund_id)
+    .bind(notes)
+    .fetch_one(&pool).await?;
+
+    let config = crate::payment::esewa::EsewaConfig::from_env();
+    let signature = crate::payment::esewa::generate_signature(
+        row.amount,
+        &row.id.to_string(),
+        &config.merchant_id,
+        &config.secret_key,
+    );
+
+    let domain = std::env::var("SITE_DOMAIN")
+        .unwrap_or_else(|_| "http://localhost:3000".to_string());
+
+    let success_url = format!("{}/give/success?donation_id={}", domain, row.id);
+    let failure_url = format!("{}/give", domain);
+
+    let event_payload = serde_json::json!({
+        "id": row.id,
+        "donor_name": row.donor_name,
+        "donor_email": row.donor_email,
+        "amount": row.amount,
+        "payment_method": "esewa",
+        "status": "pending",
+        "created_at": row.created_at,
+    });
+    crate::handlers::webhooks::enqueue_webhook_delivery(&pool, "donation.created", event_payload);
+
+    let _ = create_audit_entry(&pool, _auth.email, "create", "donation", &row.id.to_string(), Some(serde_json::json!({"id": row.id}))).await;
+
+    Ok(Json(serde_json::json!({
+        "donation_id": row.id,
+        "amount": row.amount,
+        "product_code": config.merchant_id,
+        "transaction_uuid": row.id.to_string(),
+        "signature": signature,
+        "success_url": success_url,
+        "failure_url": failure_url,
+        "esewa_url": format!("{}/epay/main", config.base_url),
+    })))
+}
+
+pub async fn esewa_callback_get(
+    Db(pool): Db,
+    Query(params): Query<std::collections::HashMap<String, String>>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    esewa_callback_impl(pool, params).await
+}
+
+pub async fn esewa_callback_post(
+    Db(pool): Db,
+    Form(params): Form<std::collections::HashMap<String, String>>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    esewa_callback_impl(pool, params).await
+}
+
+async fn esewa_callback_impl(
+    pool: sqlx::PgPool,
+    params: std::collections::HashMap<String, String>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let oid = params.get("oid").ok_or_else(|| AppError::bad_request("Missing oid"))?;
+    let amt_str = params.get("amt").ok_or_else(|| AppError::bad_request("Missing amt"))?;
+    let ref_id = params.get("refId").ok_or_else(|| AppError::bad_request("Missing refId"))?;
+
+    let donation_id: uuid::Uuid = oid.parse().map_err(|_| AppError::bad_request("Invalid oid"))?;
+
+    let config = crate::payment::esewa::EsewaConfig::from_env();
+    let secret = std::env::var("ESEWA_SECRET_KEY").unwrap_or_default();
+
+    let callback_params = crate::payment::esewa::EsewaCallback {
+        oid: oid.clone(),
+        amt: amt_str.clone(),
+        ref_id: ref_id.clone(),
+        ref_id2: params.get("refId2").cloned(),
+    };
+    if !crate::payment::esewa::verify_signature_with_product_code(&callback_params, &config.merchant_id, &secret) {
+        return Err(AppError::bad_request("eSewa signature verification failed"));
+    }
+
+    let client = reqwest::Client::new();
+    let status_resp = client
+        .post(format!("{}/api/epay/transaction/status/", config.base_url))
+        .form(&[
+            ("product_code", config.merchant_id.as_str()),
+            ("total_amount", amt_str.as_str()),
+            ("transaction_uuid", oid.as_str()),
+        ])
+        .send()
+        .await;
+
+    let verified = match status_resp {
+        Ok(resp) if resp.status().is_success() => {
+            let status_json: serde_json::Value = resp.json().await.unwrap_or_else(|_| serde_json::json!({"status": "FAILED"}));
+            status_json.get("status").and_then(|s| s.as_str()) == Some("COMPLETE")
+        }
+        _ => false,
+    };
+
+    if !verified {
+        return Err(AppError::bad_request("eSewa transaction verification failed"));
+    }
+
+    let row = sqlx::query_as::<_, Donation>("SELECT * FROM donations WHERE id = $1")
+        .bind(donation_id)
+        .fetch_optional(&pool)
+        .await?
+        .ok_or_else(|| AppError::not_found("Donation not found"))?;
+
+    if row.status != "completed" {
+        sqlx::query("UPDATE donations SET status = 'completed', transaction_id = COALESCE(transaction_id, $2), updated_at = NOW() WHERE id = $1")
+            .bind(donation_id)
+            .bind(ref_id.clone())
+            .execute(&pool)
+            .await?;
+
+        if let Some(campaign_id) = row.campaign_id {
+            let _ = sqlx::query(
+                r#"UPDATE campaigns SET raised = COALESCE(raised, 0) + $1 WHERE id = $2"#
+            )
+            .bind(row.amount)
+            .bind(campaign_id)
+            .execute(&pool)
+            .await;
+        }
+    }
+
+    let updated = sqlx::query_as::<_, Donation>("SELECT * FROM donations WHERE id = $1")
+        .bind(donation_id)
+        .fetch_one(&pool)
+        .await?;
+
+    let domain = std::env::var("SITE_DOMAIN")
+        .unwrap_or_else(|_| "http://localhost:3000".to_string());
+
+    Ok(Json(serde_json::json!({
+        "status": "completed",
+        "message": "Payment confirmed",
+        "transaction_ref": ref_id,
+        "receipt": {
+            "donation_id": updated.id,
+            "amount": updated.amount,
+            "payment_method": updated.payment_method,
+            "status": updated.status,
+            "donor_name": updated.donor_name,
+            "donor_email": updated.donor_email,
+            "donor_phone": updated.donor_phone,
+            "created_at": updated.created_at.to_string(),
+            "transaction_id": updated.transaction_id,
+            "notes": updated.notes,
+        },
         "redirect_url": format!("{}/give/success?donation_id={}", domain, donation_id),
     })))
 }
@@ -195,9 +404,19 @@ pub async fn callback_khalti(
         }
     }
 
+    let receipt_id = uuid::Uuid::new_v4();
+    sqlx::query(
+        r#"INSERT INTO donation_receipts (id, donation_id, created_at) VALUES ($1, $2, NOW())"#
+    )
+    .bind(receipt_id)
+    .bind(donation_id)
+    .execute(&pool)
+    .await?;
+
     Ok(Json(serde_json::json!({
         "status": "completed",
         "message": "Payment confirmed",
+        "redirect_url": format!("{}/give/success?donation_id={}&receipt={}", "http://localhost:3000", donation_id, receipt_id),
     })))
 }
 
@@ -270,22 +489,24 @@ pub async fn receipt(
         map.insert(k, v);
     }
 
-    Ok(Json(serde_json::json!({
-        "donation_id": row.id,
-        "amount": row.amount,
-        "payment_method": row.payment_method,
-        "status": row.status,
-        "donor_name": row.donor_name,
-        "donor_email": row.donor_email,
-        "donor_phone": row.donor_phone,
-        "created_at": row.created_at.to_string(),
-        "transaction_id": row.transaction_id,
-        "notes": row.notes,
-        "church_name": map.get("church_name").cloned().unwrap_or_else(|| "Grace Church".to_string()),
-        "church_email": map.get("church_email").cloned().unwrap_or_else(|| "info@gracenepal.org".to_string()),
-        "church_address": map.get("church_address").cloned().unwrap_or_default(),
-        "church_phone": map.get("church_phone").cloned().unwrap_or_default(),
-    })))
+Ok(Json(serde_json::json!({
+         "donation_id": row.id,
+         "amount": row.amount,
+         "payment_method": row.payment_method,
+         "status": row.status,
+         "donor_name": row.donor_name,
+         "donor_email": row.donor_email,
+         "donor_phone": row.donor_phone,
+         "created_at": row.created_at.to_string(),
+         "transaction_id": row.transaction_id,
+         "notes": row.notes,
+         "refund_status": row.refund_status,
+         "refund_amount": row.refund_amount,
+         "church_name": map.get("church_name").cloned().unwrap_or_else(|| "Grace Church".to_string()),
+         "church_email": map.get("church_email").cloned().unwrap_or_else(|| "info@gracenepal.org".to_string()),
+         "church_address": map.get("church_address").cloned().unwrap_or_default(),
+         "church_phone": map.get("church_phone").cloned().unwrap_or_default(),
+     })))
 }
 
 #[derive(serde::Deserialize)]
@@ -510,7 +731,7 @@ pub async fn resend_receipt(
     let church_phone = map.get("church_phone").cloned().unwrap_or_default();
 
     let email_body = format!(
-        "Dear {},\n\nThank you for your generous donation of Rs {} to {}.\n\nTransaction Details:\n- Donation ID: {}\n- Amount: Rs {}\n- Payment Method: {}\n- Status: {}\n- Transaction ID: {}\n- Date: {}\n{}{}\n\nGod bless!\n{}",
+        "Dear {},\n\nThank you for your generous donation of Rs {} to {}.\n\nTransaction Details:\n- Donation ID: {}\n- Amount: Rs {}\n- Payment Method: {}\n- Status: {}\n- Transaction ID: {}\n- Date: {}\n{}{}{}\n\nGod bless!\n{}",
         donation.donor_name,
         donation.amount,
         church_name,
@@ -520,6 +741,16 @@ pub async fn resend_receipt(
         donation.status,
         donation.transaction_id,
         donation.created_at,
+        if donation.refund_amount > 0 {
+            format!(
+                "- Refund Status: {}\n- Refund Amount: Rs {}\n- Refunded At: {}\n",
+                donation.refund_status,
+                donation.refund_amount,
+                donation.refunded_at.map(|d| d.to_string()).unwrap_or_else(|| "N/A".to_string())
+            )
+        } else {
+            "".to_string()
+        },
         if !church_address.is_empty() { format!("Our address: {}\n", church_address) } else { "".to_string() },
         if !church_phone.is_empty() { format!("Phone: {}\n", church_phone) } else { "".to_string() },
         church_name
@@ -527,6 +758,8 @@ pub async fn resend_receipt(
 
     let subject = format!("Donation Receipt - {}", church_name);
     let _ = crate::email::send_donation_receipt(&pool, &donation.donor_email, &donation.donor_name, &subject, &email_body).await;
+
+    let _ = create_audit_entry(&pool, &_auth.0.email, "resend_receipt", "donation", &id.to_string(), Some(serde_json::json!({"id": id}))).await;
 
     Ok(Json(serde_json::json!({ "resent": true })))
 }
@@ -557,7 +790,7 @@ pub async fn refund(
         return Err(AppError::bad_request("Donation has already been fully refunded"));
     }
 
-    let refund_amount = input.amount.unwrap_or(donation.amount);
+    let refund_amount = input.amount.unwrap_or(donation.amount - donation.refund_amount);
 
     if refund_amount <= 0 || refund_amount > (donation.amount - donation.refund_amount) {
         return Err(AppError::bad_request("Invalid refund amount"));
@@ -613,8 +846,8 @@ pub async fn refund(
         &pool,
         &_auth.0.email,
         "refund_donation",
-        &donation_id.to_string(),
         "donation",
+        &donation_id.to_string(),
         Some(serde_json::json!({
             "donor_email": donation.donor_email,
             "amount": donation.amount,
@@ -658,6 +891,20 @@ pub async fn stats(
         "esewa_total": esewa.0,
         "khalti_total": khalti.0,
         "total_refunded": refunded.0,
+    })))
+}
+
+pub async fn gateway_status(
+    Db(_pool): Db,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let stripe_enabled = crate::payment::stripe::StripeClient::from_env().enabled();
+    let khalti_configured = std::env::var("KHALTI_SECRET_KEY").is_ok() && !std::env::var("KHALTI_SECRET_KEY").unwrap_or_default().is_empty();
+    let esewa_configured = std::env::var("ESEWA_SECRET_KEY").is_ok() && !std::env::var("ESEWA_SECRET_KEY").unwrap_or_default().is_empty();
+
+    Ok(Json(serde_json::json!({
+        "stripe": { "enabled": stripe_enabled, "label": stripe_enabled ? "Active" : "Not configured" },
+        "khalti": { "enabled": khalti_configured, "label": khalti_configured ? "Active" : "Not configured" },
+        "esewa":  { "enabled": esewa_configured,  "label": esewa_configured  ? "Active" : "Not configured" },
     })))
 }
 
@@ -857,6 +1104,8 @@ pub async fn create_recurring(
         .fetch_one(&pool)
         .await?;
 
+    let _ = create_audit_entry(&pool, &_auth.email, "create_recurring", "recurring_donation", &row.id.to_string(), Some(serde_json::json!({"id": row.id}))).await;
+
     Ok(Json(updated))
 }
 
@@ -884,6 +1133,8 @@ pub async fn cancel_recurring(
         .execute(&pool)
         .await?;
 
+    let _ = create_audit_entry(&pool, &_auth.email, "cancel_recurring", "recurring_donation", &id.to_string(), Some(serde_json::json!({"id": id}))).await;
+
     Ok(Json(serde_json::json!({ "cancelled": true })))
 }
 
@@ -896,6 +1147,8 @@ pub async fn pause_recurring(
         .bind(id)
         .execute(&pool)
         .await?;
+
+    let _ = create_audit_entry(&pool, &_auth.email, "pause_recurring", "recurring_donation", &id.to_string(), Some(serde_json::json!({"id": id}))).await;
 
     Ok(Json(serde_json::json!({ "paused": true })))
 }

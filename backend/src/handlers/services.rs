@@ -5,6 +5,7 @@ use axum::Json;
 use crate::auth::AuthUser;
 use crate::error::AppError;
 use crate::models::{CreateService, Paginated, Pagination, Service, UpdateService};
+use crate::handlers::audit::create_audit_entry;
 
 #[derive(serde::Deserialize)]
 pub struct ReorderRequest {
@@ -25,8 +26,9 @@ pub async fn get(
     let row = sqlx::query_as::<_, Service>("SELECT * FROM services WHERE id = $1")
         .bind(id)
         .fetch_optional(&pool)
-        .await?
-        .ok_or_else(|| AppError::not_found("Service not found"))?;
+    .await?
+    .ok_or_else(|| AppError::not_found("Service not found"))?;
+    let _ = create_audit_entry(&pool, &auth.email, "reorder", "service", &row.id.to_string(), Some(serde_json::json!({"id": row.id}))).await;
     Ok(Json(row))
 }
 
@@ -130,5 +132,6 @@ pub async fn delete(
         .bind(id)
         .execute(&pool)
         .await?;
+    let _ = create_audit_entry(&pool, &auth.email, "delete", "service", &id.to_string(), Some(serde_json::json!({"id": id}))).await;
     Ok(Json(serde_json::json!({ "deleted": true })))
 }

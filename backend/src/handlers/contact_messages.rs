@@ -1,11 +1,15 @@
+use crate::handlers::ValidatedJson;
+use crate::security::xss;
 use crate::tenant::Db;
 use crate::auth::AuthUser;
 use crate::error::AppError;
 use crate::models::{ContactMessage, CreateContactMessage, UpdateContactMessage};
 use crate::email;
+use crate::handlers::audit::create_audit_entry;
 use axum::extract::Path;
 use axum::Json;
 use uuid::Uuid;
+use validator::Validate;
 
 pub async fn create(
     Db(pool): Db,
@@ -17,32 +21,59 @@ pub async fn create(
         }
     }
 
-    let name = input.name.unwrap_or_default().trim().to_string();
-    let email = input.email.unwrap_or_default().trim().to_string();
-    let message = input.message.unwrap_or_default().trim().to_string();
+    let name_raw = input.name.unwrap_or_default().trim().to_string();
+    let email_raw = input.email.unwrap_or_default().trim().to_string();
+    let message_raw = input.message.unwrap_or_default().trim().to_string();
 
-    if name.is_empty() || email.is_empty() || message.is_empty() {
+    if xss::validate_max_length(&name_raw, 200).is_err()
+        || xss::validate_max_length(&email_raw, 255).is_err()
+        || xss::validate_max_length(&message_raw, 10000).is_err()
+    {
+        return Err(AppError::bad_request("Field exceeds maximum allowed length"));
+    }
+
+    if name_raw.is_empty() || email_raw.is_empty() || message_raw.is_empty() {
         return Err(AppError::bad_request("Name, email, and message are required"));
     }
+
+    let name = xss::sanitize_plain(&name_raw);
+    let email = xss::sanitize_plain(&email_raw);
+    let message = xss::sanitize_plain(&message_raw);
+    let phone = xss::sanitize_option_plain(input.phone.as_deref()).unwrap_or_default();
+    let category = xss::sanitize_option_plain(input.category.as_deref()).unwrap_or_default();
 
     let row = sqlx::query_as::<_, ContactMessage>(
         r#"INSERT INTO contact_messages
            (message_type, name, email, phone, message, category, anonymous, visit_date, status)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'new')
-           RETURNING *"#,
+           RETURNING *"#
     )
     .bind(input.message_type.unwrap_or_else(|| "contact".to_string()))
     .bind(&name)
     .bind(&email)
-    .bind(input.phone.unwrap_or_default())
+    .bind(&phone)
     .bind(&message)
-    .bind(input.category.unwrap_or_default())
+    .bind(&category)
     .bind(input.anonymous.unwrap_or(false))
     .bind(input.visit_date.unwrap_or_default())
     .fetch_one(&pool)
     .await?;
 
     let _ = email::notify_admin(&pool, &row).await;
+
+    // Send confirmation email for volunteer submissions
+    if row.message_type.eq_ignore_ascii_case("volunteer") {
+        let _ = email::volunteer_confirmation(
+            &pool,
+            &row.name,
+            &row.email,
+            Some(row.phone.clone()),
+            Some(row.category.clone()),
+            None, // availability not stored separately
+            Some(row.message.clone()),
+        )
+        .await;
+    }
 
     Ok(Json(row))
 }
@@ -94,11 +125,11 @@ pub async fn update(
            notes = COALESCE($3, notes),
            answered_at = $4
            WHERE id = $1
-           RETURNING *"#,
+           RETURNING *"#
     )
     .bind(id)
     .bind(input.status)
-    .bind(input.notes)
+    .bind(input.notes.map(|s| xss::sanitize_plain(&s)))
     .bind(input.answered_at)
     .fetch_optional(&pool)
     .await?

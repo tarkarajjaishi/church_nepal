@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
-import { useContentBlock, useContentBlocks } from "@/lib/hooks";
+import { useContentBlock, useContentBlocks, useSettings } from "@/lib/hooks";
 
 // Per-route defaults — overridden by content_blocks when available.
 const PAGE_DEFAULTS: Record<string, { title: string; desc: string }> = {
@@ -37,10 +37,17 @@ export function Seo() {
   const pathname = usePathname();
   const brand = useContentBlock('site_brand');
   const { data: blocks } = useContentBlocks();
+  const { data: settings = [] } = useSettings();
 
   // Extract site-level SEO data from content_blocks
   const churchName = brand?.title || "Grace Nepal Church";
   const tagline = brand?.subtitle || "Faith • Hope • Love";
+
+  // Extract SEO settings from settings table
+  const settingsMap = Object.fromEntries(settings.map((s: any) => [s.key, s.value]));
+  const siteUrl = settingsMap.site_url || typeof window !== 'undefined' ? window.location.origin : '';
+  const metaTitle = settingsMap.meta_title || '';
+  const metaDescription = settingsMap.meta_description || '';
 
   // Build page-specific metadata from content_blocks where available
   const defaults = PAGE_DEFAULTS[pathname] || {};
@@ -64,17 +71,24 @@ export function Seo() {
   // Build full title
   const fullTitle = pageTitle ? `${pageTitle} — ${churchName}` : `${churchName} — ${tagline}`;
 
+  // Use meta_title from settings if available, otherwise fall back to computed title
+  const finalTitle = metaTitle || fullTitle;
+  const finalDesc = metaDescription || pageDesc;
+
   useEffect(() => {
-    document.title = fullTitle;
-    setMeta("description", pageDesc);
-    setMeta("og:title", fullTitle, "property");
-    setMeta("og:description", pageDesc, "property");
+    document.title = finalTitle;
+    setMeta("description", finalDesc);
+    setMeta("og:title", finalTitle, "property");
+    setMeta("og:description", finalDesc, "property");
     setMeta("og:type", "website", "property");
     setMeta("og:site_name", churchName, "property");
+    if (siteUrl) {
+      setMeta("og:url", siteUrl, "property");
+    }
     setMeta("twitter:card", "summary_large_image");
-    setMeta("twitter:title", fullTitle);
-    setMeta("twitter:description", pageDesc);
-  }, [fullTitle, pageDesc, churchName]);
+    setMeta("twitter:title", finalTitle);
+    setMeta("twitter:description", finalDesc);
+  }, [finalTitle, finalDesc, churchName, siteUrl]);
 
   // Organisation / Church structured data
   useEffect(() => {
@@ -101,8 +115,8 @@ export function Seo() {
       "@context": "https://schema.org",
       "@type": "Church",
       name: churchName,
-      description: pageDesc || "A Christ-centred community in Nepal.",
-      url: typeof window !== 'undefined' ? window.location.origin : '',
+      description: finalDesc || "A Christ-centred community in Nepal.",
+      url: siteUrl || (typeof window !== 'undefined' ? window.location.origin : ''),
     };
 
     if (addressLink?.label) {
@@ -127,7 +141,7 @@ export function Seo() {
     script.id = id;
     script.text = JSON.stringify(ld);
     document.head.appendChild(script);
-  }, [churchName, pageDesc, blocks]);
+  }, [churchName, finalDesc, blocks, siteUrl]);
 
   return null;
 }

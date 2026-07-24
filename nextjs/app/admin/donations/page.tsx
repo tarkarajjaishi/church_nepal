@@ -70,6 +70,11 @@ export default function DonationsPage() {
     queryFn: () => api.get('/donations/stats').then(r => r.data),
   })
 
+  const { data: gatewayStatus = {} } = useQuery({
+    queryKey: ['donations-gateway-status'],
+    queryFn: () => api.get('/donations/gateway-status').then(r => r.data),
+  })
+
   const { data: fundsBreakdown = [] } = useQuery({
     queryKey: ['donations-funds-breakdown'],
     queryFn: () => api.get('/donations/funds-breakdown').then(r => r.data),
@@ -169,6 +174,30 @@ export default function DonationsPage() {
           </Card>
         ))}
       </div>
+
+      {/* Gateway Status */}
+      {stats.total_raised !== undefined && (
+        <Card>
+          <CardContent className="p-4 flex flex-wrap items-center gap-3">
+            <span className="text-xs font-medium text-muted-foreground mr-1">Gateways:</span>
+            {[
+              { key: 'stripe', label: 'Stripe', ...(gatewayStatus.stripe || {}) },
+              { key: 'khalti', label: 'Khalti', ...(gatewayStatus.khalti || {}) },
+              { key: 'esewa',  label: 'eSewa',  ...(gatewayStatus.esewa  || {}) },
+            ].map((gw: any) => (
+              <span
+                key={gw.key}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
+                  gw.enabled ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'
+                }`}
+              >
+                <span className={`size-1.5 rounded-full ${gw.enabled ? 'bg-green-500' : 'bg-red-500'}`} />
+                {gw.label}: {gw.enabled ? 'Active' : 'Not configured'}
+              </span>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Filter Bar */}
       {showFilters && (
@@ -313,7 +342,10 @@ export default function DonationsPage() {
                           </span>
                         )}
                       </td>
-                      <td className="p-2 text-xs text-muted-foreground">
+                      <td className="p-2 text-xs">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium mr-1 ${gatewayColors[d.paymentMethod] || 'bg-gray-100 text-gray-700'}`}>
+                          {d.paymentMethod}
+                        </span>
                         {d.transactionId ? d.transactionId.slice(0, 12) + (d.transactionId.length > 12 ? '...' : '') : 'N/A'}
                       </td>
                       <td className="p-2 text-xs text-muted-foreground">{new Date(d.createdAt).toLocaleDateString()}</td>
@@ -329,7 +361,12 @@ export default function DonationsPage() {
                             <Button size="sm" variant="ghost" onClick={() => {
                               if (confirm(`Refund donation ${d.id}?`)) {
                                 api.post(`/donations/${d.id}/refund`, { amount: d.amount, reason: 'Admin refund' })
-                                  .then(() => { toast.success('Refund processed'); qc.invalidateQueries({ queryKey: ['donations'] }) })
+                                  .then(() => {
+                                    toast.success('Refund processed')
+                                    qc.invalidateQueries({ queryKey: ['donations'] })
+                                    qc.invalidateQueries({ queryKey: ['donations-stats'] })
+                                    qc.invalidateQueries({ queryKey: ['donations-funds-breakdown'] })
+                                  })
                                   .catch(() => toast.error('Refund failed'))
                               }
                             }} title="Refund">

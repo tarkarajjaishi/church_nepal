@@ -122,7 +122,7 @@ export default function CreateChurchModal({ open, onClose }: CreateChurchModalPr
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Escape') {
+    if (e.key === 'Escape' && !disableClose) {
       onClose();
     }
   };
@@ -141,12 +141,13 @@ export default function CreateChurchModal({ open, onClose }: CreateChurchModalPr
 
   const showProvisioning = !!provisioningId;
   const isComplete = activeStep >= 4;
+  const disableClose = showProvisioning && !isComplete;
 
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[var(--overlay)]"
-      onClick={handleBackdropClick}
-      onKeyDown={handleKeyDown}
+      onClick={disableClose ? undefined : handleBackdropClick}
+      onKeyDown={disableClose ? undefined : handleKeyDown}
       role="dialog"
       aria-modal="true"
       aria-labelledby="create-church-title"

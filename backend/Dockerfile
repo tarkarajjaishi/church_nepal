@@ -1,28 +1,31 @@
-FROM rust:latest AS builder
+# ====== Chef: Plan dependencies ======
+FROM rust:latest AS chef
+RUN cargo install cargo-chef
+WORKDIR /app
+COPY Cargo.toml Cargo.lock ./
+RUN cargo chef prepare --recipe-path recipe.json
 
-WORKDIR /build
-
-# Copy manifests
-COPY Cargo.* ./
-
-# Copy source tree + migrations (sqlx::migrate! embeds them at compile time)
+# ====== Chef: Cook dependencies ======
+FROM chef AS chef
 COPY src ./src
 COPY migrations ./migrations
+RUN cargo chef cook --release --recipe-path recipe.json
 
-# Build for release
-RUN cargo build --release
+# ====== Builder: Build application ======
+FROM chef AS builder
+COPY src ./src
+COPY migrations ./migrations
+RUN cargo build --release --recipe-path recipe.json
 
-# Runtime stage
+# ====== Runtime: Minimal image ======
 FROM debian:bookworm-slim
-
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     libssl3 \
-    postgresql-client \
     && rm -rf /var/lib/apt/lists/*
-
-COPY --from=builder /build/target/release/grace-church-backend /usr/local/bin/
-
+# Create non-root user
+RUN addgroup --system app && adduser --system --ingroup app app
+USER app
+COPY --from=builder /app/target/release/grace-church-backend /usr/local/bin/
 EXPOSE 3002
-
 CMD ["grace-church-backend"]

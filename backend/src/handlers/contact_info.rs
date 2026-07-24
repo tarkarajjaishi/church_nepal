@@ -1,3 +1,4 @@
+use crate::handlers::audit::create_audit_entry;
 use crate::tenant::Db;
 use axum::extract::Path;
 use axum::Json;
@@ -41,6 +42,7 @@ pub async fn create(
     .bind(input.map_url.unwrap_or_default())
     .fetch_one(&pool)
     .await?;
+    let _ = create_audit_entry(&pool, &auth.email, "create", "contact_info", &row.id.to_string(), Some(serde_json::json!({"id": row.id}))).await;
     Ok(Json(row))
 }
 
@@ -74,6 +76,7 @@ pub async fn update(
     .bind(input.map_url.as_deref().unwrap_or(&existing.map_url))
     .fetch_one(&pool)
     .await?;
+    let _ = create_audit_entry(&pool, &auth.email, "update", "contact_info", &row.id.to_string(), Some(serde_json::json!({"id": row.id}))).await;
     Ok(Json(row))
 }
 
@@ -86,5 +89,6 @@ pub async fn delete(
         .bind(id)
         .execute(&pool)
         .await?;
+    let _ = create_audit_entry(&pool, &auth.email, "delete", "contact_info", &id.to_string(), Some(serde_json::json!({"id": id}))).await;
     Ok(Json(serde_json::json!({ "deleted": true })))
 }

@@ -5,6 +5,7 @@ use axum::Json;
 use crate::auth::AuthUser;
 use crate::error::AppError;
 use crate::models::{CreateSubscriber, NewsletterSubscriber};
+use crate::handlers::audit::create_audit_entry;
 
 pub async fn list_subscribers(_auth: AuthUser, Db(pool): Db) -> Result<Json<Vec<NewsletterSubscriber>>, AppError> {
     let rows = sqlx::query_as::<_, NewsletterSubscriber>(

@@ -8,12 +8,6 @@ import EditPlanModal from "@/components/admin/edit-plan-modal";
 import InvoicesTable from "@/components/admin/invoices-table";
 import { Plan } from "@/types";
 
-interface AnalyticsData {
-  mrr?: number;
-  active_churches?: number;
-  total_giving?: number;
-}
-
 export default function BillingPage() {
   const { data: plans, isLoading: plansLoading } = usePlans();
   const { data: analytics, isLoading: analyticsLoading } = useAnalytics();
@@ -91,9 +85,9 @@ export default function BillingPage() {
             </p>
           </div>
           <div>
-            <p className="text-sm text-[var(--muted)]">Total Giving</p>
+            <p className="text-sm text-[var(--muted)]">New This Month</p>
             <p className="text-xl font-bold text-[var(--text-strong)]">
-              Rs. {analytics?.total_giving?.toLocaleString() || "—"}
+              {analytics?.churches_this_month || "—"}
             </p>
           </div>
         </div>

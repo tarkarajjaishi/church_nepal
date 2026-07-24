@@ -1,11 +1,14 @@
+use crate::handlers::ValidatedJson;
+use crate::security::xss;
 use crate::tenant::Db;
 use axum::extract::{Path, Query};
 use axum::Json;
 use crate::auth::AuthUser;
 use crate::error::AppError;
+use crate::handlers::audit::create_audit_entry;
 use crate::models::{CreateTestimony, Paginated, Pagination, Testimony, UpdateTestimony};
 use crate::email;
-use crate::handlers::audit::create_audit_entry;
+use chrono::Utc;
 
 #[derive(Debug, Deserialize)]
 pub struct RejectTestimonyInput {
@@ -34,58 +37,64 @@ pub async fn get(Db(pool): Db, Path(id): Path<uuid::Uuid>) -> Result<Json<Testim
     Ok(Json(row))
 }
 
-pub async fn create(_auth: AuthUser, Db(pool): Db, Json(input): Json<CreateTestimony>) -> Result<Json<Testimony>, AppError> {
-    let row = sqlx::query_as::<_, Testimony>(
-        r#"INSERT INTO testimonies (name, role, quote, image, rating, status) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *"#,
-    )
-    .bind(&input.name)
-    .bind(&input.role)
-    .bind(&input.quote)
-    .bind(&input.image)
-    .bind(input.rating)
-    .bind("approved")
-    .fetch_one(&pool).await?;
-    Ok(Json(row))
-}
+pub async fn create(_auth: AuthUser, Db(pool): Db, ValidatedJson(input): ValidatedJson<CreateTestimony>) -> Result<Json<Testimony>, AppError> {
+     let name = xss::sanitize_plain(&input.name);
+     let role = xss::sanitize_plain(&input.role);
+     let quote = xss::sanitize_plain(&input.quote);
+     let row = sqlx::query_as::<_, Testimony>(
+         r#"INSERT INTO testimonies (name, role, quote, image, rating, status) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *"#,
+     )
+     .bind(&name)
+     .bind(&role)
+     .bind(&quote)
+     .bind(&input.image)
+     .bind(input.rating)
+     .bind("approved")
+     .fetch_one(&pool).await?;
+     Ok(Json(row))
+ }
 
-pub async fn submit_public(Db(pool): Db, Json(input): Json<CreateTestimony>) -> Result<Json<Testimony>, AppError> {
-    let row = sqlx::query_as::<_, Testimony>(
-        r#"INSERT INTO testimonies (name, role, quote, image, rating, status) VALUES ($1,$2,$3,$4,$5,'pending') RETURNING *"#,
-    )
-    .bind(&input.name)
-    .bind(&input.role)
-    .bind(&input.quote)
-    .bind(&input.image)
-    .bind(input.rating)
-    .fetch_one(&pool).await?;
+ pub async fn submit_public(Db(pool): Db, ValidatedJson(input): ValidatedJson<CreateTestimony>) -> Result<Json<Testimony>, AppError> {
+     let name = xss::sanitize_plain(&input.name);
+     let role = xss::sanitize_plain(&input.role);
+     let quote = xss::sanitize_plain(&input.quote);
+     let row = sqlx::query_as::<_, Testimony>(
+         r#"INSERT INTO testimonies (name, role, quote, image, rating, status) VALUES ($1,$2,$3,$4,$5,'pending') RETURNING *"#,
+     )
+     .bind(&name)
+     .bind(&role)
+     .bind(&quote)
+     .bind(&input.image)
+     .bind(input.rating)
+     .fetch_one(&pool).await?;
 
-    let testimony_name = input.name.clone();
-    let row_id = row.id;
-    let pool_for_email = pool.clone();
-    tokio::spawn(async move {
-        let _ = email::notify_admin_new_testimony(&pool_for_email, &testimony_name, &row_id).await;
-    });
+     let testimony_name = name.clone();
+     let row_id = row.id;
+     let pool_for_email = pool.clone();
+     tokio::spawn(async move {
+         let _ = email::notify_admin_new_testimony(&pool_for_email, &testimony_name, &row_id).await;
+     });
 
-    Ok(Json(row))
-}
+     Ok(Json(row))
+ }
 
-pub async fn update(_auth: AuthUser, Db(pool): Db, Path(id): Path<uuid::Uuid>, Json(input): Json<UpdateTestimony>) -> Result<Json<Testimony>, AppError> {
-    let existing = sqlx::query_as::<_, Testimony>("SELECT * FROM testimonies WHERE id = $1")
-        .bind(id)
-        .fetch_optional(&pool).await?.ok_or_else(|| AppError::not_found("Testimony not found"))?;
-    let row = sqlx::query_as::<_, Testimony>(
-        r#"UPDATE testimonies SET name=COALESCE($2,name), role=COALESCE($3,role), quote=COALESCE($4,quote), image=COALESCE($5,image), rating=COALESCE($6,rating), status=COALESCE($7,status) WHERE id=$1 RETURNING *"#,
-    )
-    .bind(id)
-    .bind(input.name.as_deref().unwrap_or(&existing.name))
-    .bind(input.role.as_deref().unwrap_or(&existing.role))
-    .bind(input.quote.as_deref().unwrap_or(&existing.quote))
-    .bind(input.image.as_deref().unwrap_or(&existing.image))
-    .bind(input.rating.unwrap_or(existing.rating))
-    .bind(input.status.unwrap_or(existing.status))
-    .fetch_one(&pool).await?;
-    Ok(Json(row))
-}
+pub async fn update(_auth: AuthUser, Db(pool): Db, Path(id): Path<uuid::Uuid>, ValidatedJson(input): ValidatedJson<UpdateTestimony>) -> Result<Json<Testimony>, AppError> {
+     let existing = sqlx::query_as::<_, Testimony>("SELECT * FROM testimonies WHERE id = $1")
+         .bind(id)
+         .fetch_optional(&pool).await?.ok_or_else(|| AppError::not_found("Testimony not found"))?;
+     let row = sqlx::query_as::<_, Testimony>(
+         r#"UPDATE testimonies SET name=COALESCE($2,name), role=COALESCE($3,role), quote=COALESCE($4,quote), image=COALESCE($5,image), rating=COALESCE($6,rating), status=COALESCE($7,status) WHERE id=$1 RETURNING *"#,
+     )
+     .bind(id)
+     .bind(input.name.as_deref().map(|t| xss::sanitize_plain(t)).or(existing.name.as_deref()))
+     .bind(input.role.as_deref().map(|t| xss::sanitize_plain(t)).or(existing.role.as_deref()))
+     .bind(input.quote.as_deref().map(|t| xss::sanitize_plain(t)).or(existing.quote.as_deref()))
+     .bind(input.image.as_deref().or(existing.image.as_deref()))
+     .bind(input.rating.unwrap_or(existing.rating))
+     .bind(input.status.unwrap_or(existing.status))
+     .fetch_one(&pool).await?;
+     Ok(Json(row))
+ }
 
 pub async fn delete(_auth: AuthUser, Db(pool): Db, Path(id): Path<uuid::Uuid>) -> Result<Json<serde_json::Value>, AppError> {
     sqlx::query("DELETE FROM testimonies WHERE id = $1")

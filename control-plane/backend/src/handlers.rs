@@ -1,3 +1,4 @@
+use axum::http::header::HeaderMap;
 use axum::extract::{Path, Query, State};
 use axum::http::{header, StatusCode};
 use axum::Json;
@@ -6,14 +7,20 @@ use rand::RngCore;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sqlx::postgres::PgPoolOptions;
+use std::fs;
+use std::path::PathBuf;
 use std::time::Duration;
 use totp_rs::{Algorithm, TOTP};
 
-use crate::auth::{create_access_token, create_refresh_token, find_refresh_token, revoke_all_refresh_tokens, revoke_refresh_token, store_refresh_token, AdminGuard, ApiKey, Authenticated, SuperAdmin};
+use crate::auth::{create_access_token, create_refresh_token, find_refresh_token, revoke_all_refresh_tokens, revoke_refresh_token, store_refresh_token, AdminGuard, ApiKey, Authenticated, SuperAdmin, control_cookie_value, control_clear_cookie};
 use crate::error::AppError;
 use crate::provision;
 use crate::seed;
-use crate::stripe::{CreateCheckoutSessionParams, CreateCheckoutSessionLineItem, CreateCheckoutSessionPriceData, CreateCheckoutSessionProductData, CreateCheckoutSessionRecurring};
+use crate::stripe::{
+    CreateCheckoutSessionParams, CreateCheckoutSessionLineItem, CreateCheckoutSessionPriceData,
+    CreateCheckoutSessionProductData, CreateCheckoutSessionRecurring, StripeBillingPortalSession,
+    StripeInvoice, StripeSubscription,
+};
 use crate::AppState;
 
 #[derive(Deserialize)]
@@ -59,11 +66,26 @@ pub async fn login(State(st): State<AppState>, Json(req): Json<LoginReq>) -> Res
         }
     }
 
-    let access_token = create_access_token(&id, &req.email, &role).map_err(|e| AppError::internal(e.to_string()))?;
+    let access_token = create_access_token(&id, &req.email, &role, &id, 0).map_err(|e| AppError::internal(e.to_string()))?;
     let refresh_token = create_refresh_token();
     store_refresh_token(&st.pool, &id, &refresh_token).await?;
 
-    Ok(Json(json!({ "token": access_token, "refresh_token": refresh_token, "email": req.email, "role": role })))
+    let max_age: u64 = std::env::var("SESSION_COOKIE_MAX_AGE")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(900);
+    let secure: bool = std::env::var("SESSION_COOKIE_SECURE")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(false);
+
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        "Set-Cookie",
+        control_cookie_value(&access_token, max_age, secure).parse().unwrap(),
+    );
+
+    Ok((headers, Json(json!({ "token": access_token, "refresh_token": refresh_token, "email": req.email, "role": role }))))
 }
 
 #[derive(Deserialize)]
@@ -106,11 +128,26 @@ pub async fn refresh_token(State(st): State<AppState>, Json(req): Json<RefreshTo
         .execute(&st.pool)
         .await?;
 
-    let new_access = create_access_token(&admin_id_str, &email, &role).map_err(|e| AppError::internal(e.to_string()))?;
+    let new_access = create_access_token(&admin_id_str, &email, &role, &admin_id_str, 0).map_err(|e| AppError::internal(e.to_string()))?;
     let new_refresh = create_refresh_token();
     store_refresh_token(&st.pool, &admin_id_str, &new_refresh).await?;
 
-    Ok(Json(json!({ "token": new_access, "refresh_token": new_refresh, "email": email, "role": role })))
+    let max_age: u64 = std::env::var("SESSION_COOKIE_MAX_AGE")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(900);
+    let secure: bool = std::env::var("SESSION_COOKIE_SECURE")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(false);
+
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        "Set-Cookie",
+        control_cookie_value(&new_access, max_age, secure).parse().unwrap(),
+    );
+
+    Ok((headers, Json(json!({ "token": new_access, "refresh_token": new_refresh, "email": email, "role": role }))))
 }
 
 #[derive(Deserialize)]
@@ -118,7 +155,7 @@ pub struct LogoutReq {
     pub refresh_token: String,
 }
 
-pub async fn logout(State(st): State<AppState>, auth: Authenticated, Json(req): Json<LogoutReq>) -> Result<Json<Value>, AppError> {
+pub async fn logout(State(st): State<AppState>, auth: Authenticated, Json(req): Json<LogoutReq>) -> Result<impl axum::response::IntoResponse, AppError> {
     let raw_token = req.refresh_token.trim();
     if raw_token.is_empty() {
         return Err(AppError::bad_request("refresh_token is required"));
@@ -130,7 +167,15 @@ pub async fn logout(State(st): State<AppState>, auth: Authenticated, Json(req): 
     revoke_refresh_token(&st.pool, &token_hash).await?;
     revoke_all_refresh_tokens(&st.pool, uuid::Uuid::parse_str(&auth.0.id).map_err(|e| AppError::internal(format!("parse id: {e}")))?).await;
 
-    Ok(Json(json!({ "success": true })))
+    let secure: bool = std::env::var("SESSION_COOKIE_SECURE")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(false);
+
+    let body = json!({ "success": true });
+    let mut response = Json(body).into_response();
+    response.headers_mut().insert("Set-Cookie", control_clear_cookie(secure).parse().unwrap());
+    Ok(response)
 }
 
 pub async fn me(auth: Authenticated, State(st): State<AppState>) -> Json<Value> {
@@ -172,11 +217,36 @@ pub async fn reset_authenticated_password(
     let new_hash = bcrypt::hash(&new_password, bcrypt::DEFAULT_COST)
         .map_err(|e| AppError::internal(format!("hash password: {e}")))?;
 
-    sqlx::query("UPDATE admins SET password_hash = $1 WHERE id = $2")
+    sqlx::query("UPDATE admins SET password_hash = $1, updated_at = NOW() WHERE id = $2")
         .bind(&new_hash)
         .bind(admin_uuid)
         .execute(&st.pool)
         .await?;
+
+    let updated_at = chrono::Utc::now().timestamp() as usize;
+    let new_jti = uuid::Uuid::new_v4().to_string();
+    let new_token = create_access_token(&auth.0.id, &auth.0.email, &auth.0.role, &uuid::Uuid::new_v4().to_string(), 0)
+        .map_err(|e| AppError::internal(e.to_string()))?;
+
+    let max_age: u64 = std::env::var("SESSION_COOKIE_MAX_AGE")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(900);
+    let secure: bool = std::env::var("SESSION_COOKIE_SECURE")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(false);
+
+    let body = json!({
+        "success": true,
+        "message": "Password updated",
+        "token": new_token
+    });
+    let mut response = Json(body).into_response();
+    response.headers_mut().insert(
+        "Set-Cookie",
+        control_cookie_value(&new_token, max_age, secure).parse().unwrap(),
+    );
 
     sqlx::query(
         "INSERT INTO audit_log (actor_id, actor_email, action, target_type, target_id, metadata) \
@@ -191,7 +261,105 @@ pub async fn reset_authenticated_password(
     .execute(&st.pool)
     .await?;
 
-    Ok(Json(json!({ "success": true, "message": "Password updated" })))
+    Ok(response)
+}
+
+#[derive(Deserialize)]
+pub struct ForgotPasswordReq {
+    pub email: String,
+}
+
+pub async fn forgot_password(State(st): State<AppState>, Json(req): Json<ForgotPasswordReq>) -> Result<Json<Value>, AppError> {
+    let email = req.email.trim().to_string();
+    if email.is_empty() {
+        return Err(AppError::bad_request("Email is required"));
+    }
+
+    let admin: Option<(uuid::Uuid,)> =
+        sqlx::query_as("SELECT id FROM admins WHERE email = $1")
+            .bind(&email)
+            .fetch_optional(&st.pool)
+            .await?;
+
+    let Some((admin_id,)) = admin else {
+        return Ok(Json(json!({ "success": true, "message": "If an account exists, a reset link has been sent." })));
+    };
+
+    let mut rng = rand::thread_rng();
+    let mut raw_token_bytes = [0u8; 32];
+    rng.fill_bytes(&mut raw_token_bytes);
+    let raw_token: String = raw_token_bytes.iter().map(|b| format!("{:02x}", b)).collect();
+
+    let token_hash = bcrypt::hash(&raw_token, bcrypt::DEFAULT_COST)
+        .map_err(|e| AppError::internal(format!("hash reset token: {e}")))?;
+
+    let expires_at = chrono::Utc::now() + chrono::Duration::hours(1);
+
+    sqlx::query("INSERT INTO password_resets (token_hash, admin_id, expires_at, used) VALUES ($1, $2, $3, false)")
+        .bind(&token_hash)
+        .bind(admin_id)
+        .bind(expires_at)
+        .execute(&st.pool)
+        .await?;
+
+    let reset_link = format!("https://{}/reset-password?token={}", st.cfg.base_domain, raw_token);
+    eprintln!("[password_reset] Reset link for {}: {}", email, reset_link);
+
+    Ok(Json(json!({ "success": true, "message": "If an account exists, a reset link has been sent." })))
+}
+
+#[derive(Deserialize)]
+pub struct ResetPasswordReq {
+    pub token: String,
+    pub new_password: String,
+}
+
+pub async fn reset_password(State(st): State<AppState>, Json(req): Json<ResetPasswordReq>) -> Result<Json<Value>, AppError> {
+    let raw_token = req.token.trim();
+    if raw_token.is_empty() {
+        return Err(AppError::bad_request("Token is required"));
+    }
+    let new_password = req.new_password.trim();
+    if new_password.is_empty() || new_password.len() < 8 {
+        return Err(AppError::bad_request("New password must be at least 8 characters"));
+    }
+
+    let token_hash = bcrypt::hash(raw_token, bcrypt::DEFAULT_COST)
+        .map_err(|e| AppError::internal(format!("hash token: {e}")))?;
+
+    let row: Option<(uuid::Uuid, chrono::NaiveDateTime, bool)> =
+        sqlx::query_as("SELECT admin_id, expires_at, used FROM password_resets WHERE token_hash = $1")
+            .bind(&token_hash)
+            .fetch_optional(&st.pool)
+            .await?;
+
+    let Some((admin_id, expires_at, used)) = row else {
+        return Err(AppError::bad_request("Invalid or expired reset token"));
+    };
+
+    let now = chrono::Utc::now().naive_utc();
+    if used {
+        return Err(AppError::bad_request("Reset token has already been used"));
+    }
+    if now > expires_at {
+        return Err(AppError::bad_request("Reset token has expired"));
+    }
+
+    let new_hash = bcrypt::hash(new_password, bcrypt::DEFAULT_COST)
+        .map_err(|e| AppError::internal(format!("hash password: {e}")))?;
+
+    sqlx::query("UPDATE admins SET password_hash = $1, updated_at = NOW() WHERE id = $2")
+        .bind(&new_hash)
+        .bind(admin_id)
+        .execute(&st.pool)
+        .await?;
+
+    sqlx::query("UPDATE password_resets SET used = true WHERE token_hash = $1")
+        .bind(&token_hash)
+        .execute(&st.pool)
+        .await?;
+
+    Ok(Json(json!({ "success": true, "message": "Password has been reset" })))
 }
 
 #[derive(Serialize)]
@@ -209,6 +377,8 @@ pub async fn api_routes() -> Json<Vec<RouteInfo>> {
         RouteInfo { method: "POST", path: "/api/auth/login", auth: "none" },
         RouteInfo { method: "POST", path: "/api/auth/refresh", auth: "none" },
         RouteInfo { method: "POST", path: "/api/auth/logout", auth: "authenticated" },
+        RouteInfo { method: "POST", path: "/api/auth/forgot", auth: "none" },
+        RouteInfo { method: "POST", path: "/api/auth/reset", auth: "none" },
         RouteInfo { method: "GET", path: "/api/auth/me", auth: "authenticated" },
         RouteInfo { method: "POST", path: "/api/auth/2fa/enroll", auth: "authenticated" },
         RouteInfo { method: "POST", path: "/api/auth/2fa/verify", auth: "authenticated" },
@@ -236,10 +406,14 @@ pub async fn api_routes() -> Json<Vec<RouteInfo>> {
         RouteInfo { method: "GET", path: "/api/invoices", auth: "none" },
         RouteInfo { method: "POST", path: "/api/invoices", auth: "admin" },
         RouteInfo { method: "POST", path: "/api/invoices/{id}/pay", auth: "admin" },
+        RouteInfo { method: "POST", path: "/api/churches/{id}/billing-portal", auth: "admin" },
+        RouteInfo { method: "GET", path: "/api/churches/{id}/invoices", auth: "admin" },
+        RouteInfo { method: "GET", path: "/api/billing/overview", auth: "admin" },
         RouteInfo { method: "GET", path: "/api/analytics", auth: "none" },
         RouteInfo { method: "GET", path: "/api/analytics/growth", auth: "none" },
         RouteInfo { method: "GET", path: "/api/analytics/top-churches", auth: "none" },
         RouteInfo { method: "GET", path: "/api/analytics/refunds", auth: "admin" },
+        RouteInfo { method: "POST", path: "/api/churches/{church_id}/donations/{donation_id}/refund", auth: "admin" },
         RouteInfo { method: "GET", path: "/api/notifications", auth: "none" },
         RouteInfo { method: "POST", path: "/api/notifications/{id}/read", auth: "none" },
         RouteInfo { method: "POST", path: "/api/notifications/read-all", auth: "none" },
@@ -260,6 +434,16 @@ pub async fn api_routes() -> Json<Vec<RouteInfo>> {
 #[derive(Deserialize)]
 pub struct SearchQuery {
     pub q: Option<String>,
+}
+
+#[derive(Deserialize)]
+pub struct GrowthQuery {
+    pub range: Option<String>, // 30d, 90d, 12m
+}
+
+#[derive(Deserialize)]
+pub struct GrowthQuery {
+    pub range: Option<String>, // 30d, 90d, 12m
 }
 
 #[derive(Serialize)]
@@ -398,6 +582,23 @@ pub struct Church {
     pub notes: Option<String>,
     pub suspended_at: Option<chrono::NaiveDateTime>,
     pub created_at: Option<chrono::NaiveDateTime>,
+    pub past_due_at: Option<chrono::NaiveDateTime>,
+}
+
+#[derive(Serialize)]
+pub struct PlanCount {
+    pub plan: String,
+    pub count: i64,
+}
+
+#[derive(Serialize)]
+pub struct AnalyticsOverview {
+    pub total_churches: i64,
+    pub active_churches: i64,
+    pub suspended_churches: i64,
+    pub mrr: i64,
+    pub churches_this_month: i64,
+    pub churches_by_plan: Vec<PlanCount>,
 }
 
 #[derive(Serialize, sqlx::FromRow)]
@@ -737,7 +938,11 @@ pub async fn invite_admin(
 
     audit_log(
         &st.pool,
-        &super_admin,
+        &AdminUser {
+            id: super_admin.id.clone(),
+            email: super_admin.email.clone(),
+            role: "super_admin".to_string(),
+        },
         "invite_admin",
         &admin.id.to_string(),
         "admin",
@@ -819,7 +1024,11 @@ pub async fn update_admin(
 
     audit_log(
         &st.pool,
-        &super_admin,
+        &AdminUser {
+            id: super_admin.id.clone(),
+            email: super_admin.email.clone(),
+            role: "super_admin".to_string(),
+        },
         "update_admin",
         &updated.id.to_string(),
         "admin",
@@ -861,7 +1070,11 @@ pub async fn delete_admin(
 
     audit_log(
         &st.pool,
-        &super_admin,
+        &AdminUser {
+            id: super_admin.id.clone(),
+            email: super_admin.email.clone(),
+            role: "super_admin".to_string(),
+        },
         "delete_admin",
         &admin.id.to_string(),
         "admin",
@@ -873,7 +1086,7 @@ pub async fn delete_admin(
 
 async fn audit_log(
     pool: &sqlx::PgPool,
-    actor: &SuperAdmin,
+    actor: &AdminUser,
     action: &str,
     target_id: &str,
     target_type: &str,
@@ -891,7 +1104,6 @@ async fn audit_log(
     .bind(metadata.unwrap_or_else(|| json!({})))
     .execute(pool)
     .await?;
-
     Ok(())
 }
 
@@ -1226,6 +1438,169 @@ pub async fn mark_invoice_paid(
 }
 
 // =============================================================================
+// Stripe-backed billing portal and invoice handlers
+// =============================================================================
+
+#[derive(Deserialize)]
+pub struct BillingPortalReq {
+    pub return_url: Option<String>,
+}
+
+pub async fn create_billing_portal_session(
+    _admin: AdminGuard,
+    Path(church_id): Path<uuid::Uuid>,
+    State(st): State<AppState>,
+    Json(req): Json<BillingPortalReq>,
+) -> Result<Json<Value>, AppError> {
+    let church = sqlx::query_as::<_, crate::handlers::Church>("SELECT * FROM churches WHERE id = $1")
+        .bind(church_id)
+        .fetch_optional(&st.pool)
+        .await?
+        .ok_or_else(|| AppError::not_found("Church not found"))?;
+
+    let stripe_customer_id: Option<String> =
+        sqlx::query_scalar("SELECT stripe_customer_id FROM churches WHERE id = $1")
+            .bind(church_id)
+            .fetch_optional(&st.pool)
+            .await?;
+
+    let customer_id = stripe_customer_id.ok_or_else(|| {
+        AppError::bad_request("Church has no Stripe customer ID yet. Subscribe to a plan first.")
+    })?;
+
+    let client = crate::stripe::StripeClient::new(&st.cfg.stripe_secret_key);
+    if !client.enabled() {
+        return Err(AppError::internal("Stripe is not configured"));
+    }
+
+    let return_url = req.return_url.unwrap_or_else(|| {
+        format!("https://{}/admin/billing", church.subdomain)
+    });
+
+    let session = client.create_billing_portal_session(&customer_id, &return_url).await?;
+    let url = session.url.ok_or_else(|| AppError::internal("Stripe did not return a portal URL"))?;
+
+    Ok(Json(json!({ "url": url })))
+}
+
+#[derive(Serialize)]
+pub struct StripeInvoiceResponse {
+    pub id: String,
+    pub stripe_invoice_id: String,
+    pub amount: i64,
+    pub amount_paid: i64,
+    pub status: String,
+    pub pdf_url: Option<String>,
+    pub date: Option<i64>,
+    pub period_start: Option<i64>,
+    pub period_end: Option<i64>,
+}
+
+pub async fn list_church_stripe_invoices(
+    _admin: AdminGuard,
+    Path(church_id): Path<uuid::Uuid>,
+    State(st): State<AppState>,
+) -> Result<Json<Vec<StripeInvoiceResponse>>, AppError> {
+    let church = sqlx::query_as::<_, crate::handlers::Church>("SELECT * FROM churches WHERE id = $1")
+        .bind(church_id)
+        .fetch_optional(&st.pool)
+        .await?
+        .ok_or_else(|| AppError::not_found("Church not found"))?;
+
+    let client = crate::stripe::StripeClient::new(&st.cfg.stripe_secret_key);
+    if !client.enabled() {
+        return Err(AppError::internal("Stripe is not configured"));
+    }
+
+    let customer_id: Option<String> =
+        sqlx::query_scalar("SELECT stripe_customer_id FROM churches WHERE id = $1")
+            .bind(church_id)
+            .fetch_optional(&st.pool)
+            .await?;
+
+    let invoices: Vec<StripeInvoice> = match customer_id {
+        Some(cid) => client.list_invoices(Some(&cid), 100).await?,
+        None => Vec::new(),
+    };
+
+    let result: Vec<StripeInvoiceResponse> = invoices
+        .into_iter()
+        .map(|inv| StripeInvoiceResponse {
+            id: inv.id.clone(),
+            stripe_invoice_id: inv.id.clone(),
+            amount: inv.amount_due,
+            amount_paid: inv.amount_paid,
+            status: inv.status,
+            pdf_url: inv.invoice_pdf,
+            date: Some(inv.created),
+            period_start: Some(inv.period_start),
+            period_end: Some(inv.period_end),
+        })
+        .collect();
+
+    Ok(Json(result))
+}
+
+#[derive(Serialize)]
+pub struct BillingOverview {
+    pub mrr: i64,
+    pub active_subscriptions: i64,
+    pub total_churn: i64,
+    pub churn_rate: f64,
+}
+
+pub async fn get_billing_overview(State(st): State<AppState>) -> Result<Json<BillingOverview>, AppError> {
+    let client = crate::stripe::StripeClient::new(&st.cfg.stripe_secret_key);
+    if !client.enabled() {
+        let overview = BillingOverview {
+            mrr: 0,
+            active_subscriptions: 0,
+            total_churn: 0,
+            churn_rate: 0.0,
+        };
+        return Ok(Json(overview));
+    }
+
+    let subscriptions = client
+        .list_subscriptions(None, Some("active"), 100)
+        .await
+        .unwrap_or_default();
+
+    let active_subscriptions = subscriptions.len() as i64;
+    let mut mrr: i64 = subscriptions
+        .iter()
+        .filter_map(|sub| sub.plan.as_ref().and_then(|p| p.amount))
+        .sum();
+
+    let canceled_subs = client
+        .list_subscriptions(None, Some("canceled"), 100)
+        .await
+        .unwrap_or_default();
+
+    let churned_count = canceled_subs.len() as i64;
+    let churned_mrr: i64 = canceled_subs
+        .iter()
+        .filter_map(|sub| sub.plan.as_ref().and_then(|p| p.amount))
+        .sum();
+
+    let total_subscriptions = active_subscriptions + churned_count;
+    let churn_rate = if total_subscriptions > 0 {
+        (churned_count as f64 / total_subscriptions as f64) * 100.0
+    } else {
+        0.0
+    };
+
+    let overview = BillingOverview {
+        mrr,
+        active_subscriptions,
+        total_churn: churned_mrr,
+        churn_rate: (churn_rate * 100.0).round() / 100.0,
+    };
+
+    Ok(Json(overview))
+}
+
+// =============================================================================
 // Refunds handlers
 // =============================================================================
 
@@ -1292,22 +1667,171 @@ pub async fn get_refund_analytics(
     }))
 }
 
+#[derive(Deserialize)]
+pub struct RefundDonationReq {
+    pub amount: Option<i64>,
+    pub reason: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, FromRow)]
+struct Donation {
+    id: uuid::Uuid,
+    donor_name: String,
+    donor_email: String,
+    donor_phone: String,
+    amount: i64,
+    payment_method: String,
+    campaign_id: Option<uuid::Uuid>,
+    fund_id: Option<uuid::Uuid>,
+    notes: String,
+    status: String,
+    transaction_id: String,
+    refund_status: String,
+    refund_amount: i64,
+    refunded_at: Option<chrono::NaiveDateTime>,
+    refund_reason: String,
+    gateway_refund_id: String,
+    created_at: chrono::NaiveDateTime,
+    updated_at: chrono::NaiveDateTime,
+}
+
+pub async fn refund_donation(
+    _admin: AdminGuard,
+    State(st): State<AppState>,
+    Path((church_id, donation_id)): Path<(uuid::Uuid, uuid::Uuid)>,
+    Json(req): Json<RefundDonationReq>,
+) -> Result<Json<Value>, AppError> {
+    // Get the church to get the slug
+    let church = sqlx::query_as::<_, crate::handlers::Church>("SELECT * FROM churches WHERE id = $1")
+        .bind(church_id)
+        .fetch_optional(&st.pool)
+        .await?
+        .ok_or_else(|| AppError::not_found("Church not found"))?;
+
+    // Connect to the church's database
+    let pool = PgPoolOptions::new()
+        .max_connections(1)
+        .connect(&st.cfg.church_db_url(&church.slug))
+        .await
+        .map_err(|e| AppError::internal(format!("connect church db: {e}")))?;
+
+    // Fetch the donation to verify it exists and is completed
+    let donation = sqlx::query_as::<_, Donation>("SELECT * FROM donations WHERE id = $1")
+        .bind(donation_id)
+        .fetch_optional(&pool)
+        .await?
+        .ok_or_else(|| AppError::not_found("Donation not found"))?;
+
+    if donation.status != "completed" {
+        return Err(AppError::bad_request("Only completed donations can be refunded"));
+    }
+
+    if donation.refund_status == "refunded" {
+        return Err(AppError::bad_request("Donation has already been fully refunded"));
+    }
+
+    let refund_amount = req.amount.unwrap_or(donation.amount - donation.refund_amount);
+
+    if refund_amount <= 0 || refund_amount > (donation.amount - donation.refund_amount) {
+        return Err(AppError::bad_request("Invalid refund amount"));
+    }
+
+    let refund_status = if refund_amount == (donation.amount - donation.refund_amount) {
+        "refunded"
+    } else {
+        "partially_refunded"
+    };
+
+    let gateway_refund_id = if donation.payment_method == "stripe" {
+        if let Ok(client) = StripeClient::new(&st.cfg.stripe_secret_key) {
+            if client.enabled() {
+                match client.refund_payment(&donation.transaction_id, Some(refund_amount)).await {
+                    Ok(stripe_refund) => Some(stripe_refund.id),
+                    Err(_) => None,
+                }
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
+    sqlx::query(
+        r#"UPDATE donations SET refund_amount = refund_amount + $1, refund_status = $2, refunded_at = NOW(), refund_reason = COALESCE($3, refund_reason), gateway_refund_id = COALESCE($4, gateway_refund_id) WHERE id = $5"#
+    )
+    .bind(refund_amount)
+    .bind(refund_status)
+    .bind(req.reason.as_deref())
+    .bind(gateway_refund_id)
+    .bind(donation_id)
+    .execute(&pool)
+    .await?;
+
+    if refund_status == "refunded" {
+        if let Some(campaign_id) = donation.campaign_id {
+            let _ = sqlx::query(
+                r#"UPDATE campaigns SET raised = GREATEST(COALESCE(raised, 0) - $1, 0) WHERE id = $2"#
+            )
+            .bind(donation.amount)
+            .bind(campaign_id)
+            .execute(&pool)
+            .await;
+        }
+    }
+
+    let _ = crate::handlers::audit_log(
+        &pool,
+        &crate::auth::AdminUser {
+            id: _admin.id.clone(),
+            email: _admin.email.clone(),
+            role: _admin.role.clone(),
+        },
+        "refund_donation",
+        "donation",
+        &donation_id.to_string(),
+        Some(json!({
+            "donor_email": donation.donor_email,
+            "amount": donation.amount,
+            "refund_amount": refund_amount,
+            "new_refund_total": donation.refund_amount + refund_amount,
+            "refund_status": refund_status,
+            "payment_method": donation.payment_method,
+            "gateway_refund_id": gateway_refund_id,
+        })),
+    ).await?;
+
+    let updated = sqlx::query_as::<_, Donation>("SELECT * FROM donations WHERE id = $1")
+        .bind(donation_id)
+        .fetch_one(&pool)
+        .await?;
+
+    Ok(Json(serde_json::to_value(&updated).map_err(|e| AppError::internal(e.to_string()))?))
+}
+
 // =============================================================================
 // Analytics handlers
 // =============================================================================
 
 #[derive(Serialize)]
-pub struct Analytics {
+pub struct AnalyticsOverview {
     pub total_churches: i64,
     pub active_churches: i64,
     pub suspended_churches: i64,
-    pub total_members: i64,
-    pub total_giving: i64,
     pub mrr: i64,
     pub churches_this_month: i64,
+    pub churches_by_plan: Vec<PlanCount>,
 }
 
-pub async fn get_analytics(State(st): State<AppState>) -> Result<Json<Analytics>, AppError> {
+#[derive(Serialize)]
+pub struct PlanCount {
+    pub plan: String,
+    pub count: i64,
+}
+
+pub async fn get_analytics_overview(State(st): State<AppState>) -> Result<Json<AnalyticsOverview>, AppError> {
     let total_churches: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM churches")
         .fetch_one(&st.pool)
         .await
@@ -1330,44 +1854,41 @@ pub async fn get_analytics(State(st): State<AppState>) -> Result<Json<Analytics>
     .await
     .map_err(|e| AppError::internal(e.to_string()))?;
 
-    let churches = sqlx::query_as::<_, Church>("SELECT * FROM churches ORDER BY created_at DESC")
-        .fetch_all(&st.pool)
-        .await?;
+    // Calculate MRR: sum of plan price_monthly for active churches with a plan
+    let mrr: (i64,) = sqlx::query_as(
+        "SELECT COALESCE(SUM(p.price_monthly), 0) 
+         FROM churches c 
+         LEFT JOIN plans p ON c.plan = p.id 
+         WHERE c.status = 'active' AND c.plan IS NOT NULL"
+    )
+    .fetch_one(&st.pool)
+    .await
+    .map_err(|e| AppError::internal(e.to_string()))?;
 
-    let mut total_members = 0i64;
-    let mut total_giving = 0i64;
+    // Get churches by plan
+    let churches_by_plan: Vec<PlanCount> = sqlx::query_as(
+        "SELECT 
+            COALESCE(p.name, 'Free') as plan,
+            COUNT(*) as count
+         FROM churches c
+         LEFT JOIN plans p ON c.plan = p.id
+         GROUP BY p.name
+         ORDER BY count DESC"
+    )
+    .fetch_all(&st.pool)
+    .await
+    .map_err(|e| AppError::internal(e.to_string()))?;
 
-    for church in churches {
-        if let Ok(pool) = PgPoolOptions::new()
-            .max_connections(1)
-            .connect(&st.cfg.church_db_url(&church.slug))
-            .await
-        {
-            let members: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM members")
-                .fetch_one(&pool)
-                .await
-                .unwrap_or((0,));
-            total_members += members.0;
-
-            let giving: (i64,) = sqlx::query_as("SELECT COALESCE(SUM(total_amount), 0) FROM offerings")
-                .fetch_one(&pool)
-                .await
-                .unwrap_or((0,));
-            total_giving += giving.0;
-        }
-    }
-
-    let analytics = Analytics {
+    let overview = AnalyticsOverview {
         total_churches: total_churches.0,
         active_churches: active_churches.0,
         suspended_churches: suspended_churches.0,
-        total_members,
-        total_giving,
-        mrr: 0,
+        mrr: mrr.0,
         churches_this_month: churches_this_month.0,
+        churches_by_plan,
     };
 
-    Ok(Json(analytics))
+    Ok(Json(overview))
 }
 
 #[derive(Serialize)]
@@ -1426,28 +1947,38 @@ pub async fn get_church_stats(
 }
 
 pub async fn get_growth_analytics(
+    Query(params): Query<GrowthQuery>,
     State(st): State<AppState>,
 ) -> Result<Json<Vec<Value>>, AppError> {
-    let rows: Vec<(String, i64, i64, i64)> = sqlx::query_as(
-        "SELECT 
-            TO_CHAR(created_at, 'YYYY-MM') as month,
-            COUNT(*) as churches_created,
-            0 as churches_churned,
-            COUNT(*) as net_growth
-         FROM churches 
-         GROUP BY TO_CHAR(created_at, 'YYYY-MM') 
-         ORDER BY month DESC 
-         LIMIT 12"
+    let range = params.range.as_deref().unwrap_or("30d");
+    let (interval_sql, date_trunc) = match range {
+        "30d" => ("1 month", "YYYY-MM-DD"),           // Daily for 30 days
+        "90d" => ("3 months", "IYYY-IW"),             // Weekly for 90 days (ISO year-week)
+        "12m" => ("12 months", "YYYY-MM"),            // Monthly for 12 months
+        _ => ("1 month", "YYYY-MM-DD"),               // default to 30d daily
+    };
+
+    let rows: Vec<(String, i64)> = sqlx::query_as(
+        &format!(
+            "SELECT 
+                 TO_CHAR(created_at, '{}') as period,
+                 COUNT(*) as churches_created
+               FROM churches 
+               WHERE created_at >= NOW() - INTERVAL '{}'
+               GROUP BY TO_CHAR(created_at, '{}')
+               ORDER BY period",
+            date_trunc, interval_sql, date_trunc
+        )
     )
     .fetch_all(&st.pool)
     .await?;
 
-    let growth: Vec<Value> = rows.into_iter().map(|(month, churches_created, churches_churned, _)| {
+    let growth: Vec<Value> = rows.into_iter().map(|(period, churches_created)| {
         json!({
-            "month": month,
+            "period": period,
             "churches_created": churches_created,
-            "churches_churned": churches_churned,
-            "net_growth": churches_created - churches_churned
+            "churches_churned": 0,
+            "net_growth": churches_created
         })
     }).collect();
 
@@ -1720,7 +2251,11 @@ pub async fn update_settings(
 
     audit_log(
         &st.pool,
-        &super_admin,
+        &AdminUser {
+            id: super_admin.id.clone(),
+            email: super_admin.email.clone(),
+            role: "super_admin".to_string(),
+        },
         "update_settings",
         "platform_settings",
         "platform_settings",
@@ -2078,7 +2613,7 @@ pub async fn stripe_webhook(
             }
 
             let church: Option<crate::handlers::Church> = sqlx::query_as(
-                "UPDATE churches SET subscription_status = 'active' WHERE stripe_subscription_id = $1 RETURNING *",
+                "UPDATE churches SET subscription_status = 'active', status = CASE WHEN status = 'past_due' THEN 'active' ELSE status END, past_due_at = CASE WHEN status = 'past_due' THEN NULL ELSE past_due_at END WHERE stripe_subscription_id = $1 RETURNING *",
             )
             .bind(subscription_id)
             .fetch_optional(&st.pool)
@@ -2121,6 +2656,11 @@ pub async fn stripe_webhook(
                 return Err(AppError::bad_request("missing subscription id in invoice.payment_failed"));
             }
 
+            let attempt_count: i64 = data_obj
+                .and_then(|o| o.get("attempt_count"))
+                .and_then(|v| v.as_i64())
+                .unwrap_or(0);
+
             let church: Option<crate::handlers::Church> = sqlx::query_as(
                 "UPDATE churches SET subscription_status = 'past_due' WHERE stripe_subscription_id = $1 RETURNING *",
             )
@@ -2129,16 +2669,50 @@ pub async fn stripe_webhook(
             .await?;
 
             if let Some(church) = church {
-                let _ = provision::emit_notification(
-                    &st.pool,
-                    "payment_failed",
-                    "Payment failed",
-                    &format!("Payment failed for {}. Subscription is now past_due.", church.name),
-                    Some(&church.id),
-                )
-                .await;
+                let is_final_attempt = attempt_count >= 3;
 
-                target_church_id = Some(church.id);
+                if is_final_attempt && (church.status == "active" || church.status == "provisioning") {
+                    let now = chrono::Utc::now().naive_utc();
+                    let updated: Church = sqlx::query_as(
+                        "UPDATE churches SET status = 'past_due', past_due_at = $1 WHERE id = $2 RETURNING *",
+                    )
+                    .bind(now)
+                    .bind(church.id)
+                    .fetch_one(&st.pool)
+                    .await?;
+
+                    let _ = provision::emit_notification(
+                        &st.pool,
+                        "payment_failed_final",
+                        "Payment failed - Account past due",
+                        &format!("Payment failed for {} after {} retries. Account is now past_due.", updated.name, attempt_count),
+                        Some(&updated.id),
+                    )
+                    .await;
+
+                    let _ = crate::email::send_admin_notification(
+                        &st.cfg,
+                        &updated.admin_email,
+                        "Payment Failed - Account Past Due",
+                        &format!("Dear {},\n\nWe were unable to process your payment after {} retry attempts. Your account is now past due. Please update your payment method to avoid service suspension.", updated.name, attempt_count),
+                    )
+                    .await;
+
+                    target_church_id = Some(updated.id);
+                } else if church.status == "active" || church.status == "provisioning" {
+                    let _ = provision::emit_notification(
+                        &st.pool,
+                        "payment_failed",
+                        "Payment failed",
+                        &format!("Payment failed for {}. Attempt {} of {}.", church.name, attempt_count, 3),
+                        Some(&church.id),
+                    )
+                    .await;
+
+                    target_church_id = Some(church.id);
+                } else {
+                    target_church_id = Some(church.id);
+                }
             }
         }
         "customer.subscription.deleted" => {
@@ -2185,4 +2759,176 @@ pub async fn stripe_webhook(
         .await?;
 
     Ok(Json(json!({ "status": "processed" })))
+}
+
+pub async fn run_dunning_checker(pool: sqlx::PgPool, cfg: std::sync::Arc<crate::config::Config>) {
+    let mut interval = tokio::time::interval(std::time::Duration::from_secs(60 * 60));
+    loop {
+        interval.tick().await;
+        let _ = check_grace_period_and_suspend(&pool, &cfg).await;
+    }
+}
+
+pub async fn check_grace_period_and_suspend(
+    pool: &sqlx::PgPool,
+    cfg: &crate::config::Config,
+) -> Result<(), crate::error::AppError> {
+    let grace_period = chrono::Duration::days(cfg.dunning_grace_period_days as i64);
+    let cutoff = chrono::Utc::now().naive_utc() - grace_period;
+
+    let past_due_churches: Vec<Church> = sqlx::query_as(
+        "SELECT * FROM churches WHERE status = 'past_due' AND past_due_at IS NOT NULL AND past_due_at < $1",
+    )
+    .bind(cutoff)
+    .fetch_all(pool)
+    .await?;
+
+    for church in past_due_churches {
+        let now = chrono::Utc::now().naive_utc();
+        let _ = sqlx::query(
+            "UPDATE churches SET status = 'suspended', suspended_at = $1 WHERE id = $2",
+        )
+        .bind(now)
+        .bind(church.id)
+        .execute(pool)
+        .await;
+
+        let _ = provision::update_church_suspended_flag(cfg, &church.slug, Some(&now)).await;
+
+        let _ = provision::emit_notification(
+            pool,
+            "church_suspended",
+            "Church suspended",
+            &format!(
+                "'{}' has been suspended due to non-payment after grace period.",
+                church.name
+            ),
+            Some(&church.id),
+        )
+        .await;
+
+        let _ = crate::email::send_admin_notification(
+            cfg,
+            &church.admin_email,
+            "Account Suspended - Payment Required",
+            &format!(
+                "Dear {},\n\nYour account has been suspended due to non-payment after the grace period. Please update your payment method to restore access.",
+                church.name
+            ),
+        )
+        .await;
+    }
+
+    Ok(())
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct StatusComponent {
+    pub name: String,
+    pub status: String,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct StatusIncident {
+    pub id: String,
+    pub date: String,
+    pub title: String,
+    pub resolution: String,
+    pub status: String,
+}
+
+#[derive(Serialize)]
+pub struct StatusResponse {
+    pub status: String,
+    pub updated_at: String,
+    pub components: Vec<StatusComponent>,
+    pub incidents: Vec<StatusIncident>,
+}
+
+pub async fn get_status(State(st): State<AppState>) -> Json<StatusResponse> {
+    let mut components: Vec<StatusComponent> = vec![
+        StatusComponent { name: "Website / Marketing".into(), status: "operational".into() },
+        StatusComponent { name: "Admin Dashboard".into(), status: "operational".into() },
+        StatusComponent { name: "Church Sites".into(), status: "operational".into() },
+        StatusComponent { name: "API".into(), status: "operational".into() },
+        StatusComponent { name: "Database".into(), status: "operational".into() },
+        StatusComponent { name: "Media / Storage".into(), status: "operational".into() },
+        StatusComponent { name: "Email Delivery".into(), status: "operational".into() },
+    ];
+
+    if sqlx::query("SELECT 1").fetch_one(&st.pool).await.is_err() {
+        for c in &mut components {
+            if c.name == "Database" {
+                c.status = "down".into();
+                break;
+            }
+        }
+    }
+
+    let church_count: Option<i64> = sqlx::query_scalar("SELECT COUNT(*) FROM churches WHERE status = 'active'")
+        .fetch_optional(&st.pool)
+        .await
+        .ok()
+        .flatten();
+    if church_count == Some(0) && !components.iter().any(|c| c.status == "down") {
+        for c in &mut components {
+            if c.name == "Church Sites" {
+                c.status = "degraded".into();
+                break;
+            }
+        }
+    }
+
+    let status_dir = PathBuf::from(&st.cfg.storage_root).join("status");
+    let incidents = read_incidents(&status_dir);
+    let stored_components = read_components(&status_dir);
+    if !stored_components.is_empty() {
+        for stored in stored_components {
+            if let Some(comp) = components.iter_mut().find(|c| c.name == stored.name) {
+                if stored.status == "down" {
+                    comp.status = "down".into();
+                } else if stored.status == "degraded" && comp.status != "down" {
+                    comp.status = "degraded".into();
+                }
+            }
+        }
+    }
+
+    let overall = if components.iter().any(|c| c.status == "down") {
+        "down"
+    } else if components.iter().any(|c| c.status == "degraded") {
+        "degraded"
+    } else {
+        "operational"
+    };
+
+    Json(StatusResponse {
+        status: overall.into(),
+        updated_at: chrono::Utc::now().to_rfc3339(),
+        components,
+        incidents,
+    })
+}
+
+fn read_components(dir: &PathBuf) -> Vec<StatusComponent> {
+    let path = dir.join("components.json");
+    let data = fs::read_to_string(path).ok();
+    data.and_then(|d| serde_json::from_str(&d).ok()).unwrap_or_default()
+}
+
+fn read_incidents(dir: &PathBuf) -> Vec<StatusIncident> {
+    let path = dir.join("incidents.jsonl");
+    let data = fs::read_to_string(path).ok();
+    let mut incidents: Vec<StatusIncident> = Vec::new();
+    if let Some(content) = data {
+        for line in content.lines() {
+            if let Ok(inc) = serde_json::from_str::<StatusIncident>(line) {
+                if incidents.len() < 20 {
+                    incidents.push(inc);
+                }
+            }
+        }
+    }
+    incidents.reverse();
+    incidents
 }

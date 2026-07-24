@@ -1,8 +1,11 @@
+'use client'
 import type { Metadata } from 'next'
 import './globals.css'
 import { ErrorReporter } from '@/components/ErrorReporter'
 import { ThemeProvider } from '@/components/theme/theme-provider'
 import { SiteThemeApplier } from '@/components/theme/SiteThemeApplier'
+import { useLang } from '@/lib/language'
+import { useEffect } from 'react'
 
 export const metadata: Metadata = {
   title: 'Grace Nepal Church — Faith, Hope & Love',
@@ -21,6 +24,12 @@ export const metadata: Metadata = {
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  const { lang } = useLang()
+
+  useEffect(() => {
+    document.documentElement.lang = lang
+  }, [lang])
+
   return (
     <html lang="en" suppressHydrationWarning>
       <body>
