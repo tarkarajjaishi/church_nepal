@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { useState } from 'react';
-import { ChevronLeft, ChevronRight, CalendarDay } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react';
 import { Event } from '@/types';
 
 interface CalendarViewProps {
@@ -113,7 +113,7 @@ export default function CalendarView({ events, selectedCategory }: CalendarViewP
                         <div className="mt-2 space-y-1 text-sm">
                           {dayEvents.map((ev, idx) => (
                             <div key={idx} className="flex items-start gap-2">
-                              <CalendarDay className="h-4 w-4 text-primary shrink-0" />
+                              <CalendarDays className="h-4 w-4 text-primary shrink-0" />
                               <div className="truncate w-full max-w-xs" title={ev.title}>
                                 {ev.title.length > 15 ? ev.title.substring(0, 15) + '...' : ev.title}
                               </div>

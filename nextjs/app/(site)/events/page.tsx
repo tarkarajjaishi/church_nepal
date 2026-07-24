@@ -19,7 +19,7 @@ import { toBS } from "@/lib/nepaliDate";
 import { useEvents, useContentBlock } from "@/lib/hooks";
 import { CardSkeleton } from "@/components/site/LoadingSpinner";
 import { ErrorDisplay } from "@/components/site/ErrorDisplay";
-import { CalendarView } from "@/components/site/CalendarView";
+import CalendarView from "@/components/site/CalendarView";
 import { generateICalFeed } from "@/lib/ical";
 
 function EventCard({ e, upcoming }: { e: any; upcoming?: boolean }) {

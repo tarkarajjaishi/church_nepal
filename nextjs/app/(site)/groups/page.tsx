@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Calendar, MapPin, Users, ArrowRight, Clock, X, MapPinLeftRight } from 'lucide-react'
+import { Calendar, MapPin, Users, ArrowRight, Clock, X } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { PageHero } from '@/components/site/PageHero'
@@ -146,7 +146,7 @@ export default function GroupsPage() {
               >
                 {filters.mapView ? (
                   <>
-                    <MapPinLeftRight className="size-4" />
+                    <MapPin className="size-4" />
                     <span className="text-sm">List View</span>
                   </>
                 ) : (

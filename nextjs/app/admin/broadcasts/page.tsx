@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '@/lib/admin/api'
-import { Plus, Send, Radio, Mail, MessageSquare, Clock, CheckCircle2, AlertCircle, Edit3, Trash2, BarChart3, Users, Eye, Schedule } from 'lucide-react'
+import { Plus, Send, Radio, Mail, MessageSquare, Clock, CheckCircle2, AlertCircle, Edit3, Trash2, BarChart3, Users, Eye, CalendarClock } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -230,7 +230,7 @@ export default function BroadcastsPage() {
                                 <Edit3 className="size-3 mr-1" /> Edit
                               </Button>
                               <Button size="sm" variant="outline" onClick={() => { setConfirmSchedule(b); setScheduleDate(new Date(Date.now() + 3600000).toISOString().slice(0, 16)) }}>
-                                <Schedule className="size-3 mr-1" /> Schedule
+                                <CalendarClock className="size-3 mr-1" /> Schedule
                               </Button>
                             </>
                           )}
@@ -369,7 +369,7 @@ export default function BroadcastsPage() {
               if (!confirmSchedule || !scheduleDate) return
               scheduleMut.mutate({ id: confirmSchedule.id, scheduled_at: scheduleDate })
             }} disabled={scheduleMut.isPending} className="bg-church-blue hover:bg-church-blue/90">
-              <Schedule className="size-4 mr-1" /> {scheduleMut.isPending ? 'Scheduling...' : 'Schedule'}
+              <CalendarClock className="size-4 mr-1" /> {scheduleMut.isPending ? 'Scheduling...' : 'Schedule'}
             </Button>
           </DialogFooter>
         </DialogContent>

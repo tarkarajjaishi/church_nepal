@@ -334,7 +334,7 @@ export interface ContactInfo {
   mapUrl: string
 }
 
-export function useContactInfo() {
+export function useContactInfoRecords() {
   return useQuery({
     queryKey: ["contact-info"],
     queryFn: () => fetchAll<ContactInfo>("contact-info"),
@@ -484,3 +484,60 @@ export function createResourceHooks<T = any>(endpoint: string) {
 }
 
 
+
+// ── Service-time mutations (added by verification pass) ──────────────────────
+export function useCreateServiceTime() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (values: Partial<ServiceTime>) => api.post("/service-times", values).then(r => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["service-times"] }),
+  })
+}
+export function useUpdateServiceTime() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (values: Partial<ServiceTime> & { id: string }) => {
+      const { id, ...data } = values
+      return api.put(`/service-times/${id}`, data).then(r => r.data)
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["service-times"] }),
+  })
+}
+export function useDeleteServiceTime() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => api.delete(`/service-times/${id}`).then(r => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["service-times"] }),
+  })
+}
+export function useToggleServiceTime() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (values: { id: string; enabled: boolean }) =>
+      api.put(`/service-times/${values.id}`, { enabled: values.enabled }).then(r => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["service-times"] }),
+  })
+}
+
+// ── Contact-info + content-block extras (added by verification pass) ─────────
+export function useCreateContactInfo() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (values: Partial<ContactInfo>) => api.post("/contact-info", values).then(r => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["contact-info"] }),
+  })
+}
+export function useContentBlockByKey(key: string) {
+  const { data: blocks = [] } = useContentBlocks()
+  return blocks.find((b: ContentBlock) => b.sectionKey === key) ?? null
+}
+export function useUpdateContentBlock() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (values: { id: string } & Record<string, unknown>) => {
+      const { id, ...data } = values
+      return api.put(`/content-blocks/${id}`, data).then(r => r.data)
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["content-blocks"] }),
+  })
+}

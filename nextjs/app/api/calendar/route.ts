@@ -1,4 +1,4 @@
-import { api } from '@/lib/admin/api';
+import api from '@/lib/admin/api';
 import { API_ORIGIN } from '@/lib/apiBase';
 import { NextResponse } from 'next/server';
 import { generateICalFeed } from '@/lib/ical';

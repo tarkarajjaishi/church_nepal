@@ -144,3 +144,46 @@ export function DataState({
   if (isEmpty) return <EmptyState icon={emptyIcon} title={emptyTitle} description={emptyDescription} action={emptyAction} />
   return <>{children}</>
 }
+
+export function PaginationControls({
+  page,
+  perPage,
+  total,
+  totalPages,
+  onPageChange,
+}: {
+  page: number
+  perPage?: number
+  total?: number
+  totalPages: number
+  onPageChange: (p: number) => void
+}) {
+  if (totalPages <= 1) return null
+  return (
+    <div className="flex items-center justify-between gap-4 mt-4 text-sm">
+      <span className="text-muted-foreground">
+        {total != null ? `${total} item${total === 1 ? '' : 's'}` : `Page ${page} of ${totalPages}`}
+        {perPage != null ? ` · ${perPage} per page` : ''}
+      </span>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => onPageChange(Math.max(1, page - 1))}
+          disabled={page <= 1}
+          className="px-3 py-1.5 rounded-md border border-border disabled:opacity-50 hover:bg-muted transition-colors"
+        >
+          Previous
+        </button>
+        <span className="px-2">Page {page} of {totalPages}</span>
+        <button
+          type="button"
+          onClick={() => onPageChange(Math.min(totalPages, page + 1))}
+          disabled={page >= totalPages}
+          className="px-3 py-1.5 rounded-md border border-border disabled:opacity-50 hover:bg-muted transition-colors"
+        >
+          Next
+        </button>
+      </div>
+    </div>
+  )
+}
