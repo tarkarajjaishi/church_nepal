@@ -148,32 +148,52 @@ const LanguageContext = createContext<LangCtx>({
 })
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
-  const [lang, setLang] = useState<string>(DEFAULT_LANGUAGE)
-  const [availableLanguages, setAvailableLanguages] = useState<string[]>([DEFAULT_LANGUAGE])
-  const [defaultLanguage, setDefaultLanguage] = useState<string>(DEFAULT_LANGUAGE)
-  const [initialized, setInitialized] = useState(false)
+  const [lang, setLangState] = useState<string>(DEFAULT_LANGUAGE)
 
   // Load settings and initial language from storage
   useEffect(() => {
+    let cancelled = false
     async function initialize() {
       const settings = await fetchLanguageSettings()
-      setAvailableLanguages(settings.availableLanguages)
-      setDefaultLanguage(settings.defaultLanguage)
-
-      // Determine language from storage or default
       let savedLang: string | null = null
       if (typeof window !== 'undefined') {
         savedLang = localStorage.getItem(LANGUAGE_STORAGE_KEY)
       }
       const initialLang =
-        savedLang && availableBand.includes(savedBand)
-          ? savedBand
-          : defaultLanguage
-      setLang(initialLang)
-      setInitialized(true)
+        savedLang && settings.availableLanguages.includes(savedLang)
+          ? savedLang
+          : settings.defaultLanguage
+      if (!cancelled) setLangState(initialLang)
     }
-    // Fix variable names: availableBand -> availableLanguages, savedBand -> savedLang
-    // Actually we need to correct the logic.
-    // Let's rewrite the function correctly.
+    // Never let a settings failure block rendering — the UI shows the default
+    // language and simply skips the preference swap.
+    initialize().catch(() => {})
+    return () => {
+      cancelled = true
+    }
   }, [])
+
+  const setLang = (next: string) => {
+    setLangState(next)
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(LANGUAGE_STORAGE_KEY, next)
+    }
+  }
+
+  const t = (key: string): string => {
+    const entry = (dict as Record<string, Record<string, string>>)[key]
+    if (!entry) return key
+    return entry[lang] || entry[DEFAULT_LANGUAGE] || key
+  }
+
+  return (
+    <LanguageContext.Provider value={{ lang, setLang, t }}>
+      {children}
+    </LanguageContext.Provider>
+  )
+}
+
+// Hook consumed across the church site (nav, pages, sections).
+export function useLang() {
+  return useContext(LanguageContext)
 }
