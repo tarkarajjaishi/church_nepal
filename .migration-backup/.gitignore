@@ -1,0 +1,87 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+dist-ssr/
+build/
+target/
+**/target/
+
+# Next.js
+.next/
+out/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+vite-log.txt
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.DS_Store
+
+# OS
+Thumbs.db
+Desktop.ini
+
+# Rust
+backend/target/
+control-plane/backend/target/
+
+# Stray debug / runtime output files (anywhere in the repo)
+stderr*.txt
+stdout*.txt
+test_*.txt
+
+# Backend runtime / debug files
+backend/stderr*.txt
+backend/stdout*.txt
+backend/test_*.txt
+backend/backend.log
+backend/uploads/
+
+# Storage (per-church uploads are in storage/<slug>/)
+storage/
+
+# Data files (generated / runtime — not source)
+users.json
+subscribers.json
+contact_info.json
+site_settings.json
+
+# Python (project is Rust + Next.js only — no Python in this repo)
+*.py
+requirements.txt
+Dockerfile.auth
+
+# Claude Code local tooling
+.claude/
+
+# Bridge / agent tooling
+.bridge/
+*.bat
+
+# Qwen agent (task.txt -> code) runtime: backups, logs, raw replies, task input
+.qwen_agent/
+task.txt
+
+# Misc
+*.local
+.cache/
