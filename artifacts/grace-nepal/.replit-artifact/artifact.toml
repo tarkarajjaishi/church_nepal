@@ -1,0 +1,27 @@
+kind = "web"
+previewPath = "/"
+title = "Grace Nepal Church"
+version = "1.0.0"
+id = "artifacts/grace-nepal"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 25432
+
+[services.development]
+run = "pnpm --filter @workspace/grace-nepal run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/grace-nepal", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/grace-nepal/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "25432"
+BASE_PATH = "/"

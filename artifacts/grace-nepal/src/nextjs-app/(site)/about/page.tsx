@@ -1,0 +1,165 @@
+
+
+import { Link } from 'wouter';
+import { Target, Eye, Heart, Milestone, CheckCircle2 } from "lucide-react";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { PageHero } from "@/components/site/PageHero";
+import { SectionHeading } from "@/components/site/SectionHeading";
+import { Reveal } from "@/components/site/Reveal";
+import { ImageWithFallback } from "@/components/figma/ImageWithFallback";
+import { EditableBlock } from "@/components/site/EditableBlock";
+import { useLang } from "@/lib/language";
+import { useContentBlock } from "@/lib/hooks";
+
+const iconMap: Record<string, any> = { Target, Eye, Heart, CheckCircle2, Milestone };
+
+export default function About() {
+  const { lang } = useLang();
+  const hero = useContentBlock('about_hero');
+  const history = useContentBlock('about_history');
+  const mission = useContentBlock('about_mission');
+  const values = useContentBlock('about_values');
+  const faq = useContentBlock('about_faq');
+  const cta = useContentBlock('about_cta');
+
+  return (
+    <div>
+      {/* Hero — fully from CMS */}
+      {hero && (
+      <EditableBlock block={hero}>
+        <PageHero title={hero.title} crumb="About" image={hero.items?.[0]?.image || ''}
+          subtitle={hero.subtitle || ""} />
+      </EditableBlock>
+      )}
+
+      {/* History — fully from CMS */}
+      {history && (
+      <EditableBlock block={history}>
+        <section className="py-20">
+          <div className="mx-auto max-w-7xl px-4 grid lg:grid-cols-2 gap-12 items-center">
+            <Reveal>
+              <ImageWithFallback src={history.items?.[0]?.image || ''} alt={history.title} className="rounded-3xl w-full aspect-[4/3] object-cover shadow-xl" />
+            </Reveal>
+            <div>
+              <SectionHeading center={false} eyebrow={history.items?.[0]?.eyebrow || ""} title={history.title} subtitle={history.subtitle || ""} />
+            </div>
+          </div>
+        </section>
+      </EditableBlock>
+      )}
+
+      {/* Mission / Vision — fully from CMS */}
+      {mission && (
+      <EditableBlock block={mission}>
+        <section className="py-16 bg-section">
+          <div className="mx-auto max-w-7xl px-4 grid md:grid-cols-3 gap-6">
+            {(mission.items || []).map((c: any, i: number) => {
+              const Icon = iconMap[c.icon] || Target;
+              return (
+                <Reveal key={c.title} delay={i * 0.08}>
+                  <Card className="p-7 h-full border-border/60 hover:shadow-xl transition-all">
+                    <span className="grid place-items-center size-12 rounded-xl bg-church-blue text-white"><Icon className="size-6" /></span>
+                    <h3 className="mt-4 text-church-blue" style={{ fontFamily: "var(--font-heading)", fontWeight: 600 }}>{c.title}</h3>
+                    <p className="mt-2 text-muted-foreground">{c.desc}</p>
+                  </Card>
+                </Reveal>
+              );
+            })}
+          </div>
+        </section>
+      </EditableBlock>
+      )}
+
+      {/* Core Values — fully from CMS */}
+      {values && (
+      <EditableBlock block={values}>
+        <section className="py-20">
+          <div className="mx-auto max-w-7xl px-4">
+            <SectionHeading eyebrow={values.items?.[0]?.eyebrow || ""} title={values.title} />
+            <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+              {(values.items || []).map((v: any, i: number) => {
+                const Icon = iconMap[v.icon] || Heart;
+                return (
+                  <Reveal key={v.title} delay={i * 0.06}>
+                    <Card className="p-6 text-center h-full border-border/60 hover:border-gold hover:shadow-xl transition-all">
+                      <span className="mx-auto grid place-items-center size-12 rounded-full bg-gold-soft text-gold"><Icon className="size-6" /></span>
+                      <h3 className="mt-4 text-church-blue" style={{ fontFamily: "var(--font-heading)", fontWeight: 600 }}>{v.title}</h3>
+                      <p className="mt-2 text-sm text-muted-foreground">{v.desc}</p>
+                    </Card>
+                  </Reveal>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+      </EditableBlock>
+      )}
+
+      {/* Timeline — fully from CMS, driven by history block's timeline data */}
+      {history && history.items?.[0]?.timeline && (
+      <EditableBlock block={history}>
+        <section className="py-20 bg-section">
+          <div className="mx-auto max-w-4xl px-4">
+            <SectionHeading eyebrow={history.items?.[0]?.timelineEyebrow || ""} title={history.items?.[0]?.timelineTitle || ""} />
+            <div className="mt-12 relative pl-8 sm:pl-0">
+              <div className="absolute left-2 sm:left-1/2 top-0 bottom-0 w-px bg-border sm:-translate-x-1/2" />
+              {history.items[0].timeline.map((item: any, i: number) => (
+                <Reveal key={item.year} delay={i * 0.05}>
+                  <div className={`relative mb-10 sm:w-1/2 ${i % 2 ? "sm:ml-auto sm:pl-10" : "sm:pr-10 sm:text-right"}`}>
+                    <span className={`absolute top-1 size-4 rounded-full bg-gold ring-4 ring-section ${i % 2 ? "-left-[1.6rem] sm:-left-2" : "-left-[1.6rem] sm:-right-2 sm:left-auto"}`} />
+                    <Milestone className="size-4 text-gold inline-block mb-1" />
+                    <div className="text-gold" style={{ fontFamily: "var(--font-heading)", fontWeight: 700 }}>{item.year}</div>
+                    <h3 className="text-church-blue" style={{ fontFamily: "var(--font-heading)", fontWeight: 600 }}>{item.title}</h3>
+                    <p className="mt-1 text-sm text-muted-foreground">{item.text}</p>
+                  </div>
+                </Reveal>
+              ))}
+            </div>
+          </div>
+        </section>
+      </EditableBlock>
+      )}
+
+      {/* FAQ — fully from CMS */}
+      {faq && (
+      <EditableBlock block={faq}>
+        <section className="py-20">
+          <div className="mx-auto max-w-4xl px-4">
+            <SectionHeading eyebrow={faq.items?.[0]?.eyebrow || ""} title={faq.title} />
+            <Reveal delay={0.1}>
+              <Accordion type="single" collapsible className="mt-10">
+                {(faq.items || []).map((f: any, i: number) => (
+                  <AccordionItem key={i} value={`faq-${i}`}>
+                    <AccordionTrigger className="text-left text-church-blue">{f.q}</AccordionTrigger>
+                    <AccordionContent className="text-muted-foreground">{f.a}</AccordionContent>
+                  </AccordionItem>
+                ))}
+              </Accordion>
+            </Reveal>
+          </div>
+        </section>
+      </EditableBlock>
+      )}
+
+      {/* CTA — fully from CMS */}
+      {cta && (
+      <EditableBlock block={cta}>
+        <section className="py-20 bg-church-blue">
+          <div className="mx-auto max-w-3xl px-4 text-center">
+            <Reveal>
+              <SectionHeading light eyebrow={cta.items?.[0]?.eyebrow || ""} title={cta.title} subtitle={cta.subtitle || ""} />
+              {(cta.items || []).filter((b: any) => b.link).map((btn: any, i: number) => (
+                <Button key={i} asChild size="lg" className={btn.style === 'outline' ? "mt-4 ml-3 border-white/30 text-white hover:bg-white/10" : "mt-8 bg-gold text-church-blue hover:bg-gold/90"} variant={btn.style === 'outline' ? "ghost" : "default"}>
+                  <Link href={btn.link}>{btn.label}</Link>
+                </Button>
+              ))}
+            </Reveal>
+          </div>
+        </section>
+      </EditableBlock>
+      )}
+    </div>
+  );
+}

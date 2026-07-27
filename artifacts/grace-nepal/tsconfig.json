@@ -1,0 +1,32 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "include": ["src/**/*"],
+  "exclude": [
+    "node_modules", "build", "dist", "**/*.test.ts",
+    "src/nextjs-app/layout.tsx",
+    "src/nextjs-app/manifest.ts",
+    "src/nextjs-app/robots.ts",
+    "src/nextjs-app/sitemap.ts",
+    "src/nextjs-app/api/**/*",
+    "src/nextjs-app/bible/layout.tsx",
+    "src/nextjs-app/(site)/layout.tsx",
+    "src/nnrv_bible-main/**/*"
+  ],
+  "compilerOptions": {
+    "noEmit": true,
+    "jsx": "preserve",
+    "lib": ["esnext", "dom", "dom.iterable"],
+    "resolveJsonModule": true,
+    "allowImportingTsExtensions": true,
+    "moduleResolution": "bundler",
+    "types": ["node", "vite/client"],
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "references": [
+    {
+      "path": "../../lib/api-client-react"
+    }
+  ]
+}

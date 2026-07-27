@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Grace Nepal Church — Offline</title>
+  <style>
+    :root {
+      --church-blue: #0b3c5d;
+      --gold: #d4a017;
+      --font-body: 'Inter', sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; }
+    body {
+      font-family: var(--font-body);
+      background: #ffffff;
+      color: #1f2937;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 24px;
+    }
+    .card {
+      text-align: center;
+      max-width: 420px;
+      width: 100%;
+      padding: 48px 24px;
+      border-radius: 1rem;
+      background: #ffffff;
+      box-shadow: 0 10px 40px rgba(11, 60, 93, 0.12);
+    }
+    .icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+    }
+    h1 {
+      color: var(--church-blue);
+      font-family: 'Poppins', sans-serif;
+      font-size: 1.5rem;
+      margin-bottom: 8px;
+    }
+    p {
+      color: #64748b;
+      font-size: 0.95rem;
+      line-height: 1.5;
+    }
+    a {
+      display: inline-block;
+      margin-top: 20px;
+      color: var(--gold);
+      text-decoration: underline;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon">⛪</div>
+    <h1>You're offline</h1>
+    <p>Grace Nepal Church needs an internet connection right now. Please check your connection and try again.</p>
+    <a onclick="window.location.reload()">Retry</a>
+  </div>
+</body>
+</html>
