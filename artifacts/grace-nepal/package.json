@@ -93,6 +93,7 @@
     "canvas-confetti": "^1.9.4",
     "motion": "^12.42.2",
     "nepali-date-converter": "^3.4.0",
-    "react-responsive-masonry": "^2.7.2"
+    "react-responsive-masonry": "^2.7.2",
+    "web-vitals": "^6.0.0"
   }
 }

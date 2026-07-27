@@ -7,12 +7,21 @@ import { EditableBlock } from "@/components/site/EditableBlock";
 import { useContentBlock } from "@/lib/hooks";
 import { useLang } from "@/lib/language";
 
+const FALLBACK_PRIVACY_SECTIONS = [
+  { title: 'Information We Collect', content: 'We collect only the information you voluntarily provide — such as your name and contact details when you fill out a form, register for an event, or make a donation. We do not sell or share your personal information with third parties.' },
+  { title: 'How We Use Your Information', content: 'We use your information solely to communicate with you about church events, sermons, and ministry opportunities; to process donations; and to improve our services. We may send you newsletters or updates, from which you can unsubscribe at any time.' },
+  { title: 'Data Security', content: 'We take reasonable measures to protect your personal information from unauthorized access, disclosure, alteration, or destruction. All sensitive data is transmitted via secure, encrypted connections.' },
+  { title: 'Cookies', content: 'Our website may use cookies to enhance your browsing experience. You can instruct your browser to refuse all cookies or indicate when a cookie is being sent. However, some features may not function properly without cookies.' },
+  { title: 'Children\'s Privacy', content: 'We do not knowingly collect personal information from children under 13 without parental consent. If you believe a child has provided us with personal information, please contact us and we will promptly delete it.' },
+  { title: 'Contact Us', content: 'If you have any questions about this Privacy Policy or our data practices, please contact us at info@gracenepal.org or by visiting our church office in Baneshwor, Kathmandu.' },
+];
+
 export default function Privacy() {
   const { lang } = useLang();
 
   const hero = useContentBlock('privacy_hero');
   const sectionsBlock = useContentBlock('privacy_sections');
-  const sections = sectionsBlock?.items || [];
+  const sections = sectionsBlock?.items?.length ? sectionsBlock.items : FALLBACK_PRIVACY_SECTIONS;
 
   return (
     <div>

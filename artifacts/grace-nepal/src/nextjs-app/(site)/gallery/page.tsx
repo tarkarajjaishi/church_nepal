@@ -1,5 +1,3 @@
-
-
 import { useState } from "react";
 import { X, ChevronLeft, ChevronRight, ZoomIn } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -8,31 +6,51 @@ import { SectionHeading } from "@/components/site/SectionHeading";
 import { Reveal } from "@/components/site/Reveal";
 import { ImageWithFallback } from "@/components/figma/ImageWithFallback";
 import { EditableBlock } from "@/components/site/EditableBlock";
-import { images, galleryCategories } from "@/lib/data";
+import { images } from "@/lib/data";
 import { useGallery, useContentBlock } from "@/lib/hooks";
 import { CardSkeleton } from "@/components/site/LoadingSpinner";
-import { ErrorDisplay } from "@/components/site/ErrorDisplay";
+
+const FALLBACK_GALLERY = [
+  { id: "1", title: "Sunday Worship", category: "Worship", image: images.worship ?? "" },
+  { id: "2", title: "Children's Ministry", category: "Children", image: images.kids ?? "" },
+  { id: "3", title: "Community Outreach", category: "Outreach", image: images.outreach ?? "" },
+  { id: "4", title: "Prayer Night", category: "Prayer", image: images.prayer ?? "" },
+  { id: "5", title: "Youth Gathering", category: "Youth", image: images.youth ?? "" },
+  { id: "6", title: "Women's Fellowship", category: "Fellowship", image: images.women ?? "" },
+  { id: "7", title: "Baptism Service", category: "Worship", image: images.baptism ?? "" },
+  { id: "8", title: "Men's Breakfast", category: "Fellowship", image: images.men ?? "" },
+  { id: "9", title: "Missions Trip", category: "Outreach", image: images.mission ?? "" },
+  { id: "10", title: "Christmas Service", category: "Worship", image: images.christmas ?? "" },
+  { id: "11", title: "Bible Study", category: "Teaching", image: images.bible ?? "" },
+  { id: "12", title: "Church Picnic", category: "Fellowship", image: images.crowd ?? "" },
+] as const
+
+const FALLBACK_CATEGORIES = ["All", "Worship", "Children", "Youth", "Fellowship", "Outreach", "Prayer", "Teaching"]
+
+type GalleryItem = { id: string; title: string; category: string; image: string }
 
 export default function Gallery() {
-  const { data: gallery = [], isLoading, error, refetch } = useGallery();
+  const { data: apiGallery = [], isLoading } = useGallery();
   const [filter, setFilter] = useState("All");
   const [active, setActive] = useState<number | null>(null);
 
-  const hero = useContentBlock('gallery_hero');
-  const heading = useContentBlock('gallery_heading');
-  const errorBlock = useContentBlock('gallery_error');
+  const hero    = useContentBlock("gallery_hero");
+  const heading = useContentBlock("gallery_heading");
 
-  const heroTitle = hero?.title || "Gallery";
+  const heroTitle    = hero?.title    || "Gallery";
   const heroSubtitle = hero?.subtitle || "Snapshots of God's faithfulness — worship, fellowship, mission and celebration.";
-  const heroCrumb = hero?.items?.[0]?.crumb || "Gallery";
-  const heroImage = hero?.image || images.crowd;
-  const errorMsg = errorBlock?.title || "Failed to load gallery.";
+  const heroCrumb    = hero?.items?.[0]?.crumb || "Gallery";
+  const heroImage    = hero?.image    || images.crowd;
 
-  const categories = hero?.items && hero.items.length > 0
+  const gallery: GalleryItem[] = apiGallery.length > 0
+    ? apiGallery
+    : (FALLBACK_GALLERY as unknown as GalleryItem[])
+
+  const categories: string[] = (hero?.items && hero.items.length > 0)
     ? ["All", ...hero.items.map((item: { title?: string }) => item.title).filter(Boolean)]
-    : galleryCategories;
+    : FALLBACK_CATEGORIES
 
-  const shown = filter === "All" ? gallery : gallery.filter((g) => g.category === filter);
+  const shown   = filter === "All" ? gallery : gallery.filter((g) => g.category === filter);
   const current = active !== null ? shown[active] : null;
 
   const move = (dir: number) =>
@@ -41,8 +59,7 @@ export default function Gallery() {
   return (
     <div>
       <EditableBlock block={hero}>
-        <PageHero title={heroTitle} crumb={heroCrumb} image={heroImage}
-          subtitle={heroSubtitle} />
+        <PageHero title={heroTitle} crumb={heroCrumb} image={heroImage} subtitle={heroSubtitle} />
       </EditableBlock>
 
       <section className="py-16">
@@ -61,7 +78,9 @@ export default function Gallery() {
                 key={c}
                 onClick={() => { setFilter(c); setActive(null); }}
                 className={`px-4 py-2 rounded-full text-sm transition-colors ${
-                  filter === c ? "bg-church-blue text-white" : "bg-secondary text-church-blue hover:bg-gold hover:text-church-blue"
+                  filter === c
+                    ? "bg-church-blue text-white"
+                    : "bg-secondary text-church-blue hover:bg-gold hover:text-church-blue"
                 }`}
                 aria-pressed={filter === c}
               >
@@ -73,23 +92,28 @@ export default function Gallery() {
           <div className="mt-10">
             {isLoading ? (
               <CardSkeleton count={9} />
-            ) : error ? (
-              <ErrorDisplay message={errorMsg} onRetry={() => refetch()} />
             ) : (
               <div className="columns-1 sm:columns-2 lg:columns-3 gap-4 [column-fill:_balance]">
                 {shown.map((g, i) => (
-              <Reveal key={g.id} delay={(i % 3) * 0.05} className="mb-4 break-inside-avoid">
-                <button onClick={() => setActive(i)} className="group relative block w-full overflow-hidden rounded-2xl">
-                  <ImageWithFallback src={g.image} alt={g.title} className="w-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                  <div className="absolute inset-0 bg-church-blue/0 group-hover:bg-church-blue/50 transition-colors grid place-items-center">
-                    <ZoomIn className="size-8 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
-                  </div>
-                  <div className="absolute bottom-0 inset-x-0 p-3 bg-gradient-to-t from-church-blue/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
-                    <span className="text-white text-sm">{g.title}</span>
-                  </div>
-                </button>
-              </Reveal>
-            ))}
+                  <Reveal key={g.id} delay={(i % 3) * 0.05} className="mb-4 break-inside-avoid">
+                    <button
+                      onClick={() => setActive(i)}
+                      className="group relative block w-full overflow-hidden rounded-2xl"
+                    >
+                      <ImageWithFallback
+                        src={g.image}
+                        alt={g.title}
+                        className="w-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      />
+                      <div className="absolute inset-0 bg-church-blue/0 group-hover:bg-church-blue/50 transition-colors grid place-items-center">
+                        <ZoomIn className="size-8 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </div>
+                      <div className="absolute bottom-0 inset-x-0 p-3 bg-gradient-to-t from-church-blue/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+                        <span className="text-white text-sm">{g.title}</span>
+                      </div>
+                    </button>
+                  </Reveal>
+                ))}
               </div>
             )}
           </div>
@@ -100,13 +124,32 @@ export default function Gallery() {
         <DialogContent className="max-w-4xl p-0 border-0 bg-transparent shadow-none [&>button]:hidden">
           {current && (
             <div className="relative">
-              <ImageWithFallback src={current.image} alt={current.title} className="w-full max-h-[80vh] object-contain rounded-2xl" />
+              <ImageWithFallback
+                src={current.image}
+                alt={current.title}
+                className="w-full max-h-[80vh] object-contain rounded-2xl"
+              />
               <div className="absolute bottom-0 inset-x-0 p-4 bg-gradient-to-t from-black/70 to-transparent rounded-b-2xl">
                 <span className="text-white">{current.title}</span>
               </div>
-              <button onClick={() => setActive(null)} className="absolute top-3 right-3 grid place-items-center size-10 rounded-full bg-black/50 text-white hover:bg-black/70"><X className="size-5" /></button>
-              <button onClick={() => move(-1)} className="absolute top-1/2 -translate-y-1/2 left-3 grid place-items-center size-10 rounded-full bg-black/50 text-white hover:bg-black/70"><ChevronLeft className="size-5" /></button>
-              <button onClick={() => move(1)} className="absolute top-1/2 -translate-y-1/2 right-3 grid place-items-center size-10 rounded-full bg-black/50 text-white hover:bg-black/70"><ChevronRight className="size-5" /></button>
+              <button
+                onClick={() => setActive(null)}
+                className="absolute top-3 right-3 grid place-items-center size-10 rounded-full bg-black/50 text-white hover:bg-black/70"
+              >
+                <X className="size-5" />
+              </button>
+              <button
+                onClick={() => move(-1)}
+                className="absolute top-1/2 -translate-y-1/2 left-3 grid place-items-center size-10 rounded-full bg-black/50 text-white hover:bg-black/70"
+              >
+                <ChevronLeft className="size-5" />
+              </button>
+              <button
+                onClick={() => move(1)}
+                className="absolute top-1/2 -translate-y-1/2 right-3 grid place-items-center size-10 rounded-full bg-black/50 text-white hover:bg-black/70"
+              >
+                <ChevronRight className="size-5" />
+              </button>
             </div>
           )}
         </DialogContent>

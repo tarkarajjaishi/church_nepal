@@ -1,5 +1,4 @@
-import { motion } from "motion/react";
-import { ReactNode } from "react";
+import { ReactNode, useRef, useEffect, useState, CSSProperties } from "react";
 
 interface RevealProps {
   children: ReactNode;
@@ -8,17 +7,37 @@ interface RevealProps {
   className?: string;
 }
 
-// Simple fade + slide-up on scroll into view.
+// Fade + slide-up on scroll into view — pure CSS/IntersectionObserver,
+// no motion/react dependency so there's no risk of a dual-React instance.
 export function Reveal({ children, delay = 0, y = 24, className }: RevealProps) {
+  const [visible, setVisible] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setVisible(true);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.1, rootMargin: "-60px 0px" }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  const style: CSSProperties = {
+    opacity: visible ? 1 : 0,
+    transform: visible ? "translateY(0)" : `translateY(${y}px)`,
+    transition: `opacity 0.6s cubic-bezier(0.22,1,0.36,1) ${delay}s, transform 0.6s cubic-bezier(0.22,1,0.36,1) ${delay}s`,
+  };
+
   return (
-    <motion.div
-      className={className}
-      initial={{ opacity: 0, y }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "-60px" }}
-      transition={{ duration: 0.6, delay, ease: [0.22, 1, 0.36, 1] }}
-    >
+    <div ref={ref} className={className} style={style}>
       {children}
-    </motion.div>
+    </div>
   );
 }

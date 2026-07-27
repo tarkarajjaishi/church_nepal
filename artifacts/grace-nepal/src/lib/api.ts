@@ -49,6 +49,31 @@ api.interceptors.response.use(
   }
 )
 
+// ── Public API mock (dev / demo when backend is offline) ──────────────────────
+// When a network error occurs (no backend running), return realistic mock data
+// so every public page renders fully without a live API.
+import { getMockPublicResponse } from './publicMockData'
+
+api.interceptors.response.use(
+  (res) => res,
+  (error) => {
+    const isNetworkError = !error.response && (error.code === 'ERR_NETWORK' || error.code === 'ECONNREFUSED' || error.message === 'Network Error')
+    if (isNetworkError && error.config?.url) {
+      const mockData = getMockPublicResponse(error.config.url)
+      if (mockData !== null) {
+        return Promise.resolve({
+          data: mockData,
+          status: 200,
+          statusText: 'OK (mock)',
+          headers: {},
+          config: error.config,
+        })
+      }
+    }
+    return Promise.reject(error)
+  }
+)
+
 // Public API — no auth needed for reading
 export interface PaginatedResponse<T> {
   data: T[]

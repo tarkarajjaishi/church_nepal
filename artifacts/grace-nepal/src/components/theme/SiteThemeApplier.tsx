@@ -25,7 +25,8 @@ export function SiteThemeApplier() {
         )
 
         const primary = map.get(THEME_SETTING_KEYS.primary)
-        if (primary) applyPrimaryColor(primary)
+        const accent  = map.get(THEME_SETTING_KEYS.accent)
+        if (primary) applyPrimaryColor(primary, accent)
 
         const headingFont = map.get(THEME_SETTING_KEYS.heading_font)
         const bodyFont = map.get(THEME_SETTING_KEYS.body_font)

@@ -1,7 +1,5 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
-import React from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { Link } from 'wouter'
-import { motion } from "motion/react";
 import useEmblaCarousel from 'embla-carousel-react';
 import {
   Play, Calendar, Clock, MapPin, ArrowRight, Quote, Star, Share2, HandHeart, Heart, ChevronRight, ChevronLeft, Mail, CheckCircle, FileText, ZoomIn, Target, Car, Users, ArrowUpRight, Sparkles, BookOpen, Music, Shield, Coffee, Baby, Sun,
@@ -161,12 +159,7 @@ function HeroSection({ hero, serviceTimes, nextEvent, lang, t }: {
           <div className="grid lg:grid-cols-12 gap-12 lg:gap-8 items-end w-full">
             
             {/* Left Content */}
-            <motion.div
-              initial={{ opacity: 0, y: 40 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 1, ease: [0.22, 1, 0.36, 1] }}
-              className="lg:col-span-8 max-w-4xl"
-            >
+            <div className="lg:col-span-8 max-w-4xl">
               <div className="inline-flex items-center gap-3 px-4 py-2 rounded-full bg-white/10 backdrop-blur-md border border-white/20 mb-8">
                 <Sparkles className="size-4 text-gold" />
                 <span className="text-sm font-medium tracking-wide text-white uppercase" style={{ fontFamily: "var(--font-body)" }}>{eyebrow}</span>
@@ -203,15 +196,10 @@ function HeroSection({ hero, serviceTimes, nextEvent, lang, t }: {
                   </Button>
                 ))}
               </div>
-            </motion.div>
+            </div>
 
             {/* Right Countdown Card */}
-            <motion.div
-              initial={{ opacity: 0, x: 40 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 1, delay: 0.4, ease: [0.22, 1, 0.36, 1] }}
-              className="lg:col-span-4 lg:justify-self-end w-full max-w-md"
-            >
+            <div className="lg:col-span-4 lg:justify-self-end w-full max-w-md">
               <div className="p-1 rounded-3xl bg-gradient-to-b from-white/20 to-white/5 backdrop-blur-md shadow-2xl">
                 <Card className="p-6 bg-church-blue/80 backdrop-blur-xl border-white/10 shadow-inner rounded-[1.3rem] text-white">
                   <div className="flex items-center justify-between mb-6">
@@ -243,7 +231,7 @@ function HeroSection({ hero, serviceTimes, nextEvent, lang, t }: {
                   </div>
                 </Card>
               </div>
-            </motion.div>
+            </div>
           </div>
         </div>
       </section>

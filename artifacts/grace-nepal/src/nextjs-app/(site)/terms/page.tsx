@@ -7,12 +7,21 @@ import { EditableBlock } from "@/components/site/EditableBlock";
 import { useContentBlock } from "@/lib/hooks";
 import { useLang } from "@/lib/language";
 
+const FALLBACK_TERMS_SECTIONS = [
+  { title: 'Acceptance of Terms', content: 'By accessing or using the Grace Nepal Church website, you agree to be bound by these Terms of Service. If you do not agree, please discontinue use of the site.' },
+  { title: 'Use of the Website', content: 'This website is provided for informational and ministry purposes. You may not use it for any unlawful purpose or in a way that damages, disables, or impairs the site. Unauthorized access or misuse is strictly prohibited.' },
+  { title: 'Intellectual Property', content: 'All content on this site — including text, images, sermons, music, and design — is the property of Grace Nepal Church or its respective creators. You may not reproduce, distribute, or use our content commercially without explicit written permission.' },
+  { title: 'Donations', content: 'Donations made through this site are voluntary gifts to Grace Nepal Church. All donations are used for ministry activities as directed by church leadership. Donation records are kept confidential per our Privacy Policy.' },
+  { title: 'Disclaimer of Warranties', content: 'This website is provided "as is" without warranties of any kind. Grace Nepal Church does not guarantee the accuracy, completeness, or timeliness of the information on this site.' },
+  { title: 'Changes to Terms', content: 'We reserve the right to modify these Terms of Service at any time. Changes become effective when posted to this page. Continued use of the site after changes are posted constitutes your acceptance of the revised terms.' },
+];
+
 export default function Terms() {
   const { lang } = useLang();
 
   const hero = useContentBlock('terms_hero');
   const sectionsBlock = useContentBlock('terms_sections');
-  const sections = sectionsBlock?.items || [];
+  const sections = sectionsBlock?.items?.length ? sectionsBlock.items : FALLBACK_TERMS_SECTIONS;
 
   return (
     <div>

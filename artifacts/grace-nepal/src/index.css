@@ -58,31 +58,54 @@
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.145 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.145 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.985 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(1 0 0);
-  --border: oklch(0.269 0 0);
-  --input: oklch(0.269 0 0);
-  --ring: oklch(0.439 0 0);
-  --church-blue: #5b9bd5;
-  --sky-blue: #7fb2e0;
-  --section-bg: #0f1a24;
+  /* Base surfaces — deep navy, not pure black */
+  --background: #0d1b2a;
+  --foreground: #e8edf3;
+  --card: #132235;
+  --card-foreground: #e8edf3;
+  --popover: #132235;
+  --popover-foreground: #e8edf3;
+
+  /* Primary stays as church blue (lighter for dark bg) */
+  --primary: #4d9fd6;
+  --primary-foreground: #ffffff;
+
+  /* Secondary / muted surfaces */
+  --secondary: #1a2d40;
+  --secondary-foreground: #c4d4e0;
+  --muted: #1a2d40;
+  --muted-foreground: #8aa5be;
+
+  /* Accent — gold-tinted dark */
+  --accent: #2a2010;
+  --accent-foreground: #e0b34a;
+
+  /* Functional */
+  --destructive: #e05252;
+  --destructive-foreground: #ffffff;
+  --border: rgba(255, 255, 255, 0.10);
+  --input: #1a2d40;
+  --input-background: #1a2d40;
+  --ring: #4d9fd6;
+  --switch-background: #2a3d52;
+
+  /* Brand overrides for dark */
+  --church-blue: #4d9fd6;
+  --sky-blue: #6db8e8;
+  --section-bg: #0f1d2b;
   --gold: #e0b34a;
-  --gold-soft: #33290f;
+  --gold-soft: #2e2208;
   --success: #4ade80;
+
+  /* Sidebar */
+  --sidebar: #0b1929;
+  --sidebar-foreground: #c4d4e0;
+  --sidebar-primary: #4d9fd6;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #1a2d40;
+  --sidebar-accent-foreground: #e8edf3;
+  --sidebar-border: rgba(255, 255, 255, 0.08);
+  --sidebar-ring: #4d9fd6;
 }
 
 @layer base {

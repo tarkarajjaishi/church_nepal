@@ -1,0 +1,3 @@
+- [Grace Nepal Church — motion/react dual-React fix](grace-nepal-motion-fix.md) — removing motion/react from Reveal.tsx and HomepageSections.tsx permanently fixed the hook crash.
+- [Grace Nepal Church — Unicode in TSX string literals](grace-nepal-unicode-strings.md) — curly apostrophes and en/em-dashes in single-quoted JS strings cause Vite 500 transform errors; always use ASCII or double-quoted strings.
+- [Grace Nepal Church — Vite parallel-load race](grace-nepal-vite-race.md) — simultaneous first-loads of multiple pages trigger re-optimization; pages work fine individually after cache is warm.

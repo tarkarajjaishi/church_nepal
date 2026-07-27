@@ -10,11 +10,13 @@ import {
   THEME_PRESETS,
   THEME_SETTING_KEYS,
   DEFAULT_PRIMARY,
+  DEFAULT_ACCENT,
   DEFAULT_SKIN,
   DEFAULT_HEADING_FONT,
   DEFAULT_BODY_FONT,
   DEFAULT_RADIUS,
   DEFAULT_LOGO,
+  DEFAULT_MODE,
   applyPrimaryColor,
   applySkin,
   applyFonts,
@@ -27,7 +29,6 @@ import {
   publishTheme,
   type ThemePreset,
   type ThemeSkin,
-DEFAULT_MODE,
 } from '@/lib/theme'
 import { ThemePresets, HOMEPAGE_LAYOUTS, type HomepageLayout } from '@/components/theme/ThemePresets'
 
@@ -130,10 +131,12 @@ export default function ThemePage() {
     const next = {
       ...themeSettings,
       [THEME_SETTING_KEYS.primary]: preset.primary,
+      [THEME_SETTING_KEYS.accent]: preset.accent,
       [THEME_SETTING_KEYS.heading_font]: preset.headingFont,
       [THEME_SETTING_KEYS.body_font]: preset.bodyFont,
       [THEME_SETTING_KEYS.theme_preset]: preset.name,
       [THEME_SETTING_KEYS.homepage_layout]: preset.layout,
+      [THEME_SETTING_KEYS.radius]: preset.radius,
     }
     setThemeSettings(next)
     applyPreset(preset)
@@ -198,17 +201,18 @@ export default function ThemePage() {
   const reset = async () => {
     const next: Record<string, string> = {
       [THEME_SETTING_KEYS.primary]: DEFAULT_PRIMARY,
+      [THEME_SETTING_KEYS.accent]: DEFAULT_ACCENT,
       [THEME_SETTING_KEYS.skin]: DEFAULT_SKIN,
       [THEME_SETTING_KEYS.mode]: DEFAULT_MODE,
       [THEME_SETTING_KEYS.heading_font]: DEFAULT_HEADING_FONT,
       [THEME_SETTING_KEYS.body_font]: DEFAULT_BODY_FONT,
-      [THEME_SETTING_KEYS.theme_preset]: '',
+      [THEME_SETTING_KEYS.theme_preset]: 'grace-nepal',
       [THEME_SETTING_KEYS.homepage_layout]: 'default',
       [THEME_SETTING_KEYS.radius]: DEFAULT_RADIUS,
       [THEME_SETTING_KEYS.logo]: '',
     }
     setThemeSettings(next)
-    applyPrimaryColor(DEFAULT_PRIMARY)
+    applyPrimaryColor(DEFAULT_PRIMARY, DEFAULT_ACCENT)
     applySkin(DEFAULT_SKIN)
     applyFonts(DEFAULT_HEADING_FONT, DEFAULT_BODY_FONT)
     applyRadius(DEFAULT_RADIUS)

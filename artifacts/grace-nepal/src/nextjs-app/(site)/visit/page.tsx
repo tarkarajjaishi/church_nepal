@@ -17,6 +17,30 @@ import { useLang } from "@/lib/language";
 
 const factIconMap: Record<string, any> = { Clock, MapPin, Baby };
 
+const FALLBACK_FACTS = [
+  { icon: 'Clock', label: 'Service Times', sub: 'Sundays at 10:00 AM (NPT)' },
+  { icon: 'MapPin', label: 'Location', sub: 'Baneshwor, Kathmandu' },
+  { icon: 'Baby', label: "Children's Church", sub: 'Ages 2-12 during service' },
+  { icon: 'Clock', label: 'Service Length', sub: 'About 90 minutes' },
+];
+
+const FALLBACK_STEPS = [
+  { step: '1', title: 'Arrive & Park', text: 'Find free parking on-site. Our welcome team will greet you at the entrance.' },
+  { step: '2', title: 'Check In Kids', text: "Drop children (ages 2-12) at our secure children's check-in desk." },
+  { step: '3', title: 'Enjoy Worship', text: "Join vibrant praise and a practical message from God's Word." },
+  { step: '4', title: 'Stay & Connect', text: 'We serve chai after service - a great time to meet the community.' },
+];
+
+const FALLBACK_EXPECT = [
+  { icon: 'Music', title: 'Uplifting Worship', text: 'Contemporary Nepali and English worship songs led by our music team.' },
+  { icon: 'BookOpen', title: 'Biblical Teaching', text: "Practical, relevant messages from God's Word for everyday life." },
+  { icon: 'Users', title: 'Warm Community', text: 'A welcoming church family that embraces people from every background.' },
+  { icon: 'Baby', title: 'Kids are Welcome', text: "Safe, fun children's church runs parallel to the main service." },
+  { icon: 'Globe', title: 'Bilingual', text: 'Services available in both Nepali and English.' },
+  { icon: 'HandHeart', title: 'Come As You Are', text: 'No dress code. Just come ready to encounter God.' },
+];
+
+
 export default function PlanVisit() {
   const { lang } = useLang();
   const hero = useContentBlock('visit_hero');
@@ -42,7 +66,7 @@ export default function PlanVisit() {
       {/* Quick facts */}
       <section className="py-16">
         <div className="mx-auto max-w-7xl px-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {(facts?.items || []).map((f: any, i: number) => {
+          {(facts?.items?.length ? facts.items : FALLBACK_FACTS).map((f: any, i: number) => {
             const FactIcon = factIconMap[f.icon] || Clock;
             return (
               <Reveal key={i} delay={i * 0.06}>
@@ -65,7 +89,7 @@ export default function PlanVisit() {
             title={steps?.title || (lang === "en" ? "Your First Sunday, Step by Step" : "तपाईंको पहिलो आइतबार, चरण-चरणमा")}
           />
           <div className="mt-12 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-            {(steps?.items || []).map((s: any, i: number) => (
+            {(steps?.items?.length ? steps.items : FALLBACK_STEPS).map((s: any, i: number) => (
               <Reveal key={i} delay={i * 0.08}>
                 <Card className="p-6 h-full border-border/60 relative">
                   <span className="grid place-items-center size-11 rounded-full bg-gold text-church-blue" style={{ fontFamily: "var(--font-heading)", fontWeight: 700 }}>{s.step}</span>
@@ -86,7 +110,7 @@ export default function PlanVisit() {
             title={expect?.title || (lang === "en" ? "What to Expect" : "के अपेक्षा गर्ने")}
           />
           <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {(expect?.items || []).map((x: any, i: number) => (
+            {(expect?.items?.length ? expect.items : FALLBACK_EXPECT).map((x: any, i: number) => (
               <Reveal key={i} delay={i * 0.05}>
                 <Card className="p-6 h-full border-border/60 hover:shadow-xl transition-all">
                   <span className="grid place-items-center size-12 rounded-xl bg-gold-soft text-gold"><Icon name={x.icon} className="size-6" /></span>

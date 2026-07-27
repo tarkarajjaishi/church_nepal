@@ -34,9 +34,35 @@ export function Footer() {
     ? "A Christ-centred community in Nepal, growing in faith, hope and love — reaching every village with the gospel."
     : "नेपालमा ख्रीष्ट-केन्द्रित समुदाय, विश्वास, आशा र प्रेममा बढ्दै — हरेक गाउँमा सुसमाचार पुर्‍याउँदै।");
 
+  const FALLBACK_QUICK_LINKS = [
+    { label: "About Us", href: "/about" },
+    { label: "Sermons", href: "/sermons" },
+    { label: "Events", href: "/events" },
+    { label: "Gallery", href: "/gallery" },
+    { label: "Give", href: "/give" },
+    { label: "Contact", href: "/contact" },
+  ];
+
+  const FALLBACK_MINISTRY_LINKS = [
+    { label: "Youth Ministry", href: "/ministries" },
+    { label: "Women's Ministry", href: "/ministries" },
+    { label: "Children's Ministry", href: "/ministries" },
+    { label: "Mission & Outreach", href: "/ministries" },
+    { label: "Worship Team", href: "/ministries" },
+  ];
+
+  const FALLBACK_CONTACT_LINKS = [
+    { label: "Baneshwor-06, Kathmandu, Nepal", href: "https://maps.google.com/?q=Baneshwor+Kathmandu" },
+    { label: "+977 1-4xxxxxx · info@gracenepal.org", href: "mailto:info@gracenepal.org" },
+  ];
+
   const quickLinksGroup = groups.find((g: any) => g.group === "Quick Links");
   const ministryGroup = groups.find((g: any) => g.group === "Ministries");
   const connectedGroup = groups.find((g: any) => g.group === "Stay Connected");
+
+  const quickLinks = quickLinksGroup?.links?.length ? quickLinksGroup.links : FALLBACK_QUICK_LINKS;
+  const ministryLinks = ministryGroup?.links?.length ? ministryGroup.links : FALLBACK_MINISTRY_LINKS;
+  const contactLinks = connectedGroup?.links?.length ? connectedGroup.links : FALLBACK_CONTACT_LINKS;
   const services = serviceTimes.slice(0, 3);
 
   return (
@@ -81,7 +107,7 @@ export function Footer() {
               {quickLinksGroup?.group || "Quick Links"}
             </h4>
             <ul className="space-y-3.5">
-              {(quickLinksGroup?.links || []).map((l: any, i: number) => (
+              {quickLinks.map((l: any, i: number) => (
                 <li key={i}>
                   <Link href={l.href || '#'} className="text-[14px] text-white/70 hover:text-gold hover:translate-x-1 inline-flex items-center transition-all duration-300">
                     {l.label}
@@ -98,7 +124,7 @@ export function Footer() {
               {ministryGroup?.group || "Ministries"}
             </h4>
             <ul className="space-y-3.5">
-              {(ministryGroup?.links || []).map((l: any, i: number) => (
+              {ministryLinks.map((l: any, i: number) => (
                 <li key={i}>
                   <Link href={l.href || '/ministries'} className="text-[14px] text-white/70 hover:text-gold hover:translate-x-1 inline-flex items-center transition-all duration-300">
                     {l.label}
@@ -157,7 +183,7 @@ export function Footer() {
             </form>
 
             <div className="mt-8 pt-8 border-t border-white/10 space-y-4">
-              {(connectedGroup?.links || []).slice(0, 2).map((l: any, i: number) => (
+              {contactLinks.slice(0, 2).map((l: any, i: number) => (
                 <div key={i} className="flex items-start gap-3 text-sm text-white/70">
                   <MapPin className="size-5 text-gold shrink-0 mt-0.5" />
                   <a href={l.href} target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors leading-relaxed">
