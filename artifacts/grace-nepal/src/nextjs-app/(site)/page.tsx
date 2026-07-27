@@ -1,6 +1,4 @@
-
-
-import { HomepageSections } from "@/components/site/HomepageSections";
+import HomepageSections from "@/components/site/HomepageSections";
 
 export default function Home() {
   return (

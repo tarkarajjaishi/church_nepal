@@ -1,9 +1,7 @@
-
-
 import { useEffect, useState } from "react";
 import { Link } from 'wouter'
 import { usePathname } from '@/lib/navigation';
-import { Menu, Search, Radio, ChevronDown, Church, BookOpen } from "lucide-react";
+import { Menu, Search, Radio, ChevronDown, Church, BookOpen, Heart } from "lucide-react";
 import { Button } from "../ui/button";
 import {
   Sheet,
@@ -68,48 +66,51 @@ export function Navbar() {
 
   return (
     <header
-      className={`sticky top-0 z-50 transition-all duration-300 ${
-        scrolled ? "bg-background/95 backdrop-blur shadow-[0_4px_24px_rgba(var(--church-blue-rgb),0.08)]" : "bg-background/80 backdrop-blur"
+      className={`fixed top-0 inset-x-0 z-50 transition-all duration-500 border-b ${
+        scrolled 
+          ? "bg-white/80 dark:bg-background/80 backdrop-blur-2xl border-border/50 shadow-[0_8px_32px_rgba(11,60,93,0.06)] py-2" 
+          : "bg-white/40 dark:bg-background/40 backdrop-blur-md border-transparent py-4"
       }`}
     >
-      <nav className="mx-auto max-w-7xl px-4 h-16 flex items-center justify-between gap-4" aria-label="Main navigation">
+      <nav className="mx-auto max-w-[90rem] px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between gap-4" aria-label="Main navigation">
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-2.5 shrink-0">
+        <Link href="/" className="flex items-center gap-3 shrink-0 group">
           {logoImage ? (
-            <img src={logoImage.startsWith('http') ? logoImage : `${import.meta.env.VITE_API_URL ?? 'http://localhost:3002'}${logoImage}`} alt={churchName} className="size-10 rounded-xl object-cover" />
+            <img src={logoImage.startsWith('http') ? logoImage : `${import.meta.env.VITE_API_URL ?? 'http://localhost:3002'}${logoImage}`} alt={churchName} className="size-11 rounded-xl object-cover shadow-sm group-hover:scale-105 transition-transform duration-500" />
           ) : (
-            <span className="grid place-items-center size-10 rounded-xl bg-church-blue text-white">
-              <Church className="size-5" />
+            <span className="grid place-items-center size-11 rounded-xl bg-gradient-to-br from-church-blue to-sky-blue text-white shadow-md group-hover:shadow-lg group-hover:scale-105 transition-all duration-500">
+              <Church className="size-5.5" />
             </span>
           )}
-          <span className="leading-tight">
-            <span className="block text-church-blue" style={{ fontFamily: "var(--font-heading)", fontWeight: 700 }}>
+          <span className="leading-tight flex flex-col justify-center">
+            <span className="block text-church-blue dark:text-white text-lg tracking-tight transition-colors" style={{ fontFamily: "var(--font-heading)", fontWeight: 700 }}>
               {churchName}
             </span>
-            <span className="block text-[11px] text-gold" style={{ fontFamily: "var(--font-heading)" }}>
+            <span className="block text-[11px] text-gold font-medium tracking-wide uppercase transition-colors" style={{ fontFamily: "var(--font-body)" }}>
               {tagline}
             </span>
           </span>
         </Link>
 
         {/* Desktop nav */}
-        <div className="hidden lg:flex items-center gap-1">
+        <div className="hidden lg:flex items-center gap-1.5 ml-8">
           {primary.map((l) => (
             <Link
               key={l.to}
               href={l.to}
-              className={pathname === l.to ? "px-3 py-2 rounded-md text-sm font-medium text-church-blue" : "px-3 py-2 rounded-md text-sm text-foreground/70 hover:text-church-blue"}
+              className="relative group px-3 py-2 text-[13px] font-medium text-foreground/70 hover:text-church-blue dark:hover:text-gold transition-colors"
             >
               {t(l.key)}
+              <span className={`absolute inset-x-3 -bottom-0.5 h-[2px] bg-gold rounded-t-full transition-transform duration-300 origin-left ${pathname === l.to ? 'scale-x-100' : 'scale-x-0 group-hover:scale-x-100'}`} />
             </Link>
           ))}
-            <DropdownMenu>
-            <DropdownMenuTrigger className="px-3 py-2 rounded-md text-sm text-foreground/70 hover:text-church-blue inline-flex items-center gap-1 outline-none" aria-haspopup="true">
-              {lang === "en" ? "More" : "थप"} <ChevronDown className="size-3.5" />
+          <DropdownMenu>
+            <DropdownMenuTrigger className="px-3 py-2 text-[13px] font-medium text-foreground/70 hover:text-church-blue dark:hover:text-gold transition-colors inline-flex items-center gap-1.5 outline-none group" aria-haspopup="true">
+              {lang === "en" ? "More" : "थप"} <ChevronDown className="size-3.5 opacity-70 group-hover:opacity-100 transition-opacity" />
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+            <DropdownMenuContent align="end" className="w-48 rounded-xl border-border/50 bg-white/95 dark:bg-background/95 backdrop-blur-xl shadow-2xl p-2">
               {more.map((l) => (
-                <DropdownMenuItem key={l.to} asChild>
+                <DropdownMenuItem key={l.to} asChild className="rounded-lg hover:bg-secondary/50 focus:bg-secondary/50 cursor-pointer text-sm font-medium p-2.5">
                   <Link href={l.to}>{t(l.key)}</Link>
                 </DropdownMenuItem>
               ))}
@@ -118,35 +119,28 @@ export function Navbar() {
         </div>
 
         {/* Right actions */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3 ml-auto">
           <Link href="/sermons"
-            className="hidden sm:grid place-items-center size-9 rounded-md text-foreground/70 hover:bg-secondary"
+            className="hidden sm:grid place-items-center size-9 rounded-full text-foreground/70 hover:bg-secondary/80 hover:text-church-blue transition-colors"
             aria-label={t("search")}
           >
-            <Search className="size-4" />
+            <Search className="size-4.5" />
           </Link>
 
           <ThemeToggle />
 
-          <Link
-            href="/bible"
-            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium text-foreground/70 hover:bg-secondary hover:text-church-blue transition-colors"
-          >
-            <BookOpen className="size-4" />
-            पवित्र बाइबल (NE)
-          </Link>
-
-          <div className="hidden sm:flex items-center rounded-full bg-secondary p-0.5 text-xs" role="group" aria-label="Language selection">
+          {/* Lang Toggle Pill */}
+          <div className="hidden sm:flex items-center rounded-full bg-secondary/60 dark:bg-white/10 p-0.5 text-[11px] font-semibold tracking-wide border border-border/50 shadow-inner" role="group" aria-label="Language selection">
             <button
               onClick={() => setLang("en")}
-              className={`px-2.5 py-1 rounded-full transition ${lang === "en" ? "bg-church-blue text-white" : "text-church-blue"}`}
+              className={`px-3 py-1.5 rounded-full transition-all duration-300 ${lang === "en" ? "bg-white dark:bg-church-blue text-church-blue dark:text-white shadow-sm" : "text-foreground/60 hover:text-foreground"}`}
               aria-pressed={lang === "en"}
             >
               EN
             </button>
             <button
               onClick={() => setLang("ne")}
-              className={`px-2.5 py-1 rounded-full transition ${lang === "ne" ? "bg-church-blue text-white" : "text-church-blue"}`}
+              className={`px-3 py-1.5 rounded-full transition-all duration-300 ${lang === "ne" ? "bg-white dark:bg-church-blue text-church-blue dark:text-white shadow-sm" : "text-foreground/60 hover:text-foreground"}`}
               style={{ fontFamily: "var(--font-heading)" }}
               aria-pressed={lang === "ne"}
             >
@@ -154,58 +148,63 @@ export function Navbar() {
             </button>
           </div>
 
-          <Button asChild size="sm" className="hidden md:inline-flex bg-gold text-church-blue hover:bg-gold/90">
-            <Link href="/live">
-              <Radio className="size-4" /> {t("joinLive")}
-            </Link>
-          </Button>
+          <div className="hidden md:flex items-center gap-2 pl-2 border-l border-border/50">
+            <Button asChild size="sm" variant="ghost" className="h-9 px-4 text-[13px] font-semibold text-church-blue dark:text-white hover:bg-secondary/80 rounded-full transition-all">
+              <Link href="/live">
+                <Radio className="size-4 mr-1.5 text-red-500 animate-pulse" /> {t("joinLive")}
+              </Link>
+            </Button>
 
-          <Button asChild size="sm" className="hidden xl:inline-flex bg-church-blue hover:bg-church-blue/90">
-            <Link href="/give">{t("give")}</Link>
-          </Button>
+            <Button asChild size="sm" className="h-9 px-5 bg-gradient-to-r from-gold to-[#e5b534] hover:from-[#c29215] hover:to-gold text-church-blue shadow-lg shadow-gold/20 hover:shadow-gold/40 border-0 rounded-full text-[13px] font-bold tracking-wide transition-all duration-300 hover:-translate-y-0.5">
+              <Link href="/give">
+                <Heart className="size-4 mr-1.5" /> {t("give")}
+              </Link>
+            </Button>
+          </div>
 
-          {/* Mobile menu */}
+          {/* Mobile menu trigger */}
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
             <SheetTrigger asChild>
-              <button className="lg:hidden grid place-items-center size-9 rounded-md text-church-blue hover:bg-secondary" aria-label="Menu">
+              <button className="lg:hidden grid place-items-center size-10 rounded-full bg-secondary/80 text-church-blue hover:bg-secondary transition-colors" aria-label="Menu">
                 <Menu className="size-5" />
               </button>
             </SheetTrigger>
-            <SheetContent side="right" className="w-80 overflow-y-auto">
-              <SheetTitle className="text-church-blue" style={{ fontFamily: "var(--font-heading)" }}>
-                {t("churchName")}
-              </SheetTitle>
-              <div className="mt-6 flex flex-col gap-1">
+            <SheetContent side="right" className="w-full sm:w-96 overflow-y-auto border-l-0 p-0">
+              <div className="p-6 bg-church-blue text-white rounded-bl-3xl">
+                <SheetTitle className="text-white text-2xl flex items-center gap-3" style={{ fontFamily: "var(--font-heading)" }}>
+                  <Church className="size-6 text-gold" /> {t("churchName")}
+                </SheetTitle>
+                <p className="text-gold mt-1 text-sm">{tagline}</p>
+              </div>
+              
+              <div className="p-6 flex flex-col gap-2">
                 {allLinks.map((l) => (
                   <Link
                     key={l.to + l.key}
                     href={l.to}
-                    className={pathname === l.to ? "px-3 py-2.5 rounded-lg bg-church-blue text-white" : "px-3 py-2.5 rounded-lg text-foreground/80 hover:bg-secondary"}
+                    className={`px-4 py-3 rounded-xl text-base font-medium transition-colors ${pathname === l.to ? "bg-church-blue/5 text-church-blue" : "text-foreground/80 hover:bg-secondary"}`}
                   >
                     {t(l.key)}
                   </Link>
                 ))}
-                <Link
-                  href="/bible"
-                  className="px-3 py-2.5 rounded-lg text-foreground/80 hover:bg-secondary text-left flex items-center gap-2"
-                  onClick={() => setMobileOpen(false)}
-                >
-                  <BookOpen className="size-4" /> पवित्र बाइबल
-                </Link>
-              </div>
-              <div className="mt-6 flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">{lang === "en" ? "Language" : "भाषा"}:</span>
-                <div className="flex items-center rounded-full bg-secondary p-0.5 text-xs" role="group" aria-label="Language selection">
-                  <button onClick={() => setLang("en")} className={`px-3 py-1 rounded-full transition ${lang === "en" ? "bg-church-blue text-white" : "text-church-blue"}`} aria-pressed={lang === "en"}>EN</button>
-                  <button onClick={() => setLang("ne")} className={`px-3 py-1 rounded-full transition ${lang === "ne" ? "bg-church-blue text-white" : "text-church-blue"}`} style={{ fontFamily: "var(--font-heading)" }} aria-pressed={lang === "ne"}>नेपाली</button>
+                
+                <div className="my-4 h-px bg-border/60" />
+
+                <div className="flex items-center justify-between px-4 py-2 bg-secondary/30 rounded-xl">
+                  <span className="text-sm font-medium text-foreground/80">{lang === "en" ? "Language" : "भाषा"}</span>
+                  <div className="flex items-center rounded-full bg-white dark:bg-black/20 p-1 shadow-sm" role="group">
+                    <button onClick={() => setLang("en")} className={`px-4 py-1.5 rounded-full text-xs font-bold transition-colors ${lang === "en" ? "bg-church-blue text-white shadow" : "text-foreground/60"}`}>EN</button>
+                    <button onClick={() => setLang("ne")} className={`px-4 py-1.5 rounded-full text-xs font-bold transition-colors ${lang === "ne" ? "bg-church-blue text-white shadow" : "text-foreground/60"}`} style={{ fontFamily: "var(--font-heading)" }}>नेपाली</button>
+                  </div>
                 </div>
+
+                <Button asChild className="mt-4 w-full h-12 bg-church-blue text-white hover:bg-church-blue/90 rounded-xl text-base">
+                  <Link href="/live"><Radio className="size-5 mr-2 text-red-400" /> {t("joinLive")}</Link>
+                </Button>
+                <Button asChild className="mt-2 w-full h-12 bg-gold text-church-blue hover:bg-gold/90 rounded-xl text-base font-bold shadow-lg shadow-gold/20">
+                  <Link href="/give"><Heart className="size-5 mr-2" /> {t("give")}</Link>
+                </Button>
               </div>
-              <Button asChild className="mt-4 w-full bg-gold text-church-blue hover:bg-gold/90">
-                <Link href="/live"><Radio className="size-4" /> {t("joinLive")}</Link>
-              </Button>
-              <Button asChild variant="outline" className="mt-2 w-full border-church-blue text-church-blue hover:bg-church-blue hover:text-white">
-                <Link href="/give">{t("give")}</Link>
-              </Button>
             </SheetContent>
           </Sheet>
         </div>

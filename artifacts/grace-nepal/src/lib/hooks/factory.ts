@@ -28,7 +28,13 @@ export function createResourceHooks<T extends { id: string }>(endpoint: string) 
         if (pagination?.page) allParams.page = String(pagination.page)
         if (pagination?.per_page) allParams.per_page = String(pagination.per_page)
         const qs = Object.keys(allParams).length ? '?' + new URLSearchParams(allParams).toString() : ''
-        return api.get<PaginatedResponse<T>>(`/${endpoint}${qs}`).then(r => r.data.data) // Extract data array from paginated response
+        return api.get(`/${endpoint}${qs}`).then(r => {
+          // Handle both paginated { data: [...] } and plain array responses
+          const d = r.data
+          if (Array.isArray(d)) return d as T[]
+          if (d && Array.isArray(d.data)) return d.data as T[]
+          return [] as T[]
+        })
       },
     })
   }

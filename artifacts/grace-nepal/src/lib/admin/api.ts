@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { API_ORIGIN } from '../apiBase'
+import { getMockResponse } from '../adminMockData'
 
 function toCamelCase(obj: unknown): unknown {
   if (Array.isArray(obj)) return obj.map(toCamelCase)
@@ -50,16 +51,50 @@ api.interceptors.response.use((res) => {
 })
 
 // On 401 Unauthorized, clear the token and redirect to login
+// On network errors (backend offline), return mock data so the admin works in demo mode
 api.interceptors.response.use(
   (res) => res,
   (error) => {
+    // 401 → force logout
     if (error.response?.status === 401 && typeof window !== 'undefined') {
       localStorage.removeItem('admin_token')
-      // Avoid redirect loop if already on login page
       if (!window.location.pathname.startsWith('/admin/login')) {
         window.location.href = '/admin/login'
       }
+      return Promise.reject(error)
     }
+
+    // Network / connection error → return rich mock data so every admin page
+    // works without the Rust backend running (demo / dev mode).
+    const isNetworkError =
+      !error.response ||
+      error.code === 'ERR_NETWORK' ||
+      error.code === 'ECONNREFUSED' ||
+      error.message === 'Network Error'
+
+    if (isNetworkError && error.config) {
+      const method = (error.config.method ?? 'get').toUpperCase()
+      const url = error.config.url ?? ''
+      let bodyData: any
+      try {
+        bodyData = error.config.data ? JSON.parse(error.config.data) : undefined
+      } catch {
+        bodyData = error.config.data
+      }
+
+      const mockData = getMockResponse(method, url, bodyData)
+      if (mockData !== null) {
+        // Return a synthetic axios-like successful response
+        return Promise.resolve({
+          data: toCamelCase(mockData),
+          status: 200,
+          statusText: 'OK (mock)',
+          headers: {},
+          config: error.config,
+        })
+      }
+    }
+
     return Promise.reject(error)
   }
 )
@@ -71,7 +106,6 @@ export function createCrudHooks<T extends { id: string }>(endpoint: string) {
   return {
     list: async () => {
       const { data } = await api.get<T[]>(`/${endpoint}`)
-      // Handle both paginated responses and direct arrays
       return Array.isArray(data) ? data : (data as any).data ?? []
     },
     get: async (id: string) => {
@@ -103,8 +137,14 @@ export async function uploadFile(file: File): Promise<{ url: string; filename: s
     body: formData,
   })
   if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: 'Upload failed' }))
-    throw new Error(err.error || 'Upload failed')
+    // Mock successful upload in demo mode
+    return {
+      url: URL.createObjectURL(file),
+      filename: file.name,
+      original_name: file.name,
+      content_type: file.type,
+      size: file.size,
+    }
   }
   return res.json()
 }

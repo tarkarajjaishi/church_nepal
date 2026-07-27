@@ -1,12 +1,12 @@
-
-
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import React from 'react'
 import { Link } from 'wouter'
 import { motion } from "motion/react";
 import useEmblaCarousel from 'embla-carousel-react';
 import {
-  Play, Calendar, Clock, MapPin, ArrowRight, Quote, Star, Share2, HandHeart, Heart, ChevronRight, ChevronLeft, Mail, CheckCircle, FileText, ZoomIn, Target, Car,
+  Play, Calendar, Clock, MapPin, ArrowRight, Quote, Star, Share2, HandHeart, Heart, ChevronRight, ChevronLeft, Mail, CheckCircle, FileText, ZoomIn, Target, Car, Users, ArrowUpRight, Sparkles, BookOpen, Music, Shield, Coffee, Baby, Sun,
+  Church,
+  Phone
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -15,7 +15,6 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { ImageWithFallback } from "@/components/figma/ImageWithFallback";
 import { Reveal } from "@/components/site/Reveal";
-import { SectionHeading } from "@/components/site/SectionHeading";
 import { Countdown } from "@/components/site/Countdown";
 import { Icon } from "@/components/site/Icon";
 import { useLang } from "@/lib/language";
@@ -30,12 +29,11 @@ import { EditableBlock } from "@/components/site/EditableBlock";
 import { ItemEdit } from "@/components/site/ItemEdit";
 
 // Default order when no sort_order has been set in the DB.
-// Keys match content_blocks.sectionKey values.
 const DEFAULT_SECTION_ORDER: Record<string, number> = {
   hero: 0,
   service_times_section: 1,
-  what_to_expect: 2,
-  welcome: 3,
+  welcome: 2,
+  what_to_expect: 3,
   what_we_believe: 4,
   watch_online: 5,
   featured_sermons: 6,
@@ -54,18 +52,14 @@ const DEFAULT_SECTION_ORDER: Record<string, number> = {
 
 const ALL_SECTION_KEYS = Object.keys(DEFAULT_SECTION_ORDER);
 
-// Layout variant section orderings — each rearranges the same sections
-// to create a distinct homepage feel per theme preset.
 const LAYOUT_ORDERS: Record<string, string[]> = {
-  // Default: unchanged classic ordering
   default: [
-    'hero', 'service_times_section', 'what_to_expect', 'welcome',
+    'hero', 'service_times_section', 'welcome', 'what_to_expect',
     'what_we_believe', 'watch_online', 'featured_sermons',
     'ministries_section', 'events_section', 'prayer_cta',
     'notice_board', 'testimonies_section', 'church_members',
     'gallery_section', 'verse_section', 'donation_section', 'map_visit', 'newsletter',
   ],
-  // Magazine: masonry-style, lead with content
   magazine: [
     'hero', 'featured_sermons', 'events_section', 'ministries_section',
     'service_times_section', 'welcome', 'what_we_believe',
@@ -73,7 +67,6 @@ const LAYOUT_ORDERS: Record<string, string[]> = {
     'notice_board', 'testimonies_section', 'church_members',
     'gallery_section', 'verse_section', 'donation_section', 'map_visit', 'newsletter',
   ],
-  // Minimal Hero: spacious, editorial
   'minimal-hero': [
     'hero', 'verse_section', 'welcome', 'ministries_section',
     'donation_section', 'newsletter', 'service_times_section',
@@ -81,7 +74,6 @@ const LAYOUT_ORDERS: Record<string, string[]> = {
     'featured_sermons', 'prayer_cta', 'what_to_expect',
     'notice_board', 'testimonies_section', 'church_members', 'gallery_section', 'map_visit',
   ],
-  // Full Width: full-bleed, edge-to-edge
   'full-width': [
     'hero', 'ministries_section', 'events_section', 'service_times_section',
     'welcome', 'what_we_believe', 'featured_sermons',
@@ -89,7 +81,6 @@ const LAYOUT_ORDERS: Record<string, string[]> = {
     'testimonies_section', 'church_members', 'what_to_expect',
     'notice_board', 'verse_section', 'donation_section', 'map_visit', 'newsletter',
   ],
-  // Split: alternating sections
   split: [
     'hero', 'service_times_section', 'welcome', 'what_we_believe',
     'featured_sermons', 'events_section', 'ministries_section',
@@ -97,7 +88,6 @@ const LAYOUT_ORDERS: Record<string, string[]> = {
     'gallery_section', 'church_members', 'what_to_expect',
     'notice_board', 'verse_section', 'donation_section', 'map_visit', 'newsletter',
   ],
-  // Centered: narrow, editorial feel
   centered: [
     'hero', 'welcome', 'verse_section', 'what_we_believe',
     'featured_sermons', 'ministries_section', 'events_section',
@@ -107,129 +97,34 @@ const LAYOUT_ORDERS: Record<string, string[]> = {
   ],
 };
 
-// Spacing/background overrides per layout variant.
-// Each entry maps a section key to Tailwind classes applied to the wrapper.
 const LAYOUT_STYLE_OVERRIDES: Record<string, Record<string, string>> = {
   default: {},
-  // Magazine: tighter spacing, compact grid feel
-  magazine: {
-    service_times_section: 'py-12',
-    what_to_expect: 'py-12',
-    what_we_believe: 'py-12',
-    featured_sermons: 'py-12',
-    events_section: 'py-12',
-    ministries_section: 'py-12',
-    testimonies_section: 'py-12',
-    notice_board: 'py-12',
-    church_members: 'py-12',
-    gallery_section: 'py-12',
-    verse_section: 'py-14',
-    donation_section: 'py-12',
-    newsletter: 'py-14',
-  },
-  // Minimal Hero: generous whitespace, larger typography
-  'minimal-hero': {
-    service_times_section: 'py-28',
-    what_we_believe: 'py-28',
-    featured_sermons: 'py-28',
-    events_section: 'py-28',
-    ministries_section: 'py-28',
-    testimonies_section: 'py-28',
-    notice_board: 'py-28',
-    church_members: 'py-28',
-    gallery_section: 'py-28',
-    verse_section: 'py-32',
-    donation_section: 'py-32',
-    newsletter: 'py-32',
-    welcome: 'py-28',
-    watch_online: 'py-28',
-    prayer_cta: 'py-32',
-    what_to_expect: 'py-28',
-  },
-  // Full Width: full-bleed images, edge-to-edge
-  'full-width': {
-    service_times_section: 'py-16',
-    what_to_expect: 'py-14',
-    what_we_believe: 'py-16',
-    featured_sermons: 'py-16',
-    events_section: 'py-16',
-    ministries_section: 'py-16',
-    testimonies_section: 'py-16',
-    gallery_section: 'py-16',
-    verse_section: 'py-20',
-    donation_section: 'py-16',
-    newsletter: 'py-20',
-  },
-  // Split: alternating background colors
-  split: {
-    service_times_section: 'py-20 bg-section',
-    what_we_believe: 'py-20',
-    featured_sermons: 'py-20 bg-section',
-    events_section: 'py-20',
-    ministries_section: 'py-20 bg-section',
-    testimonies_section: 'py-20',
-    notice_board: 'py-20 bg-section',
-    church_members: 'py-20',
-    gallery_section: 'py-20 bg-section',
-    verse_section: 'py-24',
-    donation_section: 'py-20 bg-section',
-    newsletter: 'py-24',
-    watch_online: 'py-20 bg-section',
-  },
-  // Centered: generous spacing for editorial feel
-  centered: {
-    service_times_section: 'py-24',
-    what_we_believe: 'py-24',
-    featured_sermons: 'py-24',
-    events_section: 'py-24',
-    ministries_section: 'py-24',
-    testimonies_section: 'py-24',
-    notice_board: 'py-24',
-    church_members: 'py-24',
-    gallery_section: 'py-24',
-    verse_section: 'py-28',
-    donation_section: 'py-28',
-    newsletter: 'py-28',
-    welcome: 'py-24',
-    watch_online: 'py-24',
-    prayer_cta: 'py-28',
-    what_to_expect: 'py-24',
-  },
+  magazine: {},
+  'minimal-hero': {},
+  'full-width': {},
+  split: {},
+  centered: {},
 };
 
 function useHomepageLayout() {
   const [layout, setLayout] = useState<string>('');
-
   useEffect(() => {
-    const read = () => {
-      const val = document.documentElement.getAttribute('data-homepage-layout') || '';
-      setLayout(val);
-    };
+    const read = () => setLayout(document.documentElement.getAttribute('data-homepage-layout') || '');
     read();
-    // Re-read when the attribute changes (e.g. after ThemeCustomizer saves)
     const observer = new MutationObserver(read);
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ['data-homepage-layout'],
-    });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-homepage-layout'] });
     return () => observer.disconnect();
   }, []);
-
   return layout;
 }
-
-/* ------------------------------------------------------------------ */
-/*  Tiny helpers carried over from the original page.tsx               */
-/* ------------------------------------------------------------------ */
 
 function Eyebrow({ block, fallback }: { block: ContentBlock | null | undefined; fallback: string }) {
   return block?.items?.[0]?.eyebrow || fallback;
 }
 
-/* ------------------------------------------------------------------ */
-/*  Individual section components (extracted from original page.tsx)   */
-/*  Each receives only the data it needs. All JSX is preserved.        */
-/* ------------------------------------------------------------------ */
+// ------------------------------------------------------------------
+// Section Components
+// ------------------------------------------------------------------
 
 function HeroSection({ hero, serviceTimes, nextEvent, lang, t }: {
   hero: ContentBlock | null;
@@ -242,65 +137,67 @@ function HeroSection({ hero, serviceTimes, nextEvent, lang, t }: {
   const ctas = hero?.items?.[0]?.ctaButtons?.length
     ? hero.items[0].ctaButtons
     : [
-        { label: t("hero_watch"), link: "/sermons" },
-        { label: t("hero_pray"), link: "/prayer" },
+        { label: "Join Us Sunday", link: "/contact" },
+        { label: "Watch Live", link: "/live" },
       ];
 
   return (
     <EditableBlock block={hero}>
-      <section className="relative min-h-[92vh] flex items-center overflow-hidden" aria-label="Hero banner">
-        {/* Background image with Ken Burns effect */}
+      <section className="relative min-h-[100dvh] flex items-center overflow-hidden" aria-label="Hero banner">
         <div className="absolute inset-0">
           <ImageWithFallback
-            src={hero?.image || ''}
+            src={hero?.image || images.hero}
             alt={hero?.title || "Church hero"}
             className="w-full h-full object-cover scale-105 motion-safe:animate-[kenBurns_20s_ease-in-out_infinite_alternate]"
             fallbackClassName="bg-church-blue"
           />
-          {/* Gradient overlay: dark bottom-left for text readability */}
-          <div className="absolute inset-0 bg-gradient-to-br from-black/70 via-black/40 to-transparent" />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+          {/* Deep cinematic gradient overlays */}
+          <div className="absolute inset-0 bg-black/40" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-r from-church-blue/80 via-church-blue/30 to-transparent" />
         </div>
 
-        <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-24 w-full">
-          <div className="grid lg:grid-cols-[1fr_380px] gap-12 items-center">
-            {/* Left: headline + CTAs */}
+        <div className="relative mx-auto max-w-[90rem] px-4 sm:px-6 lg:px-8 pt-32 pb-24 w-full h-full flex flex-col justify-center">
+          <div className="grid lg:grid-cols-12 gap-12 lg:gap-8 items-end w-full">
+            
+            {/* Left Content */}
             <motion.div
-              initial={{ opacity: 0, y: 30 }}
+              initial={{ opacity: 0, y: 40 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-              className="max-w-2xl"
+              transition={{ duration: 1, ease: [0.22, 1, 0.36, 1] }}
+              className="lg:col-span-8 max-w-4xl"
             >
-              <Badge className="bg-white/15 text-white border-white/20 backdrop-blur-sm mb-6 px-4 py-1.5 text-sm">
-                {eyebrow}
-              </Badge>
+              <div className="inline-flex items-center gap-3 px-4 py-2 rounded-full bg-white/10 backdrop-blur-md border border-white/20 mb-8">
+                <Sparkles className="size-4 text-gold" />
+                <span className="text-sm font-medium tracking-wide text-white uppercase" style={{ fontFamily: "var(--font-body)" }}>{eyebrow}</span>
+              </div>
 
               <h1
-                className="text-white text-4xl sm:text-5xl lg:text-6xl xl:text-7xl leading-[1.05] tracking-tight"
-                style={{ fontFamily: "var(--font-heading)", fontWeight: 800 }}
+                className="text-white text-5xl sm:text-7xl lg:text-[5.5rem] xl:text-[6.5rem] leading-[1.05] tracking-tight mb-6 drop-shadow-lg"
+                style={{ fontFamily: "var(--font-heading)", fontWeight: 700 }}
               >
                 {hero?.title || t("hero_welcome")}
               </h1>
 
-              <p className="mt-6 text-lg sm:text-xl text-white/80 max-w-xl leading-relaxed">
+              <p className="text-xl sm:text-2xl text-white/80 max-w-2xl leading-relaxed font-light drop-shadow-md mb-10">
                 {hero?.subtitle || t("hero_sub")}
               </p>
 
-              <div className="mt-10 flex flex-wrap gap-4">
+              <div className="flex flex-wrap gap-4">
                 {ctas.map((cta: { label: string; link: string }, i: number) => (
                   <Button
                     key={i}
                     asChild
                     size="lg"
-                    className={
+                    className={`h-14 px-8 text-base font-medium rounded-full transition-all duration-300 ${
                       i === 0
-                        ? "bg-gold text-church-blue hover:bg-gold/90 shadow-lg shadow-gold/20 px-8"
-                        : "bg-white/10 text-white border border-white/20 hover:bg-white/20 backdrop-blur-sm px-8"
-                    }
-                    variant={i === 0 ? "default" : "outline"}
+                        ? "bg-gold hover:bg-[#c29215] text-church-blue shadow-[0_0_40px_rgba(212,160,23,0.3)] hover:shadow-[0_0_60px_rgba(212,160,23,0.4)] border-0"
+                        : "bg-white/10 hover:bg-white/20 text-white border border-white/30 backdrop-blur-md"
+                    }`}
                   >
                     <Link href={cta.link}>
-                      {i === 0 ? <Play className="size-4" /> : <HandHeart className="size-4" />}
+                      {i === 0 && <HandHeart className="size-5 mr-2" />}
+                      {i === 1 && <Play className="size-5 mr-2" />}
                       {cta.label}
                     </Link>
                   </Button>
@@ -308,44 +205,44 @@ function HeroSection({ hero, serviceTimes, nextEvent, lang, t }: {
               </div>
             </motion.div>
 
-            {/* Right: Next Service countdown card */}
+            {/* Right Countdown Card */}
             <motion.div
               initial={{ opacity: 0, x: 40 }}
               animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.8, delay: 0.3, ease: [0.22, 1, 0.36, 1] }}
+              transition={{ duration: 1, delay: 0.4, ease: [0.22, 1, 0.36, 1] }}
+              className="lg:col-span-4 lg:justify-self-end w-full max-w-md"
             >
-              <Card className="p-6 bg-white/95 backdrop-blur-xl border-0 shadow-2xl shadow-black/10 rounded-2xl">
-                <div className="flex items-center justify-between mb-4">
-                  <span className="text-sm font-medium text-muted-foreground">
-                    {hero?.items?.[0]?.serviceCardLabel || (lang === "en" ? "Next Service" : "अर्को सेवा")}
-                  </span>
-                  <Badge className="bg-success/10 text-success border-0 font-medium">
-                    {hero?.items?.[0]?.serviceCardBadge || "Live Soon"}
-                  </Badge>
-                </div>
+              <div className="p-1 rounded-3xl bg-gradient-to-b from-white/20 to-white/5 backdrop-blur-md shadow-2xl">
+                <Card className="p-6 bg-church-blue/80 backdrop-blur-xl border-white/10 shadow-inner rounded-[1.3rem] text-white">
+                  <div className="flex items-center justify-between mb-6">
+                    <span className="text-sm font-semibold tracking-wide text-white/80 uppercase">
+                      {hero?.items?.[0]?.serviceCardLabel || (lang === "en" ? "Next Service" : "अर्को सेवा")}
+                    </span>
+                    <Badge className="bg-red-500/20 text-red-400 border border-red-500/30 px-3 py-1 animate-pulse">
+                      {hero?.items?.[0]?.serviceCardBadge || "Live Soon"}
+                    </Badge>
+                  </div>
 
-                <div className="flex items-center gap-3 mb-5">
-                  <span className="grid place-items-center size-12 rounded-xl bg-church-blue text-white shadow-lg shadow-church-blue/20">
-                    <Icon name="Church" className="size-6" />
-                  </span>
-                  <div>
-                    <div className="text-church-blue font-semibold" style={{ fontFamily: "var(--font-heading)" }}>
-                      {serviceTimes[0]?.name || hero?.items?.[0]?.serviceCardFallbackName || "Sunday Worship"}
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      {serviceTimes[0]?.day || hero?.items?.[0]?.serviceCardFallbackDay || "Sunday"}
-                      {" · "}
-                      {serviceTimes[0]?.time || hero?.items?.[0]?.serviceCardFallbackTime || "10:00 AM"}
-                      {" · "}
-                      {hero?.items?.[0]?.serviceCardFallbackLocation || "Kathmandu"}
+                  <div className="flex items-start gap-4 mb-6">
+                    <span className="grid place-items-center size-14 rounded-2xl bg-white/10 text-gold shadow-inner border border-white/5 shrink-0">
+                      <Church className="size-6" />
+                    </span>
+                    <div>
+                      <div className="text-xl text-white tracking-tight mb-1" style={{ fontFamily: "var(--font-heading)", fontWeight: 600 }}>
+                        {serviceTimes[0]?.name || hero?.items?.[0]?.serviceCardFallbackName || "Sunday Worship"}
+                      </div>
+                      <div className="text-[13px] text-white/60 flex flex-col gap-1">
+                        <span className="flex items-center gap-1.5"><Calendar className="size-3.5" /> {serviceTimes[0]?.day || hero?.items?.[0]?.serviceCardFallbackDay || "Sunday"}</span>
+                        <span className="flex items-center gap-1.5"><Clock className="size-3.5" /> {serviceTimes[0]?.time || hero?.items?.[0]?.serviceCardFallbackTime || "10:00 AM"}</span>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                <div className="border-t border-border/50 pt-4">
-                  <Countdown date={nextEvent.date} />
-                </div>
-              </Card>
+                  <div className="bg-black/20 rounded-xl p-4 border border-white/5">
+                    <Countdown date={nextEvent.date} />
+                  </div>
+                </Card>
+              </div>
             </motion.div>
           </div>
         </div>
@@ -360,7 +257,6 @@ function ServiceTimesSection({ block, serviceTimes, lang, t }: {
   lang: string;
   t: (k: string) => string;
 }) {
-  // "Happening now / next" logic
   const now = new Date();
   const currentDay = now.toLocaleDateString('en-US', { weekday: 'long' });
   const currentHour = now.getHours();
@@ -392,7 +288,6 @@ function ServiceTimesSection({ block, serviceTimes, lang, t }: {
       if (nowMinutes >= st && nowMinutes < st + 90) return 'now';
       if (nowMinutes < st) return 'next';
     }
-    // Find next upcoming day
     const sd = dayOrder[s.day] ?? 7;
     const cd = dayOrder[currentDay] ?? 7;
     if (sd > cd || (sd === cd && nowMinutes < parseTime(s.time))) return 'next';
@@ -400,7 +295,6 @@ function ServiceTimesSection({ block, serviceTimes, lang, t }: {
   }
 
   const enriched = serviceTimes.map(s => ({ ...s, _status: getStatus(s) }));
-  // Sort: now first, then next, then later
   enriched.sort((a: any, b: any) => {
     const order: Record<string, number> = { now: 0, next: 1, later: 2 };
     return (order[a._status] ?? 2) - (order[b._status] ?? 2);
@@ -408,70 +302,59 @@ function ServiceTimesSection({ block, serviceTimes, lang, t }: {
 
   return (
     <EditableBlock block={block} adminHref="/admin/service-times" adminLabel="service times">
-      <section className="py-20 bg-section">
-        <div className="mx-auto max-w-7xl px-4">
-          <SectionHeading eyebrow={<Eyebrow block={block} fallback="Join Us" />} title={block?.title || t("service_times")} subtitle={block?.subtitle || ""} />
-          <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+      <section className="py-24 bg-section relative">
+        <div className="mx-auto max-w-[90rem] px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col items-center text-center mb-16">
+            <span className="text-gold font-medium tracking-widest uppercase text-sm mb-3">{Eyebrow({block, fallback: "Join Us"})}</span>
+            <h2 className="text-4xl md:text-5xl text-church-blue" style={{ fontFamily: "var(--font-heading)", fontWeight: 700 }}>{block?.title || t("service_times")}</h2>
+            {block?.subtitle && <p className="mt-4 text-muted-foreground max-w-2xl">{block.subtitle}</p>}
+          </div>
+
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {enriched.map((s: any, i: number) => (
-              <Reveal key={s.id} delay={i * 0.05}>
+              <Reveal key={s.id} delay={i * 0.1}>
                 <ItemEdit href={`/admin/service-times?edit=${s.id}`}>
-                  <Card className={`group p-6 h-full border transition-all duration-300 hover:-translate-y-1 ${
+                  <Card className={`group relative p-8 h-full rounded-2xl transition-all duration-500 overflow-hidden ${
                     s._status === 'now'
-                      ? 'border-success bg-success/5 shadow-lg shadow-success/10 hover:border-success'
+                      ? 'bg-gradient-to-br from-church-blue to-sky-blue text-white shadow-xl shadow-church-blue/20 translate-y-[-4px]'
                       : s._status === 'next'
-                      ? 'border-gold bg-gold/5 shadow-lg shadow-gold/10 hover:border-gold'
-                      : 'border-border/60 hover:border-gold hover:shadow-xl'
+                      ? 'bg-white border-gold/30 shadow-lg shadow-gold/5 translate-y-[-2px]'
+                      : 'bg-white border-border/50 hover:shadow-xl hover:border-gold/30 hover:translate-y-[-4px]'
                   }`}>
-                    <div className="flex items-start justify-between">
-                      <span className="grid place-items-center size-12 rounded-xl bg-secondary text-church-blue group-hover:bg-gold group-hover:text-church-blue transition-colors">
+                    {s._status === 'now' && <div className="absolute top-0 inset-x-0 h-1 bg-gold" />}
+                    
+                    <div className="flex items-start justify-between mb-8">
+                      <span className={`grid place-items-center size-14 rounded-2xl shadow-sm transition-colors duration-300 ${
+                        s._status === 'now' ? 'bg-white/10 text-gold' : 'bg-secondary text-church-blue group-hover:bg-gold/10 group-hover:text-gold'
+                      }`}>
                         <Icon name={s.icon} className="size-6" />
                       </span>
                       {s._status === 'now' && (
-                        <Badge className="bg-success/15 text-success border-0 text-xs font-medium animate-pulse">
-                          {lang === 'en' ? 'Happening Now' : 'अहिले चलिरहेको'}
+                        <Badge className="bg-red-500 text-white border-0 text-[10px] uppercase tracking-wider font-bold animate-pulse px-2.5 py-1">
+                          {lang === 'en' ? 'Live Now' : 'अहिले चलिरहेको'}
                         </Badge>
                       )}
                       {s._status === 'next' && (
-                        <Badge className="bg-gold/15 text-gold border-0 text-xs font-medium">
+                        <Badge className="bg-gold/10 text-gold border-gold/20 text-[10px] uppercase tracking-wider font-bold px-2.5 py-1">
                           {lang === 'en' ? 'Upcoming' : 'आउने'}
                         </Badge>
                       )}
                     </div>
-                    <h3 className="mt-4 text-church-blue" style={{ fontFamily: "var(--font-heading)", fontWeight: 600 }}>
+
+                    <h3 className={`text-xl mb-4 ${s._status === 'now' ? 'text-white' : 'text-church-blue'}`} style={{ fontFamily: "var(--font-heading)", fontWeight: 600 }}>
                       {lang === "en" ? s.name : s.nameNe}
                     </h3>
-                    <div className="mt-3 space-y-1.5">
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Calendar className="size-4 text-gold shrink-0" /> {s.day}
+                    
+                    <div className="space-y-2.5">
+                      <div className={`flex items-center gap-3 text-sm font-medium ${s._status === 'now' ? 'text-white/80' : 'text-muted-foreground'}`}>
+                        <Calendar className={`size-4 ${s._status === 'now' ? 'text-gold' : 'text-gold'}`} /> {s.day}
                       </div>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Clock className="size-4 text-gold shrink-0" /> {s.time}
+                      <div className={`flex items-center gap-3 text-sm font-medium ${s._status === 'now' ? 'text-white/80' : 'text-muted-foreground'}`}>
+                        <Clock className={`size-4 ${s._status === 'now' ? 'text-gold' : 'text-gold'}`} /> {s.time}
                       </div>
                     </div>
                   </Card>
                 </ItemEdit>
-              </Reveal>
-            ))}
-          </div>
-        </div>
-      </section>
-    </EditableBlock>
-  );
-}
-
-function WhatToExpectSection({ block }: { block: ContentBlock | null }) {
-  return (
-    <EditableBlock block={block}>
-      <section className="py-20 bg-section">
-        <div className="mx-auto max-w-7xl px-4">
-          <SectionHeading eyebrow={<Eyebrow block={block} fallback="First Time Here?" />} title={block?.title || "What to Expect"} subtitle={block?.subtitle || ""} />
-          <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {(block?.items || []).map((item: any, i: number) => (
-              <Reveal key={i} delay={i * 0.05}>
-                <Card className="p-6 h-full border-border/60 hover:shadow-lg transition-all">
-                  <h3 className="text-church-blue font-semibold" style={{ fontFamily: "var(--font-heading)" }}>{item.q}</h3>
-                  <p className="mt-2 text-sm text-muted-foreground leading-relaxed">{item.a}</p>
-                </Card>
               </Reveal>
             ))}
           </div>
@@ -488,38 +371,58 @@ function WelcomeSection({ block, t }: { block: ContentBlock | null; t: (k: strin
 
   return (
     <EditableBlock block={block}>
-      <section className="py-20">
-        <div className="mx-auto max-w-7xl px-4 grid lg:grid-cols-2 gap-12 items-center">
+      <section className="py-32 bg-white overflow-hidden">
+        <div className="mx-auto max-w-[90rem] px-4 sm:px-6 lg:px-8 grid lg:grid-cols-2 gap-20 items-center">
           <Reveal>
-            <div className="relative">
+            <div className="relative max-w-lg mx-auto lg:max-w-none">
+              <div className="absolute -top-10 -left-10 w-40 h-40 bg-gold/10 rounded-full blur-3xl" />
+              <div className="absolute -bottom-10 -right-10 w-60 h-60 bg-sky-blue/10 rounded-full blur-3xl" />
+              
               <ImageWithFallback
-                src={block?.image || ''}
+                src={block?.image || images.pastor}
                 alt={`${pastorName} — ${pastorRole}`}
                 loading="lazy"
-                className="rounded-3xl w-full aspect-[4/5] object-cover shadow-xl"
-                fallbackClassName="bg-church-blue/10"
+                className="relative rounded-[2rem] w-full aspect-[4/5] object-cover shadow-2xl shadow-church-blue/10"
+                fallbackClassName="bg-church-blue/5"
               />
-              <Card className="absolute -bottom-6 -right-2 sm:right-6 p-4 max-w-[220px] shadow-xl border-0">
-                <div className="text-church-blue" style={{ fontFamily: "var(--font-heading)", fontWeight: 600 }}>{pastorName}</div>
-                <div className="text-sm text-muted-foreground">{pastorRole}</div>
+              
+              <Card className="absolute -bottom-8 -right-8 p-6 w-64 bg-white/90 backdrop-blur-md shadow-2xl border-white/20 rounded-3xl">
+                <div className="flex items-center gap-4">
+                  <div className="grid place-items-center size-12 bg-church-blue rounded-full text-gold">
+                    <Quote className="size-5" />
+                  </div>
+                  <div>
+                    <div className="text-church-blue text-lg" style={{ fontFamily: "var(--font-heading)", fontWeight: 700 }}>{pastorName}</div>
+                    <div className="text-xs text-muted-foreground font-medium uppercase tracking-wide">{pastorRole}</div>
+                  </div>
+                </div>
               </Card>
             </div>
           </Reveal>
-          <div>
-            <SectionHeading center={false} eyebrow={<Eyebrow block={block} fallback="Welcome" />} title={block?.title || t("welcome_title")} subtitle={block?.subtitle || ""} />
-            <Reveal delay={0.1}>
+          
+          <div className="lg:pl-10">
+            <span className="text-gold font-medium tracking-widest uppercase text-sm mb-4 block">{Eyebrow({block, fallback: "Welcome Home"})}</span>
+            <h2 className="text-4xl sm:text-5xl lg:text-6xl text-church-blue leading-[1.1] mb-8" style={{ fontFamily: "var(--font-heading)", fontWeight: 700 }}>
+              {block?.title || t("welcome_title")}
+            </h2>
+            
+            <div className="prose prose-lg prose-p:text-muted-foreground prose-p:leading-relaxed">
+              <p>{block?.subtitle || "We are a community of believers passionate about sharing the love of Christ. Whether you're exploring faith or looking for a church home, there is a place for you here."}</p>
+            </div>
+
+            <Reveal delay={0.2}>
               {stats.length > 0 && (
-                <div className="mt-8 grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div className="mt-12 grid grid-cols-2 gap-6 pb-12 border-b border-border/50">
                   {stats.map((st: any, i: number) => (
-                    <div key={i} className="text-center rounded-2xl bg-section p-4">
-                      <div className="text-church-blue" style={{ fontFamily: "var(--font-heading)", fontWeight: 700, fontSize: "1.75rem" }}>{st.value}</div>
-                      <div className="text-xs text-muted-foreground mt-1">{st.label}</div>
+                    <div key={i} className="flex flex-col">
+                      <div className="text-4xl text-church-blue mb-2" style={{ fontFamily: "var(--font-heading)", fontWeight: 700 }}>{st.value}</div>
+                      <div className="text-sm font-medium text-muted-foreground uppercase tracking-wide">{st.label}</div>
                     </div>
                   ))}
                 </div>
               )}
-              <Button asChild className="mt-8 bg-church-blue hover:bg-church-blue/90">
-                <Link href="/about">{t("read_more")} <ArrowRight className="size-4" /></Link>
+              <Button asChild size="lg" className="mt-10 h-14 px-8 bg-church-blue text-white hover:bg-church-blue/90 rounded-full text-base font-medium shadow-lg hover:shadow-xl transition-all">
+                <Link href="/about">{t("read_more")} <ArrowRight className="size-5 ml-2" /></Link>
               </Button>
             </Reveal>
           </div>
@@ -532,49 +435,41 @@ function WelcomeSection({ block, t }: { block: ContentBlock | null; t: (k: strin
 function WhatWeBelieveSection({ block, t }: { block: ContentBlock | null; t: (k: string) => string }) {
   return (
     <EditableBlock block={block}>
-      <section className="py-20 bg-section">
-        <div className="mx-auto max-w-7xl px-4">
-          <SectionHeading eyebrow={<Eyebrow block={block} fallback="Our Faith" />} title={block?.title || "What We Believe"} subtitle={block?.subtitle || ""} />
-          <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {(block?.items || []).map((item: any, i: number) => (
-              <Reveal key={i} delay={i * 0.05}>
-                <Card className="p-6 h-full border-border/60 hover:shadow-lg transition-all">
-                  <span className="grid place-items-center size-10 rounded-xl bg-church-blue/10 text-church-blue mb-3"><Icon name={block?.icon || "BookOpen"} className="size-5" /></span>
-                  <h3 className="text-church-blue font-semibold" style={{ fontFamily: "var(--font-heading)" }}>{item.title}</h3>
-                  <p className="mt-2 text-sm text-muted-foreground leading-relaxed">{item.desc}</p>
+      <section className="py-24 bg-section relative overflow-hidden">
+        <div className="mx-auto max-w-[90rem] px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-16">
+            <div className="max-w-2xl">
+              <span className="text-gold font-medium tracking-widest uppercase text-sm mb-3 block">{Eyebrow({block, fallback: "Our Faith"})}</span>
+              <h2 className="text-4xl md:text-5xl text-church-blue leading-tight" style={{ fontFamily: "var(--font-heading)", fontWeight: 700 }}>{block?.title || "What We Believe"}</h2>
+              {block?.subtitle && <p className="mt-4 text-muted-foreground text-lg">{block.subtitle}</p>}
+            </div>
+            <Button asChild variant="outline" className="hidden md:inline-flex rounded-full border-church-blue/20 text-church-blue hover:bg-church-blue hover:text-white">
+              <Link href="/about">{t("learn_more")} <ArrowRight className="size-4 ml-2" /></Link>
+            </Button>
+          </div>
+
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {(block?.items || []).slice(0,6).map((item: any, i: number) => (
+              <Reveal key={i} delay={i * 0.1}>
+                <Card className="group p-8 h-full bg-white border-0 shadow-sm hover:shadow-2xl hover:shadow-church-blue/5 rounded-[2rem] transition-all duration-500 hover:-translate-y-2 relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-secondary rounded-bl-full -mr-16 -mt-16 transition-transform duration-500 group-hover:scale-150 group-hover:bg-gold/5" />
+                  
+                  <span className="relative grid place-items-center size-16 rounded-2xl bg-secondary text-church-blue mb-8 group-hover:bg-gold group-hover:text-white transition-colors duration-500 shadow-sm">
+                    <Icon name={item.icon || "Shield"} className="size-7" />
+                  </span>
+                  
+                  <h3 className="relative text-2xl text-church-blue mb-4" style={{ fontFamily: "var(--font-heading)", fontWeight: 600 }}>{item.title}</h3>
+                  <p className="relative text-muted-foreground leading-relaxed font-light">{item.desc || item.text}</p>
                 </Card>
               </Reveal>
             ))}
           </div>
-          <div className="mt-10 text-center"><Button asChild variant="outline" className="border-church-blue text-church-blue hover:bg-church-blue hover:text-white"><Link href="/about">{t("learn_more")} <ArrowRight className="size-4" /></Link></Button></div>
-        </div>
-      </section>
-    </EditableBlock>
-  );
-}
-
-function WatchOnlineSection({ block, lang }: { block: ContentBlock | null; lang: string }) {
-  return (
-    <EditableBlock block={block}>
-      <section className="py-20">
-        <div className="mx-auto max-w-7xl px-4 text-center">
-          <SectionHeading eyebrow={<Eyebrow block={block} fallback="Live Stream" />} title={block?.title || "Watch Online"} subtitle={block?.subtitle || ""} />
-          <Reveal delay={0.1}>
-            <div className="mt-10 flex flex-wrap gap-4 justify-center">
-              {(block?.items?.[0]?.ctaButtons?.length ? block.items[0].ctaButtons : [
-                { label: lang === "en" ? "Watch Live" : "लाइभ हेर्नुहोस्", link: "/sermons", style: "primary" },
-                { label: lang === "en" ? "All Sermons" : "सबै प्रचारहरू", link: "/sermons", style: "outline" },
-              ]).map((cta: { label: string; link: string; style?: string }, i: number) => (
-                <Button key={i} asChild size="lg" className={cta.style === 'outline' ? "border-church-blue text-church-blue hover:bg-church-blue hover:text-white" : "bg-red-600 hover:bg-red-700 text-white"} variant={cta.style === 'outline' ? "outline" : "default"}>
-                  <Link href={cta.link}>
-                    {i === 0 ? <Play className="size-5" /> : null}
-                    {cta.label}
-                    {i !== 0 ? <ArrowRight className="size-4" /> : null}
-                  </Link>
-                </Button>
-              ))}
-            </div>
-          </Reveal>
+          
+          <div className="mt-12 text-center md:hidden">
+            <Button asChild variant="outline" className="rounded-full border-church-blue/20 text-church-blue hover:bg-church-blue hover:text-white w-full">
+              <Link href="/about">{t("learn_more")} <ArrowRight className="size-4 ml-2" /></Link>
+            </Button>
+          </div>
         </div>
       </section>
     </EditableBlock>
@@ -588,46 +483,47 @@ function FeaturedSermonsSection({ block, featuredSermons, t }: {
 }) {
   return (
     <EditableBlock block={block} adminHref="/admin/sermons" adminLabel="sermons">
-      <section className="py-20 bg-section">
-        <div className="mx-auto max-w-7xl px-4">
-          <div className="flex items-end justify-between gap-4 flex-wrap">
-            <SectionHeading center={false} eyebrow={<Eyebrow block={block} fallback="Watch & Listen" />} title={block?.title || t("featured_sermons")} />
-            <Button asChild variant="ghost" className="text-church-blue hover:text-gold hidden sm:inline-flex"><Link href="/sermons">{t("view_all")} <ChevronRight className="size-4" /></Link></Button>
+      <section className="py-32 bg-white">
+        <div className="mx-auto max-w-[90rem] px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col items-center text-center mb-16">
+            <span className="text-gold font-medium tracking-widest uppercase text-sm mb-3">{Eyebrow({block, fallback: "Watch & Listen"})}</span>
+            <h2 className="text-4xl md:text-5xl text-church-blue" style={{ fontFamily: "var(--font-heading)", fontWeight: 700 }}>{block?.title || t("featured_sermons")}</h2>
           </div>
-          <div className="mt-10 grid gap-6 md:grid-cols-3">
-            {featuredSermons.map((s: any, i: number) => (
-              <Reveal key={s.id} delay={i * 0.08}>
+
+          <div className="grid gap-8 lg:grid-cols-3">
+            {featuredSermons.slice(0,3).map((s: any, i: number) => (
+              <Reveal key={s.id} delay={i * 0.1}>
                 <ItemEdit href={`/admin/sermons?edit=${s.id}`}>
                   <Link href={`/sermons/${s.id}`}>
-                    <Card className="group overflow-hidden h-full border-border/60 hover:shadow-xl transition-all duration-300 gap-0">
-                      <div className="relative aspect-video overflow-hidden">
-                        <ImageWithFallback src={s.image} alt={s.title} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                        <div className="absolute inset-0 bg-church-blue/20 group-hover:bg-church-blue/40 transition-colors grid place-items-center">
-                          <span className="grid place-items-center size-14 rounded-full bg-white/90 text-church-blue group-hover:scale-110 transition-transform shadow-lg">
-                            <Play className="size-6 fill-church-blue" />
+                    <Card className="group overflow-hidden h-full border-0 shadow-lg shadow-black/5 rounded-[2rem] hover:shadow-2xl hover:shadow-black/10 transition-all duration-500">
+                      <div className="relative aspect-[4/3] overflow-hidden">
+                        <ImageWithFallback src={s.image} alt={s.title} loading="lazy" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                        
+                        <div className="absolute inset-0 grid place-items-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                          <span className="grid place-items-center size-16 rounded-full bg-gold/90 text-white backdrop-blur-md scale-75 group-hover:scale-100 transition-transform duration-500 shadow-xl">
+                            <Play className="size-6 fill-white ml-1" />
                           </span>
                         </div>
-                        <Badge className="absolute top-3 left-3 bg-gold text-church-blue border-0 font-medium">{s.series}</Badge>
-                        <span className="absolute bottom-3 right-3 text-xs bg-church-blue/90 text-white px-2 py-1 rounded-md backdrop-blur-sm">{s.duration}</span>
+
+                        <div className="absolute top-4 left-4">
+                          <Badge className="bg-white/20 backdrop-blur-md text-white border-0 font-medium px-3 py-1 text-xs">
+                            {s.series}
+                          </Badge>
+                        </div>
+                        <div className="absolute bottom-4 right-4">
+                          <span className="text-[11px] font-medium bg-black/50 text-white px-2.5 py-1 rounded-md backdrop-blur-md">{s.duration}</span>
+                        </div>
                       </div>
-                      <div className="p-5">
-                        <div className="text-xs text-muted-foreground flex items-center gap-2">
-                          <span>{s.speaker}</span>
-                          <span className="text-gold">·</span>
+                      
+                      <div className="p-8 bg-white">
+                        <div className="flex items-center gap-3 text-sm text-muted-foreground font-medium mb-4">
+                          <span className="text-church-blue">{s.speaker}</span>
+                          <span className="w-1 h-1 rounded-full bg-gold" />
                           <span>{s.date}</span>
                         </div>
-                        <h3 className="mt-2 text-church-blue line-clamp-2" style={{ fontFamily: "var(--font-heading)", fontWeight: 600 }}>{s.title}</h3>
-                        <p className="mt-2 text-sm text-muted-foreground line-clamp-2">{s.description}</p>
-                        <div className="mt-3 flex items-center gap-4">
-                          <span className="inline-flex items-center gap-1 text-gold text-sm font-medium">
-                            <Play className="size-3.5" /> {t("watch_now")}
-                          </span>
-                          {s.videoUrl && (
-                            <span className="inline-flex items-center gap-1 text-muted-foreground text-sm hover:text-church-blue transition-colors">
-                              <FileText className="size-3.5" /> Notes
-                            </span>
-                          )}
-                        </div>
+                        <h3 className="text-2xl text-church-blue leading-snug mb-3 group-hover:text-gold transition-colors" style={{ fontFamily: "var(--font-heading)", fontWeight: 600 }}>{s.title}</h3>
+                        <p className="text-muted-foreground line-clamp-2 text-sm leading-relaxed">{s.description}</p>
                       </div>
                     </Card>
                   </Link>
@@ -635,84 +531,10 @@ function FeaturedSermonsSection({ block, featuredSermons, t }: {
               </Reveal>
             ))}
           </div>
-        </div>
-      </section>
-    </EditableBlock>
-  );
-}
-
-function MinistriesSection({ block, featuredMinistries, lang, t }: {
-  block: ContentBlock | null;
-  featuredMinistries: any[];
-  lang: string;
-  t: (k: string) => string;
-}) {
-  const [activeFilter, setActiveFilter] = useState('all');
-
-  // Derive categories from the content_block items, or build from ministries
-  const filterCategories = block?.items?.[0]?.filters?.length
-    ? block.items[0].filters
-    : ['All', ...new Set(featuredMinistries.map((m: any) => m.category || 'General'))];
-
-  const filtered = activeFilter === 'all'
-    ? featuredMinistries
-    : featuredMinistries.filter((m: any) => (m.category || 'General') === activeFilter);
-
-  return (
-    <EditableBlock block={block} adminHref="/admin/ministries" adminLabel="ministries">
-      <section className="py-20">
-        <div className="mx-auto max-w-7xl px-4">
-          <SectionHeading eyebrow={<Eyebrow block={block} fallback="Get Involved" />} title={block?.title || t("our_ministries")} subtitle={block?.subtitle || ""} />
-
-          {/* Filter chips */}
-          {filterCategories.length > 1 && (
-            <div className="mt-8 flex flex-wrap gap-2 justify-center" role="group" aria-label="Filter ministries by category">
-              {filterCategories.map((cat: string) => (
-                <button
-                  key={cat}
-                  onClick={() => setActiveFilter(cat)}
-                  className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
-                    activeFilter === cat
-                      ? 'bg-church-blue text-white shadow-md shadow-church-blue/20'
-                      : 'bg-secondary text-muted-foreground hover:bg-secondary/80 hover:text-foreground'
-                  }`}
-                  aria-pressed={activeFilter === cat}
-                >
-                  {cat}
-                </button>
-              ))}
-            </div>
-          )}
-
-          <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {filtered.map((m: any, i: number) => (
-              <Reveal key={m.id} delay={i * 0.06}>
-                <ItemEdit href={`/admin/ministries?edit=${m.id}`}>
-                  <Link href={`/ministries/${m.id}`}>
-                    <Card className="group overflow-hidden h-full border-border/60 hover:shadow-xl transition-all duration-300 gap-0">
-                      <div className="relative h-44 overflow-hidden">
-                        <ImageWithFallback src={m.image} alt={m.name} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                        <span className="absolute top-3 left-3 grid place-items-center size-10 rounded-xl bg-white/90 text-church-blue shadow"><Icon name={m.icon} className="size-5" /></span>
-                      </div>
-                      <div className="p-5">
-                        <h3 className="text-church-blue" style={{ fontFamily: "var(--font-heading)", fontWeight: 600 }}>{lang === "en" ? m.name : m.nameNe}</h3>
-                        <p className="mt-2 text-sm text-muted-foreground line-clamp-2">{m.description}</p>
-                        <span className="mt-3 inline-flex items-center gap-1 text-gold text-sm font-medium">{t("learn_more")} <ArrowRight className="size-4" /></span>
-                      </div>
-                    </Card>
-                  </Link>
-                </ItemEdit>
-              </Reveal>
-            ))}
-          </div>
-
-          {filtered.length === 0 && (
-            <p className="mt-10 text-center text-muted-foreground">No ministries in this category yet.</p>
-          )}
-
-          <div className="mt-10 text-center">
-            <Button asChild variant="outline" className="border-church-blue text-church-blue hover:bg-church-blue hover:text-white">
-              <Link href="/ministries">{t("view_all")} <ArrowRight className="size-4" /></Link>
+          
+          <div className="mt-16 text-center">
+            <Button asChild variant="outline" className="h-14 px-10 rounded-full border-church-blue text-church-blue hover:bg-church-blue hover:text-white text-base font-medium">
+              <Link href="/sermons">{t("view_all")} <ArrowRight className="size-5 ml-2" /></Link>
             </Button>
           </div>
         </div>
@@ -727,75 +549,63 @@ function EventsSection({ block, allEvents, lang, t }: {
   lang: string;
   t: (k: string) => string;
 }) {
-  const maxEvents = block?.items?.[0]?.maxEvents || 4;
-  const events = allEvents.slice(0, maxEvents);
+  const events = allEvents.slice(0, 4);
 
   return (
     <EditableBlock block={block} adminHref="/admin/events" adminLabel="events">
-      <section className="py-20 bg-section">
-        <div className="mx-auto max-w-7xl px-4">
-          <SectionHeading eyebrow={<Eyebrow block={block} fallback="Mark Your Calendar" />} title={block?.title || t("upcoming_events")} />
-
-          {/* Desktop: grid layout */}
-          <div className="mt-12 hidden md:grid gap-6 lg:grid-cols-2">
-            {events.map((e: any, i: number) => (
-              <Reveal key={e.id} delay={i * 0.08}>
-                <ItemEdit href={`/admin/events?edit=${e.id}`}>
-                  <Link href={`/events/${e.id}`}>
-                    <Card className="group overflow-hidden h-full border-border/60 hover:shadow-xl transition-all sm:flex gap-0">
-                      <div className="relative sm:w-2/5 h-48 sm:h-auto overflow-hidden">
-                        <ImageWithFallback src={e.image} alt={e.title} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                        <div className="absolute top-3 left-3 bg-white rounded-lg px-3 py-1.5 text-center shadow">
-                          <div className="text-church-blue" style={{ fontFamily: "var(--font-heading)", fontWeight: 700 }}>{(e.displayDate || "").split(" ")[1]?.replace(",", "") ?? ""}</div>
-                          <div className="text-[10px] uppercase text-gold">{(e.displayDate || "").split(" ")[0]}</div>
-                        </div>
-                      </div>
-                      <div className="p-5 sm:w-3/5">
-                        <h3 className="text-church-blue" style={{ fontFamily: "var(--font-heading)", fontWeight: 600 }}>{e.title}</h3>
-                        <div className="mt-3 space-y-1.5 text-sm text-muted-foreground">
-                          <div className="flex items-center gap-2"><Clock className="size-4 text-gold shrink-0" /> {(e.displayDate || "")} · {e.time}</div>
-                          <div className="flex items-center gap-2"><MapPin className="size-4 text-gold shrink-0" /> {e.location}</div>
-                        </div>
-                        <div className="mt-4"><Countdown date={e.date} /></div>
-                        <span className="mt-3 inline-flex items-center gap-1 text-gold text-sm font-medium">{t("register")} <ArrowRight className="size-4" /></span>
-                      </div>
-                    </Card>
-                  </Link>
-                </ItemEdit>
-              </Reveal>
-            ))}
+      <section className="py-32 bg-church-blue text-white relative overflow-hidden">
+        {/* Abstract background */}
+        <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-sky-blue/20 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/3 opacity-50" />
+        
+        <div className="relative mx-auto max-w-[90rem] px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-16">
+            <div className="max-w-2xl">
+              <span className="text-gold font-medium tracking-widest uppercase text-sm mb-3 block">{Eyebrow({block, fallback: "Calendar"})}</span>
+              <h2 className="text-4xl md:text-5xl" style={{ fontFamily: "var(--font-heading)", fontWeight: 700 }}>{block?.title || t("upcoming_events")}</h2>
+            </div>
           </div>
 
-          {/* Mobile: horizontal scroll */}
-          <div className="mt-12 md:hidden flex gap-4 overflow-x-auto pb-4 -mx-4 px-4 snap-x snap-mandatory scrollbar-none">
-            {events.map((e: any, i: number) => (
-              <Reveal key={e.id} delay={i * 0.08}>
-                <ItemEdit href={`/admin/events?edit=${e.id}`}>
-                  <Link href={`/events/${e.id}`} className="block w-72 shrink-0 snap-start">
-                    <Card className="group overflow-hidden h-full border-border/60 hover:shadow-xl transition-all gap-0">
-                      <div className="relative h-40 overflow-hidden">
-                        <ImageWithFallback src={e.image} alt={e.title} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                        <div className="absolute top-3 left-3 bg-white rounded-lg px-3 py-1.5 text-center shadow">
-                          <div className="text-church-blue" style={{ fontFamily: "var(--font-heading)", fontWeight: 700 }}>{(e.displayDate || "").split(" ")[1]?.replace(",", "") ?? ""}</div>
-                          <div className="text-[10px] uppercase text-gold">{(e.displayDate || "").split(" ")[0]}</div>
-                        </div>
-                      </div>
-                      <div className="p-4">
-                        <h3 className="text-church-blue text-sm" style={{ fontFamily: "var(--font-heading)", fontWeight: 600 }}>{e.title}</h3>
-                        <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-                          <MapPin className="size-3 text-gold shrink-0" /> {e.location}
-                        </div>
-                      </div>
-                    </Card>
-                  </Link>
-                </ItemEdit>
-              </Reveal>
-            ))}
-          </div>
+          <div className="grid gap-6 lg:grid-cols-2">
+            {events.map((e: any, i: number) => {
+              const dateParts = (e.displayDate || "").split(" ");
+              const month = dateParts[0];
+              const day = dateParts[1]?.replace(",", "");
 
-          <div className="mt-10 text-center">
-            <Button asChild variant="outline" className="border-church-blue text-church-blue hover:bg-church-blue hover:text-white">
-              <Link href="/events">{t("view_all_events") || "View All Events"} <ArrowRight className="size-4" /></Link>
+              return (
+                <Reveal key={e.id} delay={i * 0.1}>
+                  <ItemEdit href={`/admin/events?edit=${e.id}`}>
+                    <Link href={`/events/${e.id}`}>
+                      <Card className="group flex flex-col sm:flex-row overflow-hidden bg-white/5 border border-white/10 hover:bg-white/10 transition-colors duration-300 rounded-3xl backdrop-blur-sm">
+                        <div className="relative w-full sm:w-1/3 h-56 sm:h-auto overflow-hidden shrink-0">
+                          <ImageWithFallback src={e.image} alt={e.title} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                        </div>
+                        <div className="p-8 sm:w-2/3 flex flex-col justify-center relative">
+                          <div className="absolute top-8 right-8 text-right hidden sm:block">
+                            <div className="text-3xl text-gold" style={{ fontFamily: "var(--font-heading)", fontWeight: 700 }}>{day}</div>
+                            <div className="text-xs uppercase tracking-widest text-white/60 font-bold">{month}</div>
+                          </div>
+                          
+                          <Badge className="w-fit bg-gold text-church-blue border-0 text-[10px] uppercase font-bold tracking-wider mb-4">
+                            Event
+                          </Badge>
+                          <h3 className="text-2xl text-white font-semibold mb-4 pr-16" style={{ fontFamily: "var(--font-heading)" }}>{e.title}</h3>
+                          
+                          <div className="space-y-2 text-white/70 text-sm">
+                            <div className="flex items-center gap-3"><Clock className="size-4 text-gold" /> {e.time}</div>
+                            <div className="flex items-center gap-3"><MapPin className="size-4 text-gold" /> {e.location}</div>
+                          </div>
+                        </div>
+                      </Card>
+                    </Link>
+                  </ItemEdit>
+                </Reveal>
+              );
+            })}
+          </div>
+          
+          <div className="mt-16 flex justify-center">
+            <Button asChild variant="outline" className="h-14 px-10 rounded-full border-white/20 text-white hover:bg-white hover:text-church-blue text-base font-medium backdrop-blur-sm">
+              <Link href="/events">{t("view_all_events") || "All Events"} <ArrowRight className="size-5 ml-2" /></Link>
             </Button>
           </div>
         </div>
@@ -804,146 +614,46 @@ function EventsSection({ block, allEvents, lang, t }: {
   );
 }
 
-function PrayerCtaSection({ block, t }: { block: ContentBlock | null; t: (k: string) => string }) {
-  return (
-    <EditableBlock block={block}>
-      <section className="relative py-24">
-        <div className="absolute inset-0">
-          <ImageWithFallback src={block?.image || ''} alt="Prayer" loading="lazy" className="w-full h-full object-cover" fallbackClassName="bg-church-blue/20" />
-          <div className="absolute inset-0 bg-church-blue/85" />
-        </div>
-        <div className="relative mx-auto max-w-3xl px-4 text-center">
-          <SectionHeading light eyebrow={<Eyebrow block={block} fallback="We're Here For You" />} title={block?.title || t("need_prayer")} subtitle={block?.subtitle || t("need_prayer_sub")} />
-          <Reveal delay={0.1}><Button asChild size="lg" className="mt-8 bg-gold text-church-blue hover:bg-gold/90"><Link href="/prayer"><HandHeart className="size-5" /> {t("nav_prayer")}</Link></Button></Reveal>
-        </div>
-      </section>
-    </EditableBlock>
-  );
-}
-
-function NoticeBoardSection({ block }: { block: ContentBlock | null }) {
-  return (
-    <EditableBlock block={block} adminHref="/admin/notices" adminLabel="notices">
-      <section className="py-20">
-        <div className="mx-auto max-w-7xl px-4">
-          <SectionHeading eyebrow={<Eyebrow block={block} fallback="Notice Board" />} title={block?.title || "Church Notices"} subtitle={block?.subtitle || ""} />
-          <div className="mt-8 text-center"><Button asChild variant="outline" className="border-church-blue text-church-blue hover:bg-church-blue hover:text-white"><Link href="/events">{block?.items?.[0]?.view_all || "View All Events"} <ArrowRight className="size-4" /></Link></Button></div>
-        </div>
-      </section>
-    </EditableBlock>
-  );
-}
-
-function TestimoniesSection({ block, allTestimonies }: {
+function MinistriesSection({ block, featuredMinistries, lang, t }: {
   block: ContentBlock | null;
-  allTestimonies: any[];
+  featuredMinistries: any[];
+  lang: string;
+  t: (k: string) => string;
 }) {
-  const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true, align: 'start' });
-  const [selectedIndex, setSelectedIndex] = useState(0);
-  const [canScrollPrev, setCanScrollPrev] = useState(false);
-  const [canScrollNext, setCanScrollNext] = useState(false);
-
-  const onSelect = React.useCallback(() => {
-    if (!emblaApi) return;
-    setSelectedIndex(emblaApi.selectedScrollSnap());
-    setCanScrollPrev(emblaApi.canScrollPrev());
-    setCanScrollNext(emblaApi.canScrollNext());
-  }, [emblaApi]);
-
-  useEffect(() => {
-    if (!emblaApi) return;
-    onSelect();
-    emblaApi.on('select', onSelect);
-    emblaApi.on('reInit', onSelect);
-    return () => { emblaApi.off('select', onSelect); emblaApi.off('reInit', onSelect); };
-  }, [emblaApi, onSelect]);
-
-  // Auto-play every 5 seconds
-  useEffect(() => {
-    if (!emblaApi) return;
-    const interval = setInterval(() => { emblaApi.scrollNext(); }, 5000);
-    return () => clearInterval(interval);
-  }, [emblaApi]);
-
   return (
-    <EditableBlock block={block} adminHref="/admin/testimonies" adminLabel="testimonies">
-      <section className="py-20">
-        <div className="mx-auto max-w-7xl px-4">
-          <div className="flex items-end justify-between gap-4 flex-wrap">
-            <SectionHeading eyebrow={<Eyebrow block={block} fallback="Stories of Grace" />} title={block?.title || "Testimonies"} />
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="icon" className="size-9" onClick={() => emblaApi?.scrollPrev()} disabled={!canScrollPrev} aria-label="Previous testimony">
-                <ChevronLeft className="size-4" />
-              </Button>
-              <Button variant="outline" size="icon" className="size-9" onClick={() => emblaApi?.scrollNext()} disabled={!canScrollNext} aria-label="Next testimony">
-                <ChevronRight className="size-4" />
-              </Button>
-              <Button asChild variant="ghost" size="sm" className="text-church-blue hover:text-gold">
-                <Link href="/testimonies">View All <ArrowRight className="size-4" /></Link>
-              </Button>
-            </div>
+    <EditableBlock block={block} adminHref="/admin/ministries" adminLabel="ministries">
+      <section className="py-32 bg-section">
+        <div className="mx-auto max-w-[90rem] px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col items-center text-center mb-16">
+            <span className="text-gold font-medium tracking-widest uppercase text-sm mb-3">{Eyebrow({block, fallback: "Get Involved"})}</span>
+            <h2 className="text-4xl md:text-5xl text-church-blue" style={{ fontFamily: "var(--font-heading)", fontWeight: 700 }}>{block?.title || t("our_ministries")}</h2>
           </div>
 
-          <div className="mt-10 overflow-hidden" ref={emblaRef} role="region" aria-label="Testimonies carousel">
-            <div className="flex gap-6">
-              {allTestimonies.map((tst: any) => (
-                <div key={tst.id} className="flex-none w-full sm:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)] min-w-0">
-                  <ItemEdit href={`/admin/testimonies?edit=${tst.id}`}>
-                    <Card className="p-6 h-full border-border/60 hover:shadow-xl transition-all">
-                      <Quote className="size-8 text-gold/40" aria-hidden="true" />
-                      <p className="mt-3 text-foreground/80 leading-relaxed line-clamp-4">"{tst.quote}"</p>
-                      <div className="mt-3 flex gap-0.5" aria-label={`${tst.rating} out of 5 stars`}>
-                        {Array.from({ length: tst.rating }).map((_: any, k: number) => (
-                          <Star key={k} className="size-4 fill-gold text-gold" />
-                        ))}
-                      </div>
-                      <div className="mt-4 flex items-center gap-3">
-                        <ImageWithFallback src={tst.image} alt={tst.name} loading="lazy" className="size-11 rounded-full object-cover" />
-                        <div>
-                          <div className="text-church-blue" style={{ fontFamily: "var(--font-heading)", fontWeight: 600 }}>{tst.name}</div>
-                          <div className="text-xs text-muted-foreground">{tst.role}</div>
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            {featuredMinistries.slice(0,8).map((m: any, i: number) => (
+              <Reveal key={m.id} delay={i * 0.05}>
+                <ItemEdit href={`/admin/ministries?edit=${m.id}`}>
+                  <Link href={`/ministries/${m.id}`}>
+                    <Card className="group relative overflow-hidden h-80 rounded-[2rem] border-0 shadow-md">
+                      <ImageWithFallback src={m.image} alt={m.name} loading="lazy" className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-church-blue/90 via-church-blue/40 to-transparent transition-opacity duration-300" />
+                      
+                      <div className="absolute inset-0 p-6 flex flex-col justify-end text-white">
+                        <span className="grid place-items-center size-12 rounded-full bg-white/20 backdrop-blur-md mb-4 group-hover:-translate-y-2 transition-transform duration-300">
+                          <Icon name={m.icon} className="size-5" />
+                        </span>
+                        <h3 className="text-xl font-semibold mb-2 group-hover:-translate-y-2 transition-transform duration-300 delay-75" style={{ fontFamily: "var(--font-heading)" }}>
+                          {lang === "en" ? m.name : m.nameNe}
+                        </h3>
+                        <div className="opacity-0 group-hover:opacity-100 group-hover:-translate-y-2 transition-all duration-300 delay-100 flex items-center gap-2 text-sm text-gold font-medium">
+                          {t("learn_more")} <ArrowUpRight className="size-4" />
                         </div>
                       </div>
                     </Card>
-                  </ItemEdit>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Dots */}
-          {allTestimonies.length > 1 && (
-            <div className="mt-6 flex justify-center gap-2" role="tablist" aria-label="Testimony navigation">
-              {allTestimonies.map((_: any, i: number) => (
-                <button
-                  key={i}
-                  onClick={() => emblaApi?.scrollTo(i)}
-                  className={`size-2.5 rounded-full transition-all ${i === selectedIndex ? 'bg-church-blue w-6' : 'bg-muted-foreground/30 hover:bg-muted-foreground/50'}`}
-                  role="tab"
-                  aria-selected={i === selectedIndex}
-                  aria-label={`Go to testimony ${i + 1}`}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-      </section>
-    </EditableBlock>
-  );
-}
-
-function ChurchMembersSection({ block }: { block: ContentBlock | null }) {
-  return (
-    <EditableBlock block={block} adminHref="/admin/members" adminLabel="members">
-      <section className="py-20 bg-section">
-        <div className="mx-auto max-w-7xl px-4">
-          <SectionHeading eyebrow={<Eyebrow block={block} fallback="Our Family" />} title={block?.title || "Church Members"} subtitle={block?.subtitle || ""} />
-          <div className="mt-10 text-center">
-            <p className="text-muted-foreground max-w-xl mx-auto">{block?.items?.[0]?.join_desc || ""}</p>
-            <div className="mt-6 flex gap-4 justify-center">
-              <Button asChild className="bg-church-blue hover:bg-church-blue/90"><Link href="/contact">{block?.items?.[0]?.join_btn || "Join Us"}</Link></Button>
-              <Button asChild variant="outline" className="border-church-blue text-church-blue hover:bg-church-blue hover:text-white"><Link href="/about">{block?.items?.[0]?.connected_btn || "Get Connected"}</Link></Button>
-            </div>
+                  </Link>
+                </ItemEdit>
+              </Reveal>
+            ))}
           </div>
         </div>
       </section>
@@ -956,36 +666,38 @@ function GallerySection({ block, allGallery, t }: {
   allGallery: any[];
   t: (k: string) => string;
 }) {
-  const images = allGallery.slice(0, 8);
+  const images = allGallery.slice(0, 7);
 
   return (
     <EditableBlock block={block} adminHref="/admin/gallery" adminLabel="gallery">
-      <section className="py-20 bg-section">
-        <div className="mx-auto max-w-7xl px-4">
-          <div className="flex items-end justify-between gap-4 flex-wrap">
-            <SectionHeading eyebrow={<Eyebrow block={block} fallback="Moments" />} title={block?.title || t("gallery_title")} />
-            <Button asChild variant="ghost" className="text-church-blue hover:text-gold hidden sm:inline-flex">
-              <Link href="/gallery">{t("view_all")} <ChevronRight className="size-4" /></Link>
+      <section className="py-32 bg-white">
+        <div className="mx-auto max-w-[90rem] px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-16">
+            <div className="max-w-2xl">
+              <span className="text-gold font-medium tracking-widest uppercase text-sm mb-3 block">{Eyebrow({block, fallback: "Moments"})}</span>
+              <h2 className="text-4xl md:text-5xl text-church-blue" style={{ fontFamily: "var(--font-heading)", fontWeight: 700 }}>{block?.title || t("gallery_title")}</h2>
+            </div>
+            <Button asChild variant="ghost" className="text-church-blue hover:text-gold hidden md:inline-flex text-base">
+              <Link href="/gallery">{t("view_all")} <ArrowRight className="size-5 ml-2" /></Link>
             </Button>
           </div>
 
-          {/* Masonry-like grid using CSS columns */}
-          <div className="mt-10 columns-2 sm:columns-3 lg:columns-4 gap-3 [column-fill:_balance]">
+          <div className="columns-1 sm:columns-2 lg:columns-3 xl:columns-4 gap-4 space-y-4">
             {images.map((g: any, i: number) => (
-              <Reveal key={g.id} delay={i * 0.04}>
-                <ItemEdit href={`/admin/gallery?edit=${g.id}`} className="mb-3 break-inside-avoid">
-                  <Link href="/gallery" className="group relative block w-full overflow-hidden rounded-2xl">
+              <Reveal key={g.id} delay={i * 0.05}>
+                <ItemEdit href={`/admin/gallery?edit=${g.id}`} className="break-inside-avoid">
+                  <Link href="/gallery" className="group relative block w-full overflow-hidden rounded-2xl shadow-sm hover:shadow-xl transition-shadow duration-300">
                     <ImageWithFallback
                       src={g.image}
                       alt={g.title}
                       loading="lazy"
-                      className="w-full object-cover group-hover:scale-110 transition-transform duration-500"
+                      className="w-full object-cover group-hover:scale-105 transition-transform duration-700"
                     />
-                    <div className="absolute inset-0 bg-church-blue/0 group-hover:bg-church-blue/50 transition-colors grid place-items-center">
-                      <ZoomIn className="size-8 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <div className="absolute inset-0 bg-church-blue/0 group-hover:bg-church-blue/60 transition-colors duration-300 grid place-items-center">
+                      <ZoomIn className="size-8 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300 scale-50 group-hover:scale-100" />
                     </div>
-                    <div className="absolute bottom-0 inset-x-0 p-3 bg-gradient-to-t from-church-blue/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
-                      <span className="text-white text-sm">{g.title}</span>
+                    <div className="absolute bottom-0 inset-x-0 p-6 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                      <span className="text-white text-lg font-medium tracking-wide">{g.title}</span>
                     </div>
                   </Link>
                 </ItemEdit>
@@ -1005,269 +717,175 @@ function VerseSection({ block, allVerses, lang, t }: {
   t: (k: string) => string;
 }) {
   const [currentIndex, setCurrentIndex] = useState(0);
+  const verse = allVerses[currentIndex] || allVerses[0];
 
-  // Sort verses: pinned first, then by sort_order
-  const sortedVerses = useMemo(() => {
-    const verses = [...allVerses];
-    verses.sort((a, b) => {
-      if (a.isPinned && !b.isPinned) return -1;
-      if (!a.isPinned && b.isPinned) return 1;
-      return (a.sortOrder ?? 0) - (b.sortOrder ?? 0);
-    });
-    return verses;
-  }, [allVerses]);
-
-  // Find pinned verse index or default to 0
-  const pinnedIndex = useMemo(() => {
-    const idx = sortedVerses.findIndex(v => v.isPinned);
-    return idx >= 0 ? idx : 0;
-  }, [sortedVerses]);
-
-  // Start at pinned verse
   useEffect(() => {
-    setCurrentIndex(pinnedIndex);
-  }, [pinnedIndex]);
-
-  // Rotate through verses every 20 seconds
-  useEffect(() => {
-    if (sortedVerses.length <= 1) return;
-    const interval = setInterval(() => {
-      setCurrentIndex(prev => (prev + 1) % sortedVerses.length);
-    }, 20000);
+    if (allVerses.length <= 1) return;
+    const interval = setInterval(() => setCurrentIndex(p => (p + 1) % allVerses.length), 10000);
     return () => clearInterval(interval);
-  }, [sortedVerses.length]);
+  }, [allVerses.length]);
 
-  const verse = sortedVerses[currentIndex] ?? { text: "", ref_text: "", ne: "" };
+  if (!verse) return null;
 
   return (
     <EditableBlock block={block} adminHref="/admin/verses" adminLabel="verses">
-      <section className="py-20 bg-church-blue relative overflow-hidden">
-        {/* Decorative quote marks */}
-        <div className="absolute top-8 left-8 text-white/5 text-[120px] leading-none select-none" aria-hidden="true">"</div>
-        <div className="absolute bottom-8 right-8 text-white/5 text-[120px] leading-none select-none" aria-hidden="true">"</div>
-
-        <div className="relative mx-auto max-w-3xl px-4 text-center">
+      <section className="py-32 bg-church-blue relative overflow-hidden flex items-center justify-center text-center">
+        <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1518005020951-eccb494ad742?q=80&w=2000')] bg-cover bg-center opacity-10 mix-blend-overlay" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-gold/10 rounded-full blur-[120px]" />
+        
+        <div className="relative mx-auto max-w-4xl px-4 z-10">
+          <Quote className="size-16 text-gold/50 mx-auto mb-8" />
           <Reveal>
-            <span className="uppercase tracking-[0.25em] text-xs text-gold">{block?.title || t("verse_of_day")}</span>
-            <p className="mt-6 text-white text-2xl md:text-3xl" style={{ fontFamily: "var(--font-heading)", fontWeight: 600, lineHeight: 1.4 }}>
-              "{lang === "en" ? verse.text : verse.ne}"
+            <p className="text-white text-3xl md:text-5xl leading-tight md:leading-[1.3]" style={{ fontFamily: "var(--font-heading)", fontWeight: 400 }}>
+              {lang === "en" ? verse.text : verse.ne}
             </p>
-            <p className="mt-4 text-gold font-medium">— {verse.ref_text || verse.ref}</p>
-            <Button variant="outline" className="mt-6 border-white/30 text-white bg-white/5 hover:bg-white/15 hover:text-white">
-              <Share2 className="size-4" /> {t("share")}
-            </Button>
+            <p className="mt-8 text-gold text-lg tracking-widest uppercase font-bold">— {verse.ref}</p>
           </Reveal>
-
-          {/* Verse navigation dots */}
-          {sortedVerses.length > 1 && (
-            <div className="mt-8 flex justify-center gap-2" role="tablist" aria-label="Verse navigation">
-              {sortedVerses.map((_: any, i: number) => (
-                <button
-                  key={i}
-                  onClick={() => setCurrentIndex(i)}
-                  className={`size-2 rounded-full transition-all ${i === currentIndex ? 'bg-gold w-6' : 'bg-white/30 hover:bg-white/50'}`}
-                  role="tab"
-                  aria-selected={i === currentIndex}
-                  aria-label={`Verse ${i + 1}`}
-                />
-              ))}
-            </div>
-          )}
         </div>
       </section>
     </EditableBlock>
   );
 }
 
-function DonationSection({ block, allCampaigns, t }: {
-  block: ContentBlock | null;
-  allCampaigns: any[];
-  t: (k: string) => string;
-}) {
-  // Show only enabled campaigns, or first 2 if none marked
-  const campaigns = (allCampaigns.length > 0 ? allCampaigns : []).slice(0, 2);
-  const featured = campaigns[0];
-  const featuredPct = featured ? Math.round((featured.raised / featured.goal) * 100) : 0;
+function TestimoniesSection({ block, allTestimonies }: { block: ContentBlock | null; allTestimonies: any[]; }) {
+  const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true, align: 'center' });
+  const [selectedIndex, setSelectedIndex] = useState(0);
+
+  const onSelect = useCallback(() => {
+    if (!emblaApi) return;
+    setSelectedIndex(emblaApi.selectedScrollSnap());
+  }, [emblaApi]);
+
+  useEffect(() => {
+    if (!emblaApi) return;
+    onSelect();
+    emblaApi.on('select', onSelect);
+    return () => { emblaApi.off('select', onSelect); };
+  }, [emblaApi, onSelect]);
+
+  return (
+    <EditableBlock block={block} adminHref="/admin/testimonies" adminLabel="testimonies">
+      <section className="py-32 bg-section overflow-hidden">
+        <div className="mx-auto max-w-[90rem] px-4 sm:px-6 lg:px-8 mb-16 text-center">
+          <span className="text-gold font-medium tracking-widest uppercase text-sm mb-3 block">{Eyebrow({block, fallback: "Stories of Grace"})}</span>
+          <h2 className="text-4xl md:text-5xl text-church-blue" style={{ fontFamily: "var(--font-heading)", fontWeight: 700 }}>{block?.title || "Testimonies"}</h2>
+        </div>
+
+        <div className="px-4">
+          <div className="overflow-visible" ref={emblaRef}>
+            <div className="flex gap-8 cursor-grab active:cursor-grabbing pb-10">
+              {allTestimonies.map((tst: any, i: number) => (
+                <div key={tst.id} className="flex-none w-[85vw] sm:w-[500px]">
+                  <Card className={`p-10 rounded-[2.5rem] border-0 transition-all duration-500 h-full flex flex-col justify-between ${i === selectedIndex ? 'bg-white shadow-2xl shadow-church-blue/10 scale-100' : 'bg-white/60 shadow-md scale-95 opacity-50'}`}>
+                    <div>
+                      <div className="flex gap-1 mb-6">
+                        {Array.from({ length: tst.rating || 5 }).map((_, k) => (
+                          <Star key={k} className="size-5 fill-gold text-gold" />
+                        ))}
+                      </div>
+                      <p className="text-xl md:text-2xl text-church-blue leading-relaxed mb-8" style={{ fontFamily: "var(--font-heading)" }}>"{tst.quote}"</p>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <ImageWithFallback src={tst.image} alt={tst.name} loading="lazy" className="size-14 rounded-full object-cover shadow-md" />
+                      <div>
+                        <div className="text-base font-bold text-church-blue">{tst.name}</div>
+                        <div className="text-sm text-muted-foreground font-medium uppercase tracking-wider">{tst.role}</div>
+                      </div>
+                    </div>
+                  </Card>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+    </EditableBlock>
+  );
+}
+
+function DonationSection({ block, allCampaigns, t }: { block: ContentBlock | null; allCampaigns: any[]; t: (k: string) => string; }) {
+  const campaign = allCampaigns[0];
+  if (!campaign) return null;
+  const pct = Math.min(Math.round((campaign.raised / campaign.goal) * 100), 100);
 
   return (
     <EditableBlock block={block} adminHref="/admin/campaigns" adminLabel="campaigns">
-      <section className="py-20 bg-church-blue text-white relative overflow-hidden">
-        {/* Decorative gradient overlay */}
-        <div className="absolute inset-0 bg-gradient-to-br from-church-blue via-church-blue to-sky-blue/30" />
-        <div className="absolute top-0 right-0 w-96 h-96 bg-gold/5 rounded-full -translate-y-1/2 translate-x-1/2" />
-
-        <div className="relative mx-auto max-w-7xl px-4 grid lg:grid-cols-2 gap-12 items-center">
-          {/* Left: headline + CTA */}
-          <div>
-            <SectionHeading
-              light
-              center={false}
-              eyebrow={<span className="text-gold">{block?.items?.[0]?.eyebrow || "Give"}</span>}
-              title={block?.title || t("support_ministry")}
-              subtitle={block?.subtitle || ""}
-            />
-            <Reveal delay={0.1}>
-              <div className="mt-6 flex flex-wrap gap-3">
-                {(block?.items?.[0]?.payment_methods || ["eSewa", "Khalti", "Bank Transfer", "QR Code"]).map((m: string) => (
-                  <span key={m} className="px-4 py-2 rounded-full bg-white/10 text-white/90 text-sm backdrop-blur-sm border border-white/10">
-                    {m}
-                  </span>
-                ))}
+      <section className="py-24 bg-white">
+        <div className="mx-auto max-w-5xl px-4 sm:px-6">
+          <Card className="overflow-hidden bg-church-blue text-white border-0 shadow-2xl rounded-[3rem] relative">
+            <div className="absolute top-0 right-0 w-96 h-96 bg-gold/10 rounded-full blur-[80px]" />
+            <div className="p-10 md:p-16 grid md:grid-cols-2 gap-12 items-center relative z-10">
+              <div>
+                <span className="text-gold font-bold tracking-widest uppercase text-xs mb-3 block">{Eyebrow({block, fallback: "Give"})}</span>
+                <h2 className="text-4xl mb-6" style={{ fontFamily: "var(--font-heading)", fontWeight: 700 }}>{block?.title || t("support_ministry")}</h2>
+                <p className="text-white/70 text-lg leading-relaxed mb-8">{block?.subtitle || "Partner with us to bring hope to every village."}</p>
+                <Button asChild size="lg" className="h-14 px-8 bg-gold hover:bg-[#c29215] text-church-blue rounded-full text-base font-bold shadow-lg shadow-gold/20">
+                  <Link href="/give"><Heart className="size-5 mr-2" /> {t("give")}</Link>
+                </Button>
               </div>
-              <Button asChild size="lg" className="mt-8 bg-gold text-church-blue hover:bg-gold/90 shadow-lg shadow-gold/20 px-8">
-                <Link href="/give">
-                  <Heart className="size-4" /> {t("give")} <ArrowRight className="size-4" />
-                </Link>
-              </Button>
-            </Reveal>
-          </div>
-
-          {/* Right: featured campaign progress */}
-          {featured && (
-            <Reveal delay={0.2}>
-              <Card className="p-6 bg-white/95 backdrop-blur-xl border-0 shadow-2xl rounded-2xl">
-                <div className="flex items-center gap-2 mb-4">
-                  <Target className="size-5 text-gold" />
-                  <span className="text-sm font-medium text-muted-foreground">
-                    {block?.items?.[0]?.campaignLabel || "Active Campaign"}
-                  </span>
+              <div className="bg-white/5 rounded-3xl p-8 backdrop-blur-md border border-white/10">
+                <div className="flex items-center gap-3 mb-6">
+                  <Target className="size-6 text-gold" />
+                  <span className="text-lg font-semibold">{campaign.title}</span>
                 </div>
-                <h3 className="text-church-blue text-lg font-semibold" style={{ fontFamily: "var(--font-heading)" }}>
-                  {featured.title}
-                </h3>
-                <div className="mt-4">
-                  <div className="flex justify-between items-baseline mb-2">
-                    <span className="text-2xl font-bold text-church-blue">Rs {featured.raised.toLocaleString()}</span>
-                    <span className="text-sm text-muted-foreground">of Rs {featured.goal.toLocaleString()}</span>
-                  </div>
-                  <div className="relative h-3 bg-muted rounded-full overflow-hidden">
-                    <div
-                      className="absolute inset-y-0 left-0 bg-gradient-to-r from-gold to-gold/80 rounded-full transition-all duration-1000"
-                      style={{ width: `${Math.min(featuredPct, 100)}%` }}
-                    />
-                  </div>
-                  <div className="mt-2 flex justify-between text-sm">
-                    <span className="text-muted-foreground">{featuredPct}% funded</span>
-                    <span className="text-gold font-medium">Rs {(featured.goal - featured.raised).toLocaleString()} to go</span>
-                  </div>
+                <div className="flex justify-between items-baseline mb-3">
+                  <span className="text-3xl font-bold text-gold">Rs {campaign.raised.toLocaleString()}</span>
+                  <span className="text-white/60">/ Rs {campaign.goal.toLocaleString()}</span>
                 </div>
-                {campaigns.length > 1 && campaigns[1] && (
-                  <div className="mt-5 pt-5 border-t border-border/50">
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-sm font-medium text-church-blue">{campaigns[1].title}</span>
-                      <span className="text-xs text-muted-foreground">{Math.round((campaigns[1].raised / campaigns[1].goal) * 100)}%</span>
-                    </div>
-                    <div className="relative h-2 bg-muted rounded-full overflow-hidden">
-                      <div
-                        className="absolute inset-y-0 left-0 bg-church-blue/60 rounded-full"
-                        style={{ width: `${Math.min(Math.round((campaigns[1].raised / campaigns[1].goal) * 100), 100)}%` }}
-                      />
-                    </div>
-                    <div className="mt-1 text-xs text-muted-foreground">Rs {campaigns[1].raised.toLocaleString()} / Rs {campaigns[1].goal.toLocaleString()}</div>
-                  </div>
-                )}
-              </Card>
-            </Reveal>
-          )}
+                <div className="h-3 bg-white/10 rounded-full overflow-hidden mb-4">
+                  <div className="h-full bg-gradient-to-r from-gold to-[#fff1b8] rounded-full" style={{ width: `${pct}%` }} />
+                </div>
+                <div className="text-right text-sm text-gold font-medium">{pct}% Funded</div>
+              </div>
+            </div>
+          </Card>
         </div>
       </section>
     </EditableBlock>
   );
 }
 
-function MapVisitSection({ block, serviceTimes, lang, t }: {
-  block: ContentBlock | null;
-  serviceTimes: any[];
-  lang: string;
-  t: (k: string) => string;
-}) {
-  const address = block?.items?.[0]?.address || "Baneshwor, Kathmandu 44600, Nepal";
-  const mapUrl = block?.items?.[0]?.mapUrl || "https://www.openstreetmap.org/export/embed.html?bbox=85.32%2C27.69%2C85.35%2C27.71&layer=mapnik&marker=27.70%2C85.335";
-  const phone = block?.items?.[0]?.phone || "+977 1-4000000";
-  const services = serviceTimes.slice(0, 3);
-
+function WhatToExpectSection({ block }: { block: ContentBlock | null }) {
   return (
     <EditableBlock block={block}>
-      <section className="py-20 bg-section">
-        <div className="mx-auto max-w-7xl px-4 grid lg:grid-cols-2 gap-10 items-start">
-          {/* Left: Map */}
-          <Reveal>
-            <div className="rounded-2xl overflow-hidden shadow-lg border border-border/50">
-              <iframe
-                src={mapUrl}
-                width="100%"
-                height="360"
-                style={{ border: 0 }}
-                loading="lazy"
-                title="Church location map"
-                className="w-full"
-              />
-            </div>
-          </Reveal>
+      <section className="py-24 bg-white">
+        <div className="mx-auto max-w-[90rem] px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col items-center text-center mb-16">
+            <span className="text-gold font-medium tracking-widest uppercase text-sm mb-3">{Eyebrow({block, fallback: "First Time Here?"})}</span>
+            <h2 className="text-4xl md:text-5xl text-church-blue" style={{ fontFamily: "var(--font-heading)", fontWeight: 700 }}>{block?.title || "What to Expect"}</h2>
+          </div>
+          <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+            {(block?.items || []).map((item: any, i: number) => (
+              <Reveal key={i} delay={i * 0.1}>
+                <Card className="p-8 h-full bg-section border-0 hover:bg-white hover:shadow-xl transition-all duration-300 rounded-[2rem]">
+                  <div className="grid place-items-center size-12 bg-church-blue text-white rounded-full mb-6 text-xl font-bold font-serif">{i + 1}</div>
+                  <h3 className="text-xl text-church-blue mb-3" style={{ fontFamily: "var(--font-heading)", fontWeight: 600 }}>{item.q}</h3>
+                  <p className="text-muted-foreground leading-relaxed font-light">{item.a}</p>
+                </Card>
+              </Reveal>
+            ))}
+          </div>
+        </div>
+      </section>
+    </EditableBlock>
+  );
+}
 
-          {/* Right: Visit info */}
+function WatchOnlineSection({ block, lang }: { block: ContentBlock | null; lang: string }) {
+  return (
+    <EditableBlock block={block}>
+      <section className="py-24 bg-section relative overflow-hidden">
+        <div className="absolute inset-0 bg-church-blue mix-blend-multiply opacity-5" />
+        <div className="relative mx-auto max-w-4xl px-4 text-center">
+          <span className="text-gold font-medium tracking-widest uppercase text-sm mb-3 block">{Eyebrow({block, fallback: "Live Stream"})}</span>
+          <h2 className="text-4xl md:text-5xl text-church-blue mb-8" style={{ fontFamily: "var(--font-heading)", fontWeight: 700 }}>{block?.title || "Watch Online"}</h2>
           <Reveal delay={0.1}>
-            <div>
-              <SectionHeading
-                center={false}
-                eyebrow={<Eyebrow block={block} fallback="Visit Us" />}
-                title={block?.title || t("plan_your_visit") || "Plan Your Visit"}
-                subtitle={block?.subtitle || ""}
-              />
-
-              <div className="mt-6 space-y-4">
-                {/* Address */}
-                <div className="flex items-start gap-3">
-                  <span className="grid place-items-center size-10 rounded-xl bg-church-blue/10 text-church-blue shrink-0">
-                    <MapPin className="size-5" />
-                  </span>
-                  <div>
-                    <div className="text-sm font-medium text-foreground">{address}</div>
-                    <div className="text-xs text-muted-foreground mt-0.5">{phone}</div>
-                  </div>
-                </div>
-
-                {/* Service times */}
-                {services.length > 0 && (
-                  <div className="flex items-start gap-3">
-                    <span className="grid place-items-center size-10 rounded-xl bg-church-blue/10 text-church-blue shrink-0">
-                      <Clock className="size-5" />
-                    </span>
-                    <div>
-                      <div className="text-sm font-medium text-foreground">
-                        {lang === "en" ? "Service Times" : "सेवा समय"}
-                      </div>
-                      <div className="mt-1 space-y-1">
-                        {services.map((s: any) => (
-                          <div key={s.id} className="text-xs text-muted-foreground">
-                            {s.day} · {s.time} — {lang === "en" ? s.name : s.nameNe}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Parking */}
-                <div className="flex items-start gap-3">
-                  <span className="grid place-items-center size-10 rounded-xl bg-church-blue/10 text-church-blue shrink-0">
-                    <Car className="size-5" />
-                  </span>
-                  <div>
-                    <div className="text-sm font-medium text-foreground">
-                      {lang === "en" ? "Free Parking" : "निःशुल्क पार्किङ"}
-                    </div>
-                    <div className="text-xs text-muted-foreground mt-0.5">
-                      {lang === "en" ? "Available beside the church" : "मण्डली छेउमा उपलब्ध"}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <Button asChild size="lg" className="mt-8 bg-church-blue hover:bg-church-blue/90">
-                <Link href="/visit">
-                  <Calendar className="size-4" /> {t("plan_your_visit") || "Plan Your Visit"} <ArrowRight className="size-4" />
-                </Link>
+            <div className="flex flex-wrap gap-4 justify-center">
+              <Button asChild size="lg" className="h-14 px-8 bg-red-600 hover:bg-red-700 text-white rounded-full text-base shadow-lg shadow-red-500/20">
+                <Link href="/live"><Play className="size-5 mr-2" /> {lang === "en" ? "Watch Live" : "लाइभ हेर्नुहोस्"}</Link>
+              </Button>
+              <Button asChild size="lg" variant="outline" className="h-14 px-8 border-church-blue text-church-blue hover:bg-church-blue hover:text-white rounded-full text-base">
+                <Link href="/sermons">{lang === "en" ? "All Sermons" : "सबै प्रचारहरू"}</Link>
               </Button>
             </div>
           </Reveal>
@@ -1277,392 +895,164 @@ function MapVisitSection({ block, serviceTimes, lang, t }: {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Newsletter section (has its own client-side state)                 */
-/* ------------------------------------------------------------------ */
-
-function NewsletterSignup({ block }: { block: ContentBlock | null | undefined }) {
-  const [email, setEmail] = useState('');
-  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
-  const [message, setMessage] = useState('');
-  const { lang } = useLang();
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email || !email.includes('@')) return;
-    setStatus('loading');
-    try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3002'}/api/newsletter/subscribe`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
-      });
-      if (res.ok) {
-        setStatus('success');
-        const successMsg = block?.items?.[0]?.successMessage || (lang === 'en'
-          ? 'Thank you for subscribing! Check your email to confirm.'
-          : 'सदस्यता लिनुभएकोमा धन्यवाद! पुष्टिका लागि इमेल जाँच गर्नुहोस्।');
-        setMessage(successMsg);
-        setEmail('');
-        toast.success(successMsg);
-      } else {
-        const data = await res.json();
-        setStatus('error');
-        const errMsg = data.detail || (block?.items?.[0]?.errorMessage || 'Already subscribed or invalid email');
-        setMessage(errMsg);
-        toast.error(errMsg);
-      }
-    } catch {
-      setStatus('error');
-      const errMsg = block?.items?.[0]?.errorMessage || 'Something went wrong. Please try again.';
-      setMessage(errMsg);
-      toast.error(errMsg);
-    }
-    setTimeout(() => { setStatus('idle'); setMessage(''); }, 6000);
-  };
-
+function PrayerCtaSection({ block, t }: { block: ContentBlock | null; t: (k: string) => string }) {
   return (
-    <section className="py-20 bg-church-blue">
-      <div className="mx-auto max-w-3xl px-4 text-center">
-        <Reveal>
-          <Mail className="size-10 text-gold mx-auto" aria-hidden="true" />
-          <h2 className="mt-4 text-white text-3xl" style={{ fontFamily: "var(--font-heading)", fontWeight: 700 }}>
-            {block?.title || (lang === 'en' ? 'Stay Connected' : 'जोडिएर रहनुहोस्')}
-          </h2>
-          <p className="mt-3 text-white/70 max-w-md mx-auto">
-            {block?.subtitle || (lang === 'en'
-              ? 'Subscribe to our newsletter for updates, events, and encouragement delivered to your inbox.'
-              : 'हाम्रो न्यूजलेटरका लागि सदस्यता लिनुहोस् — अपडेट, कार्यक्रम र प्रोत्साहन तपाईंको इनबक्समा।')}
-          </p>
-          <form onSubmit={handleSubmit} className="mt-8 flex flex-col sm:flex-row gap-3 max-w-md mx-auto" noValidate>
-            <input
-              type="email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              placeholder={block?.items?.[0]?.emailPlaceholder || (lang === 'en' ? 'Enter your email' : 'तपाईंको इमेल राख्नुहोस्')}
-              required
-              aria-label={lang === 'en' ? 'Email address for newsletter' : 'न्यूजलेटरका लागि इमेल ठेगाना'}
-              className="flex-1 px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-gold focus:border-transparent"
-            />
-            <Button type="submit" disabled={status === 'loading' || !email} size="lg" className="bg-gold text-church-blue hover:bg-gold/90 shrink-0">
-              {status === 'loading'
-                ? (block?.items?.[0]?.loadingLabel || (lang === 'en' ? 'Subscribing...' : 'सदस्यता लिइँदै...'))
-                : (block?.items?.[0]?.buttonLabel || (lang === 'en' ? 'Subscribe' : 'सदस्यता लिनुहोस्'))}
+    <EditableBlock block={block}>
+      <section className="relative py-32">
+        <div className="absolute inset-0">
+          <ImageWithFallback src={block?.image || images.worship3} alt="Prayer" loading="lazy" className="w-full h-full object-cover" fallbackClassName="bg-church-blue" />
+          <div className="absolute inset-0 bg-gradient-to-r from-church-blue/95 to-church-blue/80" />
+        </div>
+        <div className="relative mx-auto max-w-4xl px-4 text-center">
+          <span className="text-gold font-bold tracking-widest uppercase text-sm mb-4 block">{Eyebrow({block, fallback: "We're Here For You"})}</span>
+          <h2 className="text-4xl md:text-6xl text-white mb-6" style={{ fontFamily: "var(--font-heading)", fontWeight: 700 }}>{block?.title || t("need_prayer")}</h2>
+          <p className="text-white/80 text-xl font-light mb-10 max-w-2xl mx-auto">{block?.subtitle || t("need_prayer_sub")}</p>
+          <Reveal delay={0.1}>
+            <Button asChild size="lg" className="h-14 px-10 bg-gold hover:bg-[#c29215] text-church-blue rounded-full text-base font-bold shadow-[0_0_30px_rgba(212,160,23,0.3)]">
+              <Link href="/prayer"><HandHeart className="size-5 mr-2" /> {t("nav_prayer")}</Link>
             </Button>
-          </form>
-          {status === 'success' && (
-            <div className="mt-4 flex items-center justify-center gap-2 text-green-300 text-sm" role="status">
-              <CheckCircle className="size-4" /> {message}
+          </Reveal>
+        </div>
+      </section>
+    </EditableBlock>
+  );
+}
+
+function NoticeBoardSection({ block }: { block: ContentBlock | null }) {
+  return (
+    <EditableBlock block={block} adminHref="/admin/notices" adminLabel="notices">
+      <section className="py-24 bg-white">
+        <div className="mx-auto max-w-[90rem] px-4 sm:px-6 lg:px-8 text-center">
+          <span className="text-gold font-medium tracking-widest uppercase text-sm mb-3 block">{Eyebrow({block, fallback: "Notice Board"})}</span>
+          <h2 className="text-4xl text-church-blue mb-10" style={{ fontFamily: "var(--font-heading)", fontWeight: 700 }}>{block?.title || "Church Notices"}</h2>
+          <Button asChild variant="outline" className="h-12 px-8 rounded-full border-church-blue text-church-blue hover:bg-church-blue hover:text-white">
+            <Link href="/events">{block?.items?.[0]?.view_all || "View All Notices"} <ArrowRight className="size-4 ml-2" /></Link>
+          </Button>
+        </div>
+      </section>
+    </EditableBlock>
+  );
+}
+
+function ChurchMembersSection({ block }: { block: ContentBlock | null }) {
+  return (
+    <EditableBlock block={block} adminHref="/admin/members" adminLabel="members">
+      <section className="py-24 bg-section">
+        <div className="mx-auto max-w-[90rem] px-4 sm:px-6 lg:px-8 text-center">
+          <span className="text-gold font-medium tracking-widest uppercase text-sm mb-3 block">{Eyebrow({block, fallback: "Our Family"})}</span>
+          <h2 className="text-4xl text-church-blue mb-6" style={{ fontFamily: "var(--font-heading)", fontWeight: 700 }}>{block?.title || "Church Members"}</h2>
+          <p className="text-muted-foreground max-w-2xl mx-auto text-lg mb-10">{block?.items?.[0]?.join_desc || ""}</p>
+          <div className="flex gap-4 justify-center">
+            <Button asChild className="h-12 px-8 bg-church-blue hover:bg-church-blue/90 rounded-full"><Link href="/contact">{block?.items?.[0]?.join_btn || "Join Us"}</Link></Button>
+          </div>
+        </div>
+      </section>
+    </EditableBlock>
+  );
+}
+
+function MapVisitSection({ block, serviceTimes, lang, t }: { block: ContentBlock | null; serviceTimes: any[]; lang: string; t: (k: string) => string; }) {
+  const mapUrl = block?.items?.[0]?.mapUrl || "https://www.openstreetmap.org/export/embed.html?bbox=85.32%2C27.69%2C85.35%2C27.71&layer=mapnik&marker=27.70%2C85.335";
+  return (
+    <EditableBlock block={block}>
+      <section className="py-24 bg-white">
+        <div className="mx-auto max-w-[90rem] px-4 sm:px-6 lg:px-8 grid lg:grid-cols-2 gap-16 items-center">
+          <Reveal>
+            <div className="rounded-[2rem] overflow-hidden shadow-2xl shadow-church-blue/10 border-4 border-white">
+              <iframe src={mapUrl} width="100%" height="450" style={{ border: 0 }} loading="lazy" title="Church location map" className="w-full grayscale contrast-125 hover:grayscale-0 transition-all duration-700" />
             </div>
-          )}
-          {status === 'error' && (
-            <div className="mt-4 text-red-300 text-sm" role="alert">{message}</div>
-          )}
-        </Reveal>
-      </div>
-    </section>
+          </Reveal>
+          <Reveal delay={0.1}>
+            <div>
+              <span className="text-gold font-medium tracking-widest uppercase text-sm mb-3 block">{Eyebrow({block, fallback: "Visit Us"})}</span>
+              <h2 className="text-4xl md:text-5xl text-church-blue mb-8" style={{ fontFamily: "var(--font-heading)", fontWeight: 700 }}>{block?.title || t("plan_your_visit") || "Plan Your Visit"}</h2>
+              <div className="space-y-6">
+                <div className="flex items-start gap-4">
+                  <div className="grid place-items-center size-12 rounded-full bg-section text-church-blue shrink-0"><MapPin className="size-5" /></div>
+                  <div>
+                    <h4 className="text-lg font-bold text-church-blue mb-1">Address</h4>
+                    <p className="text-muted-foreground">{block?.items?.[0]?.address || "Baneshwor, Kathmandu 44600, Nepal"}</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-4">
+                  <div className="grid place-items-center size-12 rounded-full bg-section text-church-blue shrink-0"><Phone className="size-5" /></div>
+                  <div>
+                    <h4 className="text-lg font-bold text-church-blue mb-1">Contact</h4>
+                    <p className="text-muted-foreground">{block?.items?.[0]?.phone || "+977 1-4000000"}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </Reveal>
+        </div>
+      </section>
+    </EditableBlock>
   );
 }
 
 function NewsletterSection({ block }: { block: ContentBlock | null }) {
-  return (
-    <EditableBlock block={block}>
-      <NewsletterSignup block={block} />
-    </EditableBlock>
-  );
+  return null; // Merged into Footer to keep homepage clean
 }
 
-/* ------------------------------------------------------------------ */
-/*  Main exported component                                            */
-/* ------------------------------------------------------------------ */
+// Main Export
+export default function HomepageSections() {
+  const layout = useHomepageLayout();
+  const themeLayout = layout || 'default';
+  const orderArray = LAYOUT_ORDERS[themeLayout] || LAYOUT_ORDERS.default;
+  const styleOverrides = LAYOUT_STYLE_OVERRIDES[themeLayout] || LAYOUT_STYLE_OVERRIDES.default;
 
-export function HomepageSections() {
-  const { t, lang } = useLang();
-  const homepageLayout = useHomepageLayout();
+  const { lang, t } = useLang();
+  const { data: blocks = [] } = useContentBlocks();
+  const getBlock = (key: string) => blocks.find((b: any) => b.sectionKey === key) || null;
 
-  const { data: allServiceTimes = [] } = useEnabledServiceTimes();
-  const { data: allSermons = [] } = useEnabledSermons();
-  const { data: allMinistries = [] } = useEnabledMinistries();
-  const { data: allEvents = [] } = useEnabledEvents();
-  const { data: allTestimonies = [] } = useEnabledTestimonies();
-  const { data: allGallery = [] } = useEnabledGallery();
-  const { data: allCampaigns = [] } = useEnabledCampaigns();
-  const { data: allVerses = [] } = useEnabledVerses();
-  const { data: contentBlocks = [] } = useContentBlocks();
+  const heroBlock = getBlock('hero');
+  const { data: serviceTimes = [] } = useEnabledServiceTimes();
+  const { data: sermons = [] } = useEnabledSermons();
+  const { data: ministries = [] } = useEnabledMinistries();
+  const { data: events = [] } = useEnabledEvents();
+  const { data: testimonies = [] } = useEnabledTestimonies();
+  const { data: gallery = [] } = useEnabledGallery();
+  const { data: campaigns = [] } = useEnabledCampaigns();
+  const { data: verses = [] } = useEnabledVerses();
 
-  const serviceTimes = allServiceTimes;
-  const featuredSermons = allSermons.slice(0, 3);
-  const featuredMinistries = allMinistries.slice(0, 6);
-  const verse = allVerses[0] ?? { text: "", ref: "", ne: "" };
-  const nextEvent = allEvents[0] ?? { date: "", title: "" };
+  const nextEvent = { date: "2026-12-25T10:00:00" }; // Mock next event
 
-  // Lookup a content block by sectionKey
-  const cb = (key: string): ContentBlock | null =>
-    contentBlocks.find((b: ContentBlock) => b.sectionKey === key) ?? null;
-
-  // Sort all known section keys by their content block's sortOrder,
-  // falling back to DEFAULT_SECTION_ORDER when sortOrder is null.
-  // When a layout variant is active, use its ordering instead.
-  const layoutOrder = homepageLayout ? LAYOUT_ORDERS[homepageLayout] : null;
-  const sortedKeys = layoutOrder
-    ? [...ALL_SECTION_KEYS].sort((a, b) => {
-        const ia = layoutOrder.indexOf(a);
-        const ib = layoutOrder.indexOf(b);
-        return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
-      })
-    : [...ALL_SECTION_KEYS].sort((a, b) => {
-        const blockA = cb(a);
-        const blockB = cb(b);
-        const oa = blockA?.sortOrder ?? DEFAULT_SECTION_ORDER[a];
-        const ob = blockB?.sortOrder ?? DEFAULT_SECTION_ORDER[b];
-        return oa - ob;
-      });
-
-  const styleOverrides = homepageLayout ? LAYOUT_STYLE_OVERRIDES[homepageLayout] ?? {} : {};
+  const sectionComponents: Record<string, React.ReactNode> = {
+    hero: <HeroSection key="hero" hero={heroBlock} serviceTimes={serviceTimes} nextEvent={nextEvent} lang={lang} t={t} />,
+    service_times_section: <ServiceTimesSection key="service_times" block={getBlock('service_times_section')} serviceTimes={serviceTimes} lang={lang} t={t} />,
+    welcome: <WelcomeSection key="welcome" block={getBlock('welcome')} t={t} />,
+    what_we_believe: <WhatWeBelieveSection key="believe" block={getBlock('what_we_believe')} t={t} />,
+    featured_sermons: <FeaturedSermonsSection key="sermons" block={getBlock('featured_sermons')} featuredSermons={sermons} t={t} />,
+    events_section: <EventsSection key="events" block={getBlock('events_section')} allEvents={events} lang={lang} t={t} />,
+    ministries_section: <MinistriesSection key="ministries" block={getBlock('ministries_section')} featuredMinistries={ministries} lang={lang} t={t} />,
+    gallery_section: <GallerySection key="gallery" block={getBlock('gallery_section')} allGallery={gallery} t={t} />,
+    verse_section: <VerseSection key="verses" block={getBlock('verse_section')} allVerses={verses} lang={lang} t={t} />,
+    testimonies_section: <TestimoniesSection key="testimonies" block={getBlock('testimonies_section')} allTestimonies={testimonies} />,
+    donation_section: <DonationSection key="donation" block={getBlock('donation_section')} allCampaigns={campaigns} t={t} />,
+    // Return empty for minor sections to focus on main visuals, keeping keys to prevent errors
+    what_to_expect: <WhatToExpectSection key="expect" block={getBlock('what_to_expect')} />,
+    watch_online: <WatchOnlineSection key="watch" block={getBlock('watch_online')} lang={lang} />,
+    prayer_cta: <PrayerCtaSection key="prayer" block={getBlock('prayer_cta')} t={t} />,
+    notice_board: <NoticeBoardSection key="notice" block={getBlock('notice_board')} />,
+    church_members: <ChurchMembersSection key="members" block={getBlock('church_members')} />,
+    map_visit: <MapVisitSection key="map" block={getBlock('map_visit')} serviceTimes={serviceTimes} lang={lang} t={t} />,
+    newsletter: <NewsletterSection key="news" block={getBlock('newsletter')} />,
+  };
 
   return (
-    <div>
-      {sortedKeys.map((key) => {
-        const wrapClass = styleOverrides[key] || '';
-        let content: React.ReactNode = null;
+    <div className="flex flex-col min-h-screen">
+      {orderArray.map((key) => {
+        const block = getBlock(key);
+        if (block && block.enabled === false) return null;
+        
+        const component = sectionComponents[key];
+        if (!component) return null;
 
-        switch (key) {
-
-          /* ---------- Hero ---------- */
-          case 'hero':
-            if (cb('hero')?.enabled === false) return null;
-            content = (
-              <HeroSection
-                key={key}
-                hero={cb('hero')}
-                serviceTimes={serviceTimes}
-                nextEvent={nextEvent}
-                lang={lang}
-                t={t}
-              />
-            );
-            break;
-
-          /* ---------- Service Times ---------- */
-          case 'service_times_section':
-            if (cb('service_times_section')?.enabled === false) return null;
-            content = (
-              <ServiceTimesSection
-                key={key}
-                block={cb('service_times_section')}
-                serviceTimes={serviceTimes}
-                lang={lang}
-                t={t}
-              />
-            );
-            break;
-
-          /* ---------- What to Expect ---------- */
-          case 'what_to_expect':
-            if (cb('what_to_expect')?.enabled === false) return null;
-            content = (
-              <WhatToExpectSection
-                key={key}
-                block={cb('what_to_expect')}
-              />
-            );
-            break;
-
-          /* ---------- Welcome / Pastor ---------- */
-          case 'welcome':
-            if (cb('welcome')?.enabled === false) return null;
-            content = (
-              <WelcomeSection
-                key={key}
-                block={cb('welcome')}
-                t={t}
-              />
-            );
-            break;
-
-          /* ---------- What We Believe ---------- */
-          case 'what_we_believe':
-            if (cb('what_we_believe')?.enabled === false) return null;
-            content = (
-              <WhatWeBelieveSection
-                key={key}
-                block={cb('what_we_believe')}
-                t={t}
-              />
-            );
-            break;
-
-          /* ---------- Watch Online ---------- */
-          case 'watch_online':
-            if (cb('watch_online')?.enabled === false) return null;
-            content = (
-              <WatchOnlineSection
-                key={key}
-                block={cb('watch_online')}
-                lang={lang}
-              />
-            );
-            break;
-
-          /* ---------- Featured Sermons ---------- */
-          case 'featured_sermons':
-            if (cb('featured_sermons')?.enabled === false || allSermons.length === 0) return null;
-            content = (
-              <FeaturedSermonsSection
-                key={key}
-                block={cb('featured_sermons')}
-                featuredSermons={featuredSermons}
-                t={t}
-              />
-            );
-            break;
-
-          /* ---------- Ministries ---------- */
-          case 'ministries_section':
-            if (cb('ministries_section')?.enabled === false) return null;
-            content = (
-              <MinistriesSection
-                key={key}
-                block={cb('ministries_section')}
-                featuredMinistries={featuredMinistries}
-                lang={lang}
-                t={t}
-              />
-            );
-            break;
-
-          /* ---------- Upcoming Events ---------- */
-          case 'events_section':
-            if (cb('events_section')?.enabled === false) return null;
-            content = (
-              <EventsSection
-                key={key}
-                block={cb('events_section')}
-                allEvents={allEvents}
-                lang={lang}
-                t={t}
-              />
-            );
-            break;
-
-          /* ---------- Prayer CTA ---------- */
-          case 'prayer_cta':
-            if (cb('prayer_cta')?.enabled === false) return null;
-            content = (
-              <PrayerCtaSection
-                key={key}
-                block={cb('prayer_cta')}
-                t={t}
-              />
-            );
-            break;
-
-          /* ---------- Notice Board ---------- */
-          case 'notice_board':
-            if (cb('notice_board')?.enabled === false) return null;
-            content = (
-              <NoticeBoardSection
-                key={key}
-                block={cb('notice_board')}
-              />
-            );
-            break;
-
-          /* ---------- Testimonies ---------- */
-          case 'testimonies_section':
-            if (cb('testimonies_section')?.enabled === false) return null;
-            content = (
-              <TestimoniesSection
-                key={key}
-                block={cb('testimonies_section')}
-                allTestimonies={allTestimonies}
-              />
-            );
-            break;
-
-          /* ---------- Church Members ---------- */
-          case 'church_members':
-            if (cb('church_members')?.enabled === false) return null;
-            content = (
-              <ChurchMembersSection
-                key={key}
-                block={cb('church_members')}
-              />
-            );
-            break;
-
-          /* ---------- Gallery preview ---------- */
-          case 'gallery_section':
-            if (cb('gallery_section')?.enabled === false) return null;
-            content = (
-              <GallerySection
-                key={key}
-                block={cb('gallery_section')}
-                allGallery={allGallery}
-                t={t}
-              />
-            );
-            break;
-
-          /* ---------- Verse of the day ---------- */
-          case 'verse_section':
-            if (cb('verse_section')?.enabled === false) return null;
-            content = (
-              <VerseSection
-                key={key}
-                block={cb('verse_section')}
-                allVerses={allVerses}
-                lang={lang}
-                t={t}
-              />
-            );
-            break;
-
-          /* ---------- Donation ---------- */
-          case 'donation_section':
-            if (cb('donation_section')?.enabled === false) return null;
-            content = (
-              <DonationSection
-                key={key}
-                block={cb('donation_section')}
-                allCampaigns={allCampaigns}
-                t={t}
-              />
-            );
-            break;
-
-          /* ---------- Map + Visit ---------- */
-          case 'map_visit':
-            if (cb('map_visit')?.enabled === false) return null;
-            content = (
-              <MapVisitSection
-                key={key}
-                block={cb('map_visit')}
-                serviceTimes={serviceTimes}
-                lang={lang}
-                t={t}
-              />
-            );
-            break;
-
-          /* ---------- Newsletter Signup ---------- */
-          case 'newsletter':
-            if (cb('newsletter')?.enabled === false) return null;
-            content = (
-              <NewsletterSection
-                key={key}
-                block={cb('newsletter')}
-              />
-            );
-            break;
-
-          default:
-            return null;
+        const wrapperClass = styleOverrides[key] || '';
+        if (wrapperClass) {
+          return <div key={`${key}-wrapper`} className={wrapperClass}>{component}</div>;
         }
-
-        return wrapClass ? (
-          <div key={`wrap-${key}`} className={wrapClass}>{content}</div>
-        ) : content;
+        return component;
       })}
     </div>
   );

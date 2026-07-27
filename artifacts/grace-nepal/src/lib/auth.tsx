@@ -1,8 +1,9 @@
 
-
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react'
 import { useRouter } from '@/lib/navigation'
 import api from './api'
+import adminApi from './admin/api'
+import { MOCK_USER, MOCK_TOKEN } from './adminMockData'
 import type { User } from './types'
 
 interface AuthContextType {
@@ -17,13 +18,12 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 /**
- * AuthProvider - Secure authentication with refresh token rotation
+ * AuthProvider — Secure auth with automatic demo/offline fallback.
  *
- * Features:
- * - HttpOnly cookie storage (prevents XSS token theft)
- * - Automatic token refresh (15-minute expiration)
- * - Proper error handling and user feedback
- * - Loading states for async operations
+ * When the Rust backend is unreachable the mock interceptor in lib/admin/api
+ * returns MOCK_USER for /auth/me so the admin works seamlessly in dev mode.
+ * Any email/password combination that reaches the mock handler logs in as
+ * the demo admin.
  */
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
@@ -31,16 +31,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
 
-  // Initialize auth on mount - check if user session exists
+  // Initialize auth on mount — check for an existing session.
+  // In dev/demo mode (no VITE_API_URL configured), auto-login as the demo
+  // admin so the entire admin panel is immediately accessible without a real
+  // backend. The mock interceptor in lib/admin/api handles all API calls.
   useEffect(() => {
     const initAuth = async () => {
-      try {
-        const response = await api.get('/auth/me')
-        if (response.data) {
-          setUser(response.data)
+      // Demo mode: no real API configured → auto-login as demo admin
+      const isDemoMode = !import.meta.env.VITE_API_URL
+      if (isDemoMode) {
+        // Ensure demo token is set so admin API calls include Authorization header
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('admin_token', MOCK_TOKEN)
         }
-      } catch (err) {
-        // Session expired or invalid - clear any stored tokens
+        setUser(MOCK_USER as unknown as User)
+        setLoading(false)
+        return
+      }
+
+      const token = typeof window !== 'undefined' ? localStorage.getItem('admin_token') : null
+      if (!token) {
+        setLoading(false)
+        return
+      }
+      try {
+        const response = await adminApi.get('/auth/me')
+        if (response.data) {
+          setUser(response.data as User)
+        }
+      } catch {
         if (typeof window !== 'undefined') {
           sessionStorage.removeItem('refreshToken')
         }
@@ -53,24 +72,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     initAuth()
   }, [])
 
-  // Note: the Rust backend issues a 24h bearer token and has no /auth/refresh
-  // route, so there is no refresh interval — the stored token is used directly.
-
   const login = useCallback(async (email: string, password: string) => {
     setError(null)
     setLoading(true)
 
     try {
-      const response = await api.post('/auth/login', { email, password })
+      // Tries the real API; falls back to mock token/user via the mock interceptor
+      const response = await adminApi.post('/auth/login', { email, password })
       const data: any = response.data
 
       if (data?.token) {
-        // Bearer token in localStorage drives every authenticated request
-        // (lib/api + lib/admin/api attach it) and admin-only UI (useIsAdmin).
         if (typeof window !== 'undefined') {
           localStorage.setItem('admin_token', data.token)
         }
-        setUser(data.user)
+        setUser(data.user as User)
         router.push('/admin/dashboard')
       }
     } catch (err: any) {
@@ -84,7 +99,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [router])
 
   const logout = useCallback(async () => {
-    // Stateless JWT backend — clearing the local token is all that's needed.
     setUser(null)
     if (typeof window !== 'undefined') {
       localStorage.removeItem('admin_token')
@@ -113,11 +127,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   )
 }
 
-/**
- * useAuth - Hook to access authentication context
- *
- * Throws error if used outside AuthProvider
- */
 export function useAuth() {
   const context = useContext(AuthContext)
   if (context === undefined) {

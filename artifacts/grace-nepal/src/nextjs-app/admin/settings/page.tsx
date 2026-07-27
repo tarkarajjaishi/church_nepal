@@ -592,8 +592,8 @@ export default function SettingsPage() {
   const createContactInfo = useCreateContactInfo()
   const updateContactInfo = useUpdateContactInfo()
 
-  const { data: siteBrand } = useContentBlockByKey('site_brand')
-  const { data: socialBlock } = useContentBlockByKey('social_links')
+  const siteBrand = useContentBlockByKey('site_brand')
+  const socialBlock = useContentBlockByKey('social_links')
   const updateContentBlock = useUpdateContentBlock()
 
   const [churchProfile, setChurchProfile] = useState<ChurchProfile>(churchProfileDefaults)

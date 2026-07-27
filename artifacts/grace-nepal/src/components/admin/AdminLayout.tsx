@@ -41,10 +41,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
         <AuthProvider>
           {isLogin ? (
             <div className="min-h-screen bg-background">
-              <AdminNav />
-              <main className="container mx-auto py-8 px-4">
-                {children}
-              </main>
+              {children}
             </div>
           ) : (
             <AuthGuard>
