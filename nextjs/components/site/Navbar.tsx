@@ -21,6 +21,9 @@ import { useLang } from "@/lib/language";
 import { useContentBlock } from "@/lib/hooks";
 import { ThemeToggle } from "./ThemeToggle";
 
+// Keep `primary` short: the header also carries search, theme, Bible, language,
+// Join Live and Give. Long labels like "Become a Member" wrapped to three lines
+// and inflated the header height, so secondary destinations live under "More".
 const primary = [
   { to: "/about", key: "nav_about" },
   { to: "/ministries", key: "nav_ministries" },
@@ -28,11 +31,11 @@ const primary = [
   { to: "/sermons", key: "nav_sermons" },
   { to: "/events", key: "nav_events" },
   { to: "/gallery", key: "nav_gallery" },
-  { to: "/membership", key: "nav_membership" },
   { to: "/contact", key: "nav_contact" },
 ];
 
 const more = [
+  { to: "/membership", key: "nav_membership" },
   { to: "/pastor", key: "nav_pastor" },
   { to: "/leadership", key: "nav_leadership" },
   { to: "/prayer", key: "nav_prayer" },
@@ -98,7 +101,7 @@ export function Navbar() {
             <Link
               key={l.to}
               href={l.to}
-              className={pathname === l.to ? "px-3 py-2 rounded-md text-sm font-medium text-church-blue" : "px-3 py-2 rounded-md text-sm text-foreground/70 hover:text-church-blue"}
+              className={pathname === l.to ? "px-3 py-2 rounded-md text-sm font-medium whitespace-nowrap text-church-blue" : "px-3 py-2 rounded-md text-sm whitespace-nowrap text-foreground/70 hover:text-church-blue"}
             >
               {t(l.key)}
             </Link>
@@ -130,10 +133,11 @@ export function Navbar() {
 
           <Link
             href="/bible"
-            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium text-foreground/70 hover:bg-secondary hover:text-church-blue transition-colors"
+            aria-label="पवित्र बाइबल (Nepali Bible)"
+            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium whitespace-nowrap text-foreground/70 hover:bg-secondary hover:text-church-blue transition-colors"
           >
-            <BookOpen className="size-4" />
-            पवित्र बाइबल (NE)
+            <BookOpen className="size-4 shrink-0" />
+            बाइबल
           </Link>
 
           <div className="hidden sm:flex items-center rounded-full bg-secondary p-0.5 text-xs" role="group" aria-label="Language selection">

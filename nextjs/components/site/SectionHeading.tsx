@@ -15,7 +15,7 @@ export function SectionHeading({ eyebrow, title, subtitle, center = true, light 
       {eyebrow && (
         <div className={`mb-3 inline-flex items-center gap-2 ${center ? "justify-center" : ""}`}>
           <span className="h-px w-6 bg-gold" />
-          <span className="uppercase tracking-[0.2em] text-xs text-gold" style={{ fontFamily: "var(--font-heading)" }}>
+          <span className="uppercase tracking-[0.2em] text-xs text-gold-text" style={{ fontFamily: "var(--font-heading)" }}>
             {eyebrow}
           </span>
           <span className="h-px w-6 bg-gold" />

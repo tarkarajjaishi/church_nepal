@@ -86,7 +86,11 @@ export default function AdminLoginPage() {
         {/* Login Card */}
         <Card className="shadow-lg">
           <CardHeader>
-            <CardTitle className="text-2xl text-center">Master Control Login</CardTitle>
+            {/* CardTitle renders an <h3>; the login page is a top-level page and
+                needs an <h1> so the heading order starts correctly. */}
+            <h1 className="font-semibold leading-none tracking-tight text-2xl text-center">
+              Master Control Login
+            </h1>
             <CardDescription className="text-center">
               Sign in to access the admin dashboard
             </CardDescription>

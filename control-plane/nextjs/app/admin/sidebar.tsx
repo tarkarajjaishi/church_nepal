@@ -2,13 +2,38 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { apiClient } from '@/lib/api-client';
 
 interface SidebarProps {
   onClose?: () => void;
 }
 
+interface CurrentAdmin {
+  email: string;
+  role: string;
+}
+
 export default function Sidebar({ onClose }: SidebarProps) {
   const pathname = usePathname();
+  const [admin, setAdmin] = useState<CurrentAdmin | null>(null);
+
+  // Identity was previously hardcoded to "Admin User / admin@churchnepal.com",
+  // which showed the wrong person to every real operator.
+  useEffect(() => {
+    let cancelled = false;
+    apiClient
+      .get('/auth/me')
+      .then((res) => {
+        if (!cancelled) setAdmin({ email: res.data.email, role: res.data.role });
+      })
+      .catch(() => {
+        /* not signed in yet, or token still loading — leave placeholder */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const navigation = [
     { name: 'Dashboard', href: '/admin' },
@@ -75,12 +100,18 @@ export default function Sidebar({ onClose }: SidebarProps) {
         <div className="flex items-center">
           <div className="flex-shrink-0">
             <div className="w-10 h-10 rounded-full bg-[var(--accent-soft)] flex items-center justify-center">
-              <span className="text-[var(--accent)] font-medium">A</span>
+              <span className="text-[var(--accent)] font-medium">
+                {(admin?.email ?? '?').charAt(0).toUpperCase()}
+              </span>
             </div>
           </div>
-          <div className="ml-3">
-            <p className="text-sm font-medium text-[var(--text)]">Admin User</p>
-            <p className="text-xs text-[var(--muted)]">admin@churchnepal.com</p>
+          <div className="ml-3 min-w-0">
+            <p className="text-sm font-medium text-[var(--text)] capitalize">
+              {admin ? admin.role.replace('_', ' ') : 'Signed in'}
+            </p>
+            <p className="text-xs text-[var(--muted)] truncate" title={admin?.email}>
+              {admin?.email ?? '—'}
+            </p>
           </div>
         </div>
       </div>

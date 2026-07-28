@@ -3,7 +3,9 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 import { API_ORIGIN } from '@/lib/apiBase'
 
-export const dict = {
+// Indexed by arbitrary string in t(), so declare the index signature rather than
+// letting TS infer a closed literal type (which made `dict[key]` an implicit any).
+export const dict: Record<string, Record<string, string>> = {
   churchName: { en: 'Grace Nepal Church', ne: 'अनुग्रह नेपाल मण्डली' },
   tagline: { en: 'Faith • Hope • Love', ne: 'विश्वास • आशा • प्रेम' },
   joinLive: { en: 'Join Live', ne: 'प्रत्यक्ष जोडिनुहोस्' },
@@ -51,6 +53,8 @@ export const dict = {
   read_more: { en: 'Read More', ne: 'थप पढ्नुहोस्' },
   watch_now: { en: 'Watch Now', ne: 'अहिले हेर्नुहोस्' },
   view_all: { en: 'View All', ne: 'सबै हेर्नुहोस्' },
+  view_all_events: { en: 'View All Events', ne: 'सबै कार्यक्रम हेर्नुहोस्' },
+  plan_your_visit: { en: 'Plan Your Visit', ne: 'आफ्नो भ्रमण योजना बनाउनुहोस्' },
   register: { en: 'Register', ne: 'दर्ता गर्नुहोस्' },
   need_prayer: { en: 'Need Prayer?', ne: 'प्रार्थना चाहिन्छ?' },
   need_prayer_sub: {

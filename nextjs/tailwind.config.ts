@@ -47,6 +47,7 @@ const config: Config = {
         'church-blue': 'var(--church-blue)',
         'sky-blue': 'var(--sky-blue)',
         gold: 'var(--gold)',
+        'gold-text': 'var(--gold-text)',
         'gold-soft': 'var(--gold-soft)',
         success: 'var(--success)',
         section: 'var(--section-bg)',
