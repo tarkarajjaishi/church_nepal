@@ -152,11 +152,23 @@ async fn ensure_control_db(cfg: &Config) {
         .await
         .expect("check control db");
     if exists.is_none() {
-        admin
+        // Postgres has no CREATE DATABASE IF NOT EXISTS, and the check above can
+        // go stale (concurrent start, or a DB created since). Treat "already
+        // exists" (23505 / 42P04) as success instead of panicking.
+        match admin
             .execute(format!("CREATE DATABASE \"{db_name}\"").as_str())
             .await
-            .expect("create control database");
-        println!("Created control database '{}'", db_name);
+        {
+            Ok(_) => println!("Created control database '{}'", db_name),
+            Err(e) => {
+                let code = e.as_database_error().and_then(|d| d.code());
+                let already_exists =
+                    matches!(code.as_deref(), Some("23505") | Some("42P04"));
+                if !already_exists {
+                    panic!("create control database: {e}");
+                }
+            }
+        }
     }
 }
 

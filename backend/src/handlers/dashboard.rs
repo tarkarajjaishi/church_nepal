@@ -6,14 +6,14 @@ use uuid::Uuid;
 use crate::error::AppError;
 
 #[derive(Deserialize)]
-struct SearchQuery {
+pub struct SearchQuery {
     q: String,
     limit: Option<u64>,
     offset: Option<u64>,
 }
 
-#[derive(Serialize)]
-struct SearchResult {
+#[derive(Serialize, sqlx::FromRow)]
+pub struct SearchResult {
     id: Uuid,
     title: String,
     result_type: String,
@@ -56,8 +56,7 @@ pub async fn search(
         return Ok(Json(vec![]));
     }
 
-    let results = sqlx::query_as!(
-        SearchResult,
+    let results = sqlx::query_as::<_, SearchResult>(
         r#"
         WITH query AS (SELECT websearch_to_tsquery('english', $1) AS q)
         SELECT
@@ -106,8 +105,10 @@ pub async fn search(
         ORDER BY rank DESC
         LIMIT $2 OFFSET $3
         "#,
-        query, limit, offset
     )
+    .bind(&query)
+    .bind(limit)
+    .bind(offset)
     .fetch_all(&pool)
     .await?;
 

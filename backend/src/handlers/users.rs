@@ -90,7 +90,7 @@ pub async fn update(
     };
 
     let user = user.ok_or_else(|| AppError::not_found("User not found"))?;
-    let _ = create_audit_entry(&pool, &auth.email, "update", "user", &user.id.to_string(), Some(serde_json::json!({"id": user.id}))).await;
+    let _ = create_audit_entry(&pool, &_auth.email, "update", "user", &user.id.to_string(), Some(serde_json::json!({"id": user.id}))).await;
     Ok(Json(user))
 }
 
@@ -108,7 +108,7 @@ pub async fn delete(
         return Err(AppError::not_found("User not found"));
     }
 
-    let _ = create_audit_entry(&pool, &auth.email, "delete", "user", &id.to_string(), Some(serde_json::json!({"id": id}))).await;
+    let _ = create_audit_entry(&pool, &_auth.email, "delete", "user", &id.to_string(), Some(serde_json::json!({"id": id}))).await;
     Ok(Json(serde_json::json!({ "deleted": true })))
 }
 
@@ -143,6 +143,6 @@ pub async fn create(
     .fetch_one(&pool)
     .await?;
 
-    let _ = create_audit_entry(&pool, &auth.email, "create", "user", &user.id.to_string(), Some(serde_json::json!({"id": user.id}))).await;
+    let _ = create_audit_entry(&pool, &_auth.email, "create", "user", &user.id.to_string(), Some(serde_json::json!({"id": user.id}))).await;
     Ok(Json(user))
 }

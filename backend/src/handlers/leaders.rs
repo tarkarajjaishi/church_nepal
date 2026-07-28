@@ -44,11 +44,11 @@ pub async fn create(auth: AuthUser, Db(pool): Db, ValidatedJson(input): Validate
           "UPDATE leaders SET name=COALESCE($2,name), role=COALESCE($3,role), category=COALESCE($4,category), image=COALESCE($5,image), bio=COALESCE($6,bio) WHERE id=$1 RETURNING *"
       )
       .bind(id)
-      .bind(input.name.as_deref().map(|t| xss::sanitize_plain(t)).or(existing.name.as_deref()))
-      .bind(input.role.as_deref().map(|t| xss::sanitize_plain(t)).or(existing.role.as_deref()))
-      .bind(input.category.as_deref().map(|t| xss::sanitize_plain(t)).or(existing.category.as_deref()))
-      .bind(input.image.as_deref().or(existing.image.as_deref()))
-      .bind(input.bio.as_deref().map(|t| xss::sanitize_plain(t)).or(existing.bio.as_deref()))
+      .bind(input.name.as_deref().map(|t| xss::sanitize_plain(t)).or(Some(existing.name.clone())))
+      .bind(input.role.as_deref().map(|t| xss::sanitize_plain(t)).or(Some(existing.role.clone())))
+      .bind(input.category.as_deref().map(|t| xss::sanitize_plain(t)).or(Some(existing.category.clone())))
+      .bind(input.image.clone().or(Some(existing.image.clone())))
+      .bind(input.bio.as_deref().map(|t| xss::sanitize_plain(t)).or(Some(existing.bio.clone())))
       .fetch_one(&pool).await?;
       let _ = create_audit_entry(&pool, &auth.email, "update", "leader", &row.id.to_string(), Some(serde_json::json!({"id": row.id, "name": row.name}))).await;
       Ok(Json(row))

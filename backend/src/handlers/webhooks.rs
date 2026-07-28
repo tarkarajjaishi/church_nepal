@@ -1,3 +1,4 @@
+use serde::Deserialize;
 use axum::Json;
 use reqwest::Client;
 use sqlx::PgPool;
@@ -10,6 +11,7 @@ use crate::models::webhook::{CreateWebhookEndpoint, UpdateWebhookEndpoint, Webho
 use axum::extract::{Path, Query};
 use uuid::Uuid;
 
+use hmac::Mac;
 type HmacSha256 = hmac::Hmac<sha2::Sha256>;
 
 fn sign_payload(secret: &str, payload: &str) -> String {
@@ -156,41 +158,42 @@ pub async fn retry_delivery(
     Ok(Json(serde_json::json!({ "retrying": true })))
 }
 
+/// Fire-and-forget: callers are sync handlers, so the whole lookup + insert
+/// runs on a spawned task.
 pub fn enqueue_webhook_delivery(pool: &PgPool, event_type: &str, payload: serde_json::Value) {
-    let endpoints = match sqlx::query_as::<_, WebhookEndpoint>(
-        r#"SELECT * FROM webhook_endpoints WHERE active = true AND $1 = ANY(events)"#,
-    )
-    .bind(event_type)
-    .fetch_all(pool)
-    {
-        Ok(eps) => eps,
-        Err(_) => return,
-    };
+    let pool = pool.clone();
+    let event_type = event_type.to_string();
 
-    if endpoints.is_empty() {
-        return;
-    }
+    tokio::spawn(async move {
+        let endpoints = match sqlx::query_as::<_, WebhookEndpoint>(
+            r#"SELECT * FROM webhook_endpoints WHERE active = true AND $1 = ANY(events)"#,
+        )
+        .bind(&event_type)
+        .fetch_all(&pool)
+        .await
+        {
+            Ok(eps) => eps,
+            Err(_) => return,
+        };
 
-    let payload_str = serde_json::to_string(&payload).unwrap_or_default();
+        if endpoints.is_empty() {
+            return;
+        }
 
-    for endpoint in &endpoints {
-        let endpoint_id = endpoint.id;
-        let payload_str = payload_str.clone();
-        let event_type = event_type.to_string();
-        let pool = pool.clone();
+        let payload_str = serde_json::to_string(&payload).unwrap_or_default();
 
-        tokio::spawn(async move {
+        for endpoint in &endpoints {
             let _ = sqlx::query(
                 r#"INSERT INTO webhook_deliveries (endpoint_id, event_type, payload, scheduled_at)
                    VALUES ($1, $2, $3::jsonb, NOW())"#,
             )
-            .bind(endpoint_id)
+            .bind(endpoint.id)
             .bind(&event_type)
             .bind(&payload_str)
             .execute(&pool)
             .await;
-        });
-    }
+        }
+    });
 }
 
 pub async fn process_webhook_deliveries(pool: PgPool) {
@@ -263,8 +266,8 @@ pub async fn process_webhook_deliveries(pool: PgPool) {
         match response {
             Ok(resp) => {
                 let status = resp.status().as_u16() as i32;
-                let body = resp.text().await.unwrap_or_default();
                 let success = resp.status().is_success();
+                let body = resp.text().await.unwrap_or_default();
 
                 let new_status = if success { "delivered" } else { "retrying" };
 
@@ -283,7 +286,7 @@ pub async fn process_webhook_deliveries(pool: PgPool) {
                 .bind(status)
                 .bind(body)
                 .bind(success)
-                .bind(if success { None::<String>() } else { Some(format!("HTTP {}", status)) })
+                .bind(if success { None::<String> } else { Some(format!("HTTP {}", status)) })
                 .bind(delivery.id)
                 .execute(&pool)
                 .await;

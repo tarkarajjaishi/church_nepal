@@ -46,13 +46,13 @@ pub async fn update(_auth: AuthUser, Db(pool): Db, Path(id): Path<uuid::Uuid>, V
         r#"UPDATE ministries SET name=COALESCE($2,name), name_ne=COALESCE($3,name_ne), description=COALESCE($4,description), leader=COALESCE($5,leader), meeting=COALESCE($6,meeting), image=COALESCE($7,image), icon=COALESCE($8,icon) WHERE id=$1 RETURNING *"#,
     )
     .bind(id)
-    .bind(input.name.as_deref().map(|t| xss::sanitize_plain(t)).or(existing.name.as_deref()))
-    .bind(input.name_ne.as_deref().map(|t| xss::sanitize_plain(t)).or(existing.name_ne.as_deref()))
-    .bind(input.description.as_deref().map(|t| xss::sanitize_plain(t)).or(existing.description.as_deref()))
-    .bind(input.leader.as_deref().map(|t| xss::sanitize_plain(t)).or(existing.leader.as_deref()))
-    .bind(input.meeting.as_deref().map(|t| xss::sanitize_plain(t)).or(existing.meeting.as_deref()))
-    .bind(input.image.as_deref().or(existing.image.as_deref()))
-    .bind(input.icon.as_deref().map(|t| xss::sanitize_plain(t)).or(existing.icon.as_deref()))
+    .bind(input.name.as_deref().map(|t| xss::sanitize_plain(t)).or(Some(existing.name.clone())))
+    .bind(input.name_ne.as_deref().map(|t| xss::sanitize_plain(t)).or(Some(existing.name_ne.clone())))
+    .bind(input.description.as_deref().map(|t| xss::sanitize_plain(t)).or(Some(existing.description.clone())))
+    .bind(input.leader.as_deref().map(|t| xss::sanitize_plain(t)).or(Some(existing.leader.clone())))
+    .bind(input.meeting.as_deref().map(|t| xss::sanitize_plain(t)).or(Some(existing.meeting.clone())))
+    .bind(input.image.clone().or(Some(existing.image.clone())))
+    .bind(input.icon.as_deref().map(|t| xss::sanitize_plain(t)).or(Some(existing.icon.clone())))
     .fetch_one(&pool).await?;
     let _ = create_audit_entry(&pool, &_auth.email, "update", "ministry", &row.id.to_string(), Some(serde_json::json!({"id": row.id}))).await;
     Ok(Json(row))
@@ -73,7 +73,7 @@ pub async fn toggle(_auth: AuthUser, Db(pool): Db, Path(id): Path<uuid::Uuid>) -
         .fetch_optional(&pool)
         .await?
         .ok_or_else(|| AppError::not_found("Ministry not found"))?;
-    let _ = create_audit_entry(&pool, &_auth.email, "toggle", "ministry", &row.id.to_string(), Some(serde_json::json!({"id": row.id, "enabled": row.enabled})).await;
+    let _ = create_audit_entry(&pool, &_auth.email, "toggle", "ministry", &row.id.to_string(), Some(serde_json::json!({"id": row.id, "enabled": row.enabled}))).await;
     Ok(Json(row))
  }
  

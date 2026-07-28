@@ -49,5 +49,6 @@ pub struct UpdateEvent {
     #[validate(length(max = 10000, message = "Description must not exceed 10000 characters"))]
     pub description: Option<String>,
     pub capacity: Option<i32>,
+    pub enabled: Option<bool>,
     pub published_at: Option<chrono::NaiveDateTime>,
 }

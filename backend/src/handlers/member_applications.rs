@@ -1,3 +1,4 @@
+use serde::Deserialize;
 use crate::tenant::Db;
 use axum::extract::Path;
 use axum::Json;
@@ -87,10 +88,11 @@ pub async fn approve(
 
     let pool_clone = pool.clone();
     let applicant_name = format!("{} {}", existing.first_name, existing.last_name);
+    let name_for_task = applicant_name.clone();
     let reason_clone = input.reason.clone();
     let email = existing.email.clone();
     tokio::spawn(async move {
-        let _ = email::notify_member_application_decision(&pool_clone, &applicant_name, &email, true, reason_clone.as_deref()).await;
+        let _ = email::notify_member_application_decision(&pool_clone, &name_for_task, &email, true, reason_clone.as_deref()).await;
     });
 
     let _ = create_audit_entry(
@@ -134,10 +136,11 @@ pub async fn reject(
 
     let pool_clone = pool.clone();
     let applicant_name = format!("{} {}", existing.first_name, existing.last_name);
+    let name_for_task = applicant_name.clone();
     let reason_clone = input.reason.clone();
     let email = existing.email.clone();
     tokio::spawn(async move {
-        let _ = email::notify_member_application_decision(&pool_clone, &applicant_name, &email, false, reason_clone.as_deref()).await;
+        let _ = email::notify_member_application_decision(&pool_clone, &name_for_task, &email, false, reason_clone.as_deref()).await;
     });
 
     let _ = create_audit_entry(

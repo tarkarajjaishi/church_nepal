@@ -1,3 +1,4 @@
+use serde::Deserialize;
 use crate::handlers::ValidatedJson;
 use crate::security::xss;
 use crate::tenant::Db;

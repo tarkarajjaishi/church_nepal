@@ -40,9 +40,9 @@ pub async fn create(_auth: AuthUser, Db(pool): Db, ValidatedJson(input): Validat
          r#"UPDATE verses SET text=COALESCE($2,text), ref_text=COALESCE($3,ref_text), ne=COALESCE($4,ne) WHERE id=$1 RETURNING *"#,
      )
      .bind(id)
-     .bind(input.text.as_deref().map(|t| xss::sanitize_plain(t)).or(existing.text.as_deref()))
-     .bind(input.ref_text.as_deref().map(|t| xss::sanitize_plain(t)).or(existing.ref_text.as_deref()))
-     .bind(input.ne.as_deref().map(|t| xss::sanitize_plain(t)).or(existing.ne.as_deref()))
+     .bind(input.text.as_deref().map(|t| xss::sanitize_plain(t)).or(Some(existing.text.clone())))
+     .bind(input.ref_text.as_deref().map(|t| xss::sanitize_plain(t)).or(Some(existing.ref_text.clone())))
+     .bind(input.ne.as_deref().map(|t| xss::sanitize_plain(t)).or(Some(existing.ne.clone())))
      .fetch_one(&pool).await?;
      Ok(Json(row))
  }

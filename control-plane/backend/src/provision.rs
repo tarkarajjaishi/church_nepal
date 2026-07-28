@@ -276,7 +276,7 @@ mod tests {
     use super::*;
 
     #[test]
-    test_slugify() {
+    fn test_slugify() {
         assert_eq!(slugify("Grace Church Kathmandu"), "gracechurchkathmandu");
         assert_eq!(slugify("  Hello   WORLD  "), "helloworld");
         assert_eq!(slugify("A&B"), "ab");
@@ -285,7 +285,7 @@ mod tests {
     }
 
     #[test]
-    test_valid_slug() {
+    fn test_valid_slug() {
         assert!(!valid_slug("")); // too short
         assert!(!valid_slug("ab")); // length 2
         assert!(valid_slug("abc")); // length 3, starts with letter

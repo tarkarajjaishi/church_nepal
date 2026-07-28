@@ -65,19 +65,20 @@ pub async fn list(
         count_builder.push(" AND created_at <= ").push_bind(to);
         data_builder.push(" AND created_at <= ").push_bind(to);
     }
-    if let Some(ref qs) = q.q {
-        let pattern = format!("%{}%", qs);
+    // Hoisted out of the `if` so the builders' borrows outlive the block.
+    let pattern = q.q.as_ref().map(|qs| format!("%{}%", qs));
+    if let Some(ref pattern) = pattern {
         count_builder.push(" AND (");
-        count_builder.push("user_email ILIKE ").push_bind(&pattern);
-        count_builder.push(" OR action ILIKE ").push_bind(&pattern);
-        count_builder.push(" OR entity_type ILIKE ").push_bind(&pattern);
-        count_builder.push(" OR entity_id::text ILIKE ").push_bind(&pattern);
+        count_builder.push("user_email ILIKE ").push_bind(pattern.clone());
+        count_builder.push(" OR action ILIKE ").push_bind(pattern.clone());
+        count_builder.push(" OR entity_type ILIKE ").push_bind(pattern.clone());
+        count_builder.push(" OR entity_id::text ILIKE ").push_bind(pattern.clone());
         count_builder.push(")");
         data_builder.push(" AND (");
-        data_builder.push("user_email ILIKE ").push_bind(&pattern);
-        data_builder.push(" OR action ILIKE ").push_bind(&pattern);
-        data_builder.push(" OR entity_type ILIKE ").push_bind(&pattern);
-        data_builder.push(" OR entity_id::text ILIKE ").push_bind(&pattern);
+        data_builder.push("user_email ILIKE ").push_bind(pattern.clone());
+        data_builder.push(" OR action ILIKE ").push_bind(pattern.clone());
+        data_builder.push(" OR entity_type ILIKE ").push_bind(pattern.clone());
+        data_builder.push(" OR entity_id::text ILIKE ").push_bind(pattern.clone());
         data_builder.push(")");
     }
 

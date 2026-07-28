@@ -28,7 +28,6 @@ pub async fn get(
     .fetch_optional(&pool)
     .await?
     .ok_or_else(|| AppError::not_found("Team member not found"))?;
-    let _ = create_audit_entry(&pool, &auth.email, "toggle", "team", &row.id.to_string(), Some(serde_json::json!({"id": row.id}))).await;
     Ok(Json(row))
 }
 
@@ -88,7 +87,7 @@ pub async fn update(
     .bind(input.sort_order.or(existing.sort_order))
     .fetch_one(&pool)
     .await?;
-    let _ = create_audit_entry(&pool, &auth.email, "update", "team", &row.id.to_string(), Some(serde_json::json!({"id": row.id}))).await;
+    let _ = create_audit_entry(&pool, &_auth.email, "update", "team", &row.id.to_string(), Some(serde_json::json!({"id": row.id}))).await;
     Ok(Json(row))
 }
 
@@ -121,7 +120,7 @@ pub async fn reorder(
     .fetch_optional(&pool)
     .await?
     .ok_or_else(|| AppError::not_found("Team member not found"))?;
-    let _ = create_audit_entry(&pool, &auth.email, "reorder", "team", &row.id.to_string(), Some(serde_json::json!({"id": row.id}))).await;
+    let _ = create_audit_entry(&pool, &_auth.email, "reorder", "team", &row.id.to_string(), Some(serde_json::json!({"id": row.id}))).await;
     Ok(Json(row))
 }
 
@@ -134,6 +133,6 @@ pub async fn delete(
         .bind(id)
         .execute(&pool)
         .await?;
-    let _ = create_audit_entry(&pool, &auth.email, "delete", "team", &id.to_string(), Some(serde_json::json!({"id": id}))).await;
+    let _ = create_audit_entry(&pool, &_auth.email, "delete", "team", &id.to_string(), Some(serde_json::json!({"id": id}))).await;
     Ok(Json(serde_json::json!({ "deleted": true })))
 }

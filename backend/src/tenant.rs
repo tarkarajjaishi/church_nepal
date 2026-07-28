@@ -35,7 +35,7 @@ pub struct TenantRegistry {
     pools: Arc<Mutex<HashMap<String, PgPool>>>,
     pg_base: String,
     base_domain: String,
-    default_slug: Option<String>,
+    pub default_slug: Option<String>,
     min_connections: u32,
     max_connections: u32,
     idle_timeout_secs: u64,

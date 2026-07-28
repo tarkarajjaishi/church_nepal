@@ -1,3 +1,4 @@
+use serde::Deserialize;
 use crate::tenant::Db;
 use axum::extract::{Path, Query, Multipart};
 use axum::http::header;
@@ -10,7 +11,7 @@ use crate::models::{
     BulkAction, CreateHousehold, UpdateHousehold, Household,
     MemberTag, CreateMemberTag,
     MemberNote, CreateMemberNote,
-    CreateMemberCustomField,
+    CreateMemberCustomField, Paginated,
 };
 use std::collections::HashMap;
 use jsonwebtoken::{decode, DecodingKey, Validation};
@@ -687,10 +688,6 @@ pub async fn import_csv(_auth: AuthUser, Db(pool): Db, mut multipart: Multipart)
     })))
 }
 
-fn get_val(map: &HashMap<String, String>, key: Option<&str>) -> Option<String> {
-    key.and_then(|k| map.get(k).cloned())
-}
-
 // ─── Bulk Actions ───
 
 pub async fn bulk_delete(_auth: AuthUser, Db(pool): Db, Json(input): Json<BulkAction>) -> Result<Json<serde_json::Value>, AppError> {
@@ -887,7 +884,8 @@ pub async fn request_magic_link(
         return Err(AppError::bad_request("No member account found with this email"));
     }
 
-    let token = crate::auth::create_token("", email, "member")?;
+    let jti = uuid::Uuid::new_v4().to_string();
+    let token = crate::auth::create_token("", email, "member", &jti, 0)?;
 
     let domain = std::env::var("SITE_DOMAIN").unwrap_or_else(|_| "http://localhost:3000".to_string());
     let magic_link = format!("{}/portal/verify-magic?token={}", domain, token);
@@ -918,7 +916,7 @@ pub async fn magic_login(
 
     let email = &token_data.claims.email;
 
-    let user: Option<crate::models::UserPublic> = sqlx::query_as(
+    let user: crate::models::UserPublic = sqlx::query_as(
         "SELECT id, email, name, role FROM users WHERE email = $1"
     )
     .bind(email)
@@ -926,7 +924,8 @@ pub async fn magic_login(
     .await?
     .ok_or_else(|| AppError::not_found("User account not found. Please contact the church office."))?;
 
-    let session_token = crate::auth::create_token(&user.id.to_string(), &user.email, &user.role)?;
+    let jti = uuid::Uuid::new_v4().to_string();
+    let session_token = crate::auth::create_token(&user.id.to_string(), &user.email, &user.role, &jti, 0)?;
 
     Ok(Json(crate::models::AuthResponse {
         token: session_token,

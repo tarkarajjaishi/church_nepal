@@ -1,3 +1,4 @@
+use axum::response::IntoResponse;
 use crate::tenant::Db;
 use crate::auth::{AuthUser, AdminGuard};
 use axum::extract::{Path, Query, Form};
@@ -119,7 +120,7 @@ pub async fn initiate(
         _ => format!("{}/give/success?donation_id={}", domain, row.id),
     };
 
-    let _ = create_audit_entry(&pool, _auth.email, "create", "donation", &row.id.to_string(), Some(serde_json::json!({"id": row.id}))).await;
+    let _ = create_audit_entry(&pool, &row.donor_email, "create", "donation", &row.id.to_string(), Some(serde_json::json!({"id": row.id}))).await;
 
     Ok(Json(serde_json::json!({
         "donation_id": row.id,
@@ -255,7 +256,7 @@ pub async fn init_esewa(
     });
     crate::handlers::webhooks::enqueue_webhook_delivery(&pool, "donation.created", event_payload);
 
-    let _ = create_audit_entry(&pool, _auth.email, "create", "donation", &row.id.to_string(), Some(serde_json::json!({"id": row.id}))).await;
+    let _ = create_audit_entry(&pool, &row.donor_email, "create", "donation", &row.id.to_string(), Some(serde_json::json!({"id": row.id}))).await;
 
     Ok(Json(serde_json::json!({
         "donation_id": row.id,
@@ -803,14 +804,11 @@ pub async fn refund(
     };
 
     let gateway_refund_id = if donation.payment_method == "stripe" {
-        if let Ok(client) = crate::payment::stripe::StripeClient::from_env() {
-            if client.enabled() {
-                match client.refund_payment(&donation.transaction_id, Some(refund_amount)).await {
-                    Ok(stripe_refund) => Some(stripe_refund.id),
-                    Err(_) => None,
-                }
-            } else {
-                None
+        let client = crate::payment::stripe::StripeClient::from_env();
+        if client.enabled() {
+            match client.refund_payment(&donation.transaction_id, Some(refund_amount)).await {
+                Ok(stripe_refund) => Some(stripe_refund.id),
+                Err(_) => None,
             }
         } else {
             None
@@ -825,7 +823,7 @@ pub async fn refund(
     .bind(refund_amount)
     .bind(refund_status)
     .bind(input.reason.as_deref())
-    .bind(gateway_refund_id)
+    .bind(gateway_refund_id.clone())
     .bind(donation_id)
     .execute(&pool)
     .await?;
@@ -902,9 +900,9 @@ pub async fn gateway_status(
     let esewa_configured = std::env::var("ESEWA_SECRET_KEY").is_ok() && !std::env::var("ESEWA_SECRET_KEY").unwrap_or_default().is_empty();
 
     Ok(Json(serde_json::json!({
-        "stripe": { "enabled": stripe_enabled, "label": stripe_enabled ? "Active" : "Not configured" },
-        "khalti": { "enabled": khalti_configured, "label": khalti_configured ? "Active" : "Not configured" },
-        "esewa":  { "enabled": esewa_configured,  "label": esewa_configured  ? "Active" : "Not configured" },
+        "stripe": { "enabled": stripe_enabled, "label": if stripe_enabled { "Active" } else { "Not configured" } },
+        "khalti": { "enabled": khalti_configured, "label": if khalti_configured { "Active" } else { "Not configured" } },
+        "esewa":  { "enabled": esewa_configured,  "label": if esewa_configured  { "Active" } else { "Not configured" } },
     })))
 }
 
@@ -1071,7 +1069,7 @@ pub async fn create_recurring(
 
     if gateway == "stripe" {
         if let Some(customer_id) = input.stripe_customer_id {
-            if let Ok(client) = crate::payment::stripe::StripeClient::from_env() {
+            { let client = crate::payment::stripe::StripeClient::from_env();
                 if client.enabled() {
                     let _ = client
                         .create_subscription(&customer_id, row.amount, interval)
@@ -1122,7 +1120,7 @@ pub async fn cancel_recurring(
 
     if existing.gateway == "stripe" {
         if let Some(sub_id) = existing.stripe_subscription_id {
-            if let Ok(client) = crate::payment::stripe::StripeClient::from_env() {
+            { let client = crate::payment::stripe::StripeClient::from_env();
                 let _ = client.cancel_subscription(&sub_id).await;
             }
         }

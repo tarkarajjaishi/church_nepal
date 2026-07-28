@@ -1,3 +1,4 @@
+use lettre::Transport;
 use crate::handlers::ValidatedJson;
 use crate::security::xss;
 use crate::tenant::Db;
@@ -82,11 +83,11 @@ pub async fn update(
             WHERE id=$1 RETURNING *"#,
      )
      .bind(id)
-     .bind(input.subject.as_deref().map(|s| xss::sanitize_plain(s)).or(existing.subject.as_deref()))
-     .bind(input.body.as_deref().map(|s| xss::sanitize_html(s)).or(existing.body.as_deref()))
-     .bind(input.broadcast_type.as_deref().or(existing.broadcast_type.as_deref()))
-     .bind(input.recipient_group.as_deref().or(existing.recipient_group.as_deref()))
-     .bind(input.template_body.as_deref().map(|s| xss::sanitize_html(s)).or(existing.template_body.as_deref()))
+     .bind(input.subject.as_deref().map(|s| xss::sanitize_plain(s)).or(Some(existing.subject.clone())))
+     .bind(input.body.as_deref().map(|s| xss::sanitize_html(s)).or(Some(existing.body.clone())))
+     .bind(input.broadcast_type.clone().or(Some(existing.broadcast_type.clone())))
+     .bind(input.recipient_group.clone().or(Some(existing.recipient_group.clone())))
+     .bind(input.template_body.as_deref().map(|s| xss::sanitize_html(s)).or(Some(existing.template_body.clone())))
      .bind(input.scheduled_at.as_deref().and_then(|s| chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%S").ok()))
      .fetch_one(&pool)
      .await?;
@@ -103,7 +104,7 @@ pub async fn delete(
         .bind(id)
     .execute(&pool)
     .await?;
-    let _ = create_audit_entry(&pool, &auth.email, "delete", "broadcast", &id.to_string(), Some(serde_json::json!({"id": id}))).await;
+    let _ = create_audit_entry(&pool, &_auth.email, "delete", "broadcast", &id.to_string(), Some(serde_json::json!({"id": id}))).await;
     Ok(Json(serde_json::json!({ "deleted": true })))
 }
 
@@ -132,7 +133,7 @@ pub async fn schedule(
     .await?
     .ok_or_else(|| AppError::not_found("Broadcast not found"))?;
 
-    let _ = create_audit_entry(&pool, &auth.email, "schedule", "broadcast", &row.id.to_string(), Some(serde_json::json!({"id": row.id}))).await;
+    let _ = create_audit_entry(&pool, &_auth.email, "schedule", "broadcast", &row.id.to_string(), Some(serde_json::json!({"id": row.id}))).await;
     Ok(Json(row))
 }
 
@@ -203,8 +204,8 @@ fn build_email_html(broadcast: &Broadcast, recipient_name: &str, broadcast_id: u
          broadcast.body.clone()
      } else {
          broadcast.template_body.clone()
-             .replace("{{name}}", xss::sanitize_plain(name_placeholder))
-             .replace("{{subject}}", xss::sanitize_plain(&broadcast.subject))
+             .replace("{{name}}", &xss::sanitize_plain(name_placeholder))
+             .replace("{{subject}}", &xss::sanitize_plain(&broadcast.subject))
      };
 
      let tracking_url = format!("/api/broadcasts/open/{}/{}", broadcast_id, recipient_id);
@@ -296,11 +297,9 @@ pub async fn send_broadcast_email(
 
     let host = smtp_host.clone();
     let result = tokio::task::spawn_blocking(move || {
-        if let Ok(mut mailer) = lettre::SmtpTransport::relay(&host) {
-            let built = mailer.credentials(creds).build();
-            built.send(&email)
-        } else {
-            Err(lettre::transport::smtp::Error::ClientNotFound)
+        match lettre::SmtpTransport::relay(&host) {
+            Ok(mailer) => mailer.credentials(creds).build().send(&email).map(|_| ()).map_err(|e| e.to_string()),
+            Err(e) => Err(e.to_string()),
         }
     })
     .await;
@@ -404,7 +403,7 @@ pub async fn send(
     }
 
     for (email, name) in &recipients {
-        let recipient_id: uuid::Uuid = sqlx::query_as(
+        let recipient_id: uuid::Uuid = sqlx::query_scalar(
             "INSERT INTO broadcast_recipients (broadcast_id, recipient_email, recipient_name, status) VALUES ($1, $2, $3, 'pending') RETURNING id",
         )
         .bind(id)

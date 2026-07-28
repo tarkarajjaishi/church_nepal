@@ -93,7 +93,7 @@ pub async fn save_theme_draft(
     .execute(&pool)
     .await?;
 
-    let _ = create_audit_entry(&pool, &auth.email, "update", "setting", "theme_draft", Some(serde_json::json!({"id": "theme_draft"}))).await;
+    let _ = create_audit_entry(&pool, &_auth.email, "update", "setting", "theme_draft", Some(serde_json::json!({"id": "theme_draft"}))).await;
 
     Ok(Json(draft))
 }
@@ -119,7 +119,7 @@ pub async fn publish_theme(
         }
     }
 
-    let _ = create_audit_entry(&pool, &auth.email, "publish", "setting", "theme_draft", Some(serde_json::json!({"id": "theme_draft"}))).await;
+    let _ = create_audit_entry(&pool, &_auth.email, "publish", "setting", "theme_draft", Some(serde_json::json!({"id": "theme_draft"}))).await;
 
     Ok(Json(draft))
 }

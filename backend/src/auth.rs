@@ -17,7 +17,7 @@ pub struct Claims {
     pub pwd_changed_at: usize,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct AuthUser {
     pub user_id: String,
     pub email: String,
