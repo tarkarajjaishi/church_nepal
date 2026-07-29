@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import React from 'react'
 import Link from 'next/link'
-import { motion } from "motion/react";
+import { motion, useReducedMotion } from "motion/react";
 import useEmblaCarousel from 'embla-carousel-react';
 import {
   Play, Calendar, Clock, MapPin, ArrowRight, Quote, Star, Share2, HandHeart, Heart, ChevronRight, ChevronLeft, Mail, CheckCircle, FileText, ZoomIn, Target, Car,
@@ -28,6 +28,7 @@ import {
 } from "@/lib/hooks";
 import { EditableBlock } from "@/components/site/EditableBlock";
 import { ItemEdit } from "@/components/site/ItemEdit";
+import { HeroSkeleton, CardSkeleton } from "@/components/site/LoadingSpinner";
 
 // Default order when no sort_order has been set in the DB.
 // Keys match content_blocks.sectionKey values.
@@ -858,16 +859,33 @@ function TestimoniesSection({ block, allTestimonies }: {
     return () => { emblaApi.off('select', onSelect); emblaApi.off('reInit', onSelect); };
   }, [emblaApi, onSelect]);
 
-  // Auto-play every 5 seconds
+  // Auto-play every 5 seconds.
+  //
+  // WCAG 2.2.2 requires any auto-advancing content to be pausable, so this stops
+  // on hover and on keyboard focus. It also honours prefers-reduced-motion (no
+  // auto-advance at all) and pauses when the tab is hidden, which previously
+  // kept the carousel spinning in the background.
+  const [autoplayPaused, setAutoplayPaused] = useState(false);
+  const reduceMotion = useReducedMotion();
+
   useEffect(() => {
-    if (!emblaApi) return;
-    const interval = setInterval(() => { emblaApi.scrollNext(); }, 5000);
+    if (!emblaApi || autoplayPaused || reduceMotion) return;
+
+    const interval = setInterval(() => {
+      if (!document.hidden) emblaApi.scrollNext();
+    }, 5000);
     return () => clearInterval(interval);
-  }, [emblaApi]);
+  }, [emblaApi, autoplayPaused, reduceMotion]);
 
   return (
     <EditableBlock block={block} adminHref="/admin/testimonies" adminLabel="testimonies">
-      <section className="py-20">
+      <section
+        className="py-20"
+        onMouseEnter={() => setAutoplayPaused(true)}
+        onMouseLeave={() => setAutoplayPaused(false)}
+        onFocusCapture={() => setAutoplayPaused(true)}
+        onBlurCapture={() => setAutoplayPaused(false)}
+      >
         <div className="mx-auto max-w-7xl px-4">
           <div className="flex items-end justify-between gap-4 flex-wrap">
             <SectionHeading eyebrow={<Eyebrow block={block} fallback="Stories of Grace" />} title={block?.title || "Testimonies"} />
@@ -1394,7 +1412,10 @@ export function HomepageSections() {
   const { data: allGallery = [] } = useEnabledGallery();
   const { data: allCampaigns = [] } = useEnabledCampaigns();
   const { data: allVerses = [] } = useEnabledVerses();
-  const { data: contentBlocks = [] } = useContentBlocks();
+  // contentBlocks drives BOTH the copy and the section order, so rendering
+  // before it arrives paints an empty page in the default order and then
+  // reflows/reorders once it lands. Gate on it instead.
+  const { data: contentBlocks = [], isLoading: blocksLoading } = useContentBlocks();
 
   const serviceTimes = allServiceTimes;
   const featuredSermons = allSermons.slice(0, 3);
@@ -1425,6 +1446,24 @@ export function HomepageSections() {
       });
 
   const styleOverrides = homepageLayout ? LAYOUT_STYLE_OVERRIDES[homepageLayout] ?? {} : {};
+
+  // Hold the skeleton until the layout query resolves. Rendering early showed a
+  // fully empty page with hardcoded English fallbacks, which then swapped
+  // content in and re-ordered the sections — the site's worst CLS, on its
+  // most-visited page, and a flash of English for Nepali readers.
+  if (blocksLoading) {
+    return (
+      <div aria-busy="true" aria-live="polite" aria-label={t('loading')}>
+        <HeroSkeleton />
+        <div className="mx-auto max-w-7xl px-4 py-14">
+          <CardSkeleton count={3} />
+        </div>
+        <div className="mx-auto max-w-7xl px-4 py-14">
+          <CardSkeleton count={3} />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>

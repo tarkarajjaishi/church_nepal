@@ -7,7 +7,10 @@ import { SiteThemeApplier } from '@/components/theme/SiteThemeApplier'
 export const metadata: Metadata = {
   title: 'Grace Nepal Church — Faith, Hope & Love',
   description: 'Grace Nepal Church - A community of faith, hope and love in Nepal. Join us for worship, fellowship and service.',
-  manifest: '/manifest',
+  // app/manifest.ts is served at /manifest.webmanifest — linking to '/manifest'
+  // 404s, which silently disabled the PWA install prompt and the CMS-driven app
+  // name/theme colour.
+  manifest: '/manifest.webmanifest',
   themeColor: '#0b3c5d',
   appleWebApp: {
     capable: true,

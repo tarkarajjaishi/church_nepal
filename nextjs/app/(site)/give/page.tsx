@@ -167,6 +167,8 @@ export default function Give() {
                       placeholder="Your full name"
                       value={donorName}
                       onChange={(e) => setDonorName(e.target.value)}
+                      autoComplete="name"
+                      required
                     />
                   </div>
                   <div className="grid grid-cols-2 gap-3">
@@ -178,6 +180,8 @@ export default function Give() {
                         placeholder="you@example.com"
                         value={donorEmail}
                         onChange={(e) => setDonorEmail(e.target.value)}
+                        autoComplete="email"
+                        required
                       />
                     </div>
                     <div>
@@ -188,6 +192,7 @@ export default function Give() {
                         placeholder="98XXXXXXXX"
                         value={donorPhone}
                         onChange={(e) => setDonorPhone(e.target.value)}
+                        autoComplete="tel"
                       />
                     </div>
                   </div>
@@ -195,7 +200,17 @@ export default function Give() {
 
                 <Button
                   size="lg"
-                  disabled={donating || !amount}
+                  // These fields are not inside a <form>, so `required` alone
+                  // never blocks anything — the guard has to live here.
+                  // Previously only `amount` was checked, so a donation could
+                  // be submitted with no donor name or email and there was then
+                  // no way to attribute it or send a receipt.
+                  disabled={
+                    donating ||
+                    !amount ||
+                    !donorName.trim() ||
+                    !/\S+@\S+\.\S+/.test(donorEmail)
+                  }
                   className="mt-6 w-full bg-gold text-church-blue hover:bg-gold/90"
                   onClick={async () => {
                     if (!amount) return;
