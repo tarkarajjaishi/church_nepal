@@ -228,16 +228,16 @@ export default function GroupsPage() {
                               )}
                             </div>
                             <div className="flex flex-wrap gap-4 mt-3 text-sm text-muted-foreground">
-                              {group.meeting_day && (
+                              {group.meetingDay && (
                                 <div className="flex items-center gap-1.5">
                                   <Calendar className="size-4 text-church-blue shrink-0" />
-                                  <span>{group.meeting_day}{group.meeting_time && ` at ${group.meeting_time}`}</span>
+                                  <span>{group.meetingDay}{group.meetingTime && ` at ${group.meetingTime}`}</span>
                                 </div>
                               )}
-                              {group.max_members && (
+                              {group.maxMembers && (
                                 <div className="flex items-center gap-1.5">
                                   <Users className="size-4 text-church-blue shrink-0" />
-                                  <span>Up to {group.max_members} members</span>
+                                  <span>Up to {group.maxMembers} members</span>
                                 </div>
                               )}
                             </div>
@@ -300,12 +300,12 @@ export default function GroupsPage() {
                       )}
 
                       <div className="space-y-2 text-sm text-muted-foreground mt-auto">
-                        {group.meeting_day && (
+                        {group.meetingDay && (
                           <div className="flex items-center gap-2">
                             <Calendar className="size-4 text-church-blue shrink-0" />
                             <span>
-                              {group.meeting_day}
-                              {group.meeting_time && ` at ${group.meeting_time}`}
+                              {group.meetingDay}
+                              {group.meetingTime && ` at ${group.meetingTime}`}
                             </span>
                           </div>
                         )}
@@ -315,10 +315,10 @@ export default function GroupsPage() {
                             <span>{group.location}</span>
                           </div>
                         )}
-                        {group.max_members && (
+                        {group.maxMembers && (
                           <div className="flex items-center gap-2">
                             <Users className="size-4 text-church-blue shrink-0" />
-                            <span>Up to {group.max_members} members</span>
+                            <span>Up to {group.maxMembers} members</span>
                           </div>
                         )}
                       </div>

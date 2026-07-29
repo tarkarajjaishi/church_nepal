@@ -169,9 +169,9 @@ export default function GroupDetail({ params }: { params: { id: string } }) {
             )}
           </div>
           
-          {group.image_url && (
+          {group.imageUrl && (
             <div className="w-full h-64 bg-cover bg-center rounded-lg mb-6" 
-                 style={{ backgroundImage: `url(${group.image_url})` }}></div>
+                 style={{ backgroundImage: `url(${group.imageUrl})` }}></div>
           )}
         </div>
       </section>
@@ -195,13 +195,13 @@ export default function GroupDetail({ params }: { params: { id: string } }) {
               <div>
                 <h3 className="text-lg font-semibold text-church-blue mb-2">Meeting Information</h3>
                 <div className="space-y-3">
-                  {group.meeting_day && (
+                  {group.meetingDay && (
                     <div className="flex items-center gap-3">
                       <Calendar className="size-5 text-church-blue" />
                       <div>
-                        <p className="font-medium">{group.meeting_day}</p>
-                        {group.meeting_time && (
-                          <p className="text-sm text-muted-foreground">at {group.meeting_time}</p>
+                        <p className="font-medium">{group.meetingDay}</p>
+                        {group.meetingTime && (
+                          <p className="text-sm text-muted-foreground">at {group.meetingTime}</p>
                         )}
                       </div>
                     </div>
@@ -215,11 +215,11 @@ export default function GroupDetail({ params }: { params: { id: string } }) {
                       </div>
                     </div>
                   )}
-                  {group.max_members && (
+                  {group.maxMembers && (
                     <div className="flex items-center gap-3">
                       <Users className="size-5 text-church-blue" />
                       <div>
-                        <p className="font-medium">{group.max_members} members max</p>
+                        <p className="font-medium">{group.maxMembers} members max</p>
                         {/* We don't have current_members count, so we'll omit it for now */}
                       </div>
                     </div>
@@ -234,9 +234,9 @@ export default function GroupDetail({ params }: { params: { id: string } }) {
                   {group.enabled !== undefined && !group.enabled && (
                     <p className="text-warning">This group is currently not accepting new members.</p>
                   )}
-                  {group.created_at && (
+                  {group.createdAt && (
                     <p className="text-sm text-muted-foreground">
-                      Established: {new Date(group.created_at).toLocaleDateString()}
+                      Established: {new Date(group.createdAt).toLocaleDateString()}
                     </p>
                   )}
                 </div>

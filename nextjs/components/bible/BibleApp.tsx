@@ -19,6 +19,7 @@ import {
   X,
   ArrowRight,
   Home,
+  Info,
 } from 'lucide-react'
 import {
   Dialog,
@@ -27,6 +28,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { stripHtml } from '@/lib/sanitize-html'
 import { VerseRenderer } from '@/components/bible/VerseRenderer'
 import { BibleSidebar } from '@/components/bible/BibleSidebar'
 import { useBookmarks, useReadingHistory, useReadingProgress } from '@/lib/bible/hooks'
@@ -65,7 +67,12 @@ export function BibleApp({ initialBook = 'JHN', initialChapter = 1 }: BibleAppPr
   const searchParams = useSearchParams()
   const selectedBook = normalizeBookCode(initialBook)
 
-  const queryChapter = Number(searchParams.get('chapter') || '') || initialChapter
+  // `|| initialChapter` would swallow chapter 0 (the book introduction),
+  // since 0 is falsy — parse explicitly instead.
+  const rawChapter = searchParams.get('chapter')
+  const parsedChapter = rawChapter === null ? NaN : Number(rawChapter)
+  const queryChapter =
+    Number.isInteger(parsedChapter) && parsedChapter >= 0 ? parsedChapter : initialChapter
   const queryVerse = Number(searchParams.get('verse') || '') || null
 
   const [chapter, setChapter] = useState(queryChapter)
@@ -89,11 +96,13 @@ export function BibleApp({ initialBook = 'JHN', initialChapter = 1 }: BibleAppPr
 
   const goToChapter = useCallback(
     (next: number, verse: number | null = null) => {
-      const safe = Math.max(1, next)
+      // 0 is the book introduction ("पुस्तक परिचय"), which sits before
+      // chapter 1 — not an out-of-range value to be clamped away.
+      const safe = Math.max(0, next)
       setChapter(safe)
       setSelectedVerse(verse)
       const params = new URLSearchParams()
-      if (safe > 1) params.set('chapter', String(safe))
+      if (safe !== 1) params.set('chapter', String(safe))
       if (verse) params.set('verse', String(verse))
       const qs = params.toString()
       router.replace(`/bible/${selectedBook}${qs ? `?${qs}` : ''}`, { scroll: false })
@@ -130,6 +139,9 @@ export function BibleApp({ initialBook = 'JHN', initialChapter = 1 }: BibleAppPr
 
   const bookName = getBookName(selectedBook)
   const totalChapters = chapterData?.totalChapters || 1
+  const isIntro = chapter === 0
+  // The source ships a per-chapter title; fall back only if it is absent.
+  const chapterTitle: string | null = chapterData?.title ?? null
 
   useEffect(() => {
     if (chapterData?.totalChapters) {
@@ -356,6 +368,8 @@ export function BibleApp({ initialBook = 'JHN', initialChapter = 1 }: BibleAppPr
             {activeTab === 'read' && (
               <ReadTab
                 bookName={bookName}
+                isIntro={isIntro}
+                chapterTitle={chapterTitle}
                 selectedBook={selectedBook}
                 chapter={chapter}
                 goToChapter={goToChapter}
@@ -415,6 +429,8 @@ export function BibleApp({ initialBook = 'JHN', initialChapter = 1 }: BibleAppPr
 
 function ReadTab({
   bookName,
+  isIntro,
+  chapterTitle,
   selectedBook,
   chapter,
   goToChapter,
@@ -433,6 +449,8 @@ function ReadTab({
   history,
 }: {
   bookName: string
+  isIntro: boolean
+  chapterTitle: string | null
   selectedBook: string
   chapter: number
   goToChapter: (n: number, verse?: number | null) => void
@@ -501,8 +519,8 @@ function ReadTab({
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => goToChapter(Math.max(1, chapter - 1))}
-              disabled={chapter <= 1}
+              onClick={() => goToChapter(Math.max(0, chapter - 1))}
+              disabled={chapter <= 0}
               className={iconBtn}
               aria-label="Previous chapter"
             >
@@ -515,7 +533,7 @@ function ReadTab({
               className="inline-flex items-center gap-2 min-h-11 rounded-xl border border-church-blue/12 bg-section-bg hover:bg-church-blue/5 px-3.5 text-sm font-semibold text-church-blue font-nepali transition-colors min-w-[8rem] justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-blue/45"
             >
               <LayoutGrid className="size-4 text-gold" />
-              अध्याय {chapter}
+              {isIntro ? 'पुस्तक परिचय' : `अध्याय ${chapter}`}
             </button>
 
             <button
@@ -530,9 +548,15 @@ function ReadTab({
           </div>
 
           <div className="text-xs sm:text-sm text-muted-foreground tabular-nums font-nepali">
-            <span className="font-medium text-church-blue">{chapter}</span>
-            <span className="mx-1 text-muted-foreground/40">/</span>
-            {totalChapters} अध्याय
+            {isIntro ? (
+              <span className="font-medium text-church-blue font-nepali">परिचय</span>
+            ) : (
+              <>
+                <span className="font-medium text-church-blue">{chapter}</span>
+                <span className="mx-1 text-muted-foreground/40">/</span>
+                {totalChapters} अध्याय
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -542,15 +566,21 @@ function ReadTab({
         <div className="relative px-5 sm:px-7 pt-6 pb-4 border-b border-church-blue/6 bg-gradient-to-br from-church-blue/[0.04] via-white to-gold/[0.06]">
           <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-church-blue via-sky-blue to-gold" />
           <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gold mb-1.5">
-            पवित्र शास्त्र
+            {isIntro ? bookName : 'पवित्र शास्त्र'}
           </p>
           <h2
             className="text-xl sm:text-2xl font-bold text-church-blue font-nepali"
             style={{ fontFamily: 'var(--font-heading)' }}
           >
-            {bookName}
-            <span className="text-muted-foreground/60 font-medium"> · </span>
-            अध्याय {chapter}
+            {isIntro ? (
+              chapterTitle || 'पुस्तक परिचय'
+            ) : (
+              <>
+                {bookName}
+                <span className="text-muted-foreground/60 font-medium"> · </span>
+                अध्याय {chapter}
+              </>
+            )}
           </h2>
         </div>
 
@@ -563,6 +593,21 @@ function ReadTab({
               title="अध्याय लोड गर्न सकिएन"
               subtitle="कृपया फेरि प्रयास गर्नुहोस्"
             />
+          ) : isIntro && chapterData?.verses?.length ? (
+            // The introduction is prose, not scripture. Numbering its
+            // paragraphs and offering bookmark/share per "verse" would imply
+            // it is addressable text, which it is not.
+            <div className="px-3 sm:px-4 py-1 space-y-4">
+              {chapterData.verses.map((v: { text: string }, i: number) => (
+                <p
+                  key={i}
+                  className="text-foreground font-nepali"
+                  style={{ fontSize: `${fontSize}px`, lineHeight: 1.9, letterSpacing: '0.01em' }}
+                >
+                  {stripHtml(v.text.replace(/<\/?red>/g, ''))}
+                </p>
+              ))}
+            </div>
           ) : chapterData?.verses?.length ? (
             <div className="space-y-0.5">
               {chapterData.verses.map((v: { text: string }, i: number) => {
@@ -598,15 +643,15 @@ function ReadTab({
           <div className="flex items-center justify-between gap-3 px-4 sm:px-6 py-4 border-t border-church-blue/6 bg-section-bg/80">
             <button
               type="button"
-              disabled={chapter <= 1}
-              onClick={() => goToChapter(Math.max(1, chapter - 1))}
+              disabled={chapter <= 0}
+              onClick={() => goToChapter(Math.max(0, chapter - 1))}
               className="inline-flex items-center gap-1.5 min-h-11 rounded-xl px-3.5 text-sm font-medium font-nepali text-church-blue hover:bg-white border border-transparent hover:border-church-blue/10 disabled:opacity-30 disabled:pointer-events-none transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-blue/45"
             >
               <ChevronLeft className="size-4" />
               अघिल्लो
             </button>
-            <span className="text-xs text-muted-foreground tabular-nums">
-              {chapter} / {totalChapters}
+            <span className="text-xs text-muted-foreground tabular-nums font-nepali">
+              {isIntro ? 'परिचय' : `${chapter} / ${totalChapters}`}
             </span>
             <button
               type="button"
@@ -637,6 +682,25 @@ function ReadTab({
             </DialogDescription>
           </DialogHeader>
           <div className="p-4 overflow-y-auto max-h-[60dvh] grid grid-cols-5 sm:grid-cols-6 gap-2">
+            {/* Introduction first, as an ⓘ tile — it is published content
+                that sits ahead of chapter 1, not a chapter of its own. */}
+            <button
+              type="button"
+              aria-current={chapter === 0 ? 'true' : undefined}
+              aria-label="पुस्तक परिचय"
+              title="पुस्तक परिचय"
+              onClick={() => {
+                goToChapter(0)
+                setChapterPickerOpen(false)
+              }}
+              className={`aspect-square min-h-11 rounded-xl flex items-center justify-center transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-blue/45 ${
+                chapter === 0
+                  ? 'bg-church-blue text-white shadow-md shadow-church-blue/25 scale-[1.03]'
+                  : 'bg-gold/12 text-accent-foreground hover:bg-gold/20 border border-gold/25'
+              }`}
+            >
+              <Info className="size-4" />
+            </button>
             {Array.from({ length: totalChapters }, (_, i) => i + 1).map((n) => (
               <button
                 key={n}

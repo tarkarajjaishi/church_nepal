@@ -14,6 +14,18 @@
   /* Church brand palette */
   --church-blue: #0b3c5d;
   --church-blue-rgb: 11, 60, 93;
+  /* `--church-blue` does two incompatible jobs: TEXT on pale surfaces (169
+     `bg-church-blue` vs 285 `text-church-blue` uses). In dark mode the text
+     role needs a LIGHT value, but the surface role carries white/gold text
+     and must stay DARK. Serving both from one variable meant lightening it
+     for readable headings turned every solid church-blue section into pale
+     blue with white text on top — measured 1.58:1.
+     So the solid surface gets its own variable and stays dark in both modes.
+     (Same lesson as `--gold` vs `--gold-text`.) */
+  --church-blue-surface: #0b3c5d;
+  /* Always-dark ink for text placed ON gold or other pale brand surfaces.
+     Unlike --church-blue it must NOT lighten in dark mode. */
+  --church-blue-ink: #0b3c5d;
   --sky-blue: #1f6f8b;
   --gold: #d4a017;
   --gold-soft: #f3e2b3;
@@ -66,9 +78,16 @@
 .dark {
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
-  --card: oklch(0.145 0 0);
+  /* Cards and popovers sit ABOVE the page, so they must be lighter than both
+     --background (#0a0a0a) and --section-bg (#0f1a24). They previously
+     matched --background exactly, which flattened every card, dialog and
+     dropdown into the page: measured 1.02:1 against a section background,
+     i.e. no visible boundary at all. Dark UI conveys elevation with
+     lightness, not shadow. Slightly blue-tinted to sit with the brand navy.
+     Measured: 1.37:1 vs the page, 1.22:1 vs section backgrounds. */
+  --card: #232a33;
   --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.145 0 0);
+  --popover: #272f39;
   --popover-foreground: oklch(0.985 0 0);
   --primary: oklch(0.985 0 0);
   --primary-foreground: oklch(0.205 0 0);
@@ -80,8 +99,10 @@
   --accent-foreground: oklch(0.985 0 0);
   --destructive: oklch(0.577 0.245 27.325);
   --destructive-foreground: oklch(1 0 0);
-  --border: oklch(0.269 0 0);
-  --input: oklch(0.269 0 0);
+  /* Lifted off oklch(0.269) so a border is actually visible against the
+     lighter --card surface instead of blending into it. */
+  --border: #3a4350;
+  --input: #3a4350;
   --ring: oklch(0.439 0 0);
 
   /* Brand palette tuned for dark mode: church-blue lightened so headings and
@@ -89,6 +110,10 @@
      by the Theme Customizer when the admin picks a custom colour. */
   --church-blue: #5b9bd5;
   --sky-blue: #7fb2e0;
+  /* Stays dark so white and gold text on solid brand sections keep their
+     contrast; only the TEXT variable above is lightened for dark mode. */
+  --church-blue-surface: #0d2c42;
+  --church-blue-ink: #0b3c5d;
   --section-bg: #0f1a24;
   --gold: #e0b34a;
   --gold-soft: #33290f;
@@ -156,14 +181,16 @@ body {
    exact utility classes to the live theme variables so the Theme Customizer
    recolours the ENTIRE system — public site AND admin — from one place, and
    automatically in dark mode (the variables carry dark values). */
+/* These are all SURFACES carrying light text, so they follow the surface
+   variable — not the text variable, which lightens in dark mode. */
 [class~="bg-[#0b3c5d]"],
 [class~="bg-[#0d4a6e]"],
 [class~="bg-blue-600"],
 [class~="bg-blue-700"],
-[class~="bg-indigo-600"] { background-color: var(--church-blue) !important; }
+[class~="bg-indigo-600"] { background-color: var(--church-blue-surface) !important; }
 
 [class~="hover:bg-[#0d4a6e]"]:hover,
-[class~="hover:bg-blue-700"]:hover { background-color: var(--church-blue) !important; }
+[class~="hover:bg-blue-700"]:hover { background-color: var(--church-blue-surface) !important; }
 
 [class~="text-[#0b3c5d]"],
 [class~="text-blue-600"],
@@ -195,13 +222,52 @@ body {
    editing every file, remap the most common patterns to the theme CSS vars
    so the entire admin shell + content area responds to dark mode. */
 
-/* Page & card backgrounds */
-[class~="bg-white"] { background-color: var(--background) !important; }
+/* Page & card backgrounds.
+   bg-white marks a CARD surface, so it maps to --card, not --background.
+   Mapping it to --background made every card share the page colour, which in
+   dark mode erased the boundary between a card and the page behind it. */
+/* Solid brand sections (hero, footer, verse-of-the-day, CTAs) carry white and
+   gold text, so they follow the surface variable rather than the text one.
+   Only the exact `bg-church-blue` class is remapped — opacity variants like
+   `bg-church-blue/5` stay as subtle tints of the text colour, which is what
+   they are for. */
+[class~="bg-church-blue"] { background-color: var(--church-blue-surface) !important; }
+
+/* Text sitting ON a brand surface must not follow the mode-dependent text
+   colours, or it inverts into the background in dark mode. Both pairings
+   below were measured failing on the homepage in dark mode:
+
+     bg-gold + text-church-blue        → 1.58:1  (pale blue on gold)
+     bg-church-blue + text-primary-fg  → 1.24:1  (near-black on navy)
+
+   Scoped to the exact co-occurrence, so a normal `text-church-blue` heading
+   or a normal `bg-gold` badge is untouched. 24 files use the first pairing;
+   the second comes from <Button> keeping text-primary-foreground while a
+   caller overrides only the background. */
+[class~="bg-gold"][class~="text-church-blue"],
+[class~="bg-gold"][class~="hover:text-church-blue"]:hover {
+  color: var(--church-blue-ink) !important;
+}
+[class~="bg-church-blue"][class~="text-primary-foreground"] {
+  color: #ffffff !important;
+}
+
+[class~="bg-white"] { background-color: var(--card) !important; }
 [class~="bg-gray-50"] { background-color: var(--muted) !important; }
 [class~="bg-gray-100"] { background-color: var(--muted) !important; }
+[class~="hover:bg-white"]:hover { background-color: var(--card) !important; }
 [class~="hover:bg-gray-50"]:hover { background-color: var(--muted) !important; }
 [class~="hover:bg-gray-100"]:hover { background-color: var(--muted) !important; }
 [class~="hover:bg-gray-200"]:hover { background-color: var(--secondary) !important; }
+
+/* slate-* is used alongside gray-* across the site (progress tracks, muted
+   icons). Without these it stayed at its literal light value in dark mode —
+   a bright bar on a dark card — and was too faint on white in light mode. */
+[class~="bg-slate-50"] { background-color: var(--muted) !important; }
+[class~="bg-slate-100"] { background-color: var(--muted) !important; }
+[class~="text-slate-300"] { color: var(--muted-foreground) !important; }
+[class~="text-slate-400"] { color: var(--muted-foreground) !important; }
+[class~="text-slate-500"] { color: var(--muted-foreground) !important; }
 
 /* Text colors */
 [class~="text-gray-400"] { color: var(--muted-foreground) !important; }

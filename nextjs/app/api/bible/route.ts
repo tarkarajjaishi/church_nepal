@@ -35,18 +35,20 @@ function normalizeBook(book: string): string {
 
 /**
  * In every NNRV source file `chapters[0]` is the publisher's book
- * introduction, not chapter 1 — real chapter N lives at `chapters[N]`.
+ * introduction (title "पुस्तक परिचय"), not chapter 1 — real chapter N lives
+ * at `chapters[N]`.
  *
  * Indexing with `chapter - 1` therefore shifted the entire Bible by one: a
  * request for John 3:16 returned John 2:16, and chapter 1 of every book
  * rendered the introduction. Verified against all 66 files — each has exactly
  * one extra leading entry (John 22 vs 21, Psalms 151 vs 150, Genesis 51 vs 50).
  *
- * Chapter numbers are 1-based over real chapters; the introduction is not
- * addressable through this API.
+ * Chapter numbers are 1-based over real chapters. `chapter=0` addresses the
+ * introduction, which is real published content and stays reachable — the
+ * printed NNRV and other Bible readers both present it ahead of chapter 1.
  */
 function getChapter(bookData: BookData, chapter: number): Chapter | null {
-  if (!Number.isInteger(chapter) || chapter < 1) return null
+  if (!Number.isInteger(chapter) || chapter < 0) return null
   return bookData.chapters[chapter] ?? null
 }
 
@@ -59,6 +61,7 @@ interface Verse {
   text: string
 }
 interface Chapter {
+  title?: string
   verses: Verse[]
 }
 interface BookData {
@@ -120,6 +123,10 @@ export async function GET(request: NextRequest) {
     book: BOOK_NAMES[book] || book,
     bookAbbreviation: book,
     chapter,
+    // The source carries a per-chapter title ("पुस्तक परिचय", "यूहन्‍ना 1").
+    // It was never surfaced, so the reader had to synthesise its own heading.
+    title: chapterData.title ?? null,
+    isIntro: chapter === 0,
     totalChapters: chapterCount(bookData),
     verses: chapterData.verses
   })

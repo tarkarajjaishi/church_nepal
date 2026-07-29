@@ -1046,20 +1046,40 @@ function VerseSection({ block, allVerses, lang, t }: {
     setCurrentIndex(pinnedIndex);
   }, [pinnedIndex]);
 
-  // Rotate through verses every 20 seconds
+  const hasPinned = sortedVerses.some(v => v.isPinned);
+  const [paused, setPaused] = useState(false);
+
+  // Rotate through verses every 20 seconds.
+  //
+  // Three things this deliberately does NOT do:
+  //  - rotate when an admin has pinned a verse. Pinning previously only set
+  //    the starting verse, so the pinned choice scrolled away after 20s and
+  //    the setting looked broken.
+  //  - rotate when the reader has asked for reduced motion.
+  //  - keep moving while the section is hovered or focused, so the text can
+  //    be read and its link reached (WCAG 2.2.2 — moving content needs a way
+  //    to pause it).
   useEffect(() => {
-    if (sortedVerses.length <= 1) return;
+    if (hasPinned || paused || sortedVerses.length <= 1) return;
+    if (typeof window !== 'undefined' &&
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     const interval = setInterval(() => {
       setCurrentIndex(prev => (prev + 1) % sortedVerses.length);
     }, 20000);
     return () => clearInterval(interval);
-  }, [sortedVerses.length]);
+  }, [sortedVerses.length, hasPinned, paused]);
 
   const verse = sortedVerses[currentIndex] ?? { text: "", ref_text: "", ne: "" };
 
   return (
     <EditableBlock block={block} adminHref="/admin/verses" adminLabel="verses">
-      <section className="py-20 bg-church-blue relative overflow-hidden">
+      <section
+        className="py-20 bg-church-blue relative overflow-hidden"
+        onMouseEnter={() => setPaused(true)}
+        onMouseLeave={() => setPaused(false)}
+        onFocusCapture={() => setPaused(true)}
+        onBlurCapture={() => setPaused(false)}
+      >
         {/* Decorative quote marks */}
         <div className="absolute top-8 left-8 text-white/5 text-[120px] leading-none select-none" aria-hidden="true">"</div>
         <div className="absolute bottom-8 right-8 text-white/5 text-[120px] leading-none select-none" aria-hidden="true">"</div>
@@ -1070,7 +1090,10 @@ function VerseSection({ block, allVerses, lang, t }: {
             <p className="mt-6 text-white text-2xl md:text-3xl" style={{ fontFamily: "var(--font-heading)", fontWeight: 600, lineHeight: 1.4 }}>
               "{lang === "en" ? verse.text : verse.ne}"
             </p>
-            <p className="mt-4 text-gold font-medium">— {verse.ref_text || verse.ref}</p>
+            {/* lib/api.ts camelCases every response key, so the API's
+                `ref_text` arrives as `refText`. Reading only ref_text/ref
+                left every verse on the homepage with a blank reference. */}
+            <p className="mt-4 text-gold font-medium">— {verse.refText || verse.ref_text || verse.ref}</p>
             <Button variant="outline" className="mt-6 border-white/30 text-white bg-white/5 hover:bg-white/15 hover:text-white">
               <Share2 className="size-4" /> {t("share")}
             </Button>

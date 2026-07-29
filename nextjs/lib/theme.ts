@@ -142,6 +142,13 @@ function lighten(hex: string, amount: number): string {
   )
 }
 
+// Mix a colour toward black by `amount` (0..1).
+function darken(hex: string, amount: number): string {
+  const c = hexToRgb(hex)
+  if (!c) return hex
+  return rgbToHex(c.r * (1 - amount), c.g * (1 - amount), c.b * (1 - amount))
+}
+
 // Readable foreground (near-black or white) for text on top of `hex`.
 function contrastFg(hex: string): string {
   const c = hexToRgb(hex)
@@ -149,6 +156,54 @@ function contrastFg(hex: string): string {
   const luminance = (0.299 * c.r + 0.587 * c.g + 0.114 * c.b) / 255
   return luminance > 0.62 ? '#1f2937' : '#ffffff'
 }
+
+/** WCAG relative luminance (sRGB). */
+function relLuminance(hex: string): number {
+  const c = hexToRgb(hex)
+  if (!c) return 0
+  const f = (v: number) => {
+    const s = v / 255
+    return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4)
+  }
+  return 0.2126 * f(c.r) + 0.7152 * f(c.g) + 0.0722 * f(c.b)
+}
+
+/** WCAG contrast ratio between two hex colours (1–21). */
+function contrastRatio(a: string, b: string): number {
+  const la = relLuminance(a)
+  const lb = relLuminance(b)
+  const [hi, lo] = la > lb ? [la, lb] : [lb, la]
+  return (hi + 0.05) / (lo + 0.05)
+}
+
+/**
+ * Lighten `hex` just enough to reach `target` contrast against `surface`.
+ *
+ * The dark-mode brand colour used to be `lighten(primary, 0.34)` — a fixed
+ * step, which says nothing about the result's contrast. For the default navy
+ * (#0b3c5d) it produced #5e7e94: only 4.17:1 on the dark card surface, so
+ * every `text-church-blue` heading and link in dark mode sat below AA. A dark
+ * enough brand colour could land lower still.
+ *
+ * Stepping until the ratio is met keeps whatever colour an admin picks
+ * readable, instead of assuming one percentage suits all of them.
+ */
+function lightenToContrast(
+  hex: string,
+  surface: string,
+  target: number,
+  minAmount = 0,
+): string {
+  let best = lighten(hex, minAmount)
+  for (let amount = minAmount; amount <= 0.95; amount += 0.02) {
+    best = lighten(hex, amount)
+    if (contrastRatio(best, surface) >= target) return best
+  }
+  return best
+}
+
+/** Card surface in dark mode — keep in step with `--card` in globals.css. */
+const DARK_SURFACE = '#232a33'
 
 // ---- runtime application --------------------------------------------------
 
@@ -162,13 +217,20 @@ export function buildThemeCss(primary: string): string {
   const rgb = hexToRgb(p) || { r: 11, g: 60, b: 93 }
   const sky = lighten(p, 0.18)
   const fg = contrastFg(p)
-  const darkPrimary = lighten(p, 0.34)
-  const darkSky = lighten(p, 0.46)
+  // Dark mode: lighten until the colour actually clears AA on the dark card
+  // surface, keeping 0.34 as the floor so the look does not change for
+  // colours that already passed.
+  const darkPrimary = lightenToContrast(p, DARK_SURFACE, 4.5, 0.34)
+  const darkSky = lighten(darkPrimary, 0.18)
   const triplet = `${rgb.r}, ${rgb.g}, ${rgb.b}`
+  // Solid brand sections keep a dark surface in dark mode. Without this the
+  // lightened text colour would also paint every `bg-church-blue` band, and
+  // the white text sitting on those bands would drop to ~1.6:1.
+  const darkSurface = darken(p, 0.18)
   return [
-    `:root{--church-blue:${p};--church-blue-rgb:${triplet};--sky-blue:${sky};--ring:${p};}`,
+    `:root{--church-blue:${p};--church-blue-rgb:${triplet};--sky-blue:${sky};--ring:${p};--church-blue-surface:${p};}`,
     `:root:not(.dark){--primary:${p};--primary-foreground:${fg};}`,
-    `.dark{--church-blue:${darkPrimary};--sky-blue:${darkSky};--ring:${darkPrimary};}`,
+    `.dark{--church-blue:${darkPrimary};--sky-blue:${darkSky};--ring:${darkPrimary};--church-blue-surface:${darkSurface};}`,
   ].join('\n')
 }
 

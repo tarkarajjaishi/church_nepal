@@ -41,10 +41,10 @@ export default function Terms() {
                 <Reveal key={i} delay={i * 0.05}>
                   <Card className="p-6 border-border/60">
                     <h2 className="text-lg text-church-blue mb-3" style={{ fontFamily: "var(--font-heading)", fontWeight: 600 }}>
-                      {lang === "en" ? s.title : (s.title_ne || s.title)}
+                      {lang === "en" ? s.title : ((s.titleNe ?? s.title_ne) || s.title)}
                     </h2>
                     <p className="text-muted-foreground leading-relaxed">
-                      {lang === "en" ? s.content : (s.content_ne || s.content)}
+                      {lang === "en" ? s.content : ((s.contentNe ?? s.content_ne) || s.content)}
                     </p>
                   </Card>
                 </Reveal>
