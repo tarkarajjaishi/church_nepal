@@ -14,8 +14,17 @@ use sqlx::postgres::PgPoolOptions;
 use sqlx::PgPool;
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tokio::sync::Mutex;
+
+/// How long an unknown slug is remembered as missing before we probe Postgres
+/// again. Long enough that a subdomain scan costs nothing, short enough that a
+/// church provisioned by the control plane starts serving without a restart.
+const MISSING_TENANT_TTL: Duration = Duration::from_secs(30);
+
+/// Postgres SQLSTATE 3D000 — the database named in the connection URL does not
+/// exist. This is permanent for the request: retrying cannot make it true.
+const INVALID_CATALOG_NAME: &str = "3D000";
 
 #[derive(Clone)]
 pub struct TenantRegistryConfig {
@@ -33,6 +42,10 @@ pub struct TenantRegistryConfig {
 #[derive(Clone)]
 pub struct TenantRegistry {
     pools: Arc<Mutex<HashMap<String, PgPool>>>,
+    /// Slugs recently confirmed absent, with the time they were recorded.
+    /// Without this, every request to an unknown subdomain re-ran the full
+    /// connect-and-retry cycle against Postgres.
+    missing: Arc<Mutex<HashMap<String, Instant>>>,
     pg_base: String,
     base_domain: String,
     pub default_slug: Option<String>,
@@ -48,6 +61,7 @@ impl TenantRegistry {
     pub fn from_config(cfg: TenantRegistryConfig) -> Self {
         Self {
             pools: Arc::new(Mutex::new(HashMap::new())),
+            missing: Arc::new(Mutex::new(HashMap::new())),
             pg_base: cfg.pg_base,
             base_domain: cfg.base_domain,
             default_slug: cfg.default_slug,
@@ -125,10 +139,51 @@ impl TenantRegistry {
                 return Some(p.clone());
             }
         }
-        let pool = self.connect_with_retry(slug).await?;
+
+        // Known-missing tenants short-circuit here. Any request naming an
+        // unprovisioned subdomain used to re-enter connect_with_retry and sit
+        // there for ~9s while holding Postgres connection slots, which starved
+        // the pools of healthy tenants — one bogus subdomain could 500 the
+        // whole API. `*.churchnepal.com` is a public wildcard, so this path is
+        // reachable by anyone.
+        if self.is_known_missing(slug).await {
+            return None;
+        }
+
+        let pool = match self.connect_with_retry(slug).await {
+            Some(pool) => pool,
+            None => {
+                self.mark_missing(slug).await;
+                return None;
+            }
+        };
         let mut guard = self.pools.lock().await;
         let entry = guard.entry(slug.to_string()).or_insert(pool);
         Some(entry.clone())
+    }
+
+    async fn is_known_missing(&self, slug: &str) -> bool {
+        let mut guard = self.missing.lock().await;
+        match guard.get(slug) {
+            Some(seen) if seen.elapsed() < MISSING_TENANT_TTL => true,
+            Some(_) => {
+                // Expired — drop it and let this request re-probe, so a newly
+                // provisioned church starts serving on its own.
+                guard.remove(slug);
+                false
+            }
+            None => false,
+        }
+    }
+
+    async fn mark_missing(&self, slug: &str) {
+        self.missing.lock().await.insert(slug.to_string(), Instant::now());
+    }
+
+    /// Forget a cached "missing" entry — call after provisioning a church so it
+    /// serves immediately instead of waiting out the TTL.
+    pub async fn forget_missing(&self, slug: &str) {
+        self.missing.lock().await.remove(slug);
     }
 
     async fn connect_with_retry(&self, slug: &str) -> Option<PgPool> {
@@ -145,6 +200,12 @@ impl TenantRegistry {
             {
                 Ok(pool) => return Some(pool),
                 Err(e) => {
+                    // "database does not exist" is permanent — retrying it just
+                    // burns time and connection slots. Give up immediately.
+                    if is_missing_database(&e) {
+                        eprintln!("Church db '{}' does not exist", slug);
+                        return None;
+                    }
                     attempt += 1;
                     if attempt >= max_retries {
                         eprintln!(
@@ -168,6 +229,15 @@ impl TenantRegistry {
         let guard = self.pools.lock().await;
         guard.values().cloned().collect()
     }
+}
+
+/// True when the connection failed because the target database is absent
+/// (SQLSTATE 3D000), as opposed to a transient failure worth retrying.
+fn is_missing_database(err: &sqlx::Error) -> bool {
+    matches!(
+        err.as_database_error().and_then(|e| e.code()).as_deref(),
+        Some(INVALID_CATALOG_NAME)
+    )
 }
 
 /// A church's db name must be a safe Postgres identifier — this is also the
@@ -243,5 +313,70 @@ impl<S: Send + Sync> FromRequestParts<S> for TenantSlug {
             .get::<TenantSlug>()
             .cloned()
             .ok_or(StatusCode::INTERNAL_SERVER_ERROR)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn registry() -> TenantRegistry {
+        TenantRegistry::from_config(TenantRegistryConfig {
+            pg_base: "postgres://postgres:password@localhost:5432".into(),
+            base_domain: "churchnepal.com".into(),
+            default_slug: None,
+            min_connections: 1,
+            max_connections: 5,
+            idle_timeout_secs: 600,
+            max_lifetime_secs: 1800,
+            connect_timeout_secs: 5,
+            connect_max_retries: 10,
+        })
+    }
+
+    /// The negative cache is what stops one unprovisioned subdomain from
+    /// re-entering the connect-and-retry path on every request.
+    #[tokio::test]
+    async fn missing_tenants_are_cached_and_can_be_forgotten() {
+        let reg = registry();
+
+        assert!(!reg.is_known_missing("nosuchchurch").await);
+
+        reg.mark_missing("nosuchchurch").await;
+        assert!(reg.is_known_missing("nosuchchurch").await);
+
+        // Other tenants are unaffected.
+        assert!(!reg.is_known_missing("gracechurch").await);
+
+        // Provisioning clears the entry so the church serves immediately.
+        reg.forget_missing("nosuchchurch").await;
+        assert!(!reg.is_known_missing("nosuchchurch").await);
+    }
+
+    #[test]
+    fn slug_validation_rejects_injection_and_malformed_names() {
+        assert!(valid_slug("gracechurch"));
+        assert!(valid_slug("church_2"));
+        assert!(!valid_slug("ab")); // too short
+        assert!(!valid_slug("2church")); // must start with a letter
+        assert!(!valid_slug("Grace")); // uppercase
+        assert!(!valid_slug("a b")); // whitespace
+        assert!(!valid_slug("x\"; DROP DATABASE postgres; --"));
+    }
+
+    #[test]
+    fn subdomain_resolution() {
+        assert_eq!(
+            subdomain_from_host("gracechurch.churchnepal.com", "churchnepal.com"),
+            Some("gracechurch".into())
+        );
+        // Apex and www are not tenants.
+        assert_eq!(subdomain_from_host("churchnepal.com", "churchnepal.com"), None);
+        assert_eq!(subdomain_from_host("www.churchnepal.com", "churchnepal.com"), None);
+        // Port is ignored.
+        assert_eq!(
+            subdomain_from_host("gracechurch.localhost:3002", "churchnepal.com"),
+            Some("gracechurch".into())
+        );
     }
 }

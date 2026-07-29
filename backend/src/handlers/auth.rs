@@ -289,7 +289,8 @@ pub async fn logout(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::auth::{decode, Claims, DecodingKey, Validation};
+    use crate::auth::Claims;
+    use jsonwebtoken::{decode, DecodingKey, Validation};
     use std::env;
 
     #[test]

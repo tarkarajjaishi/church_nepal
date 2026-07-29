@@ -4,6 +4,8 @@ use axum::Router;
 
 use crate::auth::AdminGuard;
 use crate::handlers::*;
+use crate::{lenient_ip_governor, per_token_governor, strict_ip_governor};
+use tower_governor::GovernorLayer;
 
 // Public-write routes that POST a JSON body and must be validated and have a
 // tighter per-IP rate-limit than the lenient global floor.
@@ -109,7 +111,9 @@ fn public_read_routes() -> Router {
 /// one pool per IP. Individual public-write handlers also receive body
 /// validation middleware that returns structured 400 on failure.
 pub fn public_routes() -> Router {
-    let submit = public_submit_routes();
+    // Strict 30/min per IP — login and public writes are the abuse surface.
+    let submit = public_submit_routes()
+        .layer(GovernorLayer { config: strict_ip_governor() });
 
     Router::new().merge(submit).merge(public_read_routes())
 }
@@ -124,6 +128,7 @@ pub fn auth_routes() -> Router {
         .route("/auth/refresh", post(auth::refresh))
         .route("/auth/logout", post(auth::logout))
         .layer(from_extractor::<crate::auth::AuthUser>())
+        .layer(GovernorLayer { config: strict_ip_governor() })
 }
 
 /// Member portal routes: authenticated non-admin users only.
@@ -139,6 +144,7 @@ pub fn portal_routes() -> Router {
         .route("/portal/directory", get(people::directory_list))
         .route("/portal/directory/contact", post(people::directory_contact))
         .layer(from_extractor::<crate::auth::MemberGuard>())
+        .layer(GovernorLayer { config: strict_ip_governor() })
 }
 
 /// Admin-only routes (AdminGuard extractor). Tracked per bearer-token via
@@ -643,6 +649,9 @@ pub fn admin_routes() -> Router {
         )
         // Search (admin)
         .route("/search", get(dashboard::search))
+        // 1 000/min keyed on the bearer token, so one busy admin session cannot
+        // consume another's budget. Falls back to IP when no token is present.
+        .layer(GovernorLayer { config: per_token_governor() })
 }
 
 /// State-agnostic root: handlers pick up their pool via the tenant extractor.
@@ -670,4 +679,7 @@ pub fn api_routes() -> Router {
         .merge(auth)
         .merge(portal)
         .merge(guarded_admin)
+        // Global floor: 200/min per IP across every route. The stricter
+        // per-group limiters above nest inside this, so a burst must clear both.
+        .layer(GovernorLayer { config: lenient_ip_governor() })
 }

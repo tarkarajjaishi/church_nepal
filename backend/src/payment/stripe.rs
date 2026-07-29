@@ -273,7 +273,7 @@ mod tests {
     #[test]
     fn test_stripe_client_new() {
         let client = StripeClient::new("sk_test_123");
-        assert_eq!(client.secret_key(), "sk_test_123");
+        assert_eq!(client.secret_key, "sk_test_123");
         assert!(client.enabled());
     }
 
@@ -281,7 +281,7 @@ mod tests {
     fn test_stripe_client_from_env() {
         std::env::set_var("STRIPE_SECRET_KEY", "sk_env_key");
         let client = StripeClient::from_env();
-        assert_eq!(client.secret_key(), "sk_env_key");
+        assert_eq!(client.secret_key, "sk_env_key");
         assert!(client.enabled());
         std::env::remove_var("STRIPE_SECRET_KEY");
     }

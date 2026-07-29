@@ -26,6 +26,10 @@ lettre = { version = "0.11", default-features = false, features = ["builder", "s
 image = "0.25"
 validator = { version = "0.16", features = ["derive"] }
 tower_governor = { version = "0.6" }
+# Direct dep so the rate-limiter helpers can name NoOpMiddleware/QuantaInstant
+# in their return types; tower_governor does not re-export them. Cargo unifies
+# this with the version tower_governor already resolves to.
+governor = "0.8"
 dashmap = "5"
 sentry = { version = "0.48.5", features = ["tokio"] }
 regex = "1"

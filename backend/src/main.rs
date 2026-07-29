@@ -21,10 +21,88 @@ use tower_http::cors::{Any, CorsLayer};
 use uuid::Uuid;
 use handlers::webhooks::process_webhook_deliveries;
 
-// ponytail: removed the tower_governor rate-limiter + sentry scaffolding — both
-// were written against different crate APIs (never compiled) and are non-essential
-// for local dev. Re-add with a per-IP/per-token governor matching tower_governor
-// 0.6's KeyExtractor trait if you need rate limiting in production.
+use governor::clock::QuantaInstant;
+use governor::middleware::NoOpMiddleware;
+use std::sync::Arc as StdArc;
+use tower_governor::governor::{GovernorConfig, GovernorConfigBuilder};
+use tower_governor::key_extractor::{KeyExtractor, SmartIpKeyExtractor};
+use tower_governor::GovernorError;
+
+/// Every config here uses the builder's default (no-op) middleware.
+type Governor<K> = StdArc<GovernorConfig<K, NoOpMiddleware<QuantaInstant>>>;
+
+// ── Rate limiting ────────────────────────────────────────────────────────────
+//
+// tower_governor 0.6's KeyExtractor is just `extract()` — the earlier version of
+// this file assumed a `KeyExtractionError` associated type and a `measure()`
+// method that do not exist, which is why it never compiled.
+//
+// Limits are expressed as a replenish interval plus a burst size, since the
+// builder has no per_minute(): 200/min == one cell every 300ms with a burst of
+// 200.
+
+// Client IP comes from SmartIpKeyExtractor, which reads X-Forwarded-For /
+// X-Real-IP before falling back to the peer address — the app runs behind
+// Caddy/nginx, so the peer address is the proxy on every request.
+
+/// Rate-limits by bearer token so one noisy admin session cannot spend another
+/// admin's budget. Falls back to the client IP when there is no token, so
+/// unauthenticated traffic to guarded routes is still counted.
+#[derive(Clone)]
+struct TokenOrIpKeyExtractor;
+
+impl KeyExtractor for TokenOrIpKeyExtractor {
+    type Key = String;
+
+    #[cfg(feature = "tracing")]
+    fn name(&self) -> &'static str {
+        "bearer token or IP"
+    }
+
+    fn extract<T>(&self, req: &axum::http::Request<T>) -> Result<Self::Key, GovernorError> {
+        if let Some(token) = req
+            .headers()
+            .get(axum::http::header::AUTHORIZATION)
+            .and_then(|v| v.to_str().ok())
+            .and_then(|h| h.strip_prefix("Bearer "))
+            .filter(|t| !t.is_empty())
+        {
+            return Ok(format!("token:{token}"));
+        }
+        SmartIpKeyExtractor
+            .extract(req)
+            .map(|ip| format!("ip:{ip}"))
+            .or(Err(GovernorError::UnableToExtractKey))
+    }
+}
+
+fn governor_config<K: KeyExtractor>(key_extractor: K, per_minute: u32) -> Governor<K> {
+    let replenish_ms = (60_000 / u64::from(per_minute)).max(1);
+    StdArc::new(
+        GovernorConfigBuilder::default()
+            .key_extractor(key_extractor)
+            .per_millisecond(replenish_ms)
+            .burst_size(per_minute)
+            .finish()
+            .expect("valid governor config"),
+    )
+}
+
+/// Global floor: 200 req/min per IP on every route.
+pub fn lenient_ip_governor() -> Governor<SmartIpKeyExtractor> {
+    governor_config(SmartIpKeyExtractor, 200)
+}
+
+/// Tighter 30 req/min per IP for auth and public-write endpoints (login,
+/// contact, donations, prayer requests) — the abuse-prone surface.
+pub fn strict_ip_governor() -> Governor<SmartIpKeyExtractor> {
+    governor_config(SmartIpKeyExtractor, 30)
+}
+
+/// 1 000 req/min per bearer token for the admin surface.
+pub fn per_token_governor() -> Governor<TokenOrIpKeyExtractor> {
+    governor_config(TokenOrIpKeyExtractor, 1000)
+}
 
 async fn run_recurring_job(reg: TenantRegistry) {
     let mut interval = tokio::time::interval(std::time::Duration::from_secs(60));
@@ -289,5 +367,12 @@ async fn main() {
     println!("Church app (multi-tenant) running on http://{}", addr);
 
     let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
-    axum::serve(listener, app).await.unwrap();
+    // ConnectInfo must be available or the rate limiter's peer-IP fallback has
+    // no key to extract and every un-proxied request fails with 500.
+    axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
+    )
+    .await
+    .unwrap();
 }
