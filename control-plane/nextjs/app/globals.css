@@ -841,3 +841,48 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* ===========================================================================
+   THEME BRIDGE — literal Tailwind palette classes
+   ===========================================================================
+   48 places still use raw palette classes instead of the tokens defined at the
+   top of this file. Two consequences in a dark-first product:
+
+   - Neutrals were plain wrong, not just off-brand: `border-gray-300`
+     (#d1d5db) drew a near-white hairline on `--panel` (#131a26), and
+     `bg-gray-100` painted a light block onto a dark page.
+   - Semantic colours (red = destructive, green = healthy) ignored --danger and
+     --good, so they did not follow the light/dark switch or any future token
+     change.
+
+   Remapped here rather than edited across 15 files, so the tokens stay the one
+   place these colours are defined. Because the values come from variables that
+   both [data-theme="dark"] and [data-theme="light"] redefine, these follow the
+   theme switch automatically. */
+
+/* Destructive / error */
+[class~="text-red-400"],
+[class~="text-red-500"] { color: var(--danger) !important; }
+[class~="border-red-500"] { border-color: var(--danger) !important; }
+[class~="bg-red-500"],
+[class~="bg-red-600"] { background-color: var(--danger) !important; }
+[class~="bg-red-700"],
+[class~="hover:bg-red-700"]:hover { background-color: var(--danger) !important; filter: brightness(0.88); }
+
+/* Healthy / success */
+[class~="text-green-400"],
+[class~="text-green-500"],
+[class~="text-green-600"] { color: var(--good) !important; }
+[class~="bg-green-500"] { background-color: var(--good) !important; }
+[class~="border-green-500"] { border-color: var(--good) !important; }
+
+/* Neutrals — these were light values sitting on dark surfaces */
+[class~="border-gray-300"] { border-color: var(--border) !important; }
+[class~="bg-gray-100"] { background-color: var(--panel-2) !important; }
+[class~="bg-gray-800"] { background-color: var(--panel-3) !important; }
+
+/* Decorative category accents on /resources keep their hue but pick up the
+   theme's accent for the primary one so it tracks the brand. */
+[class~="text-blue-500"] { color: var(--accent) !important; }
+[class~="bg-blue-500"] { background-color: var(--accent) !important; }
+[class~="border-blue-500"] { border-color: var(--accent) !important; }
