@@ -1,3 +1,4 @@
+use serde::Deserialize;
 use crate::handlers::ValidatedJson;
 use crate::security::xss;
 use crate::tenant::Db;
@@ -86,10 +87,10 @@ pub async fn update(_auth: AuthUser, Db(pool): Db, Path(id): Path<uuid::Uuid>, V
          r#"UPDATE testimonies SET name=COALESCE($2,name), role=COALESCE($3,role), quote=COALESCE($4,quote), image=COALESCE($5,image), rating=COALESCE($6,rating), status=COALESCE($7,status) WHERE id=$1 RETURNING *"#,
      )
      .bind(id)
-     .bind(input.name.as_deref().map(|t| xss::sanitize_plain(t)).or(existing.name.as_deref()))
-     .bind(input.role.as_deref().map(|t| xss::sanitize_plain(t)).or(existing.role.as_deref()))
-     .bind(input.quote.as_deref().map(|t| xss::sanitize_plain(t)).or(existing.quote.as_deref()))
-     .bind(input.image.as_deref().or(existing.image.as_deref()))
+     .bind(input.name.as_deref().map(|t| xss::sanitize_plain(t)).or(Some(existing.name.clone())))
+     .bind(input.role.as_deref().map(|t| xss::sanitize_plain(t)).or(Some(existing.role.clone())))
+     .bind(input.quote.as_deref().map(|t| xss::sanitize_plain(t)).or(Some(existing.quote.clone())))
+     .bind(input.image.clone().or(Some(existing.image.clone())))
      .bind(input.rating.unwrap_or(existing.rating))
      .bind(input.status.unwrap_or(existing.status))
      .fetch_one(&pool).await?;

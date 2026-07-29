@@ -1,37 +1,27 @@
-import { Navbar } from './components/navbar';
-import { Footer } from './components/footer';
-import SiteSearch from './components/site-search';
-import AnnouncementBar from './components/announcement-bar';
-import SocialProof from './components/social-proof';
-import { ThemeProvider } from './components/theme-provider';
-import { QueryProvider } from './components/query-provider';
-import RouteProgress from './components/route-progress';
-import CookiePreferences from './components/cookie-preferences';
-import SupportWidget from './components/support-widget';
-import type { ReactNode } from 'react';
+import SupportWidget from "@/components/support-widget";
+import { Navbar } from "@/components/navbar";
+import { Footer } from "@/components/footer";
+import ScrollProgress from "@/components/landing/scroll-progress";
+import CookieConsent from "@/components/landing/cookie-consent";
+import DemoModal from "@/components/landing/demo-modal";
 
-interface Props {
-  children: ReactNode;
-}
-
-export default function PublicLayout({ children }: Props) {
+export default function PublicLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
-    <QueryProvider>
-      <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-        <RouteProgress />
-        <div className="min-h-screen flex flex-col bg-[var(--bg)]">
-          <AnnouncementBar />
-          <Navbar />
-          <main className="flex-grow">
-            {children}
-          </main>
-          <Footer />
-          <SiteSearch />
-          <SocialProof />
-          <CookiePreferences />
-          <SupportWidget />
-        </div>
-      </ThemeProvider>
-    </QueryProvider>
+    <div className="flex min-h-screen flex-col bg-[var(--bg)]">
+      <ScrollProgress />
+      <Navbar />
+      <main className="flex-1">{children}</main>
+      <Footer />
+      {/* Floating "Book a demo" trigger (bottom-left) */}
+      <div className="fixed bottom-6 left-6 z-40">
+        <DemoModal />
+      </div>
+      <SupportWidget />
+      <CookieConsent />
+    </div>
   );
 }

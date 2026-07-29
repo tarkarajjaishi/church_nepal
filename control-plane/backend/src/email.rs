@@ -16,16 +16,16 @@ pub async fn send_admin_notification(
     let email = Message::builder()
         .from(
             format!("ChurchNepal Control <{}>", cfg.smtp_from)
-                .parse()
+                .parse::<lettre::message::Mailbox>()
                 .map_err(|e| AppError::internal(e.to_string()))?,
         )
         .to(
             recipient
-                .parse()
+                .parse::<lettre::message::Mailbox>()
                 .map_err(|e| AppError::internal(e.to_string()))?,
         )
-        .subject(subject)
-        .body(body)
+        .subject(subject.to_string())
+        .body(body.to_string())
         .map_err(|e| AppError::internal(e.to_string()))?;
 
     let creds = Credentials::new(cfg.smtp_username.clone(), cfg.smtp_password.clone());

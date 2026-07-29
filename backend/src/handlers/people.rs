@@ -1,3 +1,5 @@
+use serde::{Serialize, Deserialize};
+use sqlx::FromRow;
 use crate::handlers::ValidatedJson;
 use crate::security::xss;
 use crate::tenant::Db;
@@ -126,7 +128,7 @@ pub async fn update(
     .bind(input.enabled.unwrap_or(existing.enabled))
     .bind(input.sort_order.unwrap_or(existing.sort_order))
     .fetch_one(&pool).await?;
-    let _ = create_audit_entry(&pool, &auth.email, "update", "person", &row.id.to_string(), Some(serde_json::json!({"id": row.id}))).await;
+    let _ = create_audit_entry(&pool, &_auth.email, "update", "person", &row.id.to_string(), Some(serde_json::json!({"id": row.id}))).await;
     Ok(Json(row))
 }
 
@@ -137,7 +139,7 @@ pub async fn delete(
 ) -> Result<Json<serde_json::Value>, AppError> {
     sqlx::query("DELETE FROM people WHERE id = $1")
         .bind(id).execute(&pool).await?;
-    let _ = create_audit_entry(&pool, &auth.email, "delete", "person", &id.to_string(), Some(serde_json::json!({"id": id}))).await;
+    let _ = create_audit_entry(&pool, &_auth.email, "delete", "person", &id.to_string(), Some(serde_json::json!({"id": id}))).await;
     Ok(Json(serde_json::json!({ "deleted": true })))
 }
 
@@ -149,7 +151,7 @@ pub async fn toggle(
     let row = sqlx::query_as::<_, Person>("UPDATE people SET enabled = NOT enabled WHERE id = $1 RETURNING *")
         .bind(id).fetch_optional(&pool).await?
         .ok_or_else(|| AppError::not_found("Person not found"))?;
-    let _ = create_audit_entry(&pool, &auth.email, "toggle", "person", &row.id.to_string(), Some(serde_json::json!({"id": row.id}))).await;
+    let _ = create_audit_entry(&pool, &_auth.email, "toggle", "person", &row.id.to_string(), Some(serde_json::json!({"id": row.id}))).await;
     Ok(Json(row))
 }
 
@@ -165,7 +167,7 @@ pub async fn reorder(
     let row = sqlx::query_as::<_, Person>("UPDATE people SET sort_order = $2 WHERE id = $1 RETURNING *")
         .bind(id).bind(input.sort_order).fetch_optional(&pool).await?
         .ok_or_else(|| AppError::not_found("Person not found"))?;
-    let _ = create_audit_entry(&pool, &auth.email, "reorder", "person", &row.id.to_string(), Some(serde_json::json!({"id": row.id}))).await;
+    let _ = create_audit_entry(&pool, &_auth.email, "reorder", "person", &row.id.to_string(), Some(serde_json::json!({"id": row.id}))).await;
     Ok(Json(row))
 }
 
@@ -194,7 +196,7 @@ pub async fn create_household(
     )
     .bind(&input.name).bind(&input.address).bind(&input.phone).bind(&input.notes)
     .fetch_one(&pool).await?;
-    let _ = create_audit_entry(&pool, &auth.email, "create_household", "household", &row.id.to_string(), Some(serde_json::json!({"id": row.id}))).await;
+    let _ = create_audit_entry(&pool, &_auth.email, "create_household", "household", &row.id.to_string(), Some(serde_json::json!({"id": row.id}))).await;
     Ok(Json(row))
 }
 
@@ -221,7 +223,7 @@ pub async fn delete_household(
 ) -> Result<Json<serde_json::Value>, AppError> {
     sqlx::query("UPDATE people SET household_id = NULL WHERE household_id = $1").bind(id).execute(&pool).await?;
     sqlx::query("DELETE FROM households WHERE id = $1").bind(id).execute(&pool).await?;
-    let _ = create_audit_entry(&pool, &auth.email, "delete_household", "household", &id.to_string(), Some(serde_json::json!({"id": id}))).await;
+    let _ = create_audit_entry(&pool, &_auth.email, "delete_household", "household", &id.to_string(), Some(serde_json::json!({"id": id}))).await;
     Ok(Json(serde_json::json!({ "deleted": true })))
 }
 
@@ -241,7 +243,7 @@ pub async fn create_tag(
     )
     .bind(&input.name).bind(input.color.as_deref().unwrap_or("#3B82F6"))
     .fetch_one(&pool).await?;
-    let _ = create_audit_entry(&pool, &auth.email, "create_tag", "tag", &row.id.to_string(), Some(serde_json::json!({"id": row.id}))).await;
+    let _ = create_audit_entry(&pool, &_auth.email, "create_tag", "tag", &row.id.to_string(), Some(serde_json::json!({"id": row.id}))).await;
     Ok(Json(row))
 }
 
@@ -249,7 +251,7 @@ pub async fn delete_tag(
     _auth: AuthUser, Db(pool): Db, Path(id): Path<uuid::Uuid>,
 ) -> Result<Json<serde_json::Value>, AppError> {
     sqlx::query("DELETE FROM tags WHERE id = $1").bind(id).execute(&pool).await?;
-    let _ = create_audit_entry(&pool, &auth.email, "delete_tag", "tag", &id.to_string(), Some(serde_json::json!({"id": id}))).await;
+    let _ = create_audit_entry(&pool, &_auth.email, "delete_tag", "tag", &id.to_string(), Some(serde_json::json!({"id": id}))).await;
     Ok(Json(serde_json::json!({ "deleted": true })))
 }
 
@@ -259,7 +261,7 @@ pub async fn add_person_tag(
 ) -> Result<Json<serde_json::Value>, AppError> {
     sqlx::query("INSERT INTO person_tags (person_id, tag_id) VALUES ($1, $2) ON CONFLICT DO NOTHING")
         .bind(person_id).bind(tag_id).execute(&pool).await?;
-    let _ = create_audit_entry(&pool, &auth.email, "add_tag", "person", &person_id.to_string(), Some(serde_json::json!({"id": person_id}))).await;
+    let _ = create_audit_entry(&pool, &_auth.email, "add_tag", "person", &person_id.to_string(), Some(serde_json::json!({"id": person_id}))).await;
     Ok(Json(serde_json::json!({ "added": true })))
 }
 
@@ -269,7 +271,7 @@ pub async fn remove_person_tag(
 ) -> Result<Json<serde_json::Value>, AppError> {
     sqlx::query("DELETE FROM person_tags WHERE person_id = $1 AND tag_id = $2")
         .bind(person_id).bind(tag_id).execute(&pool).await?;
-    let _ = create_audit_entry(&pool, &auth.email, "remove_tag", "person", &person_id.to_string(), Some(serde_json::json!({"id": person_id}))).await;
+    let _ = create_audit_entry(&pool, &_auth.email, "remove_tag", "person", &person_id.to_string(), Some(serde_json::json!({"id": person_id}))).await;
     Ok(Json(serde_json::json!({ "removed": true })))
 }
 
@@ -305,7 +307,7 @@ pub async fn create_person_note(
     )
     .bind(person_id).bind(input.author.as_deref().unwrap_or("Admin")).bind(&input.note)
     .fetch_one(&pool).await?;
-    let _ = create_audit_entry(&pool, &auth.email, "create_note", "person", &row.id.to_string(), Some(serde_json::json!({"id": row.id}))).await;
+    let _ = create_audit_entry(&pool, &_auth.email, "create_note", "person", &row.id.to_string(), Some(serde_json::json!({"id": row.id}))).await;
     Ok(Json(row))
 }
 
@@ -315,7 +317,7 @@ pub async fn delete_person_note(
 ) -> Result<Json<serde_json::Value>, AppError> {
     sqlx::query("DELETE FROM person_notes WHERE id = $1 AND person_id = $2")
         .bind(note_id).bind(person_id).execute(&pool).await?;
-    let _ = create_audit_entry(&pool, &auth.email, "delete_note", "person", &note_id.to_string(), Some(serde_json::json!({"id": note_id}))).await;
+    let _ = create_audit_entry(&pool, &_auth.email, "delete_note", "person", &note_id.to_string(), Some(serde_json::json!({"id": note_id}))).await;
     Ok(Json(serde_json::json!({ "deleted": true })))
 }
 
@@ -341,7 +343,7 @@ pub async fn add_group_member(
     )
     .bind(group_id).bind(input.person_id).bind(input.role.as_deref().unwrap_or("member"))
     .fetch_one(&pool).await?;
-    let _ = create_audit_entry(&pool, &auth.email, "add_group_member", "group", &row.id.to_string(), Some(serde_json::json!({"id": row.id}))).await;
+    let _ = create_audit_entry(&pool, &_auth.email, "add_group_member", "group", &row.id.to_string(), Some(serde_json::json!({"id": row.id}))).await;
     Ok(Json(row))
 }
 
@@ -351,7 +353,7 @@ pub async fn remove_group_member(
 ) -> Result<Json<serde_json::Value>, AppError> {
     sqlx::query("DELETE FROM group_memberships WHERE group_id = $1 AND person_id = $2")
         .bind(group_id).bind(person_id).execute(&pool).await?;
-    let _ = create_audit_entry(&pool, &auth.email, "remove_group_member", "group", &person_id.to_string(), Some(serde_json::json!({"id": person_id}))).await;
+    let _ = create_audit_entry(&pool, &_auth.email, "remove_group_member", "group", &person_id.to_string(), Some(serde_json::json!({"id": person_id}))).await;
     Ok(Json(serde_json::json!({ "removed": true })))
 }
 

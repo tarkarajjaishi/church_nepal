@@ -194,3 +194,17 @@ export const useI18n = () => {
   }
   return context;
 };
+
+// Backward-compatible alias. Older components import `useTranslation` and use
+// `{ language, setLanguage }`; the current API is `useI18n` with
+// `{ locale, setLocale }`. This shim exposes both shapes so either works.
+export const useTranslation = () => {
+  const context = useI18n();
+  return {
+    t: context.t,
+    locale: context.locale,
+    setLocale: context.setLocale,
+    language: context.locale,
+    setLanguage: context.setLocale,
+  };
+};

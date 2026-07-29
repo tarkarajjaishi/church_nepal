@@ -86,8 +86,8 @@ pub async fn update(
     )
     .bind(id)
     .bind(input.name.as_deref().unwrap_or(&existing.name))
-    .bind(input.description.as_deref().or(existing.description.as_deref()))
-    .bind(input.fund_type.as_deref().or(existing.fund_type.as_deref()))
+    .bind(input.description.clone().or(Some(existing.description.clone())))
+    .bind(input.fund_type.clone().or(Some(existing.fund_type.clone())))
     .bind(input.is_active.unwrap_or(existing.is_active))
     .fetch_one(&pool)
     .await?;

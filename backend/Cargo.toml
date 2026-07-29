@@ -22,15 +22,10 @@ urlencoding = "2"
 sha2 = "0.10"
 hmac = "0.12"
 base64 = "0.22"
-lettre = { version = "0.11", features = ["builder", "tokio1", "rustls-tls", "webpki-roots", "smtp-transport", "hostname"] }
+lettre = { version = "0.11", default-features = false, features = ["builder", "smtp-transport", "hostname", "tokio1-rustls-tls"] }
 image = "0.25"
 validator = { version = "0.16", features = ["derive"] }
 tower_governor = { version = "0.6" }
 dashmap = "5"
 sentry = { version = "0.48.5", features = ["tokio"] }
 regex = "1"
-
-
-[dev-dependencies]
-mockall = "0.13"
-mockall_macros = "0.13"

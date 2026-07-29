@@ -1,3 +1,4 @@
+use lettre::Transport;
 use crate::models::contact_message::ContactMessage;
 use sqlx::PgPool;
 use std::collections::HashMap;
@@ -114,13 +115,13 @@ pub async fn send_donation_receipt(
 
     let smtp_username = std::env::var("SMTP_USERNAME").unwrap_or_default();
     let smtp_password = std::env::var("SMTP_PASSWORD").unwrap_or_default();
-    let smtp_from = std::env::var("SMTP_FROM").unwrap_or(|_| smtp_username.clone());
+    let smtp_from = std::env::var("SMTP_FROM").unwrap_or_else(|_| smtp_username.clone());
 
     let email = lettre::Message::builder()
         .from(format!("Grace Nepal Church <{}>", from_email).parse()?)
         .to(recipient_email.parse()?)
-        .subject(subject)
-        .body(body)?;
+        .subject(subject.to_string())
+        .body(body.to_string())?;
 
     let creds = lettre::transport::smtp::authentication::Credentials::new(
         smtp_username,
@@ -160,7 +161,7 @@ pub async fn notify_member_application_decision(
 
     let smtp_username = std::env::var("SMTP_USERNAME").unwrap_or_default();
     let smtp_password = std::env::var("SMTP_PASSWORD").unwrap_or_default();
-    let smtp_from = std::env::var("SMTP_FROM").unwrap_or(|_| smtp_username.clone());
+    let smtp_from = std::env::var("SMTP_FROM").unwrap_or_else(|_| smtp_username.clone());
 
     let (subject, body) = if approved {
         (
@@ -185,8 +186,8 @@ pub async fn notify_member_application_decision(
     let email = lettre::Message::builder()
         .from(format!("Grace Nepal Church <{}>", from_email).parse()?)
         .to(recipient_email.parse()?)
-        .subject(subject)
-        .body(body)?;
+        .subject(subject.to_string())
+        .body(body.to_string())?;
 
     let creds = lettre::transport::smtp::authentication::Credentials::new(
         smtp_username,
@@ -226,7 +227,7 @@ pub async fn notify_prayer_request_decision(
 
     let smtp_username = std::env::var("SMTP_USERNAME").unwrap_or_default();
     let smtp_password = std::env::var("SMTP_PASSWORD").unwrap_or_default();
-    let smtp_from = std::env::var("SMTP_FROM").unwrap_or(|_| smtp_username.clone());
+    let smtp_from = std::env::var("SMTP_FROM").unwrap_or_else(|_| smtp_username.clone());
 
     let (subject, body) = if approved {
         (
@@ -251,8 +252,8 @@ pub async fn notify_prayer_request_decision(
     let email = lettre::Message::builder()
         .from(format!("Grace Nepal Church <{}>", from_email).parse()?)
         .to(recipient_email.parse()?)
-        .subject(subject)
-        .body(body)?;
+        .subject(subject.to_string())
+        .body(body.to_string())?;
 
     let creds = lettre::transport::smtp::authentication::Credentials::new(
         smtp_username,
@@ -294,7 +295,7 @@ pub async fn volunteer_confirmation(
 
     let smtp_username = std::env::var("SMTP_USERNAME").unwrap_or_default();
     let smtp_password = std::env::var("SMTP_PASSWORD").unwrap_or_default();
-    let smtp_from = std::env::var("SMTP_FROM").unwrap_or(|_| smtp_username.clone());
+    let smtp_from = std::env::var("SMTP_FROM").unwrap_or_else(|_| smtp_username.clone());
 
     let subject = "Thank you for volunteering with Grace Nepal Church";
     let mut body = format!(
@@ -317,8 +318,8 @@ pub async fn volunteer_confirmation(
     let email = lettre::Message::builder()
         .from(format!("Grace Nepal Church <{}>", from_email).parse()?)
         .to(visitor_email.parse()?)
-        .subject(subject)
-        .body(body)?;
+        .subject(subject.to_string())
+        .body(body.to_string())?;
 
     let creds = lettre::transport::smtp::authentication::Credentials::new(
         smtp_username,

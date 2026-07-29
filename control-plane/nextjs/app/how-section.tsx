@@ -1,12 +1,10 @@
 "use client";
 
-import { useI18n as useTranslation } from "@/components/i18n-hook";
-
 interface Step {
   number: number;
   icon: React.ReactNode;
-  titleKey: string;
-  descriptionKey: string;
+  title: string;
+  description: string;
 }
 
 const steps: Step[] = [
@@ -19,8 +17,8 @@ const steps: Step[] = [
         <path d="M2 12l10 5 10-5" />
       </svg>
     ),
-    titleKey: "how.step1.name",
-    descriptionKey: "how.step1.description",
+    title: "Name the church",
+    description: "Type the church name in the dashboard and hit create.",
   },
   {
     number: 2,
@@ -31,8 +29,8 @@ const steps: Step[] = [
         <line x1="12" y1="17" x2="12" y2="21" />
       </svg>
     ),
-    titleKey: "how.step2.name",
-    descriptionKey: "how.step2.description",
+    title: "We provision everything",
+    description: "A subdomain, a database, a storage folder, and an admin login — automatically.",
   },
   {
     number: 3,
@@ -42,19 +40,17 @@ const steps: Step[] = [
         <polyline points="22 4 12 14.01 8 10.01" />
       </svg>
     ),
-    titleKey: "how.step3.name",
-    descriptionKey: "how.step3.description",
+    title: "The church takes over",
+    description: "They edit their own site from the admin. You oversee every church from one place.",
   },
 ];
 
 export default function HowSection() {
-  const { t } = useTranslation();
-
   return (
     <section id="how" className="lp-section lp-how relative">
       {/* Section Header */}
       <div className="text-center mb-[var(--space-16)]">
-        <h2 className="lp-h2">{t("how.title")}</h2>
+        <h2 className="lp-h2">From name to live site in three steps</h2>
         <p className="lp-sub2">
           Launch a fully-isolated church website in three simple steps
         </p>
@@ -62,21 +58,21 @@ export default function HowSection() {
 
       {/* Steps Container */}
       <div className="lp-steps relative">
-        {steps.map((step, index) => (
+        {steps.map((step) => (
           <div key={step.number} className="lp-step flex flex-col items-center text-center">
             {/* Step Number Badge */}
             <div className="lp-step-n" aria-label={`Step ${step.number}`}>
               {step.number}
             </div>
-            
+
             {/* Step Icon */}
             <span className="lp-step-icon" aria-hidden="true">
               {step.icon}
             </span>
-            
+
             {/* Step Content */}
-            <h3>{t(step.titleKey)}</h3>
-            <p>{t(step.descriptionKey)}</p>
+            <h3>{step.title}</h3>
+            <p>{step.description}</p>
           </div>
         ))}
 

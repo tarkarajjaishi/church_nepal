@@ -35,10 +35,10 @@ pub async fn list(Db(pool): Db, Query(p): Query<Pagination>, Query(f): Query<Gro
     }
     
     let count_query = query.replace("SELECT *", "SELECT COUNT(*)");
-    let total: i64 = sqlx::query_scalar(&count_query)
+    let total: i64 = sqlx::query_scalar::<_, i64>(&count_query)
         .fetch_one(&pool)
         .await?
-        .unwrap_or(0);
+        ;
     
     query.push_str(" ORDER BY sort_order ASC, created_at ASC");
     
@@ -90,7 +90,7 @@ pub async fn create(
     .bind(input.sort_order.unwrap_or(0))
     .fetch_one(&pool)
     .await?;
-    let _ = create_audit_entry(&pool, &auth.email, "create", "group", &row.id.to_string(), Some(serde_json::json!({"id": row.id}))).await;
+    let _ = create_audit_entry(&pool, &_auth.email, "create", "group", &row.id.to_string(), Some(serde_json::json!({"id": row.id}))).await;
     Ok(Json(row))
 }
 
@@ -139,7 +139,7 @@ pub async fn update(
     .bind(input.sort_order)
     .fetch_one(&pool)
     .await?;
-    let _ = create_audit_entry(&pool, &auth.email, "update", "group", &row.id.to_string(), Some(serde_json::json!({"id": row.id}))).await;
+    let _ = create_audit_entry(&pool, &_auth.email, "update", "group", &row.id.to_string(), Some(serde_json::json!({"id": row.id}))).await;
     Ok(Json(row))
 }
 
@@ -152,7 +152,7 @@ pub async fn delete(
         .bind(id)
     .execute(&pool)
     .await?;
-    let _ = create_audit_entry(&pool, &auth.email, "delete", "group", &id.to_string(), Some(serde_json::json!({"id": id}))).await;
+    let _ = create_audit_entry(&pool, &_auth.email, "delete", "group", &id.to_string(), Some(serde_json::json!({"id": id}))).await;
     Ok(Json(serde_json::json!({ "deleted": true })))
 }
 
@@ -168,7 +168,7 @@ pub async fn toggle(
     .fetch_optional(&pool)
     .await?
     .ok_or_else(|| AppError::not_found("Group not found"))?;
-    let _ = create_audit_entry(&pool, &auth.email, "toggle", "group", &row.id.to_string(), Some(serde_json::json!({"id": row.id}))).await;
+    let _ = create_audit_entry(&pool, &_auth.email, "toggle", "group", &row.id.to_string(), Some(serde_json::json!({"id": row.id}))).await;
     Ok(Json(row))
 }
 

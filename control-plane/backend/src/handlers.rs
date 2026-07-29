@@ -1,3 +1,6 @@
+use axum::response::IntoResponse;
+use sqlx::FromRow;
+use crate::stripe::StripeClient;
 use axum::http::header::HeaderMap;
 use axum::extract::{Path, Query, State};
 use axum::http::{header, StatusCode};
@@ -12,7 +15,7 @@ use std::path::PathBuf;
 use std::time::Duration;
 use totp_rs::{Algorithm, TOTP};
 
-use crate::auth::{create_access_token, create_refresh_token, find_refresh_token, revoke_all_refresh_tokens, revoke_refresh_token, store_refresh_token, AdminGuard, ApiKey, Authenticated, SuperAdmin, control_cookie_value, control_clear_cookie};
+use crate::auth::{create_access_token, create_refresh_token, find_refresh_token, revoke_all_refresh_tokens, revoke_refresh_token, store_refresh_token, AdminGuard, AdminUser, ApiKey, Authenticated, SuperAdmin, control_cookie_value, control_clear_cookie};
 use crate::error::AppError;
 use crate::provision;
 use crate::seed;
@@ -30,7 +33,7 @@ pub struct LoginReq {
     pub code: Option<String>,
 }
 
-pub async fn login(State(st): State<AppState>, Json(req): Json<LoginReq>) -> Result<Json<Value>, AppError> {
+pub async fn login(State(st): State<AppState>, Json(req): Json<LoginReq>) -> Result<impl axum::response::IntoResponse, AppError> {
     let row: Option<(String, String, String, Option<String>, Option<bool>)> =
         sqlx::query_as("SELECT id::text, password_hash, role, totp_secret, twofa_enabled FROM admins WHERE email = $1")
             .bind(&req.email)
@@ -46,7 +49,7 @@ pub async fn login(State(st): State<AppState>, Json(req): Json<LoginReq>) -> Res
     if twofa_enabled.unwrap_or(false) {
         let code = req.code.unwrap_or_default().trim().to_string();
         if code.is_empty() {
-            return Ok(Json(json!({ "twofa_required": true })));
+            return Ok((HeaderMap::new(), Json(json!({ "twofa_required": true }))));
         }
         let secret = totp_secret.ok_or_else(|| AppError::internal("2FA misconfigured"))?;
         let bytes = decode(Alphabet::Rfc4648 { padding: false }, &secret)
@@ -93,7 +96,7 @@ pub struct RefreshTokenReq {
     pub refresh_token: String,
 }
 
-pub async fn refresh_token(State(st): State<AppState>, Json(req): Json<RefreshTokenReq>) -> Result<Json<Value>, AppError> {
+pub async fn refresh_token(State(st): State<AppState>, Json(req): Json<RefreshTokenReq>) -> Result<impl axum::response::IntoResponse, AppError> {
     let raw_token = req.refresh_token.trim();
     if raw_token.is_empty() {
         return Err(AppError::bad_request("refresh_token is required"));
@@ -115,7 +118,7 @@ pub async fn refresh_token(State(st): State<AppState>, Json(req): Json<RefreshTo
         return Err(AppError::unauthorized("Expired refresh token"));
     }
 
-    let admin: Option<(String, String, String)> =
+    let admin: (String, String, String) =
         sqlx::query_as("SELECT id::text, email, role FROM admins WHERE id = $1")
             .bind(admin_id)
             .fetch_optional(&st.pool)
@@ -178,20 +181,20 @@ pub async fn logout(State(st): State<AppState>, auth: Authenticated, Json(req): 
     Ok(response)
 }
 
-pub async fn me(auth: Authenticated, State(st): State<AppState>) -> Json<Value> {
+pub async fn me(auth: Authenticated, State(st): State<AppState>) -> Result<Json<Value>, AppError> {
     let twofa: Option<bool> = sqlx::query_scalar("SELECT twofa_enabled FROM admins WHERE id = $1")
         .bind(uuid::Uuid::parse_str(&auth.0.id).map_err(|e| AppError::internal(format!("parse id: {e}")))?)
         .fetch_optional(&st.pool)
         .await?
         .flatten();
-    Json(json!({ "id": auth.0.id, "email": auth.0.email, "role": auth.0.role, "twofa_enabled": twofa.unwrap_or(false) }))
+    Ok(Json(json!({ "id": auth.0.id, "email": auth.0.email, "role": auth.0.role, "twofa_enabled": twofa.unwrap_or(false) })))
 }
 
 pub async fn reset_authenticated_password(
     auth: Authenticated,
     State(st): State<AppState>,
     Json(req): Json<Value>,
-) -> Result<Json<Value>, AppError> {
+) -> Result<impl axum::response::IntoResponse, AppError> {
     let current_password = req.get("current_password").and_then(|v| v.as_str()).unwrap_or_default().trim().to_string();
     let new_password = req.get("new_password").and_then(|v| v.as_str()).unwrap_or_default().trim().to_string();
 
@@ -269,6 +272,7 @@ pub struct ForgotPasswordReq {
     pub email: String,
 }
 
+
 pub async fn forgot_password(State(st): State<AppState>, Json(req): Json<ForgotPasswordReq>) -> Result<Json<Value>, AppError> {
     let email = req.email.trim().to_string();
     if email.is_empty() {
@@ -285,10 +289,14 @@ pub async fn forgot_password(State(st): State<AppState>, Json(req): Json<ForgotP
         return Ok(Json(json!({ "success": true, "message": "If an account exists, a reset link has been sent." })));
     };
 
-    let mut rng = rand::thread_rng();
-    let mut raw_token_bytes = [0u8; 32];
-    rng.fill_bytes(&mut raw_token_bytes);
-    let raw_token: String = raw_token_bytes.iter().map(|b| format!("{:02x}", b)).collect();
+    // Scoped so the non-Send ThreadRng is dropped before any .await —
+    // otherwise the handler future isn't Send and axum rejects it.
+    let raw_token: String = {
+        let mut rng = rand::thread_rng();
+        let mut raw_token_bytes = [0u8; 32];
+        rng.fill_bytes(&mut raw_token_bytes);
+        raw_token_bytes.iter().map(|b| format!("{:02x}", b)).collect()
+    };
 
     let token_hash = bcrypt::hash(&raw_token, bcrypt::DEFAULT_COST)
         .map_err(|e| AppError::internal(format!("hash reset token: {e}")))?;
@@ -441,11 +449,6 @@ pub struct GrowthQuery {
     pub range: Option<String>, // 30d, 90d, 12m
 }
 
-#[derive(Deserialize)]
-pub struct GrowthQuery {
-    pub range: Option<String>, // 30d, 90d, 12m
-}
-
 #[derive(Serialize)]
 pub struct SearchResultItem {
     pub id: String,
@@ -585,7 +588,7 @@ pub struct Church {
     pub past_due_at: Option<chrono::NaiveDateTime>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, FromRow)]
 pub struct PlanCount {
     pub plan: String,
     pub count: i64,
@@ -656,18 +659,18 @@ pub async fn create_church(
     State(st): State<AppState>,
     Json(req): Json<CreateReq>,
 ) -> Result<Json<Value>, AppError> {
-    let name = req.name.trim();
+    let name = req.name.trim().to_string();
     if name.is_empty() {
         return Err(AppError::bad_request("Church name is required"));
     }
 
-    let p = provision::provision_church(&st.cfg, name).await?;
+    let p = provision::provision_church(&st.cfg, &name).await?;
 
     sqlx::query(
         "INSERT INTO churches (name, slug, db_name, storage_path, subdomain, admin_email, status) \
          VALUES ($1, $2, $3, $4, $5, $6, 'provisioning')",
     )
-    .bind(name)
+    .bind(&name)
     .bind(&p.slug)
     .bind(&p.slug)
     .bind(&p.storage_path)
@@ -683,12 +686,13 @@ pub async fn create_church(
 
     let cfg = st.cfg.clone();
     let pool = st.pool.clone();
+    let name_for_task = name.clone();
     tokio::spawn(async move {
         let _ = provision::emit_notification(
             &pool,
             "church_provisioned",
             "Church provisioned",
-            &format!("'{}' has been provisioned", name),
+            &format!("'{}' has been provisioned", name_for_task),
             Some(&church_id),
         )
         .await;
@@ -716,7 +720,7 @@ pub async fn get_church(
     Path(id): Path<uuid::Uuid>,
     State(st): State<AppState>,
 ) -> Result<Json<Value>, AppError> {
-    let church: Option<Church> =
+    let church: Church =
         sqlx::query_as("SELECT * FROM churches WHERE id = $1")
             .bind(id)
             .fetch_optional(&st.pool)
@@ -1743,14 +1747,11 @@ pub async fn refund_donation(
     };
 
     let gateway_refund_id = if donation.payment_method == "stripe" {
-        if let Ok(client) = StripeClient::new(&st.cfg.stripe_secret_key) {
-            if client.enabled() {
-                match client.refund_payment(&donation.transaction_id, Some(refund_amount)).await {
-                    Ok(stripe_refund) => Some(stripe_refund.id),
-                    Err(_) => None,
-                }
-            } else {
-                None
+        let client = StripeClient::new(&st.cfg.stripe_secret_key);
+        if client.enabled() {
+            match client.refund_payment(&donation.transaction_id, Some(refund_amount)).await {
+                Ok(stripe_refund) => Some(stripe_refund.id),
+                Err(_) => None,
             }
         } else {
             None
@@ -1765,7 +1766,7 @@ pub async fn refund_donation(
     .bind(refund_amount)
     .bind(refund_status)
     .bind(req.reason.as_deref())
-    .bind(gateway_refund_id)
+    .bind(gateway_refund_id.clone())
     .bind(donation_id)
     .execute(&pool)
     .await?;
@@ -1785,9 +1786,9 @@ pub async fn refund_donation(
     let _ = crate::handlers::audit_log(
         &pool,
         &crate::auth::AdminUser {
-            id: _admin.id.clone(),
-            email: _admin.email.clone(),
-            role: _admin.role.clone(),
+            id: _admin.0.id.clone(),
+            email: _admin.0.email.clone(),
+            role: _admin.0.role.clone(),
         },
         "refund_donation",
         "donation",
@@ -1814,22 +1815,6 @@ pub async fn refund_donation(
 // =============================================================================
 // Analytics handlers
 // =============================================================================
-
-#[derive(Serialize)]
-pub struct AnalyticsOverview {
-    pub total_churches: i64,
-    pub active_churches: i64,
-    pub suspended_churches: i64,
-    pub mrr: i64,
-    pub churches_this_month: i64,
-    pub churches_by_plan: Vec<PlanCount>,
-}
-
-#[derive(Serialize)]
-pub struct PlanCount {
-    pub plan: String,
-    pub count: i64,
-}
 
 pub async fn get_analytics_overview(State(st): State<AppState>) -> Result<Json<AnalyticsOverview>, AppError> {
     let total_churches: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM churches")
@@ -2093,7 +2078,7 @@ pub async fn list_public_blog_posts(State(st): State<AppState>) -> Result<Json<V
 }
 
 pub async fn get_public_blog_post(Path(slug): Path<String>, State(st): State<AppState>) -> Result<Json<BlogPost>, AppError> {
-    let post: Option<BlogPost> = sqlx::query_as("SELECT * FROM mc_blog_posts WHERE published = true AND slug = $1")
+    let post: BlogPost = sqlx::query_as("SELECT * FROM mc_blog_posts WHERE published = true AND slug = $1")
         .bind(&slug)
         .fetch_optional(&st.pool)
         .await?
@@ -2140,7 +2125,7 @@ pub async fn create_blog_post(_auth: AdminGuard, State(st): State<AppState>, Jso
 }
 
 pub async fn update_blog_post(_auth: AdminGuard, Path(id): Path<uuid::Uuid>, State(st): State<AppState>, Json(req): Json<UpdateBlogPostReq>) -> Result<Json<BlogPost>, AppError> {
-    let existing: Option<BlogPost> = sqlx::query_as("SELECT * FROM mc_blog_posts WHERE id = $1")
+    let existing: BlogPost = sqlx::query_as("SELECT * FROM mc_blog_posts WHERE id = $1")
         .bind(id)
         .fetch_optional(&st.pool)
         .await?
@@ -2300,10 +2285,13 @@ pub async fn create_api_key(
 
     let scopes = req.scopes.unwrap_or_default();
 
-    let mut rng = rand::thread_rng();
-    let mut secret = [0u8; 32];
-    rng.fill_bytes(&mut secret);
-    let hex_secret: String = secret.iter().map(|b| format!("{:02x}", b)).collect();
+    // Scoped so the non-Send ThreadRng drops before any .await (see forgot_password).
+    let hex_secret: String = {
+        let mut rng = rand::thread_rng();
+        let mut secret = [0u8; 32];
+        rng.fill_bytes(&mut secret);
+        secret.iter().map(|b| format!("{:02x}", b)).collect()
+    };
     let full_key = format!("cn_{}", hex_secret);
     let prefix = &full_key[..12];
     let last_four = &full_key[full_key.len() - 4..];

@@ -266,14 +266,6 @@ pub struct StripeRefund {
     pub amount: i64,
     pub currency: String,
     pub status: String,
-}
-
-#[derive(Debug, serde::Deserialize)]
-pub struct StripeRefund {
-    pub id: String,
-    pub amount: i64,
-    pub currency: String,
-    pub status: String,
     pub payment_intent: String,
 }
 

@@ -17,6 +17,10 @@
   --sky-blue: #1f6f8b;
   --gold: #d4a017;
   --gold-soft: #f3e2b3;
+  /* `--gold` is a SURFACE colour (gold buttons/badges with dark text on top).
+     As label text on white it only reaches 2.25:1, well under WCAG AA. Use
+     --gold-text for gold-coloured text on light backgrounds — 4.5:1 on #f7f9fc. */
+  --gold-text: #8a6400;
   --success: #2e8b57;
   --section-bg: #f7f9fc;
 
@@ -88,6 +92,9 @@
   --section-bg: #0f1a24;
   --gold: #e0b34a;
   --gold-soft: #33290f;
+  /* On dark surfaces the bright gold already clears AA, so text and surface
+     gold can be the same value here. */
+  --gold-text: #e0b34a;
   --success: #4ade80;
 }
 

@@ -432,7 +432,7 @@ function ServiceTimesSection({ block, serviceTimes, lang, t }: {
                         </Badge>
                       )}
                       {s._status === 'next' && (
-                        <Badge className="bg-gold/15 text-gold border-0 text-xs font-medium">
+                        <Badge className="bg-gold/15 text-gold-text border-0 text-xs font-medium">
                           {lang === 'en' ? 'Upcoming' : 'आउने'}
                         </Badge>
                       )}
@@ -1065,11 +1065,17 @@ function VerseSection({ block, allVerses, lang, t }: {
                 <button
                   key={i}
                   onClick={() => setCurrentIndex(i)}
-                  className={`size-2 rounded-full transition-all ${i === currentIndex ? 'bg-gold w-6' : 'bg-white/30 hover:bg-white/50'}`}
+                  // 24x24 minimum hit area (WCAG 2.5.8) around the small visual dot.
+                  className="grid place-items-center h-6 min-w-6 px-0.5 rounded-full"
                   role="tab"
                   aria-selected={i === currentIndex}
                   aria-label={`Verse ${i + 1}`}
-                />
+                >
+                  <span
+                    aria-hidden="true"
+                    className={`block h-2 rounded-full transition-all ${i === currentIndex ? 'bg-gold w-6' : 'w-2 bg-white/30 hover:bg-white/50'}`}
+                  />
+                </button>
               ))}
             </div>
           )}

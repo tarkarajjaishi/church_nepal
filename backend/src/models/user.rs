@@ -9,6 +9,7 @@ pub struct User {
     pub name: String,
     pub role: String,
     pub created_at: chrono::NaiveDateTime,
+    pub updated_at: chrono::NaiveDateTime,
 }
 
 #[derive(Debug, Deserialize)]

@@ -4,10 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-
-[dev-dependencies]
-mockall = "0.13"
-mockall_macros = "0.13"
 axum = { version = "0.8", features = ["macros"] }
 tokio = { version = "1", features = ["full"] }
 serde = { version = "1", features = ["derive"] }
@@ -27,8 +23,4 @@ reqwest = { version = "0.12", features = ["json"] }
 hmac = "0.12"
 sha2 = "0.10"
 hex = "0.4"
-lettre = { version = "0.11", features = ["builder", "tokio1", "rustls-tls", "webpki-roots", "smtp-transport", "hostname"] }
-
-[dev-dependencies]
-mockall = "0.13"
-mockall_macros = "0.13"
+lettre = { version = "0.11", default-features = false, features = ["builder", "smtp-transport", "hostname", "tokio1-rustls-tls"] }

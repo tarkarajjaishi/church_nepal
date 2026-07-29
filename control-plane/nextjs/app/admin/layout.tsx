@@ -1,14 +1,20 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import Sidebar from './sidebar';
 import Link from 'next/link';
+
+// Routes under /admin that must NOT render the authenticated shell — otherwise
+// the sidebar (nav links + signed-in identity) is exposed to anonymous visitors.
+const UNAUTHENTICATED_ROUTES = ['/admin/login'];
 
 export default function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
@@ -32,6 +38,11 @@ export default function AdminLayout({
       setSidebarOpen(false);
     }
   }, [isMobile]);
+
+  // Declared after the hooks above so the hook order stays stable across routes.
+  if (UNAUTHENTICATED_ROUTES.includes(pathname)) {
+    return <>{children}</>;
+  }
 
   return (
     <div className="flex min-h-screen">

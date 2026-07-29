@@ -34,7 +34,7 @@ pub async fn create_public(
     Db(pool): Db,
     Json(input): Json<CreateEventRsvp>,
 ) -> Result<Json<EventRsvp>, AppError> {
-    let capacity: Option<i32> = sqlx::query_scalar(
+    let capacity: i32 = sqlx::query_scalar(
         "SELECT capacity FROM events WHERE id = $1"
     )
     .bind(input.event_id)
@@ -43,14 +43,14 @@ pub async fn create_public(
     .flatten()
     .unwrap_or(0);
 
-    let accepted_count: i32 = sqlx::query_scalar(
+    let accepted_count: i64 = sqlx::query_scalar(
         "SELECT COALESCE(SUM(guests), 0) FROM event_rsvps WHERE event_id = $1 AND status = 'registered'"
     )
     .bind(input.event_id)
     .fetch_one(&pool)
     .await?;
 
-    let status = if capacity > 0 && accepted_count >= capacity {
+    let status = if capacity > 0 && accepted_count >= capacity as i64 {
         "waitlist"
     } else {
         "registered"

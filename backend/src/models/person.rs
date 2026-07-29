@@ -61,35 +61,9 @@ pub struct PersonWithTags {
     pub tags: Option<serde_json::Value>,
 }
 
-#[derive(Debug, Serialize, Deserialize, FromRow)]
-pub struct Household {
-    pub id: uuid::Uuid,
-    pub name: String,
-    pub address: Option<String>,
-    pub phone: Option<String>,
-    pub notes: Option<String>,
-    pub enabled: bool,
-    pub sort_order: i32,
-    pub created_at: chrono::NaiveDateTime,
-    pub updated_at: chrono::NaiveDateTime,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct CreateHousehold {
-    pub name: String,
-    pub address: Option<String>,
-    pub phone: Option<String>,
-    pub notes: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct UpdateHousehold {
-    pub name: Option<String>,
-    pub address: Option<String>,
-    pub phone: Option<String>,
-    pub notes: Option<String>,
-    pub enabled: Option<bool>,
-}
+// Household / CreateHousehold / UpdateHousehold live in models::member — they
+// were duplicated here verbatim, which made the glob re-exports in models::mod
+// ambiguous. Single source of truth is member.rs.
 
 #[derive(Debug, Serialize, Deserialize, FromRow)]
 pub struct Tag {

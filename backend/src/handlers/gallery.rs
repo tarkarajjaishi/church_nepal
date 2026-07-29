@@ -1,3 +1,4 @@
+use serde_json::json;
 use crate::tenant::Db;
 use axum::extract::{Path, Query};
 use axum::Json;
@@ -28,7 +29,7 @@ pub async fn create(_auth: AuthUser, Db(pool): Db, Json(input): Json<CreateGalle
     .bind(&input.category)
     .bind(&input.image)
     .fetch_one(&pool).await?;
-    let _ = create_audit_entry(_auth.clone(), &pool, "create", "gallery", &row.id.to_string(), json!({"id": row.id, "title": row.title})).await;
+    let _ = create_audit_entry(&pool, &_auth.email, "create", "gallery", &row.id.to_string(), Some(json!({"id": row.id, "title": row.title}))).await;
     Ok(Json(row))
 }
 
@@ -44,7 +45,7 @@ pub async fn update(_auth: AuthUser, Db(pool): Db, Path(id): Path<uuid::Uuid>, J
     .bind(input.category.as_deref().unwrap_or(&existing.category))
     .bind(input.image.as_deref().unwrap_or(&existing.image))
     .fetch_one(&pool).await?;
-    let _ = create_audit_entry(_auth.clone(), &pool, "update", "gallery", &row.id.to_string(), json!({"id": row.id, "title": row.title})).await;
+    let _ = create_audit_entry(&pool, &_auth.email, "update", "gallery", &row.id.to_string(), Some(json!({"id": row.id, "title": row.title}))).await;
     Ok(Json(row))
 }
 
@@ -52,7 +53,7 @@ pub async fn delete(_auth: AuthUser, Db(pool): Db, Path(id): Path<uuid::Uuid>) -
     sqlx::query("DELETE FROM gallery WHERE id = $1")
         .bind(id)
         .execute(&pool).await?;
-    let _ = create_audit_entry(_auth.clone(), &pool, "delete", "gallery", "deleted", json!({"deleted": true})).await;
+    let _ = create_audit_entry(&pool, &_auth.email, "delete", "gallery", "deleted", Some(json!({"deleted": true}))).await;
     Ok(Json(serde_json::json!({ "deleted": true })))
 }
 pub async fn toggle(
@@ -67,7 +68,7 @@ pub async fn toggle(
     .fetch_optional(&pool)
     .await?
     .ok_or_else(|| AppError::not_found("GalleryItem not found"))?;
-    let _ = create_audit_entry(_auth.clone(), &pool, "toggle", "gallery", &row.id.to_string(), json!({"id": row.id, "title": row.title})).await;
+    let _ = create_audit_entry(&pool, &_auth.email, "toggle", "gallery", &row.id.to_string(), Some(json!({"id": row.id, "title": row.title}))).await;
     Ok(Json(row))
 }
 

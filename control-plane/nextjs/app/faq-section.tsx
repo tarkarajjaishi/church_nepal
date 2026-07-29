@@ -88,10 +88,11 @@ export default function FAQSection() {
             const isOpen = openId === faq.id;
 
             return (
-<Card
-                 key={faq.id}
-                 className="overflow-hidden transition-all duration-[var(--dur)]"
-               >
+              <Card
+                key={faq.id}
+                variant="elevated"
+                className="overflow-hidden transition-all duration-[var(--dur)]"
+              >
                 <h3>
                   <button
                     type="button"

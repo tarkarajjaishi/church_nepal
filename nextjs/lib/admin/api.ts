@@ -55,8 +55,10 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401 && typeof window !== 'undefined') {
       localStorage.removeItem('admin_token')
-      // Avoid redirect loop if already on login page
-      if (!window.location.pathname.startsWith('/admin/login')) {
+      // Only redirect from within the admin area. The public site also reads
+      // through these hooks; a 401 there must not bounce visitors to admin/login.
+      const path = window.location.pathname
+      if (path.startsWith('/admin') && !path.startsWith('/admin/login')) {
         window.location.href = '/admin/login'
       }
     }

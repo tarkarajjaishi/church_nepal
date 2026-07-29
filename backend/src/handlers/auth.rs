@@ -1,3 +1,4 @@
+use axum::response::IntoResponse;
 use crate::auth::{create_token, AuthUser};
 use crate::error::AppError;
 use crate::handlers::ValidatedJson;
@@ -12,38 +13,20 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use validator::Validate;
 
-/// Issue a fresh token for the currently authenticated user.
-pub async fn refresh(
-    auth: AuthUser,
-    Db(pool): Db,
-) -> Result<impl axum::response::IntoResponse, AppError> {
-    let user = sqlx::query_as::<_, crate::models::User>(
-        r#"SELECT id, email, password_hash, name, role, created_at, updated_at FROM users WHERE id = $1"#,
-    )
-    .bind(auth.user_id.parse::<uuid::Uuid>()?)
-    .fetch_optional(&pool)
-    .await?
-    .ok_or_else(|| AppError::not_found("User not found"))?;
+/// Set the auth session cookie carrying the JWT (24h, matches token TTL).
+fn set_auth_cookie(headers: &mut HeaderMap, token: &str) {
+    let cookie_name = std::env::var("SESSION_COOKIE_NAME")
+        .unwrap_or_else(|_| "auth_token".into());
 
-    let updated_at = user.updated_at.and_utc().timestamp() as usize;
-    let new_jti = Uuid::new_v4().to_string();
-    let token = create_token(&user.id.to_string(), &user.email, &user.role, &new_jti, updated_at)?;
-
-    let public = UserPublic {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-    };
-
-    let body = AuthResponse {
-        token: token.clone(),
-        user: public,
-    };
-    let mut response = Json(body).into_response();
-    set_auth_cookie(response.headers_mut(), &token);
-    Ok(response)
+    let cookie = format!(
+        "{}={}; HttpOnly; Path=/; Max-Age=86400; SameSite=Strict",
+        cookie_name, token
+    );
+    headers.insert("Set-Cookie", cookie.parse().unwrap());
 }
+
+/// Clear the auth session cookie (logout).
+fn clear_auth_cookie(headers: &mut HeaderMap) {
     let cookie_name = std::env::var("SESSION_COOKIE_NAME")
         .unwrap_or_else(|_| "auth_token".into());
 
@@ -179,7 +162,7 @@ pub async fn reset_password(
     Db(pool): Db,
 ) -> Result<impl axum::response::IntoResponse, AppError> {
     let user = sqlx::query_as::<_, crate::models::User>(
-        r#"SELECT id, password_hash, email, role FROM users WHERE email = $1"#,
+        r#"SELECT id, email, password_hash, name, role, created_at, updated_at FROM users WHERE email = $1"#,
     )
     .bind(&input.email)
     .fetch_optional(&pool)

@@ -51,18 +51,18 @@ impl StripeClient {
         let mut params = HashMap::new();
         params.insert("success_url", format!("{}?donation_id={}", success_url, donation_id));
         params.insert("cancel_url", format!("{}?donation_id={}", cancel_url, donation_id));
-        params.insert("payment_method_types[0]", "card");
+        params.insert("payment_method_types[0]", "card".to_string());
         params.insert("line_items[0][price_data][currency]", currency.to_string());
         params.insert(
             "line_items[0][price_data][product_data][name]",
-            "Church Donation",
+            "Church Donation".to_string(),
         );
         params.insert(
             "line_items[0][price_data][unit_amount]",
             amount_cents.to_string(),
         );
-        params.insert("line_items[0][quantity]", "1");
-        params.insert("mode", "payment");
+        params.insert("line_items[0][quantity]", "1".to_string());
+        params.insert("mode", "payment".to_string());
         params.insert("customer_email", donor_email.to_string());
         params.insert("metadata[donation_id]", donation_id.to_string());
 

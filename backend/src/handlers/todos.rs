@@ -15,7 +15,6 @@ pub async fn list(Db(pool): Db) -> Result<Json<Vec<Todo>>, AppError> {
 pub async fn get(Db(pool): Db, Path(id): Path<uuid::Uuid>) -> Result<Json<Todo>, AppError> {
     let row = sqlx::query_as::<_, Todo>("SELECT * FROM todos WHERE id = $1")
     .bind(id).fetch_optional(&pool).await?.ok_or_else(|| AppError::not_found("Todo not found"))?;
-    let _ = create_audit_entry(&pool, &auth.email, "toggle", "todo", &row.id.to_string(), Some(serde_json::json!({"id": row.id}))).await;
     Ok(Json(row))
 }
 
@@ -26,7 +25,7 @@ pub async fn create(_auth: AuthUser, Db(pool): Db, Json(input): Json<CreateTodo>
     .bind(&input.title).bind(&input.description).bind(&input.priority)
     .bind(&input.status).bind(&input.due_date)
     .fetch_one(&pool).await?;
-    let _ = create_audit_entry(&pool, &auth.email, "create", "todo", &row.id.to_string(), Some(serde_json::json!({"id": row.id}))).await;
+    let _ = create_audit_entry(&pool, &_auth.email, "create", "todo", &row.id.to_string(), Some(serde_json::json!({"id": row.id}))).await;
     Ok(Json(row))
 }
 
@@ -44,13 +43,13 @@ pub async fn update(_auth: AuthUser, Db(pool): Db, Path(id): Path<uuid::Uuid>, J
     .bind(input.due_date.as_deref().unwrap_or(&existing.due_date))
     .bind(input.sort_order)
     .fetch_one(&pool).await?;
-    let _ = create_audit_entry(&pool, &auth.email, "update", "todo", &row.id.to_string(), Some(serde_json::json!({"id": row.id}))).await;
+    let _ = create_audit_entry(&pool, &_auth.email, "update", "todo", &row.id.to_string(), Some(serde_json::json!({"id": row.id}))).await;
     Ok(Json(row))
 }
 
 pub async fn delete(_auth: AuthUser, Db(pool): Db, Path(id): Path<uuid::Uuid>) -> Result<Json<serde_json::Value>, AppError> {
     sqlx::query("DELETE FROM todos WHERE id = $1").bind(id).execute(&pool).await?;
-    let _ = create_audit_entry(&pool, &auth.email, "delete", "todo", &id.to_string(), Some(serde_json::json!({"id": id}))).await;
+    let _ = create_audit_entry(&pool, &_auth.email, "delete", "todo", &id.to_string(), Some(serde_json::json!({"id": id}))).await;
     Ok(Json(serde_json::json!({ "deleted": true })))
 }
 
@@ -70,6 +69,6 @@ pub struct ReorderRequest {
 pub async fn reorder(_auth: AuthUser, Db(pool): Db, Path(id): Path<uuid::Uuid>, Json(input): Json<ReorderRequest>) -> Result<Json<Todo>, AppError> {
     let row = sqlx::query_as::<_, Todo>("UPDATE todos SET sort_order = $2 WHERE id = $1 RETURNING *")
         .bind(id).bind(input.sort_order).fetch_optional(&pool).await?.ok_or_else(|| AppError::not_found("Todo not found"))?;
-    let _ = create_audit_entry(&pool, &auth.email, "reorder", "todo", &row.id.to_string(), Some(serde_json::json!({"id": row.id}))).await;
+    let _ = create_audit_entry(&pool, &_auth.email, "reorder", "todo", &row.id.to_string(), Some(serde_json::json!({"id": row.id}))).await;
     Ok(Json(row))
 }

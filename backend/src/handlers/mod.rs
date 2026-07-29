@@ -33,7 +33,6 @@ pub mod sermons;
 pub mod service_times;
 pub mod services;
 pub mod settings;
-pub mod storage;
 pub mod team;
 pub mod testimonies;
 pub mod todos;
@@ -142,7 +141,7 @@ where
         return next.run(req).await;
     }
 
-    let body_bytes = match axum::body::to_bytes(req.body_mut(), usize::MAX).await {
+    let body_bytes = match axum::body::to_bytes(std::mem::take(req.body_mut()), usize::MAX).await {
         Ok(bytes) => bytes,
         Err(_) => {
             return (StatusCode::BAD_REQUEST, Json(serde_json::json!({
@@ -201,7 +200,7 @@ where
 {
     type Rejection = Response;
 
-    async fn from_request(req: &mut Request<Body>, state: &S) -> Result<Self, Self::Rejection> {
+    async fn from_request(req: Request<Body>, state: &S) -> Result<Self, Self::Rejection> {
         let Json(value) = Json::<T>::from_request(req, state)
             .await
             .map_err(|e| e.into_response())?;

@@ -1,7 +1,8 @@
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
+use validator::Validate;
 
-#[derive(Debug, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct Broadcast {
     pub id: uuid::Uuid,
     pub subject: String,
@@ -29,7 +30,7 @@ pub struct BroadcastRecipient {
     pub opened_at: Option<chrono::NaiveDateTime>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Validate)]
 pub struct CreateBroadcast {
     pub subject: String,
     pub body: String,
@@ -39,7 +40,7 @@ pub struct CreateBroadcast {
     pub scheduled_at: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Validate)]
 pub struct UpdateBroadcast {
     pub subject: Option<String>,
     pub body: Option<String>,

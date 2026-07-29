@@ -48,7 +48,7 @@ pub async fn create_team(
     .bind(input.color.as_deref().unwrap_or("#3B82F6"))
     .fetch_one(&pool)
     .await?;
-    let _ = create_audit_entry(&pool, &auth.email, "create", "volunteer_team", &row.id.to_string(), Some(serde_json::json!({"id": row.id}))).await;
+    let _ = create_audit_entry(&pool, &_auth.email, "create", "volunteer_team", &row.id.to_string(), Some(serde_json::json!({"id": row.id}))).await;
     Ok(Json(row))
 }
 
@@ -81,7 +81,7 @@ pub async fn update_team(
     .bind(input.enabled.unwrap_or(existing.enabled))
     .fetch_one(&pool)
     .await?;
-    let _ = create_audit_entry(&pool, &auth.email, "update", "volunteer_team", &row.id.to_string(), Some(serde_json::json!({"id": row.id}))).await;
+    let _ = create_audit_entry(&pool, &_auth.email, "update", "volunteer_team", &row.id.to_string(), Some(serde_json::json!({"id": row.id}))).await;
     Ok(Json(row))
 }
 
@@ -94,7 +94,7 @@ pub async fn delete_team(
         .bind(id)
     .execute(&pool)
     .await?;
-    let _ = create_audit_entry(&pool, &auth.email, "delete", "volunteer_team", &id.to_string(), Some(serde_json::json!({"id": id}))).await;
+    let _ = create_audit_entry(&pool, &_auth.email, "delete", "volunteer_team", &id.to_string(), Some(serde_json::json!({"id": id}))).await;
     Ok(Json(serde_json::json!({ "deleted": true })))
 }
 
@@ -147,7 +147,7 @@ pub async fn create_shift(
     .bind(input.notes.as_deref().unwrap_or(""))
     .fetch_one(&pool)
     .await?;
-    let _ = create_audit_entry(&pool, &auth.email, "create", "volunteer_shift", &row.id.to_string(), Some(serde_json::json!({"id": row.id}))).await;
+    let _ = create_audit_entry(&pool, &_auth.email, "create", "volunteer_shift", &row.id.to_string(), Some(serde_json::json!({"id": row.id}))).await;
     Ok(Json(row))
 }
 
@@ -192,7 +192,7 @@ pub async fn update_shift(
     .bind(input.notes.as_deref().unwrap_or(&existing.notes))
     .fetch_one(&pool)
     .await?;
-    let _ = create_audit_entry(&pool, &auth.email, "update", "volunteer_shift", &row.id.to_string(), Some(serde_json::json!({"id": row.id}))).await;
+    let _ = create_audit_entry(&pool, &_auth.email, "update", "volunteer_shift", &row.id.to_string(), Some(serde_json::json!({"id": row.id}))).await;
     Ok(Json(row))
 }
 
@@ -205,7 +205,7 @@ pub async fn delete_shift(
         .bind(id)
     .execute(&pool)
     .await?;
-    let _ = create_audit_entry(&pool, &auth.email, "delete", "volunteer_shift", &id.to_string(), Some(serde_json::json!({"id": id}))).await;
+    let _ = create_audit_entry(&pool, &_auth.email, "delete", "volunteer_shift", &id.to_string(), Some(serde_json::json!({"id": id}))).await;
     Ok(Json(serde_json::json!({ "deleted": true })))
 }
 
@@ -239,6 +239,6 @@ pub async fn create_assignment(
     .bind(input.notes.as_deref().unwrap_or(""))
     .fetch_one(&pool)
     .await?;
-    let _ = create_audit_entry(&pool, &auth.email, "create", "volunteer_assignment", &row.id.to_string(), Some(serde_json::json!({"id": row.id}))).await;
+    let _ = create_audit_entry(&pool, &_auth.email, "create", "volunteer_assignment", &row.id.to_string(), Some(serde_json::json!({"id": row.id}))).await;
     Ok(Json(row))
 }

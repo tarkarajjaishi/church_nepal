@@ -47,6 +47,7 @@ pub async fn create(_auth: AuthUser, Db(pool): Db, ValidatedJson(input): Validat
      .bind(input.published_at)
       .fetch_one(&pool).await?;
       let _ = create_audit_entry(&pool, &_auth.email, "create", "event", &row.id.to_string(), Some(serde_json::json!({"id": row.id}))).await;
+      Ok(Json(row))
  }
 
 pub async fn update(_auth: AuthUser, Db(pool): Db, Path(id): Path<uuid::Uuid>, ValidatedJson(input): ValidatedJson<UpdateEvent>) -> Result<Json<ChurchEvent>, AppError> {
@@ -64,13 +65,13 @@ pub async fn update(_auth: AuthUser, Db(pool): Db, Path(id): Path<uuid::Uuid>, V
         r#"UPDATE events SET title=COALESCE($2,title), date=COALESCE($3,date), display_date=COALESCE($4,display_date), time=COALESCE($5,time), location=COALESCE($6,location), image=COALESCE($7,image), description=COALESCE($8,description), capacity=COALESCE($9,capacity), enabled=COALESCE($10,enabled), published_at=COALESCE($11,published_at) WHERE id=$1 RETURNING *"#,
     )
     .bind(id)
-    .bind(input.title.as_deref().map(|t| xss::sanitize_plain(t)).or(existing.title.as_deref()))
-    .bind(input.date.as_deref().or(existing.date.as_deref()))
-    .bind(input.display_date.as_deref().or(existing.display_date.as_deref()))
-    .bind(input.time.as_deref().or(existing.time.as_deref()))
-    .bind(input.location.as_deref().map(|t| xss::sanitize_plain(t)).or(existing.location.as_deref()))
-    .bind(input.image.as_deref().or(existing.image.as_deref()))
-    .bind(input.description.as_deref().map(|t| xss::sanitize_plain(t)).or(existing.description.as_deref()))
+    .bind(input.title.as_deref().map(|t| xss::sanitize_plain(t)).or(Some(existing.title.clone())))
+    .bind(input.date.clone().or(Some(existing.date.clone())))
+    .bind(input.display_date.clone().or(Some(existing.display_date.clone())))
+    .bind(input.time.clone().or(Some(existing.time.clone())))
+    .bind(input.location.as_deref().map(|t| xss::sanitize_plain(t)).or(Some(existing.location.clone())))
+    .bind(input.image.clone().or(Some(existing.image.clone())))
+    .bind(input.description.as_deref().map(|t| xss::sanitize_plain(t)).or(Some(existing.description.clone())))
     .bind(input.capacity.unwrap_or(existing.capacity.unwrap_or(0)))
     .bind(enabled)
     .bind(input.published_at)

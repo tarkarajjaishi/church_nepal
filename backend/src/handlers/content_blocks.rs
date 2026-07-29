@@ -1,3 +1,4 @@
+use serde_json::json;
 use crate::handlers::ValidatedJson;
 use crate::security::xss;
 use crate::tenant::Db;
@@ -61,7 +62,7 @@ pub async fn create(_auth: AuthUser, Db(pool): Db, ValidatedJson(input): Validat
      .bind(&input.section_key).bind(&title).bind(&subtitle)
      .bind(&body).bind(&input.image).bind(&input.icon).bind(&input.items)
       .fetch_one(&pool).await?;
-      let _ = create_audit_entry(&pool, &_auth.email, "create", "content_block", &row.id.to_string(), json!({"id": row.id, "section_key": row.section_key})).await;
+      let _ = create_audit_entry(&pool, &_auth.email, "create", "content_block", &row.id.to_string(), Some(json!({"id": row.id, "section_key": row.section_key}))).await;
      Ok(Json(row))
  }
 
@@ -74,14 +75,14 @@ pub async fn update(_auth: AuthUser, Db(pool): Db, Path(id): Path<uuid::Uuid>, V
      )
      .bind(id)
      .bind(input.title.as_deref().map(|t| xss::sanitize_html(t)).unwrap_or_else(|| existing.title.clone()))
-     .bind(input.subtitle.as_deref().map(|t| xss::sanitize_plain(t)).or(existing.subtitle.as_deref()).unwrap_or(""))
-     .bind(input.body.as_deref().map(|t| xss::sanitize_html(t)).or(existing.body.as_deref()).unwrap_or(""))
-     .bind(input.image.as_deref().or(existing.image.as_deref()).unwrap_or_else(|| "".to_string()))
-     .bind(input.icon.as_deref().or(existing.icon.as_deref()).unwrap_or_else(|| "".to_string()))
+     .bind(input.subtitle.as_deref().map(|t| xss::sanitize_plain(t)).or_else(|| existing.subtitle.clone()).unwrap_or_default())
+     .bind(input.body.as_deref().map(|t| xss::sanitize_html(t)).or_else(|| existing.body.clone()).unwrap_or_default())
+     .bind(input.image.clone().or_else(|| existing.image.clone()).unwrap_or_default())
+     .bind(input.icon.clone().or_else(|| existing.icon.clone()).unwrap_or_default())
      .bind(input.items.as_ref().or(existing.items.as_ref()))
       .bind(input.sort_order)
       .fetch_one(&pool).await?;
-      let _ = create_audit_entry(&pool, &_auth.email, "update", "content_block", &row.id.to_string(), json!({"id": row.id, "section_key": row.section_key})).await;
+      let _ = create_audit_entry(&pool, &_auth.email, "update", "content_block", &row.id.to_string(), Some(json!({"id": row.id, "section_key": row.section_key}))).await;
       Ok(Json(row))
   }
 
@@ -89,14 +90,14 @@ pub async fn delete(_auth: AuthUser, Db(pool): Db, Path(id): Path<uuid::Uuid>) -
     sqlx::query("DELETE FROM content_blocks WHERE id = $1")
         .bind(id)
         .execute(&pool).await?;
-    let _ = create_audit_entry(&pool, &_auth.email, "delete", "content_block", &id.to_string(), json!({"id": id})).await;
+    let _ = create_audit_entry(&pool, &_auth.email, "delete", "content_block", &id.to_string(), Some(json!({"id": id}))).await;
     Ok(Json(serde_json::json!({ "deleted": true })))
 }
 
 pub async fn toggle(_auth: AuthUser, Db(pool): Db, Path(id): Path<uuid::Uuid>) -> Result<Json<ContentBlock>, AppError> {
     let row = sqlx::query_as::<_, ContentBlock>("UPDATE content_blocks SET enabled = NOT enabled WHERE id = $1 RETURNING *")
         .bind(id).fetch_optional(&pool).await?.ok_or_else(|| AppError::not_found("Content block not found"))?;
-    let _ = create_audit_entry(&pool, &_auth.email, "toggle", "content_block", &row.id.to_string(), json!({"id": row.id, "enabled": row.enabled})).await;
+    let _ = create_audit_entry(&pool, &_auth.email, "toggle", "content_block", &row.id.to_string(), Some(json!({"id": row.id, "enabled": row.enabled}))).await;
     Ok(Json(row))
 }
 

@@ -60,7 +60,7 @@ pub async fn create(
     .bind(input.notes.as_deref().unwrap_or(""))
     .fetch_one(&pool)
     .await?;
-    let _ = create_audit_entry(&pool, &auth.email, "create", "pledge", &row.id.to_string(), Some(serde_json::json!({"id": row.id}))).await;
+    let _ = create_audit_entry(&pool, &_auth.email, "create", "pledge", &row.id.to_string(), Some(serde_json::json!({"id": row.id}))).await;
     Ok(Json(row))
 }
 
@@ -98,7 +98,7 @@ pub async fn update(
     .bind(input.notes.as_deref().unwrap_or(&existing.notes))
     .fetch_one(&pool)
     .await?;
-    let _ = create_audit_entry(&pool, &auth.email, "update", "pledge", &row.id.to_string(), Some(serde_json::json!({"id": row.id}))).await;
+    let _ = create_audit_entry(&pool, &_auth.email, "update", "pledge", &row.id.to_string(), Some(serde_json::json!({"id": row.id}))).await;
     Ok(Json(row))
 }
 
@@ -111,6 +111,6 @@ pub async fn delete(
         .bind(id)
     .execute(&pool)
     .await?;
-    let _ = create_audit_entry(&pool, &auth.email, "delete", "pledge", &id.to_string(), Some(serde_json::json!({"id": id}))).await;
+    let _ = create_audit_entry(&pool, &_auth.email, "delete", "pledge", &id.to_string(), Some(serde_json::json!({"id": id}))).await;
     Ok(Json(serde_json::json!({ "deleted": true })))
 }

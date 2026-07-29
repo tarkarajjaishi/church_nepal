@@ -2,19 +2,35 @@ import * as React from 'react';
 
 import { cn } from '@/lib/utils';
 
-const Card = React.forwardRef<
-  HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement>
->(({ className, ...props }, ref) => (
-  <div
-    ref={ref}
-    className={cn(
-      'rounded-xl border bg-card text-card-foreground shadow',
-      className
-    )}
-    {...props}
-  />
-));
+// `variant` was already being passed by faq-section, pricing-section and
+// stats-section, but Card never declared it: TypeScript rejected the prop and
+// React forwarded it onto the <div> as an unknown DOM attribute. Declaring it
+// here fixes both and gives `elevated` the lift those call sites expect
+// (pricing-section uses it to single out the recommended plan).
+type CardVariant = 'default' | 'elevated';
+
+const CARD_VARIANTS: Record<CardVariant, string> = {
+  default: 'shadow',
+  elevated: 'shadow-lg',
+};
+
+export interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
+  variant?: CardVariant;
+}
+
+const Card = React.forwardRef<HTMLDivElement, CardProps>(
+  ({ className, variant = 'default', ...props }, ref) => (
+    <div
+      ref={ref}
+      className={cn(
+        'rounded-xl border bg-card text-card-foreground',
+        CARD_VARIANTS[variant],
+        className
+      )}
+      {...props}
+    />
+  )
+);
 Card.displayName = 'Card';
 
 const CardHeader = React.forwardRef<

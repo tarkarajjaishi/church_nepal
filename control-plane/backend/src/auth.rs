@@ -175,22 +175,17 @@ pub struct ApiKey {
     pub scopes: Vec<String>,
 }
 
-impl<S> FromRequestParts<S> for ApiKey
-where
-    S: Send + Sync + 'static,
-{
+impl FromRequestParts<crate::AppState> for ApiKey {
     type Rejection = AppError;
 
-    async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
+    async fn from_request_parts(parts: &mut Parts, state: &crate::AppState) -> Result<Self, Self::Rejection> {
         let api_key = parts
             .headers
             .get("x-api-key")
             .and_then(|v| v.to_str().ok())
             .ok_or_else(|| AppError::unauthorized("Missing x-api-key header"))?;
 
-        let st = state
-            .downcast_ref::<crate::AppState>()
-            .ok_or_else(|| AppError::internal("State type mismatch"))?;
+        let st = state;
 
         let rows: Vec<(Uuid, String, String, Vec<String>)> =
             sqlx::query_as("SELECT id, name, key_hash, scopes FROM api_keys WHERE prefix = LEFT($1, 12) AND revoked_at IS NULL")
@@ -408,7 +403,7 @@ mod tests {
         .bind(uuid::Uuid::new_v4().to_string())
         .bind(admin_id.to_string())
         .bind(&hash1)
-        .bind(chrono::Utc::now().chrono::NaiveDateTime::and_utc().to_string())
+        .bind(chrono::Utc::now().to_rfc3339())
         .execute(&pool)
         .await
         .expect("Failed to insert token1");
@@ -422,7 +417,7 @@ mod tests {
         .bind(uuid::Uuid::new_v4().to_string())
         .bind(admin_id.to_string())
         .bind(&hash2)
-        .bind(chrono::Utc::now().chrono::NaiveDateTime::and_utc().to_string())
+        .bind(chrono::Utc::now().to_rfc3339())
         .execute(&pool)
         .await
         .expect("Failed to insert token2");
@@ -453,7 +448,6 @@ mod tests {
         assert!(row2.is_some());
         assert_eq!(row2.as_ref().unwrap().4, true);
     }
-}
 
     use axum::http::header::HeaderMap;
     use axum::http::Request;

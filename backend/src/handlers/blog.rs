@@ -199,6 +199,6 @@ pub async fn delete(
         .bind(id)
         .execute(&pool)
         .await?;
-    let _ = create_audit_entry(&pool, &auth.email, "delete", "blog", &id.to_string(), Some(serde_json::json!({"id": id}))).await;
+    let _ = create_audit_entry(&pool, &_auth.email, "delete", "blog", &id.to_string(), Some(serde_json::json!({"id": id}))).await;
     Ok(Json(serde_json::json!({ "deleted": true })))
 }
