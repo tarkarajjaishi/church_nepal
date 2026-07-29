@@ -521,9 +521,10 @@ pub async fn search(
 
 #[derive(Serialize)]
 pub struct HealthResponse {
-    status: &'static str,
-    version: &'static str,
-    uptime_seconds: u64,
+    // pub so contract_tests can construct and assert on the serialised shape.
+    pub status: &'static str,
+    pub version: &'static str,
+    pub uptime_seconds: u64,
 }
 
 #[derive(Serialize)]

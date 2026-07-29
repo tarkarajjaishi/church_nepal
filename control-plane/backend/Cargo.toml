@@ -24,3 +24,8 @@ hmac = "0.12"
 sha2 = "0.10"
 hex = "0.4"
 lettre = { version = "0.11", default-features = false, features = ["builder", "smtp-transport", "hostname", "tokio1-rustls-tls"] }
+
+[features]
+# Integration tests needing a live Postgres (refresh-token storage). Off by
+# default so `cargo test` runs without a database.
+pg-tests = []

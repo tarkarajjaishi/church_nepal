@@ -1,10 +1,10 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Church, Loader2, AlertCircle } from 'lucide-react'
 
-export default function VerifyMagicPage() {
+function VerifyMagicContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [error, setError] = useState<string | null>(null)
@@ -77,5 +77,15 @@ export default function VerifyMagicPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+// useSearchParams() requires a Suspense boundary or prerendering this route
+// fails the production build.
+export default function VerifyMagicPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen" aria-busy="true" />}>
+      <VerifyMagicContent />
+    </Suspense>
   )
 }

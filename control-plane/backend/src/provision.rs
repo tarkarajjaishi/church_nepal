@@ -272,7 +272,7 @@ mod tests {
 }
 
 #[cfg(test)]
-mod tests {
+mod slug_tests {
     use super::*;
 
     #[test]

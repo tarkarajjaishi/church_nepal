@@ -1,9 +1,20 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { apiClient } from '@/lib/api-client'
 
+// The suite calls vi.mocked(apiClient.get) — without this the real axios
+// instance is imported and .mockResolvedValue does not exist on it.
+vi.mock('@/lib/api-client', () => ({
+  apiClient: { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() },
+}))
+
 const CONTRACT_BASE = '../contracts/openapi.json'
 
 type PathSchema = {
+  // Some endpoints legitimately return one of several shapes for the same
+  // status (e.g. login answers with either a 2FA challenge or a token pair).
+  // `required` cannot express that — it demands every key at once — so those
+  // responses are declared as `oneOf` variants instead.
+  oneOf?: Record<string, Array<Record<string, string>>>
   required?: Record<string, string | string[]>
   arrayOf?: {
     required: string[]
@@ -18,9 +29,25 @@ type PathSchema = {
 }
 
 const SCHEMAS: Record<string, PathSchema> = {
-  '/api/auth/login': {
+  // Declared so the "every backend route has a contract entry" check passes —
+  // both are advertised by GET /api/_routes.
+  '/healthz': {
     required: {
-      '200': { twofa_required: 'boolean', token: 'string', refresh_token: 'string', email: 'string', role: 'string' },
+      '200': { status: 'string', version: 'string', uptime_seconds: 'number' },
+    },
+  },
+  '/api/_routes': {
+    required: {
+      '200': { items: ['method', 'path', 'auth'] },
+    },
+  },
+  '/api/auth/login': {
+    // Either a 2FA challenge, or a completed sign-in — never both.
+    oneOf: {
+      '200': [
+        { twofa_required: 'boolean' },
+        { token: 'string', refresh_token: 'string', email: 'string', role: 'string' },
+      ],
     },
   },
   '/api/auth/refresh': {
@@ -131,6 +158,27 @@ function validateArrayItems(items: unknown[], requiredKeys: string[], path: stri
 
 function validateResponseShape(body: unknown, path: string, status: number, schema: PathSchema): void {
   const statusStr = String(status)
+
+  const variants = schema.oneOf?.[statusStr]
+  if (variants) {
+    expect(typeof body).toBe('object')
+    expect(body).not.toBeNull()
+    const obj = body as Record<string, unknown>
+    const matches = variants.some((variant) =>
+      Object.entries(variant).every(
+        ([key, type]) => key in obj && typeof obj[key] === type
+      )
+    )
+    if (!matches) {
+      throw new Error(
+        `Response at "${path}" (${statusStr}) matched none of the declared variants. ` +
+          `Got keys [${Object.keys(obj).join(', ')}]; expected one of ` +
+          variants.map((v) => `[${Object.keys(v).join(', ')}]`).join(' or ')
+      )
+    }
+    return
+  }
+
   const requiredForStatus = schema.required?.[statusStr]
   if (!requiredForStatus) return
 

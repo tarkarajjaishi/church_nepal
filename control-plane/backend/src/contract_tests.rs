@@ -231,7 +231,8 @@ fn notification_json_contract() {
     let obj = value.as_object().unwrap();
 
     assert!(obj.contains_key("id"));
-    assert!(obj.contains_key("event_type"));
+    // serde renames event_type -> "type" on the wire.
+    assert!(obj.contains_key("type"));
     assert!(obj.contains_key("title"));
     assert!(obj.contains_key("body"));
     assert!(obj.contains_key("church_id"));
@@ -251,7 +252,7 @@ fn blog_post_json_contract() {
         cover: None,
         author: "Admin".into(),
         category: "News".into(),
-        published: Some(true),
+        published: true,
         published_at: Some(now),
         created_at: now,
     };
@@ -368,14 +369,17 @@ fn refund_analytics_contract() {
 
 #[test]
 fn analytics_contract() {
-    let analytics = crate::handlers::Analytics {
+    // Asserts the shape GET /api/analytics/overview actually returns. The test
+    // previously described a `handlers::Analytics` type with total_members /
+    // total_giving that does not exist — the endpoint serialises
+    // AnalyticsOverview, which carries a per-plan breakdown instead.
+    let analytics = crate::handlers::AnalyticsOverview {
         total_churches: 0,
         active_churches: 0,
         suspended_churches: 0,
-        total_members: 0,
-        total_giving: 0,
         mrr: 0,
         churches_this_month: 0,
+        churches_by_plan: Vec::new(),
     };
 
     let value = serde_json::to_value(&analytics).expect("serialize analytics");
@@ -384,16 +388,16 @@ fn analytics_contract() {
     assert!(obj.contains_key("total_churches"));
     assert!(obj.contains_key("active_churches"));
     assert!(obj.contains_key("suspended_churches"));
-    assert!(obj.contains_key("total_members"));
-    assert!(obj.contains_key("total_giving"));
     assert!(obj.contains_key("mrr"));
     assert!(obj.contains_key("churches_this_month"));
+    assert!(obj.contains_key("churches_by_plan"));
 }
 
-#[test]
-fn routes_catalog_contract() {
-    let routes = crate::handlers::api_routes();
-    let value = serde_json::to_value(routes).expect("serialize routes");
+// api_routes is an async handler, so this test needs a runtime to await it.
+#[tokio::test]
+async fn routes_catalog_contract() {
+    let routes = crate::handlers::api_routes().await;
+    let value = serde_json::to_value(routes.0).expect("serialize routes");
     let arr = value.as_array().expect("routes must be array");
 
     assert!(!arr.is_empty());

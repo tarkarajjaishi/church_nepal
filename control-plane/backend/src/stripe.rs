@@ -406,7 +406,7 @@ mod tests {
 }
 
 #[cfg(test)]
-mod tests {
+mod client_tests {
     use super::*;
     use std::env;
 

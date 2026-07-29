@@ -52,7 +52,10 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
-      - run: cd control-plane/backend && cargo test --lib -- contract::
+      # The crate is binary-only (no src/lib.rs), so `--lib` errors with "no
+      # library targets found". The contract tests live in the `contract_tests`
+      # module, not `contract`, so the old filter also matched nothing.
+      - run: cd control-plane/backend && cargo test --bins -- contract_tests::
 
   # Lint and Type Check Frontend
   frontend-lint:

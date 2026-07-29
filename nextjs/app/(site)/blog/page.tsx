@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, Suspense } from "react";
 import Link from 'next/link';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { Search, X, Calendar, User, ChevronLeft, ChevronRight, ArrowUpDown } from "lucide-react";
@@ -33,7 +33,7 @@ function useDebouncedValue<T>(value: T, delay: number): T {
   return debouncedValue
 }
 
-export default function BlogPage() {
+function BlogPageContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const pathname = usePathname()
@@ -301,5 +301,15 @@ export default function BlogPage() {
         </div>
       </section>
     </div>
+  );
+}
+
+// useSearchParams() opts the route into client-side rendering and Next requires
+// a Suspense boundary around it, otherwise prerendering /blog fails the build.
+export default function BlogPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen" aria-busy="true" />}>
+      <BlogPageContent />
+    </Suspense>
   );
 }

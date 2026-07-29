@@ -282,6 +282,7 @@ pub async fn revoke_all_refresh_tokens(pool: &sqlx::PgPool, admin_id: uuid::Uuid
 #[cfg(test)]
 mod tests {
     use super::*;
+    use sqlx::sqlite::SqlitePoolOptions;
     use std::env;
 
     #[test]
@@ -304,6 +305,8 @@ mod tests {
         assert!(token.chars().all(|c| c.is_ascii_hexdigit()));
     }
 
+    // Requires a live Postgres — see note on the sibling test below.
+    #[cfg(feature = "pg-tests")]
     #[tokio::test]
     async fn test_store_and_find_refresh_token() {
         // Set up an in-memory SQLite database
@@ -364,6 +367,10 @@ mod tests {
         assert!(after_revoke.is_none(), "Token should be revoked");
     }
 
+    // Requires a live Postgres: store/find/revoke take &PgPool, so the in-memory
+    // SQLite pool these were written against cannot satisfy them. Enable with
+    // `cargo test --features pg-tests` against a real database.
+    #[cfg(feature = "pg-tests")]
     #[tokio::test]
     async fn test_revoke_all_refresh_tokens() {
         let pool = SqlitePoolOptions::new()
@@ -449,18 +456,21 @@ mod tests {
         assert_eq!(row2.as_ref().unwrap().4, true);
     }
 
-    use axum::http::header::HeaderMap;
     use axum::http::Request;
-    use tower::ServiceExt;
 
     /// Helper to create a request with an Authorization header
-    fn make_request(token: &str) -> http::request::Parts {
-        let mut headers = HeaderMap::new();
-        headers.insert(
-            axum::http::header::AUTHORIZATION,
-            axum::http::HeaderValue::from_str(&format!("Bearer {token}")).unwrap(),
-        );
-        let req = Request::builder().header(axom::http::header::CONTENT_TYPE, "application/json").body(()).unwrap();
+    fn make_request(token: &str) -> axum::http::request::Parts {
+        // The Authorization header must go on the request itself — the previous
+        // version built a detached HeaderMap and dropped it, so every guard saw
+        // an unauthenticated request and returned 401 instead of 403.
+        let req = Request::builder()
+            .header(axum::http::header::CONTENT_TYPE, "application/json")
+            .header(
+                axum::http::header::AUTHORIZATION,
+                format!("Bearer {token}"),
+            )
+            .body(())
+            .unwrap();
         req.into_parts().0
     }
 
@@ -470,18 +480,18 @@ mod tests {
         let admin_token = create_access_token("admin1", "admin@example.com", "admin", "jti-admin1", 0).unwrap();
         let sa_token = create_access_token("sa1", "sa@example.com", "super_admin", "jti-sa1", 0).unwrap();
 
-        let admin_parts = make_request(&admin_token);
-        let sa_parts = make_request(&sa_token);
+        let mut admin_parts = make_request(&admin_token);
+        let mut sa_parts = make_request(&sa_token);
         let state = (); // dummy state
 
         // AdminGuard should succeed for admin
-        let guard = AdminGuard::from_request_parts(admin_parts, &state)
+        let guard = AdminGuard::from_request_parts(&mut admin_parts, &state)
             .await
             .expect("Admin should be allowed");
         assert_eq!(guard.0.role, "admin");
 
         // AdminGuard should succeed for super_admin
-        let guard = AdminGuard::from_request_parts(sa_parts, &state)
+        let guard = AdminGuard::from_request_parts(&mut sa_parts, &state)
             .await
             .expect("Super admin should be allowed");
         assert_eq!(guard.0.role, "super_admin");
@@ -491,13 +501,13 @@ mod tests {
     async fn test_admin_guard_rejects_other_roles() {
         env::set_var("JWT_SECRET", "test_secret");
         let user_token = create_access_token("user1", "user@example.com", "user", "jti-user1", 0).unwrap();
-        let parts = make_request(&user_token);
+        let mut parts = make_request(&user_token);
         let state = ();
-        let err = AdminGuard::from_request_parts(parts, &state)
+        let err = AdminGuard::from_request_parts(&mut parts, &state)
             .await
             .expect_err("Non-admin should be rejected");
         match err {
-            AppError::Forbidden { .. } => {}
+            e if e.status == StatusCode::FORBIDDEN => {}
             e => panic!("Expected Forbidden error, got {:?}", e),
         }
     }
@@ -507,35 +517,35 @@ mod tests {
         env::set_var("JWT_SECRET", "test_secret");
         let admin_token = create_access_token("admin1", "admin@example.com", "admin", "jti-admin1", 0).unwrap();
         let sa_token = create_access_token("sa1", "sa@example.com", "super_admin", "jti-sa1", 0).unwrap();
-        let user_token = create_access_token("user1", "user@example.com", "user").unwrap();
+        let user_token = create_access_token("user1", "user@example.com", "user", "jti-user1", 0).unwrap();
 
-        let admin_parts = make_request(&admin_token);
-        let sa_parts = make_request(&sa_token);
-        let user_parts = make_request(&user_token);
+        let mut admin_parts = make_request(&admin_token);
+        let mut sa_parts = make_request(&sa_token);
+        let mut user_parts = make_request(&user_token);
         let state = ();
 
         // SuperAdmin::from_request_parts should reject admin
-        let err = SuperAdmin::from_request_parts(admin_parts, &state)
+        let err = SuperAdmin::from_request_parts(&mut admin_parts, &state)
             .await
             .expect_err("Admin should not be allowed as super admin");
         match err {
-            AppError::Forbidden { .. } => {}
+            e if e.status == StatusCode::FORBIDDEN => {}
             e => panic!("Expected Forbidden error, got {:?}", e),
         };
 
         // Should accept super_admin
-        let sa = SuperAdmin::from_request_parts(sa_parts, &state)
+        let sa = SuperAdmin::from_request_parts(&mut sa_parts, &state)
             .await
             .expect("Super admin should be allowed");
         assert_eq!(sa.id, "sa1");
         assert_eq!(sa.email, "sa@example.com");
 
         // Should reject regular user
-        let err = SuperAdmin::from_request_parts(user_parts, &state)
+        let err = SuperAdmin::from_request_parts(&mut user_parts, &state)
             .await
             .expect_err("User should not be allowed as super admin");
         match err {
-            AppError::Forbidden { .. } => {}
+            e if e.status == StatusCode::FORBIDDEN => {}
             e => panic!("Expected Forbidden error, got {:?}", e),
         };
     }

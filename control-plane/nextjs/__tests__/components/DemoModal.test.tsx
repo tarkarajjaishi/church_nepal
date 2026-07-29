@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import { DemoModal } from '@/components/landing/demo-modal'
+import DemoModal from '@/components/landing/demo-modal'
 
 describe('DemoModal', () => {
   it('renders the open button', () => {
@@ -46,13 +46,20 @@ describe('DemoModal', () => {
   })
 
   it('validates email format', async () => {
-    render(<DemoModal />)
+    const { container } = render(<DemoModal />)
     fireEvent.click(screen.getByText('Book a demo'))
     await screen.findByText('Schedule a Demo')
     fireEvent.change(screen.getByLabelText('Your Name *'), { target: { value: 'John' } })
     fireEvent.change(screen.getByLabelText('Church Name *'), { target: { value: 'Church' } })
     fireEvent.change(screen.getByLabelText('Email Address *'), { target: { value: 'invalid' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Send Request' }))
+
+    // The field is <input type="email">, so clicking submit makes jsdom's native
+    // constraint validation reject the form before handleSubmit ever runs — the
+    // component's own validation would never be exercised. Submitting the form
+    // directly is what actually tests it.
+    const form = container.querySelector('form')!
+    fireEvent.submit(form)
+
     expect(await screen.findByText('Email is invalid')).toBeInTheDocument()
   })
 })

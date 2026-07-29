@@ -55,7 +55,9 @@ describe('DataTable', () => {
 
   it('shows loading skeleton when isLoading is true', () => {
     renderWithQuery(<DataTable data={[]} columns={columns} isLoading={true} />)
-    expect(screen.getByText('No results.')).not.toBeInTheDocument()
+    // getByText throws when the element is absent, so it can never be combined
+    // with .not.toBeInTheDocument(). queryByText returns null instead.
+    expect(screen.queryByText('No results.')).not.toBeInTheDocument()
   })
 
   it('shows search input when searchKey is provided', () => {

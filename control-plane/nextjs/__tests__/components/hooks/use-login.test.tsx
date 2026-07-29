@@ -2,22 +2,26 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
-const mockApiClientPost = vi.fn()
-const mockSetAuthToken = vi.fn()
-let tokenStore: string | null = null
-let refreshTokenStore: string | null = null
+// vi.mock factories are hoisted above plain const/let declarations, so anything
+// they close over must come from vi.hoisted — otherwise the bindings are still
+// in the temporal dead zone and the mock ends up with `post: undefined`.
+const { mockApiClientPost, mockSetAuthToken, store } = vi.hoisted(() => ({
+  mockApiClientPost: vi.fn(),
+  mockSetAuthToken: vi.fn(),
+  store: { token: null as string | null, refreshToken: null as string | null },
+}))
 
 vi.mock('@/lib/api-client', () => ({
   apiClient: {
     post: mockApiClientPost,
   },
   setAuthToken: (...args: any[]) => {
-    tokenStore = args[0]
-    if (args[1]) refreshTokenStore = args[1]
+    store.token = args[0]
+    if (args[1]) store.refreshToken = args[1]
     mockSetAuthToken(...args)
   },
-  getAuthToken: () => tokenStore,
-  getRefreshToken: () => refreshTokenStore,
+  getAuthToken: () => store.token,
+  getRefreshToken: () => store.refreshToken,
 }))
 
 import { useLogin } from '@/components/hooks/use-auth'
@@ -42,8 +46,8 @@ describe('useLogin', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     queryClient?.clear()
-    tokenStore = null
-    refreshTokenStore = null
+    store.token = null
+    store.refreshToken = null
     mockApiClientPost.mockReset()
   })
 
@@ -62,7 +66,9 @@ describe('useLogin', () => {
     await act(async () => {
       await result.current.mutateAsync({ email: 'admin@test.com', password: 'secret' })
     })
-    expect(tokenStore).toBe('tok-1')
-    expect(mockSetAuthToken).toHaveBeenCalledWith('tok-1', undefined)
+    expect(store.token).toBe('tok-1')
+    // useLogin normalises a missing refresh_token to null, not undefined:
+    // setAuthToken(data.token || null, data.refresh_token || null)
+    expect(mockSetAuthToken).toHaveBeenCalledWith('tok-1', null)
   })
 })

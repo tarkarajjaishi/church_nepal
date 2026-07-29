@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { Heart, QrCode, Building2, Smartphone, Check, Wallet, User, Mail, Phone } from "lucide-react";
+import { Heart, QrCode, Building2, Smartphone, Check, Wallet, User, Mail, Phone, Target } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, Suspense } from "react";
 import Link from 'next/link';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { Play, Search, FileText, Headphones, Video, X, SlidersHorizontal, ArrowUpDown, ChevronLeft, ChevronRight } from "lucide-react";
@@ -33,7 +33,7 @@ function useDebouncedValue<T>(value: T, delay: number): T {
   return debouncedValue
 }
 
-export default function Sermons() {
+function SermonsContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const pathname = usePathname()
@@ -339,5 +339,15 @@ export default function Sermons() {
         </div>
       </section>
     </div>
+  );
+}
+
+// useSearchParams() requires a Suspense boundary or prerendering this route
+// fails the production build.
+export default function Sermons() {
+  return (
+    <Suspense fallback={<div className="min-h-screen" aria-busy="true" />}>
+      <SermonsContent />
+    </Suspense>
   );
 }

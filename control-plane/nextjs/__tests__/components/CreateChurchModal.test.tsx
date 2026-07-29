@@ -9,7 +9,7 @@ vi.mock('@/components/hooks/use-churches', () => ({
   }),
 }))
 
-import { CreateChurchModal } from '@/components/admin/create-church-modal'
+import CreateChurchModal from '@/components/admin/create-church-modal'
 
 function createQueryClient() {
   return new QueryClient({

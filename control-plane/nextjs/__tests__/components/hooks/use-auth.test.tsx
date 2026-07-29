@@ -2,8 +2,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, waitFor, act } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
-const mockApiClientGet = vi.fn()
-const mockSetAuthToken = vi.fn()
+// vi.hoisted — vi.mock factories run before plain const declarations, so
+// closing over them directly leaves the mock with `get: undefined`.
+const { mockApiClientGet, mockSetAuthToken } = vi.hoisted(() => ({
+  mockApiClientGet: vi.fn(),
+  mockSetAuthToken: vi.fn(),
+}))
 
 vi.mock('@/lib/api-client', () => ({
   apiClient: {
