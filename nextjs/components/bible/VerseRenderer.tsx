@@ -60,34 +60,39 @@ const renderText = (raw: string) => {
   }
 
   return (
+    // The row is clickable for pointer users but carries no button role: it
+    // used to be role="button" while containing real buttons, which is invalid
+    // nesting and made a screen reader announce 50+ "button"s per chapter.
+    // The verse number below is the real, focusable control, so keyboard and
+    // assistive-tech users still have a way in — and the verse text stays
+    // plain text, so it can be selected and copied.
     <div
-      role="button"
-      tabIndex={0}
       onClick={onClick}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault()
-          onClick?.()
-        }
-      }}
-      className={`group relative rounded-xl px-3 sm:px-4 py-3 cursor-pointer transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-sky-blue/45 focus-visible:ring-offset-1 ${
+      className={`group relative rounded-xl px-3 sm:px-4 py-3 transition-colors duration-150 ${
         selected
           ? 'bg-gradient-to-r from-church-blue/[0.07] to-gold/[0.08] border border-church-blue/20 shadow-sm'
           : 'hover:bg-section-bg border border-transparent hover:border-church-blue/8'
       }`}
     >
       <div className="flex gap-3">
-        <span
-          className={`shrink-0 mt-0.5 inline-flex items-center justify-center min-w-[1.75rem] h-7 px-1.5 rounded-lg text-[11px] font-bold tabular-nums transition-colors ${
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation()
+            onClick?.()
+          }}
+          aria-expanded={!!selected}
+          aria-label={`पद ${verseNumber}`}
+          className={`shrink-0 mt-0.5 inline-flex items-center justify-center min-w-[1.75rem] h-7 px-1.5 rounded-lg text-[11px] font-bold tabular-nums transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-blue/45 focus-visible:ring-offset-1 ${
             selected
               ? 'bg-gold text-white shadow-sm shadow-gold/25'
               : 'bg-gold-soft/70 text-accent-foreground group-hover:bg-gold/20'
           }`}
         >
           {verseNumber}
-        </span>
+        </button>
         <p
-          className="flex-1 text-foreground font-nepali"
+          className="flex-1 text-foreground font-nepali cursor-pointer"
           style={{
             fontSize: `${fontSize}px`,
             lineHeight: 1.9,

@@ -18,7 +18,15 @@ import {
   LayoutGrid,
   X,
   ArrowRight,
+  Home,
 } from 'lucide-react'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { VerseRenderer } from '@/components/bible/VerseRenderer'
 import { BibleSidebar } from '@/components/bible/BibleSidebar'
 import { useBookmarks, useReadingHistory, useReadingProgress } from '@/lib/bible/hooks'
@@ -33,6 +41,13 @@ import {
 } from '@/lib/bible/books'
 
 type TabKey = 'read' | 'stats' | 'history' | 'bookmarks'
+
+const TABS = [
+  { key: 'read', label: 'पढ्नुहोस्', icon: BookOpen },
+  { key: 'stats', label: 'प्रगति', icon: TrendingUp },
+  { key: 'history', label: 'इतिहास', icon: Clock },
+  { key: 'bookmarks', label: 'बुकमार्क', icon: Bookmark },
+] as const satisfies readonly { key: TabKey; label: string; icon: unknown }[]
 
 interface BibleAppProps {
   initialBook?: string
@@ -123,6 +138,29 @@ export function BibleApp({ initialBook = 'JHN', initialChapter = 1 }: BibleAppPr
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only track reading when chapter data arrives
   }, [chapterData, selectedBook, chapter])
+
+  // Arrow keys move between tabs and move focus with the selection, per the
+  // WAI-ARIA tabs pattern. Without this the tablist was keyboard-inert.
+  const handleTabKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLDivElement>) => {
+      const delta =
+        e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0
+      if (!delta && e.key !== 'Home' && e.key !== 'End') return
+      e.preventDefault()
+
+      const current = TABS.findIndex((t) => t.key === activeTab)
+      const next =
+        e.key === 'Home'
+          ? 0
+          : e.key === 'End'
+            ? TABS.length - 1
+            : (current + delta + TABS.length) % TABS.length
+
+      setActiveTab(TABS[next].key)
+      document.getElementById(`bible-tab-${TABS[next].key}`)?.focus()
+    },
+    [activeTab]
+  )
 
   const showToast = useCallback((msg: string) => {
     setToast(msg)
@@ -223,6 +261,13 @@ export function BibleApp({ initialBook = 'JHN', initialChapter = 1 }: BibleAppPr
               <Menu className="size-5" />
             </button>
 
+            {/* /bible sits outside the (site) route group, so it has no site
+                header. Without this the only way back was to open the drawer
+                and find the home link inside it. */}
+            <Link href="/" className={`lg:hidden ${iconBtn}`} aria-label="मुख्य पृष्ठ">
+              <Home className="size-5" />
+            </Link>
+
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2 min-w-0">
                 <h1
@@ -267,38 +312,47 @@ export function BibleApp({ initialBook = 'JHN', initialChapter = 1 }: BibleAppPr
             <div
               className="flex gap-1 p-1 rounded-2xl bg-church-blue/[0.05] border border-church-blue/6"
               role="tablist"
+              aria-label="बाइबल दृश्य"
+              onKeyDown={handleTabKeyDown}
             >
-              {(
-                [
-                  { key: 'read' as const, label: 'पढ्नुहोस्', icon: BookOpen },
-                  { key: 'stats' as const, label: 'प्रगति', icon: TrendingUp },
-                  { key: 'history' as const, label: 'इतिहास', icon: Clock },
-                  { key: 'bookmarks' as const, label: 'बुकमार्क', icon: Bookmark },
-                ] as const
-              ).map(({ key, label, icon: Icon }) => (
-                <button
-                  key={key}
-                  type="button"
-                  role="tab"
-                  aria-selected={activeTab === key}
-                  onClick={() => setActiveTab(key)}
-                  className={`flex-1 min-w-0 min-h-11 flex items-center justify-center gap-1.5 px-2 sm:px-3 rounded-xl text-xs sm:text-sm font-medium font-nepali transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-blue/45 ${
-                    activeTab === key
-                      ? 'bg-white text-church-blue shadow-sm ring-1 ring-church-blue/8'
-                      : 'text-muted-foreground hover:text-church-blue'
-                  }`}
-                >
-                  <Icon className="size-4 shrink-0" />
-                  <span className="truncate">{label}</span>
-                </button>
-              ))}
+              {TABS.map(({ key, label, icon: Icon }) => {
+                const active = activeTab === key
+                return (
+                  <button
+                    key={key}
+                    id={`bible-tab-${key}`}
+                    type="button"
+                    role="tab"
+                    aria-selected={active}
+                    aria-controls={`bible-panel-${key}`}
+                    // Roving tabindex: one Tab stop for the whole set, then
+                    // arrow keys move between tabs (WAI-ARIA tabs pattern).
+                    tabIndex={active ? 0 : -1}
+                    onClick={() => setActiveTab(key)}
+                    className={`flex-1 min-w-0 min-h-11 flex items-center justify-center gap-1.5 px-2 sm:px-3 rounded-xl text-xs sm:text-sm font-medium font-nepali transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-blue/45 ${
+                      active
+                        ? 'bg-white text-church-blue shadow-sm ring-1 ring-church-blue/8'
+                        : 'text-muted-foreground hover:text-church-blue'
+                    }`}
+                  >
+                    <Icon className="size-4 shrink-0" />
+                    <span className="truncate">{label}</span>
+                  </button>
+                )
+              })}
             </div>
           </div>
         </header>
 
         {/* Scrollable content */}
         <div className="flex-1 overflow-y-auto">
-          <div className="mx-auto w-full max-w-3xl px-3 sm:px-5 py-4 sm:py-6 pb-24">
+          <div
+            className="mx-auto w-full max-w-3xl px-3 sm:px-5 py-4 sm:py-6 pb-24"
+            role="tabpanel"
+            id={`bible-panel-${activeTab}`}
+            aria-labelledby={`bible-tab-${activeTab}`}
+            tabIndex={0}
+          >
             {activeTab === 'read' && (
               <ReadTab
                 bookName={bookName}
@@ -567,59 +621,43 @@ function ReadTab({
         )}
       </article>
 
-      {/* Chapter picker modal */}
-      {chapterPickerOpen && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <button
-            type="button"
-            className="absolute inset-0 bg-church-blue/45 backdrop-blur-sm"
-            onClick={() => setChapterPickerOpen(false)}
-            aria-label="Close chapter picker"
-          />
-          <div className="relative w-full sm:max-w-md max-h-[80dvh] overflow-hidden rounded-t-3xl sm:rounded-3xl bg-white shadow-2xl animate-in slide-in-from-bottom-4 sm:zoom-in-95 duration-200">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-church-blue/8">
-              <div>
-                <h3
-                  className="font-bold text-church-blue font-nepali"
-                  style={{ fontFamily: 'var(--font-heading)' }}
-                >
-                  अध्याय छान्नुहोस्
-                </h3>
-                <p className="text-xs text-muted-foreground mt-0.5 font-nepali">
-                  {bookName} · {totalChapters} अध्याय
-                </p>
-              </div>
+      {/* Chapter picker — Radix Dialog supplies the focus trap, Escape
+          handling and focus restore the hand-rolled overlay was missing. */}
+      <Dialog open={chapterPickerOpen} onOpenChange={setChapterPickerOpen}>
+        <DialogContent className="sm:max-w-md p-0 gap-0 overflow-hidden max-h-[80dvh]">
+          <DialogHeader className="px-5 py-4 border-b border-church-blue/8 text-left space-y-0.5">
+            <DialogTitle
+              className="font-bold text-church-blue font-nepali"
+              style={{ fontFamily: 'var(--font-heading)' }}
+            >
+              अध्याय छान्नुहोस्
+            </DialogTitle>
+            <DialogDescription className="text-xs font-nepali">
+              {bookName} · {totalChapters} अध्याय
+            </DialogDescription>
+          </DialogHeader>
+          <div className="p-4 overflow-y-auto max-h-[60dvh] grid grid-cols-5 sm:grid-cols-6 gap-2">
+            {Array.from({ length: totalChapters }, (_, i) => i + 1).map((n) => (
               <button
+                key={n}
                 type="button"
-                onClick={() => setChapterPickerOpen(false)}
-                className="inline-flex items-center justify-center size-11 rounded-xl hover:bg-section-bg text-muted-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-blue/45"
-                aria-label="Close"
+                aria-current={n === chapter ? 'true' : undefined}
+                onClick={() => {
+                  goToChapter(n)
+                  setChapterPickerOpen(false)
+                }}
+                className={`aspect-square min-h-11 rounded-xl text-sm font-semibold tabular-nums transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-blue/45 ${
+                  n === chapter
+                    ? 'bg-church-blue text-white shadow-md shadow-church-blue/25 scale-[1.03]'
+                    : 'bg-section-bg text-church-blue hover:bg-church-blue/10 border border-church-blue/6'
+                }`}
               >
-                <X className="size-5" />
+                {n}
               </button>
-            </div>
-            <div className="p-4 overflow-y-auto max-h-[60dvh] grid grid-cols-5 sm:grid-cols-6 gap-2">
-              {Array.from({ length: totalChapters }, (_, i) => i + 1).map((n) => (
-                <button
-                  key={n}
-                  type="button"
-                  onClick={() => {
-                    goToChapter(n)
-                    setChapterPickerOpen(false)
-                  }}
-                  className={`aspect-square min-h-11 rounded-xl text-sm font-semibold tabular-nums transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-blue/45 ${
-                    n === chapter
-                      ? 'bg-church-blue text-white shadow-md shadow-church-blue/25 scale-[1.03]'
-                      : 'bg-section-bg text-church-blue hover:bg-church-blue/10 border border-church-blue/6'
-                  }`}
-                >
-                  {n}
-                </button>
-              ))}
-            </div>
+            ))}
           </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
     </>
   )
 }

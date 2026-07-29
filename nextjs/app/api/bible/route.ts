@@ -33,6 +33,38 @@ function normalizeBook(book: string): string {
   return upper
 }
 
+/**
+ * In every NNRV source file `chapters[0]` is the publisher's book
+ * introduction, not chapter 1 — real chapter N lives at `chapters[N]`.
+ *
+ * Indexing with `chapter - 1` therefore shifted the entire Bible by one: a
+ * request for John 3:16 returned John 2:16, and chapter 1 of every book
+ * rendered the introduction. Verified against all 66 files — each has exactly
+ * one extra leading entry (John 22 vs 21, Psalms 151 vs 150, Genesis 51 vs 50).
+ *
+ * Chapter numbers are 1-based over real chapters; the introduction is not
+ * addressable through this API.
+ */
+function getChapter(bookData: BookData, chapter: number): Chapter | null {
+  if (!Number.isInteger(chapter) || chapter < 1) return null
+  return bookData.chapters[chapter] ?? null
+}
+
+function chapterCount(bookData: BookData): number {
+  return Math.max(0, bookData.chapters.length - 1)
+}
+
+interface Verse {
+  id?: number
+  text: string
+}
+interface Chapter {
+  verses: Verse[]
+}
+interface BookData {
+  chapters: Chapter[]
+}
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const book = searchParams.get('book') ? normalizeBook(searchParams.get('book')!) : null
@@ -57,11 +89,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Book not found' }, { status: 404 })
   }
 
-  const bookData = JSON.parse(fs.readFileSync(filePath, 'utf-8'))
+  const bookData: BookData = JSON.parse(fs.readFileSync(filePath, 'utf-8'))
 
   if (verse) {
     const verseNum = parseInt(verse)
-    const chapterData = bookData.chapters[chapter - 1]
+    const chapterData = getChapter(bookData, chapter)
     if (!chapterData) {
       return NextResponse.json({ error: 'Chapter not found' }, { status: 404 })
     }
@@ -79,7 +111,7 @@ export async function GET(request: NextRequest) {
     })
   }
 
-  const chapterData = bookData.chapters[chapter - 1]
+  const chapterData = getChapter(bookData, chapter)
   if (!chapterData) {
     return NextResponse.json({ error: 'Chapter not found' }, { status: 404 })
   }
@@ -88,7 +120,7 @@ export async function GET(request: NextRequest) {
     book: BOOK_NAMES[book] || book,
     bookAbbreviation: book,
     chapter,
-    totalChapters: bookData.chapters.length,
+    totalChapters: chapterCount(bookData),
     verses: chapterData.verses
   })
 }

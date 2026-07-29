@@ -1,32 +1,46 @@
-'use client'
-
-import { Suspense, use } from 'react'
-import { BookOpen } from 'lucide-react'
+import type { Metadata } from 'next'
+import { Suspense } from 'react'
 import { BibleApp } from '@/components/bible/BibleApp'
-import { normalizeBookCode } from '@/lib/bible/books'
+import { BibleFallback } from '@/components/bible/BibleFallback'
+import { getBookName, normalizeBookCode } from '@/lib/bible/books'
 
-function BibleFallback() {
-  return (
-    <div className="flex h-[100dvh] items-center justify-center bg-[#f4f7fb]">
-      <div className="text-center">
-        <BookOpen className="size-10 mx-auto text-[#0b3c5d]/30 animate-pulse mb-3" />
-        <p className="text-sm text-slate-500">बाइबल लोड हुँदैछ...</p>
-      </div>
-    </div>
-  )
+/**
+ * Server component on purpose.
+ *
+ * This page used to be a client component that resolved `params` with
+ * `use(params)` and rendered <BibleApp> — which itself calls
+ * useSearchParams() — inside a Suspense boundary. That combination left the
+ * boundary suspended forever on the client: the fallback stayed visible, the
+ * server-rendered reader sat orphaned in the DOM, and nothing ever hydrated.
+ * The whole Bible reader was a dead shell — no chapter ever loaded, no button
+ * did anything.
+ *
+ * Resolving params on the server and handing BibleApp a plain string keeps the
+ * only client boundary inside <Suspense>, which is what App Router expects.
+ */
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ book: string }>
+}): Promise<Metadata> {
+  const { book } = await params
+  const name = getBookName(normalizeBookCode(book))
+  return {
+    title: `${name} — पवित्र बाइबल (NNRV)`,
+    description: `${name} — नेपाली नयाँ संशोधित संस्करण (NNRV) बाइबल अनलाइन पढ्नुहोस्।`,
+  }
 }
 
-export default function BibleBookPage({
+export default async function BibleBookPage({
   params,
 }: {
   params: Promise<{ book: string }>
 }) {
-  const { book: rawBook } = use(params)
-  const book = normalizeBookCode(rawBook)
+  const { book } = await params
 
   return (
     <Suspense fallback={<BibleFallback />}>
-      <BibleApp initialBook={book} initialChapter={1} />
+      <BibleApp initialBook={normalizeBookCode(book)} initialChapter={1} />
     </Suspense>
   )
 }
