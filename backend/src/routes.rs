@@ -491,6 +491,73 @@ pub fn admin_routes() -> Router {
                 .put(offerings::update)
                 .delete(offerings::delete),
         )
+        // ---- Offering Management module ----------------------------------
+        // Registered before the `/offerings/{id}` catch-alls above would match,
+        // because axum resolves static segments ahead of dynamic ones — but
+        // kept adjacent so the whole offering surface reads together.
+        .route(
+            "/offering-management/dashboard",
+            get(offering_mgmt::dashboard),
+        )
+        .route("/offering-management/offerings", get(offering_mgmt::offerings_page))
+        .route(
+            "/offering-management/offerings/create",
+            post(offering_mgmt::offerings_create),
+        )
+        .route(
+            "/offering-management/offerings/{id}/approve",
+            post(offering_mgmt::offerings_approve),
+        )
+        .route(
+            "/offering-management/offerings/{id}/reject",
+            post(offering_mgmt::offerings_reject),
+        )
+        .route(
+            "/offering-management/offerings/bulk-approve",
+            post(offering_mgmt::offerings_bulk_approve),
+        )
+        // Categories
+        .route(
+            "/offering-categories",
+            get(offering_mgmt::categories_list).post(offering_mgmt::categories_create),
+        )
+        .route(
+            "/offering-categories/{id}",
+            put(offering_mgmt::categories_update).delete(offering_mgmt::categories_delete),
+        )
+        .route(
+            "/offering-categories/{id}/allocations",
+            get(offering_mgmt::allocation_rules_get).put(offering_mgmt::allocation_rules_set),
+        )
+        // Bank accounts
+        .route(
+            "/bank-accounts",
+            get(offering_mgmt::bank_accounts_list).post(offering_mgmt::bank_accounts_create),
+        )
+        .route(
+            "/bank-accounts/{id}",
+            put(offering_mgmt::bank_accounts_update),
+        )
+        // Cash counting
+        .route(
+            "/cash-counts",
+            get(offering_mgmt::cash_counts_list).post(offering_mgmt::cash_counts_save),
+        )
+        .route("/cash-counts/{id}", get(offering_mgmt::cash_counts_get))
+        .route(
+            "/cash-counts/{id}/approve",
+            post(offering_mgmt::cash_counts_approve),
+        )
+        // Deposits
+        .route(
+            "/deposits",
+            get(offering_mgmt::deposits_list).post(offering_mgmt::deposits_create),
+        )
+        .route("/deposits/{id}/verify", post(offering_mgmt::deposits_verify))
+        .route(
+            "/deposits/{id}/status/{status}",
+            post(offering_mgmt::deposits_set_status),
+        )
         // Event RSVPs (admin)
         .route(
             "/rsvps/{id}",
