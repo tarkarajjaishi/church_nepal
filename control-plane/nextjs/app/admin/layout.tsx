@@ -1,13 +1,20 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import Sidebar from './sidebar';
 import Link from 'next/link';
+import { getAuthToken } from '@/lib/api-client';
 
 // Routes under /admin that must NOT render the authenticated shell — otherwise
 // the sidebar (nav links + signed-in identity) is exposed to anonymous visitors.
 const UNAUTHENTICATED_ROUTES = ['/admin/login'];
+
+// The desktop sidebar appears at Tailwind's `lg` breakpoint, so the JS that
+// decides "are we in drawer mode?" has to use the same number. It previously
+// used 768px while the CSS used 1024px, which left a 768–1023px band where the
+// drawer was force-closed by the resize effect but no static sidebar existed.
+const LG_BREAKPOINT = 1024;
 
 export default function AdminLayout({
   children,
@@ -15,24 +22,50 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
 
-  // Check if we're on mobile view
+  const isPublicRoute = UNAUTHENTICATED_ROUTES.includes(pathname);
+
+  // Route guard.
+  //
+  // The API is a different origin and its session cookie is HttpOnly with
+  // Path=/api, so Next middleware cannot see any auth state — the token lives in
+  // localStorage on the client. The guard therefore has to run here. Without it
+  // the full admin shell renders for anonymous visitors until a request happens
+  // to 401. This is a UX guard, not the security boundary: every endpoint is
+  // still authorised server-side.
+  useEffect(() => {
+    if (isPublicRoute) {
+      setAuthChecked(true);
+      return;
+    }
+    if (getAuthToken()) {
+      setAuthChecked(true);
+      return;
+    }
+    // Preserve where they were headed so login can return them there.
+    const returnTo = encodeURIComponent(pathname);
+    router.replace(`/admin/login?returnTo=${returnTo}`);
+  }, [isPublicRoute, pathname, router]);
+
+  // Check if we're in drawer mode
   useEffect(() => {
     const checkIsMobile = () => {
-      setIsMobile(window.innerWidth < 768);
+      setIsMobile(window.innerWidth < LG_BREAKPOINT);
     };
 
     checkIsMobile();
     window.addEventListener('resize', checkIsMobile);
-    
+
     return () => {
       window.removeEventListener('resize', checkIsMobile);
     };
   }, []);
 
-  // Close sidebar when resizing from mobile to desktop
+  // Close the drawer once a static sidebar is available.
   useEffect(() => {
     if (!isMobile) {
       setSidebarOpen(false);
@@ -40,8 +73,14 @@ export default function AdminLayout({
   }, [isMobile]);
 
   // Declared after the hooks above so the hook order stays stable across routes.
-  if (UNAUTHENTICATED_ROUTES.includes(pathname)) {
+  if (isPublicRoute) {
     return <>{children}</>;
+  }
+
+  // Render nothing until the token check resolves, so the admin shell never
+  // flashes for someone who is about to be redirected to login.
+  if (!authChecked) {
+    return null;
   }
 
   return (

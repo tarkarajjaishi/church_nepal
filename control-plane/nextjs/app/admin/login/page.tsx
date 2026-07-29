@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,24 +9,29 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { LoadingState } from "@/components/loading-state";
 import { InlineError } from "@/components/error-state";
 import { useLogin, useMe } from "@/components/hooks";
-import { setAuthToken } from "@/lib/api-client";
 import Logo from "@/components/logo";
 
-export default function AdminLoginPage() {
+function AdminLoginContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  // The admin layout's route guard appends ?returnTo=... when it bounces an
+  // unauthenticated visitor, so sign-in resumes where they were going. Only
+  // same-site admin paths are honoured, so the parameter cannot be used to
+  // redirect someone to an external site after login.
+  const returnToParam = searchParams.get("returnTo");
+  const returnTo =
+    returnToParam && returnToParam.startsWith("/admin") && !returnToParam.startsWith("//")
+      ? returnToParam
+      : "/admin";
   const [ready, setReady] = useState(false);
   const [email, setEmail] = useState("owner@churchnepal.com");
   const [password, setPassword] = useState("");
   const [twofaCode, setTwofaCode] = useState("");
   const [twofaRequired, setTwofaRequired] = useState(false);
 
-  // Initialize token from localStorage on mount
+  // Token rehydration now happens once in lib/api-client.ts when the module
+  // loads, so it applies to every route rather than just this page.
   useEffect(() => {
-    const token = localStorage.getItem("control_token");
-    const refreshToken = localStorage.getItem("control_refresh_token");
-    if (token) {
-      setAuthToken(token, refreshToken);
-    }
     setReady(true);
   }, []);
 
@@ -35,9 +40,9 @@ export default function AdminLoginPage() {
 
   useEffect(() => {
     if (ready && meData && !checkingAuth) {
-      router.replace("/admin");
+      router.replace(returnTo);
     }
-  }, [ready, meData, checkingAuth, router]);
+  }, [ready, meData, checkingAuth, router, returnTo]);
 
   const loginMutation = useLogin();
 
@@ -51,12 +56,12 @@ export default function AdminLoginPage() {
   useEffect(() => {
     if (loginMutation.isSuccess) {
       if (loginMutation.data?.token) {
-        router.replace("/admin");
+        router.replace(returnTo);
       } else if (loginMutation.data?.twofa_required) {
         setTwofaRequired(true);
       }
     }
-  }, [loginMutation.isSuccess, loginMutation.data, router]);
+  }, [loginMutation.isSuccess, loginMutation.data, router, returnTo]);
 
   if (!ready || checkingAuth) {
     return (
@@ -208,5 +213,21 @@ export default function AdminLoginPage() {
         </Card>
       </div>
     </div>
+  );
+}
+
+// useSearchParams (for ?returnTo=) opts this route into client-side rendering,
+// which Next requires a Suspense boundary around or prerendering fails.
+export default function AdminLoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-[var(--bg)] flex items-center justify-center p-4">
+          <LoadingState message="Loading…" />
+        </div>
+      }
+    >
+      <AdminLoginContent />
+    </Suspense>
   );
 }

@@ -86,19 +86,14 @@ export function useDeleteChurch() {
       const response = await apiClient.delete(`/churches/${id}`);
       return response.data;
     },
-    onMutate: async (id) => {
-      await queryClient.cancelQueries({ queryKey: ["churches"] });
-      const previous = queryClient.getQueryData<Church[]>(["churches"]);
-      queryClient.setQueryData<Church[]>(["churches"], (old = []) => old.filter(c => c.id !== id));
-
-      return { previous };
-    },
-    onError: (_err, _id, context) => {
-      if (context?.previous) {
-        queryClient.setQueryData(["churches"], context.previous);
-      }
+    // Deliberately NOT optimistic. DELETE /churches/:id runs DROP DATABASE and
+    // removes the tenant's storage — an irreversible server-side action. Showing
+    // the row as gone before the server confirms would mean a failed delete
+    // silently reappears, and a *partial* failure (database dropped, storage
+    // left behind) would look like a clean success. Wait for the response.
+    onError: (err) => {
       toast.error("Failed to delete church", {
-        description: _err instanceof Error ? _err.message : "An error occurred",
+        description: err instanceof Error ? err.message : "An error occurred",
       });
     },
     onSuccess: () => {

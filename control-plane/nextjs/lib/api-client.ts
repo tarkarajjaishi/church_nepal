@@ -31,6 +31,21 @@ export const setAuthToken = (token: string | null, refreshToken?: string | null)
 export const getAuthToken = () => tokenStore;
 export const getRefreshToken = () => refreshTokenStore;
 
+// Restore the session as soon as this module loads in the browser.
+//
+// The token lives in a module variable, which does not survive a page reload.
+// Previously only app/admin/login/page.tsx read it back from localStorage, so
+// landing directly on any other admin URL — a refresh, a bookmark, a shared
+// link — left every request unauthenticated until the user happened to visit
+// the login page. Rehydrating here fixes it for every route at once, because
+// anything that talks to the API imports this module.
+if (typeof window !== "undefined") {
+  const storedToken = localStorage.getItem("control_token");
+  if (storedToken) {
+    setAuthToken(storedToken, localStorage.getItem("control_refresh_token"));
+  }
+}
+
 // Refresh queue for concurrent 401s
 let isRefreshing = false;
 let refreshSubscribers: Array<(token: string) => void> = [];
