@@ -42,7 +42,7 @@ function EventCard({ e, upcoming }: { e: any; upcoming?: boolean }) {
   return (
     <Card className="group overflow-hidden h-full border-border/60 hover:shadow-xl transition-all gap-0 flex flex-col">
       <Link href={`/events/${e.id}`} className="relative h-48 overflow-hidden block">
-        <ImageWithFallback src={e.image} alt={e.title} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+        <ImageWithFallback fill src={e.image} alt={e.title} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
       </Link>
       <div className="p-5 flex flex-col flex-1">
         <Link href={`/events/${e.id}`}>

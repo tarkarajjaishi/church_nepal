@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
+import Image from 'next/image'
 
 const ChurchPlaceholder = ({ className }: { className?: string }) => (
   <div className={`flex items-center justify-center bg-church-blue/10 ${className ?? ''}`}>
@@ -14,20 +15,81 @@ const ChurchPlaceholder = ({ className }: { className?: string }) => (
   </div>
 )
 
-export function ImageWithFallback(props: React.ImgHTMLAttributes<HTMLImageElement> & { fallbackClassName?: string }) {
+type ImageWithFallbackProps = React.ImgHTMLAttributes<HTMLImageElement> & {
+  fallbackClassName?: string
+  /**
+   * Render through next/image, filling a positioned parent. Only pass this when
+   * the immediate parent is `relative`/`absolute` and has a height — otherwise
+   * the image collapses.
+   */
+  fill?: boolean
+  /** Load eagerly at high priority. Use for the LCP image only. */
+  priority?: boolean
+  /** Responsive candidate widths; defaults to a sensible full-width ladder. */
+  sizes?: string
+}
+
+/**
+ * Image with a branded placeholder on error or missing src.
+ *
+ * With `fill`, this goes through next/image, which brings srcset/WebP,
+ * lazy-loading and — because the parent reserves the box — no layout shift.
+ * Without it, we fall back to a plain <img>, still lazy by default. The raw
+ * path exists because next/image needs either `fill` with a positioned parent
+ * or explicit width/height, and a handful of call sites have neither.
+ */
+export function ImageWithFallback(props: ImageWithFallbackProps) {
   const [didError, setDidError] = useState(false)
 
   const handleError = () => {
     setDidError(true)
   }
 
-  const { src, alt, style, className, fallbackClassName, ...rest } = props
+  const {
+    src,
+    alt,
+    style,
+    className,
+    fallbackClassName,
+    fill,
+    priority,
+    sizes,
+    loading,
+    ...rest
+  } = props
 
   if (!src || didError) {
     return <ChurchPlaceholder className={`${className ?? ''} ${fallbackClassName ?? ''}`} />
   }
 
+  if (fill) {
+    return (
+      <Image
+        src={src as string}
+        alt={alt ?? ''}
+        fill
+        className={className}
+        style={style}
+        priority={priority}
+        // Without this the browser assumes 100vw and downloads far more than a
+        // card-sized slot needs.
+        sizes={sizes ?? '(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw'}
+        onError={handleError}
+      />
+    )
+  }
+
   return (
-    <img src={src} alt={alt} className={className} style={style} {...rest} onError={handleError} />
+    <img
+      src={src}
+      alt={alt}
+      className={className}
+      style={style}
+      loading={loading ?? (priority ? 'eager' : 'lazy')}
+      decoding="async"
+      fetchPriority={priority ? 'high' : undefined}
+      {...rest}
+      onError={handleError}
+    />
   )
 }

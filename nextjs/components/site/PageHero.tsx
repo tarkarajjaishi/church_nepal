@@ -15,7 +15,17 @@ export function PageHero({ title, subtitle, image, crumb, children }: Props) {
   return (
     <section className="relative">
       <div className="absolute inset-0">
-        <ImageWithFallback src={image} alt={title} className="w-full h-full object-cover" />
+        {/* The hero is the LCP element on every subpage, so it loads eagerly at
+            high priority and asks for a full-width source rather than the
+            card-sized default. */}
+        <ImageWithFallback
+          fill
+          priority
+          sizes="100vw"
+          src={image}
+          alt=""
+          className="w-full h-full object-cover"
+        />
         <div className="absolute inset-0 gradient-hero" />
       </div>
       <div className="relative mx-auto max-w-7xl px-4 py-20 md:py-28">

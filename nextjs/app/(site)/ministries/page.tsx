@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from 'next/link';
-import { Clock, User, ArrowRight } from "lucide-react";
+import { Clock, User, ArrowRight, Users } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PageHero } from "@/components/site/PageHero";
@@ -12,6 +12,7 @@ import { Icon } from "@/components/site/Icon";
 import { ImageWithFallback } from "@/components/figma/ImageWithFallback";
 import { EditableBlock } from "@/components/site/EditableBlock";
 import { useLang } from "@/lib/language";
+import { EmptyState } from "@/components/LoadingStates";
 import { useMinistries, useContentBlock } from "@/lib/hooks";
 import { CardSkeleton } from "@/components/site/LoadingSpinner";
 import { ErrorDisplay } from "@/components/site/ErrorDisplay";
@@ -28,7 +29,7 @@ const filterKeys = [
 const fallbackLabels = ["All", "Children & Youth", "Fellowship", "Worship & Media", "Outreach & Mission", "Prayer & Teaching"];
 
 export default function Ministries() {
-  const { lang } = useLang();
+  const { lang, t } = useLang();
   const { data: ministries = [], isLoading, error, refetch } = useMinistries();
   const [active, setActive] = useState("all");
   const hero = useContentBlock('ministries_hero');
@@ -90,13 +91,21 @@ export default function Ministries() {
               <CardSkeleton count={6} />
             ) : error ? (
               <ErrorDisplay message={errorMessage} onRetry={() => refetch()} />
+            ) : shown.length === 0 ? (
+              // Selecting a category with no matches used to render an empty
+              // grid, so the filter looked broken rather than simply empty.
+              <EmptyState
+                icon={<Users className="size-10 text-muted-foreground" aria-hidden="true" />}
+                title={t('ministries_empty_title')}
+                description={t('ministries_empty_body')}
+              />
             ) : (
               <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                 {shown.map((m, i) => (
               <Reveal key={m.id} delay={i * 0.05}>
                 <Card className="group overflow-hidden h-full border-border/60 hover:shadow-xl transition-all gap-0 flex flex-col">
                   <Link href={`/ministries/${m.id}`} className="relative h-44 overflow-hidden block">
-                    <ImageWithFallback src={m.image} alt={m.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                    <ImageWithFallback fill src={m.image} alt={m.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                     <span className="absolute top-3 left-3 grid place-items-center size-10 rounded-xl bg-white/90 text-church-blue"><Icon name={m.icon} className="size-5" /></span>
                   </Link>
                   <div className="p-5 flex flex-col flex-1">

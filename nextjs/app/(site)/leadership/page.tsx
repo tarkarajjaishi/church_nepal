@@ -11,10 +11,14 @@ import { useContentBlock } from "@/lib/hooks";
 import { useLeaders } from "@/lib/hooks";
 import { CardSkeleton } from "@/components/site/LoadingSpinner";
 import { ErrorDisplay } from "@/components/site/ErrorDisplay";
+import { EmptyState } from "@/components/LoadingStates";
+import { useLang } from "@/lib/language";
+import { UserRound } from "lucide-react";
 
 const categories = ["All", "Pastors", "Elders", "Deacons", "Ministry Leaders"];
 
 export default function Leadership() {
+  const { t } = useLang();
   const hero = useContentBlock('leadership_hero');
   const team = useContentBlock('leadership_team');
   const { data: leaders = [], isLoading, error, refetch } = useLeaders();
@@ -61,13 +65,19 @@ export default function Leadership() {
               <CardSkeleton count={6} />
             ) : error ? (
               <ErrorDisplay message="Failed to load leaders." onRetry={() => refetch()} />
+            ) : shown.length === 0 ? (
+              <EmptyState
+                icon={<UserRound className="size-10 text-muted-foreground" aria-hidden="true" />}
+                title={t('leadership_empty_title')}
+                description={t('leadership_empty_body')}
+              />
             ) : (
               <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                 {shown.map((l, i) => (
               <Reveal key={l.id} delay={i * 0.06}>
                 <Card className="group overflow-hidden h-full border-border/60 hover:shadow-xl transition-all gap-0">
                   <div className="relative h-64 overflow-hidden">
-                    <ImageWithFallback src={l.image} alt={l.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                    <ImageWithFallback fill src={l.image} alt={l.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                     <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-church-blue/90 to-transparent p-4">
                       <div className="text-white" style={{ fontFamily: "var(--font-heading)", fontWeight: 600 }}>{l.name}</div>
                       <div className="text-gold text-sm">{l.role}</div>

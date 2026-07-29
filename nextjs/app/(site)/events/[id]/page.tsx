@@ -145,7 +145,7 @@ export default function EventDetail() {
             <div className="lg:col-span-3">
               <Reveal>
                 <div className="relative aspect-video rounded-2xl overflow-hidden">
-                  <ImageWithFallback src={event.image} alt={event.title} className="w-full h-full object-cover" />
+                  <ImageWithFallback fill src={event.image} alt={event.title} className="w-full h-full object-cover" />
                 </div>
               </Reveal>
 

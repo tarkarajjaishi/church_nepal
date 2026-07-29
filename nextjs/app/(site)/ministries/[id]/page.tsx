@@ -74,7 +74,7 @@ export default function MinistryDetail() {
 
               <Reveal delay={0.1}>
                 <div className="relative aspect-video rounded-2xl overflow-hidden mb-8">
-                  <ImageWithFallback src={ministry.image} alt={ministry.name} className="w-full h-full object-cover" />
+                  <ImageWithFallback fill src={ministry.image} alt={ministry.name} className="w-full h-full object-cover" />
                 </div>
               </Reveal>
 
@@ -138,7 +138,7 @@ export default function MinistryDetail() {
                   <Link href={`/ministries/${m.id}`}>
                     <Card className="group overflow-hidden h-full border-border/60 hover:shadow-xl transition-all gap-0">
                       <div className="relative h-44 overflow-hidden">
-                        <ImageWithFallback src={m.image} alt={m.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                        <ImageWithFallback fill src={m.image} alt={m.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                         <span className="absolute top-3 left-3 grid place-items-center size-10 rounded-xl bg-white/90 text-church-blue"><Icon name={m.icon} className="size-5" /></span>
                       </div>
                       <div className="p-5">

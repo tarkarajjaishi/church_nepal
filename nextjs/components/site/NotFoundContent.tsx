@@ -16,7 +16,7 @@ export function NotFoundContent() {
   return (
     <section className="relative min-h-[80vh] grid place-items-center">
       <div className="absolute inset-0">
-        <ImageWithFallback src={images.mountains} alt="" className="w-full h-full object-cover" />
+        <ImageWithFallback fill src={images.mountains} alt="" className="w-full h-full object-cover" />
         <div className="absolute inset-0 bg-church-blue/85" />
       </div>
       <div className="relative text-center text-white px-4">

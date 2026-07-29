@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from "react";
-import { X, ChevronLeft, ChevronRight, ZoomIn } from "lucide-react";
+import { X, ChevronLeft, ChevronRight, ZoomIn, Image as ImageIcon } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { PageHero } from "@/components/site/PageHero";
 import { SectionHeading } from "@/components/site/SectionHeading";
@@ -12,8 +12,11 @@ import { images, galleryCategories } from "@/lib/data";
 import { useGallery, useContentBlock } from "@/lib/hooks";
 import { CardSkeleton } from "@/components/site/LoadingSpinner";
 import { ErrorDisplay } from "@/components/site/ErrorDisplay";
+import { EmptyState } from "@/components/LoadingStates";
+import { useLang } from "@/lib/language";
 
 export default function Gallery() {
+  const { t } = useLang();
   const { data: gallery = [], isLoading, error, refetch } = useGallery();
   const [filter, setFilter] = useState("All");
   const [active, setActive] = useState<number | null>(null);
@@ -75,6 +78,14 @@ export default function Gallery() {
               <CardSkeleton count={9} />
             ) : error ? (
               <ErrorDisplay message={errorMsg} onRetry={() => refetch()} />
+            ) : shown.length === 0 ? (
+              // Previously rendered an empty columns div — a blank white area
+              // with no explanation, indistinguishable from a broken page.
+              <EmptyState
+                icon={<ImageIcon className="size-10 text-muted-foreground" aria-hidden="true" />}
+                title={t('gallery_empty_title')}
+                description={t('gallery_empty_body')}
+              />
             ) : (
               <div className="columns-1 sm:columns-2 lg:columns-3 gap-4 [column-fill:_balance]">
                 {shown.map((g, i) => (

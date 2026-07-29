@@ -253,7 +253,7 @@ function HeroSection({ hero, serviceTimes, nextEvent, lang, t }: {
         {/* Background image with Ken Burns effect */}
         <div className="absolute inset-0">
           <ImageWithFallback
-            src={hero?.image || ''}
+            fill src={hero?.image || ''}
             alt={hero?.title || "Church hero"}
             className="w-full h-full object-cover scale-105 motion-safe:animate-[kenBurns_20s_ease-in-out_infinite_alternate]"
             fallbackClassName="bg-church-blue"
@@ -602,7 +602,7 @@ function FeaturedSermonsSection({ block, featuredSermons, t }: {
                   <Link href={`/sermons/${s.id}`}>
                     <Card className="group overflow-hidden h-full border-border/60 hover:shadow-xl transition-all duration-300 gap-0">
                       <div className="relative aspect-video overflow-hidden">
-                        <ImageWithFallback src={s.image} alt={s.title} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                        <ImageWithFallback fill src={s.image} alt={s.title} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                         <div className="absolute inset-0 bg-church-blue/20 group-hover:bg-church-blue/40 transition-colors grid place-items-center">
                           <span className="grid place-items-center size-14 rounded-full bg-white/90 text-church-blue group-hover:scale-110 transition-transform shadow-lg">
                             <Play className="size-6 fill-church-blue" />
@@ -692,7 +692,7 @@ function MinistriesSection({ block, featuredMinistries, lang, t }: {
                   <Link href={`/ministries/${m.id}`}>
                     <Card className="group overflow-hidden h-full border-border/60 hover:shadow-xl transition-all duration-300 gap-0">
                       <div className="relative h-44 overflow-hidden">
-                        <ImageWithFallback src={m.image} alt={m.name} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                        <ImageWithFallback fill src={m.image} alt={m.name} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                         <span className="absolute top-3 left-3 grid place-items-center size-10 rounded-xl bg-white/90 text-church-blue shadow"><Icon name={m.icon} className="size-5" /></span>
                       </div>
                       <div className="p-5">
@@ -745,7 +745,7 @@ function EventsSection({ block, allEvents, lang, t }: {
                   <Link href={`/events/${e.id}`}>
                     <Card className="group overflow-hidden h-full border-border/60 hover:shadow-xl transition-all sm:flex gap-0">
                       <div className="relative sm:w-2/5 h-48 sm:h-auto overflow-hidden">
-                        <ImageWithFallback src={e.image} alt={e.title} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                        <ImageWithFallback fill src={e.image} alt={e.title} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                         <div className="absolute top-3 left-3 bg-white rounded-lg px-3 py-1.5 text-center shadow">
                           <div className="text-church-blue" style={{ fontFamily: "var(--font-heading)", fontWeight: 700 }}>{(e.displayDate || "").split(" ")[1]?.replace(",", "") ?? ""}</div>
                           <div className="text-[10px] uppercase text-gold">{(e.displayDate || "").split(" ")[0]}</div>
@@ -775,7 +775,7 @@ function EventsSection({ block, allEvents, lang, t }: {
                   <Link href={`/events/${e.id}`} className="block w-72 shrink-0 snap-start">
                     <Card className="group overflow-hidden h-full border-border/60 hover:shadow-xl transition-all gap-0">
                       <div className="relative h-40 overflow-hidden">
-                        <ImageWithFallback src={e.image} alt={e.title} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                        <ImageWithFallback fill src={e.image} alt={e.title} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                         <div className="absolute top-3 left-3 bg-white rounded-lg px-3 py-1.5 text-center shadow">
                           <div className="text-church-blue" style={{ fontFamily: "var(--font-heading)", fontWeight: 700 }}>{(e.displayDate || "").split(" ")[1]?.replace(",", "") ?? ""}</div>
                           <div className="text-[10px] uppercase text-gold">{(e.displayDate || "").split(" ")[0]}</div>
@@ -810,7 +810,7 @@ function PrayerCtaSection({ block, t }: { block: ContentBlock | null; t: (k: str
     <EditableBlock block={block}>
       <section className="relative py-24">
         <div className="absolute inset-0">
-          <ImageWithFallback src={block?.image || ''} alt="Prayer" loading="lazy" className="w-full h-full object-cover" fallbackClassName="bg-church-blue/20" />
+          <ImageWithFallback fill src={block?.image || ''} alt="Prayer" loading="lazy" className="w-full h-full object-cover" fallbackClassName="bg-church-blue/20" />
           <div className="absolute inset-0 bg-church-blue/85" />
         </div>
         <div className="relative mx-auto max-w-3xl px-4 text-center">

@@ -23,7 +23,7 @@ export function ChurchMembers() {
             <Reveal key={m.id} delay={(i % 4) * 0.06}>
               <Card className="group overflow-hidden h-full border-border/60 hover:shadow-xl transition-all gap-0 text-center">
                 <div className="relative aspect-square overflow-hidden">
-                  <ImageWithFallback src={m.image} alt={m.name} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                  <ImageWithFallback fill src={m.image} alt={m.name} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                 </div>
                 <div className="p-4">
                   <h3 className="text-church-blue" style={{ fontFamily: "var(--font-heading)", fontWeight: 600 }}>{m.name}</h3>

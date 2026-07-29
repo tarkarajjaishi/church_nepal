@@ -287,7 +287,7 @@ function SermonsContent() {
                     <Link href={`/sermons/${s.id}`}>
                       <Card className="group overflow-hidden h-full border-border/60 hover:shadow-xl transition-all gap-0">
                         <div className="relative aspect-video overflow-hidden">
-                          <ImageWithFallback src={s.image} alt={s.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                          <ImageWithFallback fill src={s.image} alt={s.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                           <div className="absolute inset-0 bg-church-blue/20 group-hover:bg-church-blue/40 transition-colors grid place-items-center">
                             <span className="grid place-items-center size-14 rounded-full bg-white/90 text-church-blue group-hover:scale-110 transition-transform"><Play className="size-6 fill-church-blue" /></span>
                           </div>

@@ -54,6 +54,26 @@ export const dict: Record<string, Record<string, string>> = {
   watch_now: { en: 'Watch Now', ne: 'अहिले हेर्नुहोस्' },
   view_all: { en: 'View All', ne: 'सबै हेर्नुहोस्' },
   loading: { en: 'Loading…', ne: 'लोड हुँदैछ…' },
+  gallery_empty_title: { en: 'No photos yet', ne: 'अहिलेसम्म कुनै तस्बिर छैन' },
+  gallery_empty_body: {
+    en: 'Photos from our services and events will appear here soon.',
+    ne: 'हाम्रा आराधना र कार्यक्रमका तस्बिरहरू चाँडै यहाँ देखिनेछन्।',
+  },
+  ministries_empty_title: { en: 'No ministries to show', ne: 'देखाउन कुनै सेवा छैन' },
+  ministries_empty_body: {
+    en: 'Try a different category, or get in touch and we will help you find your place.',
+    ne: 'अर्को श्रेणी हेर्नुहोस्, वा हामीलाई सम्पर्क गर्नुहोस् — हामी तपाईंलाई ठाउँ खोज्न सहयोग गर्नेछौं।',
+  },
+  leadership_empty_title: { en: 'Team details coming soon', ne: 'टोलीको विवरण चाँडै आउँदैछ' },
+  leadership_empty_body: {
+    en: 'We are updating our leadership page. Please check back shortly.',
+    ne: 'हामी नेतृत्व पृष्ठ अद्यावधिक गर्दैछौं। कृपया केही समयपछि हेर्नुहोस्।',
+  },
+  past_events_empty_title: { en: 'No past events', ne: 'कुनै विगतका कार्यक्रम छैनन्' },
+  past_events_empty_body: {
+    en: 'Once events have taken place they will be listed here.',
+    ne: 'कार्यक्रमहरू सम्पन्न भएपछि तिनीहरू यहाँ सूचीबद्ध हुनेछन्।',
+  },
   error_title: { en: 'Something went wrong', ne: 'केही गडबड भयो' },
   error_body: {
     en: 'We could not load this page. Please try again — if it keeps happening, let us know.',

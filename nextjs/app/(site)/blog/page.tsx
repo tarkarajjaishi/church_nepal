@@ -254,7 +254,7 @@ function BlogPageContent() {
                     <Link href={`/blog/${post.slug}`}>
                       <Card className="group overflow-hidden h-full border-border/60 hover:shadow-xl transition-all gap-0">
                         <div className="relative aspect-video overflow-hidden">
-                          <ImageWithFallback src={post.image} alt={post.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                          <ImageWithFallback fill src={post.image} alt={post.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                           <Badge className="absolute top-3 left-3 bg-gold text-church-blue border-0">{post.category}</Badge>
                         </div>
                         <div className="p-5">
