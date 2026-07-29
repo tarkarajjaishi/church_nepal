@@ -68,6 +68,8 @@ pub async fn provision_church(cfg: &Config, name: &str) -> Result<Provisioned, A
     let admin_password = random_password();
     seed_church_admin(cfg, &slug, &admin_email, &admin_password).await?;
 
+    notify_church_app(cfg, &slug).await;
+
     Ok(Provisioned {
         subdomain: format!("{}.{}", slug, cfg.base_domain),
         slug,
@@ -75,6 +77,52 @@ pub async fn provision_church(cfg: &Config, name: &str) -> Result<Provisioned, A
         admin_password,
         storage_path,
     })
+}
+
+/// Tell the church app to forget its "tenant missing" cache entry for this slug.
+///
+/// The church app negative-caches unknown subdomains (see tenant.rs) so a
+/// wildcard-domain scan cannot exhaust its connection pool. If someone visited
+/// the subdomain during provisioning, that entry would otherwise keep the new
+/// church 404-ing until the TTL expired.
+///
+/// Best-effort by design: provisioning has already succeeded by this point, so a
+/// failure here must not fail the request. Worst case the church is reachable
+/// once the TTL lapses — exactly the old behaviour.
+async fn notify_church_app(cfg: &Config, slug: &str) {
+    if cfg.church_app_url.is_empty() || cfg.internal_api_secret.is_empty() {
+        return;
+    }
+
+    let url = format!(
+        "{}/internal/tenants/{}/refresh",
+        cfg.church_app_url.trim_end_matches('/'),
+        slug
+    );
+
+    let result = reqwest::Client::new()
+        .post(&url)
+        .header("x-internal-secret", &cfg.internal_api_secret)
+        .timeout(std::time::Duration::from_secs(5))
+        .send()
+        .await;
+
+    match result {
+        Ok(resp) if resp.status().is_success() => {
+            println!("Church app notified of new tenant '{slug}'");
+        }
+        Ok(resp) => {
+            eprintln!(
+                "Church app rejected tenant refresh for '{slug}': HTTP {} — it will serve once the cache TTL expires",
+                resp.status()
+            );
+        }
+        Err(e) => {
+            eprintln!(
+                "Could not reach church app to refresh tenant '{slug}': {e} — it will serve once the cache TTL expires"
+            );
+        }
+    }
 }
 
 async fn create_database(cfg: &Config, slug: &str) -> Result<(), AppError> {

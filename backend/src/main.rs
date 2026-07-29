@@ -104,6 +104,51 @@ pub fn per_token_governor() -> Governor<TokenOrIpKeyExtractor> {
     governor_config(TokenOrIpKeyExtractor, 1000)
 }
 
+// ── Internal control-plane hook ──────────────────────────────────────────────
+
+/// Drop the negative-cache entry for a slug so a church the control plane just
+/// provisioned serves immediately instead of waiting out MISSING_TENANT_TTL.
+///
+/// The control plane runs as a separate process, so this has to be an HTTP hop.
+/// It is not part of the public API: it is guarded by a shared secret and fails
+/// closed (404) when INTERNAL_API_SECRET is unset, so an unconfigured or
+/// public-facing deployment never exposes a cache-busting endpoint.
+async fn refresh_tenant(
+    axum::extract::State(reg): axum::extract::State<TenantRegistry>,
+    axum::extract::Path(slug): axum::extract::Path<String>,
+    headers: axum::http::HeaderMap,
+) -> axum::http::StatusCode {
+    use axum::http::StatusCode;
+
+    let expected = std::env::var("INTERNAL_API_SECRET").unwrap_or_default();
+    if expected.is_empty() {
+        return StatusCode::NOT_FOUND;
+    }
+    let provided = headers
+        .get("x-internal-secret")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("");
+    if !constant_time_eq(provided.as_bytes(), expected.as_bytes()) {
+        return StatusCode::UNAUTHORIZED;
+    }
+    if !tenant::valid_slug(&slug) {
+        return StatusCode::BAD_REQUEST;
+    }
+
+    reg.forget_missing(&slug).await;
+    println!("Tenant '{slug}' cache invalidated by control plane");
+    StatusCode::NO_CONTENT
+}
+
+/// Length-independent comparison so the shared secret cannot be recovered by
+/// timing the response.
+fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
+    if a.len() != b.len() {
+        return false;
+    }
+    a.iter().zip(b).fold(0u8, |acc, (x, y)| acc | (x ^ y)) == 0
+}
+
 async fn run_recurring_job(reg: TenantRegistry) {
     let mut interval = tokio::time::interval(std::time::Duration::from_secs(60));
     loop {
@@ -356,10 +401,20 @@ async fn main() {
         .allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE, Method::PATCH, Method::OPTIONS])
         .allow_headers([header::CONTENT_TYPE, header::AUTHORIZATION]);
 
+    // Merged *after* tenant_mw so it is not itself tenant-scoped — the whole
+    // point is that its slug has no resolvable tenant yet.
+    let internal = axum::Router::new()
+        .route(
+            "/internal/tenants/{slug}/refresh",
+            axum::routing::post(refresh_tenant),
+        )
+        .with_state(registry.clone());
+
     let app = axum::Router::new()
         .nest("/api", routes::api_routes())
         .route("/uploads/{filename}", get(handlers::upload::serve_upload))
         .layer(from_fn_with_state(registry.clone(), tenant::tenant_mw))
+        .merge(internal)
         .layer(cors);
 
     let port = std::env::var("PORT").unwrap_or_else(|_| "3002".into());

@@ -21,6 +21,13 @@ pub struct Config {
     pub storage_root: String,
     /// Apex domain; a church's site is <slug>.<base_domain>.
     pub base_domain: String,
+    /// Base URL of the church app (e.g. http://localhost:3002). After
+    /// provisioning we ping it so it drops the negative-cache entry for the new
+    /// slug and starts serving immediately. Empty disables the ping.
+    pub church_app_url: String,
+    /// Shared secret for that internal call; must match INTERNAL_API_SECRET on
+    /// the church app. Empty disables the ping.
+    pub internal_api_secret: String,
     /// Bootstrap super-admin (seeded on first startup if missing).
     pub super_admin_email: String,
     pub super_admin_password: String,
@@ -56,6 +63,8 @@ impl Config {
                 .unwrap_or_else(|_| "../../backend/migrations".into()),
             storage_root: env::var("STORAGE_ROOT").unwrap_or_else(|_| "../../storage".into()),
             base_domain: env::var("BASE_DOMAIN").unwrap_or_else(|_| "churchnepal.com".into()),
+            church_app_url: env::var("CHURCH_APP_URL").unwrap_or_default(),
+            internal_api_secret: env::var("INTERNAL_API_SECRET").unwrap_or_default(),
             super_admin_email: env::var("SUPER_ADMIN_EMAIL").unwrap_or_else(|_| "owner@churchnepal.com".into()),
             super_admin_password: env::var("SUPER_ADMIN_PASSWORD").unwrap_or_else(|_| "changeme123".into()),
             stripe_secret_key: env::var("STRIPE_SECRET_KEY").unwrap_or_else(|_| String::new()),
