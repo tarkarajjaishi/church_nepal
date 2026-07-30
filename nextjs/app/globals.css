@@ -599,3 +599,38 @@ body {
 .dark [class~="border-fuchsia-100"],
 .dark [class~="border-fuchsia-200"],
 .dark [class~="border-fuchsia-300"] { border-color: rgba(232, 121, 249, 0.32) !important; }
+
+/* ---------------------------------------------------------------------------
+   Print
+   ---------------------------------------------------------------------------
+   A report printed for a board meeting should come out as a report, not as a
+   screenshot of an admin panel. The sidebar, the period picker and the row
+   filter are chrome for choosing what to look at — once it is on paper the
+   choice has been made.
+
+   Tailwind's `print:hidden` handles per-element cases; this covers the admin
+   shell, which the reports page does not own. */
+@media print {
+  aside,
+  nav[aria-label='Admin navigation'] {
+    display: none !important;
+  }
+  main {
+    overflow: visible !important;
+    padding: 0 !important;
+  }
+  /* Backgrounds and borders are how the tables read; without this most
+     browsers drop them and every card becomes an unlabelled block of text. */
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  /* Never split a figure from its label, or a table header from its first row. */
+  section,
+  tr {
+    break-inside: avoid;
+  }
+  thead {
+    display: table-header-group;
+  }
+}

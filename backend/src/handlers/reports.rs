@@ -219,6 +219,95 @@ fn change(now: i64, before: i64) -> Option<f64> {
     Some((((now - before) as f64 / before as f64) * 100.0 * 10.0).round() / 10.0)
 }
 
+/// A gap-filled monthly series, plus the same shape over the comparison window.
+///
+/// `inner` is an aggregate over one table producing `(month, total)`, with
+/// `$1`/`$2` as the period bounds. The wrapper supplies the `generate_series`
+/// join, because without it a quiet month simply vanishes from the result and
+/// the chart line joins straight across the gap — reading as steady giving
+/// through a month when nothing at all came in.
+///
+/// Both windows are built by the same SQL so the two lines can never be
+/// computed differently, which is the way a comparison chart usually starts
+/// lying.
+async fn monthly_pair(
+    pool: &sqlx::PgPool,
+    p: &Period,
+    name: &str,
+    kind: ColumnKind,
+    inner: &str,
+) -> Result<Vec<Series>, AppError> {
+    let sql = format!(
+        "SELECT to_char(m.month, 'Mon YYYY'), COALESCE(d.total, 0)::bigint
+         FROM generate_series(date_trunc('month', $1::date), date_trunc('month', $2::date),
+                              INTERVAL '1 month') AS m(month)
+         LEFT JOIN ({inner}) d ON d.month = m.month
+         ORDER BY m.month"
+    );
+
+    let fetch = |from: chrono::NaiveDate, to: chrono::NaiveDate| {
+        let sql = sql.clone();
+        async move {
+            sqlx::query_as::<_, (String, i64)>(&sql)
+                .bind(from)
+                .bind(to)
+                .fetch_all(pool)
+                .await
+        }
+    };
+
+    let current = fetch(p.from, p.to).await?;
+
+    // The chart's comparison window is shifted by whole *months*, not by the
+    // day count the headline figures use.
+    //
+    // Those are different questions and both answers are right: "did we take
+    // more than in the previous 122 days" is a total, and the stats compare
+    // day-for-day. A monthly chart asks "how did April compare with the April
+    // before it", and a 122-day shift lands on 30 November — straddling five
+    // calendar months against the current four, so the two lines could not be
+    // laid over each other at all. Shifting by months makes the buckets align
+    // by construction rather than by luck.
+    let months = current.len() as u32;
+    let shift = chrono::Months::new(months);
+    let (Some(prev_from), Some(prev_to)) =
+        (p.from.checked_sub_months(shift), p.to.checked_sub_months(shift))
+    else {
+        return Ok(vec![Series {
+            name: name.into(),
+            kind,
+            points: current.into_iter().map(|(x, y)| Point { x, y }).collect(),
+            comparison: false,
+        }]);
+    };
+
+    let previous = fetch(prev_from, prev_to).await?;
+
+    let mut series = vec![Series {
+        name: name.into(),
+        kind,
+        points: current.into_iter().map(|(x, y)| Point { x, y }).collect(),
+        comparison: false,
+    }];
+
+    // Still guarded. A month-length shift is stable, but a report spanning a
+    // leap boundary could differ by one, and overlaying a 4-month line on a
+    // 5-month one would put February's figure under March and look entirely
+    // convincing.
+    if !previous.is_empty() && previous.len() == series[0].points.len() {
+        let points: Vec<Point> = previous.into_iter().map(|(x, y)| Point { x, y }).collect();
+        // Named with the window it actually covers, so the legend cannot
+        // claim one range while plotting another.
+        let label = match (points.first(), points.last()) {
+            (Some(a), Some(b)) if a.x != b.x => format!("{} – {}", a.x, b.x),
+            (Some(a), _) => a.x.clone(),
+            _ => "Previous period".into(),
+        };
+        series.push(Series { name: label, kind, points, comparison: true });
+    }
+    Ok(series)
+}
+
 fn stat(label: &str, value: i64, kind: ColumnKind) -> Stat {
     Stat { label: label.into(), value, kind, hint: None, change: None }
 }
@@ -350,30 +439,15 @@ async fn giving_summary(
         ),
     ];
 
-    // Gap-filled months. Without generate_series a quiet month vanishes and
-    // the line joins across it, reading as steady giving through a month when
-    // nothing came in.
-    let months = sqlx::query_as::<_, (String, i64)>(&format!(
-        "SELECT to_char(m.month, 'Mon YYYY'), COALESCE(d.total, 0)::bigint
-         FROM generate_series(date_trunc('month', $1::date), date_trunc('month', $2::date),
-                              INTERVAL '1 month') AS m(month)
-         LEFT JOIN (
-             SELECT date_trunc('month', created_at) AS month, {NET} AS total
+    r.series = monthly_pair(
+        pool, p, "Given", ColumnKind::Money,
+        &format!(
+            "SELECT date_trunc('month', created_at) AS month, {NET} AS total
              FROM donations WHERE {GIVEN} AND created_at::date BETWEEN $1 AND $2
-             GROUP BY 1
-         ) d ON d.month = m.month
-         ORDER BY m.month"
-    ))
-    .bind(p.from)
-    .bind(p.to)
-    .fetch_all(pool)
+             GROUP BY 1"
+        ),
+    )
     .await?;
-
-    r.series = vec![Series {
-        name: "Given".into(),
-        kind: ColumnKind::Money,
-        points: months.into_iter().map(|(x, y)| Point { x, y }).collect(),
-    }];
 
     let rows = sqlx::query_as::<_, (String, String, i64, i64, Option<chrono::NaiveDateTime>)>(
         &format!(
@@ -452,6 +526,7 @@ async fn giving_by_fund(pool: &sqlx::PgPool, p: &Period, r: &mut Report) -> Resu
             .take(10)
             .map(|x| Point { x: x.0.clone(), y: x.2 })
             .collect(),
+        comparison: false,
     }];
     r.columns = vec![
         Column::new("fund", "Fund", ColumnKind::Text),
@@ -548,6 +623,7 @@ async fn offering_collections(
         name: "Per service".into(),
         kind: ColumnKind::Money,
         points: weekly.into_iter().map(|(x, y)| Point { x, y }).collect(),
+        comparison: false,
     }];
     r.columns = vec![
         Column::new("category", "Category", ColumnKind::Text),
@@ -604,27 +680,13 @@ async fn membership(pool: &sqlx::PgPool, p: &Period, r: &mut Report) -> Result<(
         stat_vs("Joined this period", joined, ColumnKind::Number, joined_before),
     ];
 
-    let growth = sqlx::query_as::<_, (String, i64)>(
-        "SELECT to_char(m.month, 'Mon YYYY'), COALESCE(j.n, 0)::bigint
-         FROM generate_series(date_trunc('month', $1::date), date_trunc('month', $2::date),
-                              INTERVAL '1 month') AS m(month)
-         LEFT JOIN (
-             SELECT date_trunc('month', created_at) AS month, COUNT(*) AS n
-             FROM people WHERE enabled AND created_at::date BETWEEN $1 AND $2
-             GROUP BY 1
-         ) j ON j.month = m.month
-         ORDER BY m.month",
+    r.series = monthly_pair(
+        pool, p, "Joined", ColumnKind::Number,
+        "SELECT date_trunc('month', created_at) AS month, COUNT(*)::bigint AS total
+         FROM people WHERE enabled AND created_at::date BETWEEN $1 AND $2
+         GROUP BY 1",
     )
-    .bind(p.from)
-    .bind(p.to)
-    .fetch_all(pool)
     .await?;
-
-    r.series = vec![Series {
-        name: "Joined".into(),
-        kind: ColumnKind::Number,
-        points: growth.into_iter().map(|(x, y)| Point { x, y }).collect(),
-    }];
 
     // Every distinct status, not a fixed list: a church that invents "regular
     // attender" should see it, not have a quarter of the roll folded into an
@@ -747,6 +809,7 @@ async fn attendance(pool: &sqlx::PgPool, p: &Period, r: &mut Report) -> Result<(
             .rev()
             .map(|x| Point { x: x.0.format("%d %b").to_string(), y: x.2 })
             .collect(),
+        comparison: false,
     }];
     r.columns = vec![
         Column::new("date", "Date", ColumnKind::Date),
@@ -821,6 +884,7 @@ async fn worship_team(pool: &sqlx::PgPool, p: &Period, r: &mut Report) -> Result
             .take(12)
             .map(|x| Point { x: x.0.clone(), y: x.1 })
             .collect(),
+        comparison: false,
     }];
     r.columns = vec![
         Column::new("name", "Team member", ColumnKind::Text),
@@ -896,6 +960,7 @@ async fn asset_register(pool: &sqlx::PgPool, p: &Period, r: &mut Report) -> Resu
         name: "Cost by category".into(),
         kind: ColumnKind::Money,
         points: rows.iter().take(10).map(|x| Point { x: x.0.clone(), y: x.2 }).collect(),
+        comparison: false,
     }];
     r.columns = vec![
         Column::new("category", "Category", ColumnKind::Text),
@@ -950,19 +1015,11 @@ async fn library_circulation(
     .fetch_one(pool)
     .await?;
 
-    let monthly = sqlx::query_as::<_, (String, i64)>(
-        "SELECT to_char(m.month, 'Mon YYYY'), COALESCE(l.n, 0)::bigint
-         FROM generate_series(date_trunc('month', $1::date), date_trunc('month', $2::date),
-                              INTERVAL '1 month') AS m(month)
-         LEFT JOIN (
-             SELECT date_trunc('month', borrowed_on) AS month, COUNT(*) AS n
-             FROM book_loans WHERE borrowed_on BETWEEN $1 AND $2 GROUP BY 1
-         ) l ON l.month = m.month
-         ORDER BY m.month",
+    let series = monthly_pair(
+        pool, p, "Loans", ColumnKind::Number,
+        "SELECT date_trunc('month', borrowed_on) AS month, COUNT(*)::bigint AS total
+         FROM book_loans WHERE borrowed_on BETWEEN $1 AND $2 GROUP BY 1",
     )
-    .bind(p.from)
-    .bind(p.to)
-    .fetch_all(pool)
     .await?;
 
     // Every active title, including the ones nobody has taken out. A borrowing
@@ -1001,11 +1058,7 @@ async fn library_circulation(
         ),
         stat("Fees owed", fees, ColumnKind::Money),
     ];
-    r.series = vec![Series {
-        name: "Loans".into(),
-        kind: ColumnKind::Number,
-        points: monthly.into_iter().map(|(x, y)| Point { x, y }).collect(),
-    }];
+    r.series = series;
     r.columns = vec![
         Column::new("title", "Title", ColumnKind::Text),
         Column::new("category", "Subject", ColumnKind::Text),
@@ -1073,19 +1126,11 @@ async fn helpdesk_performance(
     .fetch_one(pool)
     .await?;
 
-    let monthly = sqlx::query_as::<_, (String, i64)>(
-        "SELECT to_char(m.month, 'Mon YYYY'), COALESCE(t.n, 0)::bigint
-         FROM generate_series(date_trunc('month', $1::date), date_trunc('month', $2::date),
-                              INTERVAL '1 month') AS m(month)
-         LEFT JOIN (
-             SELECT date_trunc('month', opened_at) AS month, COUNT(*) AS n
-             FROM helpdesk_tickets WHERE opened_at::date BETWEEN $1 AND $2 GROUP BY 1
-         ) t ON t.month = m.month
-         ORDER BY m.month",
+    let series = monthly_pair(
+        pool, p, "Raised", ColumnKind::Number,
+        "SELECT date_trunc('month', opened_at) AS month, COUNT(*)::bigint AS total
+         FROM helpdesk_tickets WHERE opened_at::date BETWEEN $1 AND $2 GROUP BY 1",
     )
-    .bind(p.from)
-    .bind(p.to)
-    .fetch_all(pool)
     .await?;
 
     let rows = sqlx::query_as::<_, (String, i64, i64, i64, Option<f64>)>(
@@ -1121,11 +1166,7 @@ async fn helpdesk_performance(
             "Averaged over tickets that were resolved",
         ),
     ];
-    r.series = vec![Series {
-        name: "Raised".into(),
-        kind: ColumnKind::Number,
-        points: monthly.into_iter().map(|(x, y)| Point { x, y }).collect(),
-    }];
+    r.series = series;
     r.columns = vec![
         Column::new("area", "Area", ColumnKind::Text),
         Column::new("raised", "Raised", ColumnKind::Number),

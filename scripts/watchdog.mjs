@@ -742,9 +742,18 @@ const CHECKS = [
   {
     name: 'church site renders',
     async run() {
-      const r = await fetchJson(CHURCH_WEB)
+      // The homepage is the largest route in the app and takes ~36s to
+      // compile cold under `next dev`, against <1s warm. On the 20s API
+      // budget this reported an outage every time the dev server had been
+      // touched — which, during a working session, is constantly.
+      const t0 = Date.now()
+      const r = await fetchJson(CHURCH_WEB, { timeout: PAGE_TIMEOUT_MS })
       const ok = r.status === 200 && /<\/html>/i.test(r.text)
-      return { ok, detail: `HTTP ${r.status}, ${Math.round(r.text.length / 1024)}KB` }
+      const ms = Date.now() - t0
+      return {
+        ok,
+        detail: `HTTP ${r.status}, ${Math.round(r.text.length / 1024)}KB${ms > 5000 ? ` (${Math.round(ms / 1000)}s — cold compile)` : ''}`,
+      }
     },
   },
   {

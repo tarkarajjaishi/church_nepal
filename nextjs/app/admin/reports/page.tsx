@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import {
-  BarChart3, FileDown, TrendingUp, TrendingDown, Minus, PackageOpen, Search,
+  BarChart3, FileDown, Printer, TrendingUp, TrendingDown, Minus, PackageOpen, Search,
 } from 'lucide-react'
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -65,14 +65,23 @@ function StatCard({ stat }: { stat: Stat }) {
 }
 
 function Chart({ report }: { report: Report }) {
-  const series = report.series[0]
+  const series = report.series.find((s) => !s.comparison)
+  const prior = report.series.find((s) => s.comparison)
   if (!series?.points.length) return null
 
   // A line for anything over time, bars for a breakdown by name. Both read the
   // same points; only the shape differs.
   const overTime = series.points.length > 3
   const divisor = series.kind === 'money' ? 100 : 1
-  const data = series.points.map((p) => ({ name: p.x, value: p.y / divisor }))
+  // The comparison is aligned by index, not by label — its months carry the
+  // previous window's names, and plotting those on the axis would put "Jan"
+  // and "Jul" side by side on the same tick.
+  const data = series.points.map((p, i) => ({
+    name: p.x,
+    value: p.y / divisor,
+    prior: prior ? (prior.points[i]?.y ?? 0) / divisor : undefined,
+    priorName: prior?.points[i]?.x,
+  }))
   const label = (v: number) =>
     series.kind === 'money'
       ? `Rs ${v.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`
@@ -84,10 +93,32 @@ function Chart({ report }: { report: Report }) {
     borderRadius: 12,
     color: 'var(--foreground)',
   }
+  const named = (v: number, key: string, item: { payload?: { priorName?: string } }) =>
+    [label(v), key === 'prior' ? item?.payload?.priorName ?? 'Previous' : series.name] as [string, string]
 
   return (
     <section className={`${CARD} p-4 sm:p-5 mb-4`}>
-      <h2 className="font-semibold mb-4">{series.name}</h2>
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+        <h2 className="font-semibold">{series.name}</h2>
+        {prior && (
+          // The label comes from the series, not from the report's own
+          // comparison dates: the chart shifts by whole months so its buckets
+          // line up, while the headline figures compare day-for-day. Two
+          // different windows, both correct — so each says which it is rather
+          // than one borrowing the other's dates.
+          <p className="text-xs text-muted-foreground flex items-center gap-3">
+            <span className="inline-flex items-center gap-1.5">
+              <span className="w-4 h-0.5 rounded bg-primary" aria-hidden />
+              {series.points[0]?.x}
+              {series.points.length > 1 ? ` – ${series.points[series.points.length - 1]?.x}` : ''}
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="w-4 h-0.5 rounded border-t-2 border-dashed border-muted-foreground" aria-hidden />
+              {prior.name}
+            </span>
+          </p>
+        )}
+      </div>
       <div className="h-64">
         <ResponsiveContainer width="100%" height="100%">
           {overTime ? (
@@ -95,7 +126,17 @@ function Chart({ report }: { report: Report }) {
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
               <XAxis dataKey="name" tick={{ fontSize: 11 }} stroke="var(--muted-foreground)" />
               <YAxis tick={{ fontSize: 11 }} stroke="var(--muted-foreground)" width={70} tickFormatter={label} />
-              <Tooltip formatter={(v: number) => label(v)} contentStyle={tooltip} />
+              <Tooltip formatter={named} contentStyle={tooltip} />
+              {prior && (
+                <Line
+                  type="monotone"
+                  dataKey="prior"
+                  stroke="var(--muted-foreground)"
+                  strokeWidth={1.5}
+                  strokeDasharray="4 4"
+                  dot={false}
+                />
+              )}
               <Line type="monotone" dataKey="value" stroke="var(--primary)" strokeWidth={2} dot={{ r: 3 }} />
             </LineChart>
           ) : (
@@ -103,7 +144,7 @@ function Chart({ report }: { report: Report }) {
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
               <XAxis dataKey="name" tick={{ fontSize: 11 }} stroke="var(--muted-foreground)" />
               <YAxis tick={{ fontSize: 11 }} stroke="var(--muted-foreground)" width={70} tickFormatter={label} />
-              <Tooltip formatter={(v: number) => label(v)} cursor={{ fill: 'var(--muted)' }} contentStyle={tooltip} />
+              <Tooltip formatter={named} cursor={{ fill: 'var(--muted)' }} contentStyle={tooltip} />
               <Bar dataKey="value" fill="var(--primary)" radius={[6, 6, 0, 0]} />
             </BarChart>
           )}
@@ -177,20 +218,33 @@ export default function ReportsPage() {
         title="Reports"
         subtitle="Figures for a period, next to the period before it"
         actions={
-          <button
-            type="button"
-            onClick={download}
-            disabled={!data || downloading || !!data.unavailable}
-            className={btn.secondary}
-          >
-            <FileDown className="size-4" aria-hidden />
-            {downloading ? 'Preparing…' : 'Export CSV'}
-          </button>
+          <>
+            {/* A treasurer takes this to a board meeting. The print stylesheet
+                below drops the chrome so the page comes out as a report
+                rather than a screenshot of an admin panel. */}
+            <button
+              type="button"
+              onClick={() => window.print()}
+              disabled={!data || !!data.unavailable}
+              className={btn.secondary}
+            >
+              <Printer className="size-4" aria-hidden /> Print
+            </button>
+            <button
+              type="button"
+              onClick={download}
+              disabled={!data || downloading || !!data.unavailable}
+              className={btn.secondary}
+            >
+              <FileDown className="size-4" aria-hidden />
+              {downloading ? 'Preparing…' : 'Export CSV'}
+            </button>
+          </>
         }
       />
 
       {/* Period */}
-      <div className={`${CARD} p-3 sm:p-4 mb-4`}>
+      <div className={`${CARD} p-3 sm:p-4 mb-4 print:hidden`}>
         <div className="flex flex-wrap items-end gap-3">
           <div className="flex flex-wrap gap-1.5">
             {p.map((preset) => {
@@ -227,7 +281,7 @@ export default function ReportsPage() {
 
       <div className="flex gap-4">
         {/* Report picker */}
-        <aside className="hidden lg:block w-60 shrink-0">
+        <aside className="hidden lg:block w-60 shrink-0 print:hidden">
           <div className={`${CARD} p-2 sticky top-4`}>
             {catLoading ? (
               <div className="p-2 space-y-2" aria-busy="true">
@@ -271,7 +325,7 @@ export default function ReportsPage() {
         <div className="flex-1 min-w-0">
           {/* Mobile picker */}
           <select
-            className={`${field} lg:hidden mb-4`}
+            className={`${field} lg:hidden mb-4 print:hidden`}
             aria-label="Report"
             value={selectedKey}
             onChange={(e) => setKey(e.target.value)}
@@ -318,7 +372,7 @@ export default function ReportsPage() {
 
               <div className={`${CARD} overflow-hidden`}>
                 {data.rows.length > 12 && (
-                  <div className="p-3 border-b border-border relative">
+                  <div className="p-3 border-b border-border relative print:hidden">
                     <Search className="absolute left-6 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" aria-hidden />
                     <input
                       className={`${field} pl-9`}

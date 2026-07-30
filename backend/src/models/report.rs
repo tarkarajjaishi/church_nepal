@@ -62,6 +62,15 @@ pub struct Series {
     pub name: String,
     pub kind: ColumnKind,
     pub points: Vec<Point>,
+    /// True for the equal window before the report's own period, plotted
+    /// behind it. A percentage tells you giving fell; the shape tells you
+    /// which month it fell in, which is the question people actually ask.
+    ///
+    /// Aligned to the current series by index, so the two are only comparable
+    /// when both cover the same number of buckets — which is why only the
+    /// month-bucketed reports carry one. A per-service-date series cannot be
+    /// aligned, because last quarter's Sundays are different days.
+    pub comparison: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]

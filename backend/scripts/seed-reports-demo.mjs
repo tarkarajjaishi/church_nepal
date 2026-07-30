@@ -138,6 +138,41 @@ async function main() {
     ancient.stats.every((s) => s.change === null),
     JSON.stringify(ancient.stats.map((s) => s.change)))
 
+  // -- 3b. The comparison line on the chart --------------------------------
+  console.log('\n3b. The comparison line')
+  const withComparison = Object.entries(reports)
+    .filter(([, b]) => b.series.some((s) => s.comparison))
+  check('the month-bucketed reports carry a comparison line',
+    withComparison.length >= 4, withComparison.map(([k]) => k).join(', '))
+  check('and it lines up point-for-point with the current one',
+    withComparison.every(([, b]) => {
+      const cur = b.series.find((s) => !s.comparison)
+      const prev = b.series.find((s) => s.comparison)
+      return cur.points.length === prev.points.length
+    }))
+  check('a comparison line names the window it actually covers',
+    withComparison.every(([, b]) => {
+      const prev = b.series.find((s) => s.comparison)
+      return prev.name.includes(prev.points[0].x)
+    }),
+    withComparison.map(([k, b]) => `${k}:${b.series.find((s) => s.comparison).name}`).join(' | '))
+  check('a full year compares against the full year before',
+    reports['giving-summary'].series.find((s) => s.comparison)?.name
+      === `Jan ${YEAR - 1} – Dec ${YEAR - 1}`,
+    reports['giving-summary'].series.find((s) => s.comparison)?.name)
+
+  // A shorter window must shift by that many months, not by a day count that
+  // straddles an extra calendar month and cannot be laid over the current one.
+  const q2 = await api(`/reports/giving-summary?from=${YEAR}-04-01&to=${YEAR}-07-31`)
+  const q2prev = q2.series.find((s) => s.comparison)
+  check('a four-month report compares against the four months before',
+    q2prev && q2prev.points.length === 4 && q2prev.name === `Dec ${YEAR - 1} – Mar ${YEAR}`,
+    q2prev?.name)
+
+  check('a categorical breakdown carries no comparison line',
+    !reports['giving-by-fund'].series.some((s) => s.comparison)
+    && !reports['asset-register'].series.some((s) => s.comparison))
+
   // -- 4. Figures agree with their source ----------------------------------
   console.log('\n4. Figures agree with the records they came from')
   const giving = reports['giving-summary']

@@ -31,7 +31,13 @@ export interface Stat {
 }
 
 export interface Point { x: string; y: number }
-export interface Series { name: string; kind: ColumnKind; points: Point[] }
+export interface Series {
+  name: string
+  kind: ColumnKind
+  points: Point[]
+  /** The equal window before this report's period, aligned point-for-point. */
+  comparison: boolean
+}
 
 export interface ReportInfo {
   key: string
