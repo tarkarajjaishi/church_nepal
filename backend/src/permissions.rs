@@ -70,6 +70,11 @@ pub fn required_permission(segment: &str, method: &axum::http::Method) -> &'stat
     match segment {
         // --- Overview ------------------------------------------------------
         "dashboard" | "church-dashboard" | "search" => DASHBOARD_VIEW,
+        // Deliberately coarse. One endpoint serves nine reports across five
+        // modules, so the route cannot know which permission this request
+        // needs — `handlers::reports` checks the specific report's permission
+        // itself, and the catalogue only lists what the caller may run.
+        "reports" => DASHBOARD_VIEW,
         // Todos are the shared task list on the dashboard, not a module.
         "todos" => DASHBOARD_VIEW,
 
@@ -237,7 +242,7 @@ mod tests {
         // updated alongside a new module, and only the administrator will be
         // able to use it — a visible failure, not a silent hole.
         let known = [
-            "dashboard", "church-dashboard", "search", "todos",
+            "dashboard", "church-dashboard", "search", "todos", "reports",
             "sermons", "ministries", "events", "leaders", "gallery",
             "testimonies", "notices", "service-times", "verses", "blog",
             "services", "team", "portfolio", "content-blocks", "contact-info",

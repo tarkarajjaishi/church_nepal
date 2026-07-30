@@ -43,6 +43,7 @@ pub mod presentation;
 pub mod library;
 pub mod helpdesk;
 pub mod role;
+pub mod report;
 
 pub use pagination::*;
 pub use user::*;

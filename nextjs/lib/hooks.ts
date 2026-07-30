@@ -405,20 +405,6 @@ export function useUpdateContactInfo() {
   })
 }
 
-// ── Report summaries ─────────────────────────────────────────────────────────
-export function useGivingSummary() {
-  return useQuery({
-    queryKey: ["reports", "giving-summary"],
-    queryFn: () => api.get("/donations/summary").then(r => r.data),
-  })
-}
-export function usePeopleSummary() {
-  return useQuery({
-    queryKey: ["reports", "people-summary"],
-    queryFn: () => api.get("/people/summary").then(r => r.data),
-  })
-}
-
 // ── Generic CRUD hook factory (used by admin CrudPage) ──────────────────────
 export function createResourceHooks<T = any>(endpoint: string) {
   const base = `/${endpoint}`

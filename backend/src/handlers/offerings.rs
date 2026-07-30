@@ -9,19 +9,34 @@ pub async fn list(
     Db(pool): Db,
     Query(q): Query<ListQuery>,
 ) -> Result<Json<Vec<Offering>>, AppError> {
-    let mut sql = String::from("SELECT * FROM offerings WHERE 1=1");
-    if let Some(ref otype) = q.offering_type {
-        sql.push_str(&format!(" AND offering_type = '{}'", otype));
-    }
-    if let Some(ref from) = q.from_date {
-        sql.push_str(&format!(" AND service_date >= '{}'", from));
-    }
-    if let Some(ref to) = q.to_date {
-        sql.push_str(&format!(" AND service_date <= '{}'", to));
-    }
-    sql.push_str(" ORDER BY service_date DESC, created_at DESC");
-    let rows = sqlx::query_as::<_, Offering>(&sql).fetch_all(&pool).await?;
+    // Bound, not interpolated. `?offering_type=' OR '1'='1` used to widen this
+    // to the whole table, and the same trick reached well past offerings.
+    //
+    // Dates are parsed here rather than cast in SQL, so a malformed one is a
+    // 400 naming the problem instead of a 500 from a failed cast — a bad query
+    // string is the caller's mistake, not a server fault.
+    let rows = sqlx::query_as::<_, Offering>(
+        r#"SELECT * FROM offerings
+           WHERE ($1::text IS NULL OR offering_type = $1)
+             AND ($2::date IS NULL OR service_date >= $2)
+             AND ($3::date IS NULL OR service_date <= $3)
+           ORDER BY service_date DESC, created_at DESC"#,
+    )
+    .bind(q.offering_type.as_deref())
+    .bind(parse_date(q.from_date.as_deref())?)
+    .bind(parse_date(q.to_date.as_deref())?)
+    .fetch_all(&pool)
+    .await?;
     Ok(Json(rows))
+}
+
+fn parse_date(s: Option<&str>) -> Result<Option<chrono::NaiveDate>, AppError> {
+    match s.filter(|v| !v.is_empty()) {
+        None => Ok(None),
+        Some(v) => chrono::NaiveDate::parse_from_str(v, "%Y-%m-%d")
+            .map(Some)
+            .map_err(|_| AppError::bad_request("Invalid date, expected YYYY-MM-DD")),
+    }
 }
 
 #[derive(serde::Deserialize, Default)]

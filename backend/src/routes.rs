@@ -667,8 +667,13 @@ pub fn admin_routes() -> Router {
         // the people summary needs `people.view` — a coordinator gets the
         // people half and a finance officer gets the money half, which is the
         // whole point of splitting those permissions.
-        .route("/donations/summary", get(reports::giving_summary))
-        .route("/people/summary", get(reports::people_summary))
+        // One endpoint per verb, not one per report: every report returns the
+        // same envelope, so the catalogue, the runner and the exporter are
+        // each a single route. The permission is checked per report inside the
+        // handler, since one route cannot know which module is being asked for.
+        .route("/reports", get(reports::catalogue))
+        .route("/reports/{key}", get(reports::run))
+        .route("/reports/{key}/export", get(reports::export))
         // ---- Roles & permissions --------------------------------------------
         // Separate top-level segments rather than nesting everything under
         // /roles/, so no static path ever sits where the matcher expects an id.

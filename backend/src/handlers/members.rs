@@ -93,34 +93,49 @@ fn get_val(map: &HashMap<String, String>, key: Option<&str>) -> Option<String> {
     key.and_then(|k| map.get(k).cloned())
 }
 
+/// The member filter, as one parameterised WHERE clause.
+///
+/// Every value is bound. This used to interpolate `?search=` straight into the
+/// SQL, so `?search=' OR '1'='1` returned the whole table and a UNION reached
+/// the query planner. Since roles arrived that is reachable by anyone holding
+/// `people.view` — a volunteer coordinator — and the injection was never
+/// limited to the members table.
+const MEMBER_FILTER: &str = r#"
+    WHERE ($1::text IS NULL OR member_status = $1)
+      AND ($2::text IS NULL OR (
+            name ILIKE '%' || $2 || '%'
+         OR email ILIKE '%' || $2 || '%'
+         OR phone ILIKE '%' || $2 || '%'))
+      AND ($3::uuid IS NULL OR household_id = $3)
+      AND ($4::uuid IS NULL OR id IN (
+            SELECT member_id FROM member_tag_assignments WHERE tag_id = $4))
+"#;
+
+macro_rules! bind_member_filter {
+    ($q:expr, $f:expr) => {
+        $q.bind($f.status.as_deref())
+            .bind($f.search.as_deref())
+            .bind($f.household_id)
+            .bind($f.tag_id)
+    };
+}
+
 pub async fn list(Db(pool): Db, Query(q): Query<MemberListQuery>) -> Result<Json<Paginated<Member>>, AppError> {
-    let mut sql = String::from("SELECT * FROM members WHERE 1=1");
-    let mut count_sql = String::from("SELECT COUNT(*) FROM members WHERE 1=1");
-
-    if let Some(ref status) = q.status {
-        sql.push_str(&format!(" AND member_status = '{}'", status));
-        count_sql.push_str(&format!(" AND member_status = '{}'", status));
-    }
-    if let Some(ref search) = q.search {
-        sql.push_str(&format!(" AND (name ILIKE '%{}%' OR email ILIKE '%{}%' OR phone ILIKE '%{}%')", search, search, search));
-        count_sql.push_str(&format!(" AND (name ILIKE '%{}%' OR email ILIKE '%{}%' OR phone ILIKE '%{}%')", search, search, search));
-    }
-    if let Some(household_id) = q.household_id {
-        sql.push_str(&format!(" AND household_id = '{}'", household_id));
-        count_sql.push_str(&format!(" AND household_id = '{}'", household_id));
-    }
-    if let Some(tag_id) = q.tag_id {
-        sql.push_str(&format!(" AND id IN (SELECT member_id FROM member_tag_assignments WHERE tag_id = '{}')", tag_id));
-        count_sql.push_str(&format!(" AND id IN (SELECT member_id FROM member_tag_assignments WHERE tag_id = '{}')", tag_id));
-    }
-    sql.push_str(" ORDER BY COALESCE(sort_order, 0) ASC, created_at DESC");
-
     let per_page = q.per_page.unwrap_or(50).clamp(1, 200);
     let page = q.page.unwrap_or(1).max(1);
     let offset = (page - 1) * per_page;
 
-    let total: i64 = sqlx::query_scalar(&count_sql).fetch_one(&pool).await?;
-    let rows = sqlx::query_as::<_, Member>(&sql)
+    let count_sql = format!("SELECT COUNT(*) FROM members {MEMBER_FILTER}");
+    let sql = format!(
+        "SELECT * FROM members {MEMBER_FILTER}
+         ORDER BY COALESCE(sort_order, 0) ASC, created_at DESC
+         LIMIT $5 OFFSET $6"
+    );
+
+    let total: i64 = bind_member_filter!(sqlx::query_scalar(&count_sql), q)
+        .fetch_one(&pool)
+        .await?;
+    let rows = bind_member_filter!(sqlx::query_as::<_, Member>(&sql), q)
         .bind(per_page).bind(offset)
         .fetch_all(&pool).await?;
     let total_pages = (total as f64 / per_page as f64).ceil() as i64;

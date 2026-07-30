@@ -220,6 +220,45 @@ const CHECKS = [
     },
   },
   {
+    name: 'a filter cannot widen its own query',
+    async run() {
+      if (!TOKEN) return { ok: false, detail: 'no JWT_SECRET' }
+      // `DROP TABLE` is the loud injection. The quiet one just ends the quote
+      // and appends `OR '1'='1`, which returns every row and looks exactly
+      // like a working filter — that is how the donations export handed back
+      // the whole donor ledger to anyone who could call it. These three
+      // routes each built SQL by string interpolation; the test is that a
+      // filter matching nothing still matches nothing when injected.
+      const probes = [
+        ['donations export', '/donations/export-csv?status=', "pending' OR '1'='1"],
+        ['donations list', '/donations?status=', "pending' OR '1'='1"],
+        ['members search', '/members?search=', "zzzznomatch%' OR '1'='1"],
+        ['offerings type', '/offerings?offering_type=', "zzzznomatch' OR '1'='1"],
+      ]
+      const leaked = []
+      for (const [name, route, payload] of probes) {
+        const clean = await fetchJson(
+          `${CHURCH_API}/api${route}${encodeURIComponent(payload.split("'")[0])}`, { auth: true })
+        const dirty = await fetchJson(
+          `${CHURCH_API}/api${route}${encodeURIComponent(payload)}`, { auth: true })
+        const count = (r) => {
+          if (r.status !== 200) return -1
+          if (Array.isArray(r.json)) return r.json.length
+          if (Array.isArray(r.json?.data)) return r.json.data.length
+          return r.text.trim().split('\n').length - 1
+        }
+        const [a, b] = [count(clean), count(dirty)]
+        if (b > a) leaked.push(`${name}: ${a} -> ${b} rows`)
+      }
+      return {
+        ok: leaked.length === 0,
+        detail: leaked.length
+          ? `INJECTION LIVE — ${leaked.join('; ')}`
+          : `${probes.length} filters bound, none widened`,
+      }
+    },
+  },
+  {
     name: 'church dashboard agrees with its sources',
     async run() {
       if (!TOKEN) return { ok: false, detail: 'no JWT_SECRET' }
@@ -497,6 +536,48 @@ const CHECKS = [
       return {
         ok: true,
         detail: `${dash.total_titles} titles, ${dash.available}/${dash.total_copies} on shelf, ${dash.overdue} overdue`,
+      }
+    },
+  },
+  {
+    name: 'reports agree with the records behind them',
+    async run() {
+      if (!TOKEN) return { ok: false, detail: 'no JWT_SECRET' }
+      const year = new Date().getFullYear()
+      const span = `from=${year}-01-01&to=${year}-12-31`
+
+      const cat = await fetchJson(`${CHURCH_API}/api/reports`, { auth: true })
+      if (cat.status !== 200) return { ok: false, detail: `catalogue HTTP ${cat.status}` }
+      const list = cat.json ?? []
+      if (!list.length) return { ok: true, detail: 'no reports available' }
+
+      // A report that is merely plausible is worse than no report, because
+      // people act on it. Check each one's table against its own headline.
+      const bad = []
+      for (const r of list) {
+        const res = await fetchJson(`${CHURCH_API}/api/reports/${r.key}?${span}`, { auth: true })
+        if (res.status !== 200) { bad.push(`${r.key}:${res.status}`); continue }
+        const b = res.json
+        if (b.unavailable) continue
+        // Every row must carry every column the report declared, or the table
+        // renders blanks that look like zeroes.
+        const missing = b.columns.find((c) => b.rows.some((row) => !(c.key in row)))
+        if (missing) bad.push(`${r.key}: rows missing "${missing.key}"`)
+      }
+
+      // The one that matters most: giving must add up.
+      const g = await fetchJson(`${CHURCH_API}/api/reports/giving-summary?${span}`, { auth: true })
+      if (g.status === 200 && !g.json?.unavailable) {
+        const total = g.json.stats.find((s) => s.label === 'Total given')?.value ?? 0
+        const rows = g.json.rows.reduce((s, x) => s + x.total, 0)
+        const chart = (g.json.series[0]?.points ?? []).reduce((s, p) => s + p.y, 0)
+        if (rows !== total) bad.push(`giving table ${rows} != headline ${total}`)
+        if (chart !== total) bad.push(`giving chart ${chart} != headline ${total}`)
+      }
+
+      return {
+        ok: bad.length === 0,
+        detail: bad.length ? bad.slice(0, 3).join(' | ') : `${list.length} reports, figures reconcile`,
       }
     },
   },

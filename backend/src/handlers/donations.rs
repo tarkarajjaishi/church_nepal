@@ -542,41 +542,52 @@ pub struct DonationListQuery {
     pub max_amount: Option<i64>,
 }
 
+/// The filter every donation query shares, as one parameterised WHERE clause.
+///
+/// Every value is a bind parameter. This used to interpolate the caller's
+/// strings straight into the SQL, which meant `?status=pending' OR '1'='1`
+/// returned the entire donation table and a UNION reached the query planner —
+/// a read of every donor's giving history by anyone who could call the export.
+/// Since roles arrived that is not only an administrator: a Finance Officer
+/// holds giving.view, and the injection reached far past giving.
+///
+/// $1..$9 are bound in the fixed order below whether or not each filter is
+/// used, so the numbering can never drift out of step with the binds.
+const DONATION_FILTER: &str = r#"
+    WHERE ($1::text IS NULL OR created_at::date >= $1::date)
+      AND ($2::text IS NULL OR created_at::date <= $2::date)
+      AND ($3::text IS NULL OR payment_method = $3)
+      AND ($4::text IS NULL OR status = $4)
+      AND ($5::uuid IS NULL OR fund_id = $5)
+      AND ($6::text IS NULL OR donor_email ILIKE '%' || $6 || '%')
+      AND ($7::text IS NULL OR transaction_id ILIKE '%' || $7 || '%')
+      AND ($8::bigint IS NULL OR amount >= $8)
+      AND ($9::bigint IS NULL OR amount <= $9)
+"#;
+
+/// Bind the nine filter parameters, in the order DONATION_FILTER expects.
+macro_rules! bind_donation_filter {
+    ($q:expr, $f:expr) => {
+        $q.bind($f.start_date.as_deref())
+            .bind($f.end_date.as_deref())
+            .bind($f.payment_method.as_deref())
+            .bind($f.status.as_deref())
+            .bind($f.fund_id)
+            .bind($f.donor_email.as_deref())
+            .bind($f.transaction_id.as_deref())
+            .bind($f.min_amount)
+            .bind($f.max_amount)
+    };
+}
+
 pub async fn list(
     Db(pool): Db,
     Query(q): Query<DonationListQuery>,
 ) -> Result<Json<Vec<Donation>>, AppError> {
-    let mut sql = String::from("SELECT * FROM donations WHERE 1=1");
-    if let Some(ref start) = q.start_date {
-        sql.push_str(&format!(" AND created_at::date >= '{}'", start));
-    }
-    if let Some(ref end) = q.end_date {
-        sql.push_str(&format!(" AND created_at::date <= '{}'", end));
-    }
-    if let Some(ref pm) = q.payment_method {
-        sql.push_str(&format!(" AND payment_method = '{}'", pm));
-    }
-    if let Some(ref status) = q.status {
-        sql.push_str(&format!(" AND status = '{}'", status));
-    }
-    if let Some(fund_id) = q.fund_id {
-        sql.push_str(&format!(" AND fund_id = '{}'", fund_id));
-    }
-    if let Some(ref email) = q.donor_email {
-        sql.push_str(&format!(" AND donor_email ILIKE '%{}%'", email));
-    }
-    if let Some(ref txn) = q.transaction_id {
-        sql.push_str(&format!(" AND transaction_id ILIKE '%{}%'", txn));
-    }
-    if let Some(min) = q.min_amount {
-        sql.push_str(&format!(" AND amount >= {}", min));
-    }
-    if let Some(max) = q.max_amount {
-        sql.push_str(&format!(" AND amount <= {}", max));
-    }
-    sql.push_str(" ORDER BY created_at DESC");
-    let rows = sqlx::query_as::<_, Donation>(&sql)
-        .fetch_all(&pool).await?;
+    let sql = format!("SELECT * FROM donations {DONATION_FILTER} ORDER BY created_at DESC");
+    let rows = bind_donation_filter!(sqlx::query_as::<_, Donation>(&sql), q)
+        .fetch_all(&pool)
+        .await?;
     Ok(Json(rows))
 }
 
@@ -638,37 +649,14 @@ pub async fn export_csv(
     Db(pool): Db,
     Query(q): Query<ExportCsvQuery>,
 ) -> Result<Response, AppError> {
-    let mut sql = String::from("SELECT * FROM donations WHERE 1=1");
-    if let Some(ref start) = q.start_date {
-        sql.push_str(&format!(" AND created_at::date >= '{}'", start));
-    }
-    if let Some(ref end) = q.end_date {
-        sql.push_str(&format!(" AND created_at::date <= '{}'", end));
-    }
-    if let Some(ref pm) = q.payment_method {
-        sql.push_str(&format!(" AND payment_method = '{}'", pm));
-    }
-    if let Some(ref status) = q.status {
-        sql.push_str(&format!(" AND status = '{}'", status));
-    }
-    if let Some(fund_id) = q.fund_id {
-        sql.push_str(&format!(" AND fund_id = '{}'", fund_id));
-    }
-    if let Some(ref email) = q.donor_email {
-        sql.push_str(&format!(" AND donor_email ILIKE '%{}%'", email));
-    }
-    if let Some(ref txn) = q.transaction_id {
-        sql.push_str(&format!(" AND transaction_id ILIKE '%{}%'", txn));
-    }
-    if let Some(min) = q.min_amount {
-        sql.push_str(&format!(" AND amount >= {}", min));
-    }
-    if let Some(max) = q.max_amount {
-        sql.push_str(&format!(" AND amount <= {}", max));
-    }
-    sql.push_str(" ORDER BY created_at DESC");
-    let rows = sqlx::query_as::<_, Donation>(&sql)
-        .fetch_all(&pool).await?;
+    // Same parameterised filter as the list. This function is why the filter
+    // was extracted: it had its own copy of the interpolated version, so
+    // fixing one and not the other would have left the export — the one that
+    // hands back every donor's name, email, phone and amount — still open.
+    let sql = format!("SELECT * FROM donations {DONATION_FILTER} ORDER BY created_at DESC");
+    let rows = bind_donation_filter!(sqlx::query_as::<_, Donation>(&sql), q)
+        .fetch_all(&pool)
+        .await?;
 
     let mut csv = String::from("ID,Donor Name,Donor Email,Donor Phone,Amount,Payment Method,Status,Refund Status,Refund Amount,Transaction ID,Fund ID,Created At\n");
     for row in rows {
@@ -693,11 +681,45 @@ pub async fn export_csv(
     Ok(([(axum::http::header::CONTENT_TYPE, "text/csv")], csv).into_response())
 }
 
+/// Quote a CSV cell, and stop a spreadsheet treating it as a formula.
+///
+/// A donor called `=cmd|'/c calc'!A1` — or, far more likely, a note someone
+/// pasted — is executed by Excel and LibreOffice when the cell starts with
+/// `=`, `+`, `-` or `@`. The file is opened by a treasurer on their own
+/// machine, so the leading apostrophe is the difference between a export and
+/// a delivery mechanism.
 fn escape_csv(s: &str) -> String {
-    if s.contains(',') || s.contains('"') || s.contains('\n') {
-        format!("\"{}\"", s.replace('"', "\"\""))
+    let needs_prefix = s.starts_with(['=', '+', '-', '@', '\t', '\r']);
+    let body = if needs_prefix { format!("'{s}") } else { s.to_string() };
+    if body.contains([',', '"', '\n', '\r']) {
+        format!("\"{}\"", body.replace('"', "\"\""))
     } else {
-        s.to_string()
+        body
+    }
+}
+
+#[cfg(test)]
+mod csv_tests {
+    use super::escape_csv;
+
+    #[test]
+    fn a_cell_that_looks_like_a_formula_is_neutralised() {
+        assert_eq!(escape_csv("=1+1"), "'=1+1");
+        assert_eq!(escape_csv("+44 980 1234"), "'+44 980 1234");
+        assert_eq!(escape_csv("-500"), "'-500");
+        assert_eq!(escape_csv("@SUM(A1)"), "'@SUM(A1)");
+    }
+
+    #[test]
+    fn ordinary_text_is_left_alone() {
+        assert_eq!(escape_csv("Anjali Shrestha"), "Anjali Shrestha");
+        assert_eq!(escape_csv("Rai, Sunita"), "\"Rai, Sunita\"");
+        assert_eq!(escape_csv("said \"yes\""), "\"said \"\"yes\"\"\"");
+    }
+
+    #[test]
+    fn a_formula_containing_a_comma_gets_both_treatments() {
+        assert_eq!(escape_csv("=HYPERLINK(\"x\",\"y\")"), "\"'=HYPERLINK(\"\"x\"\",\"\"y\"\")\"");
     }
 }
 

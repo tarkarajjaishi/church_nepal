@@ -6,7 +6,15 @@ import { useAuth } from '@/lib/auth'
 import { useAccess } from '@/lib/roles/useAccess'
 import { LayoutDashboard, BookOpen, Calendar, Users, Image, Quote, Bell, UserCheck, Clock, BookMarked, DollarSign, Settings, LogOut, Church, Shield, LayoutGrid, Heart, CheckSquare, UserCircle, Newspaper, Briefcase, Globe, Mail, Contact, Palette, Receipt, HandHelping, TrendingUp, Wallet, Target, ClipboardCheck, Radio, FileText, BarChart3, HandHeart, MessageSquare, MonitorPlay, Music, Package, Library, LifeBuoy, KeyRound } from 'lucide-react'
 
-type NavLink = { to: string; icon: React.ElementType; label: string; perm?: string }
+type NavLink = {
+  to: string
+  icon: React.ElementType
+  label: string
+  /** Needs this permission. */
+  perm?: string
+  /** Needs *any one* of these — for pages that serve several modules. */
+  anyPerm?: string[]
+}
 type NavDivider = { divider: true; label: string }
 type NavEntry = NavLink | NavDivider
 
@@ -61,7 +69,17 @@ const navItems: NavEntry[] = [
   { to: '/admin/contact-info', icon: Contact, label: 'Contact Info' , perm: 'content.manage' },
   { to: '/admin/newsletter', icon: Mail, label: 'Newsletter' , perm: 'communication.manage' },
   { divider: true, label: 'Management' },
-  { to: '/admin/reports', icon: BarChart3, label: 'Reports' , perm: 'giving.view' },
+  // The reports page serves nine reports across five modules and filters
+  // itself to what the caller can run, so a single permission is the wrong
+  // gate: `giving.view` hid it from a librarian who has a library report, and
+  // `dashboard.view` offered it to a viewer who has none.
+  {
+    to: '/admin/reports', icon: BarChart3, label: 'Reports',
+    anyPerm: [
+      'giving.view', 'people.view', 'worship.manage',
+      'assets.manage', 'library.manage', 'helpdesk.manage',
+    ],
+  },
   { to: '/admin/audit-log', icon: Shield, label: 'Audit Log' , perm: 'audit.view' },
   { to: '/admin/users', icon: Shield, label: 'Users' , perm: 'users.manage' },
   { to: '/admin/roles', icon: KeyRound, label: 'Roles & Permissions', perm: 'users.manage' },
@@ -79,7 +97,11 @@ const navItems: NavEntry[] = [
  * nobody is offered a page that will refuse them, never the control.
  */
 function visibleNav(entries: NavEntry[], can: (p: string) => boolean): NavEntry[] {
-  const allowed = entries.filter((e) => isDivider(e) || !e.perm || can(e.perm))
+  const allowed = entries.filter((e) => {
+    if (isDivider(e)) return true
+    if (e.anyPerm) return e.anyPerm.some(can)
+    return !e.perm || can(e.perm)
+  })
   return allowed.filter((e, i) => {
     if (!isDivider(e)) return true
     const next = allowed[i + 1]
@@ -100,7 +122,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
   // Until the answer arrives, show only what needs no permission. Hiding a
   // link for a moment is a flicker; showing one is a promise the next click
   // breaks with a 403.
-  const items = accessLoading ? navItems.filter((e) => isDivider(e) || !e.perm) : visibleNav(navItems, can)
+  const items = accessLoading
+    ? navItems.filter((e) => isDivider(e) || (!e.perm && !e.anyPerm))
+    : visibleNav(navItems, can)
 
   return (
     <div className="flex h-screen bg-background">

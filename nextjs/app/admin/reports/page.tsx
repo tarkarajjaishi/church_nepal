@@ -1,267 +1,385 @@
 'use client'
 
-import { useState } from 'react'
-import { useGivingSummary, usePeopleSummary } from '@/lib/hooks'
-import { DollarSign, Users, TrendingUp, BarChart3, ArrowUpRight, ArrowDownRight, FileDown, Calendar, ClipboardCheck } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts'
-import { Loading, EmptyState, ErrorState } from '@/components/LoadingStates'
+import { useMemo, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import {
+  BarChart3, FileDown, TrendingUp, TrendingDown, Minus, PackageOpen, Search,
+} from 'lucide-react'
+import {
+  BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer,
+} from 'recharts'
+import api from '@/lib/api'
+import {
+  reportsApi, formatCell, isNumeric, presets, type Report, type Stat,
+} from '@/lib/reports/api'
+import {
+  CARD, PageHeader, EmptyState, ErrorState, TableSkeleton, Chip, btn, field, Label,
+} from '@/components/offerings/ui'
 
-const COLORS = ['#3B82F6', '#10B981', '#8B5CF6', '#F59E0B', '#EF4444', '#EC4899', '#06B6D4', '#84CC16']
+/**
+ * One page for every report.
+ *
+ * The server sends typed columns, so this renders any report — including ones
+ * added later — without a line of code here. That is the whole reason the
+ * envelope is shared.
+ */
 
-export default function ReportsPage() {
-  const [tab, setTab] = useState<'giving' | 'people' | 'attendance'>('giving')
-
-  const { data: givingSummary = {}, isLoading: givingLoading, isError: givingError, refetch: refetchGiving } = useGivingSummary()
-  const { data: peopleSummary = {}, isLoading: peopleLoading, isError: peopleError, refetch: refetchPeople } = usePeopleSummary()
-
-  const monthlyData = givingSummary.monthlyTrend || []
-  const byTypeData = givingSummary.byType || []
-  const topDonors = givingSummary.topDonors || []
-  const statusDistribution = peopleSummary.statusDistribution || []
-  const membershipSummary = peopleSummary.membership || {}
-
-  const exportToCSV = () => {
-    if (tab === 'giving') {
-      const headers = ['Month', 'Total']
-      const rows = monthlyData.map((m: any) => [m.month, m.total])
-      const csvContent = [headers, ...rows].map(e => e.join(',')).join('\n')
-      downloadFile(csvContent, 'giving-report.csv', 'text/csv')
-    } else if (tab === 'people') {
-      const headers = ['Status', 'Count']
-      const rows = statusDistribution.map((s: any) => [s.status, s.count])
-      const csvContent = [headers, ...rows].map(e => e.join(',')).join('\n')
-      downloadFile(csvContent, 'people-report.csv', 'text/csv')
-    }
-    toast.success('Report exported successfully')
+function Movement({ change }: { change: number | null }) {
+  // No baseline is not a flat result and certainly not a 100% rise. It gets a
+  // dash and a tooltip, because "—" invites the question and "0%" does not.
+  if (change === null) {
+    return (
+      <span
+        className="inline-flex items-center gap-1 text-xs text-muted-foreground"
+        title="Nothing in the period before to compare with"
+      >
+        <Minus className="size-3" aria-hidden /> no baseline
+      </span>
+    )
   }
+  const up = change > 0
+  const flat = change === 0
+  const Icon = flat ? Minus : up ? TrendingUp : TrendingDown
+  const tone = flat ? 'text-muted-foreground' : up ? 'text-green-700' : 'text-red-700'
+  return (
+    <span className={`inline-flex items-center gap-1 text-xs ${tone}`}>
+      <Icon className="size-3" aria-hidden />
+      {change > 0 ? '+' : ''}{change}%
+    </span>
+  )
+}
 
-  const downloadFile = (content: string, filename: string, mimeType: string) => {
-    const blob = new Blob([content], { type: mimeType })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = filename
-    a.click()
-    URL.revokeObjectURL(url)
+function StatCard({ stat }: { stat: Stat }) {
+  return (
+    <div className={`${CARD} p-4`}>
+      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{stat.label}</p>
+      <p className="text-2xl font-semibold mt-1.5 tabular-nums">{formatCell(stat.value, stat.kind)}</p>
+      <div className="mt-1.5 flex items-center gap-2 flex-wrap">
+        <Movement change={stat.change} />
+        {stat.hint && <span className="text-xs text-muted-foreground">{stat.hint}</span>}
+      </div>
+    </div>
+  )
+}
+
+function Chart({ report }: { report: Report }) {
+  const series = report.series[0]
+  if (!series?.points.length) return null
+
+  // A line for anything over time, bars for a breakdown by name. Both read the
+  // same points; only the shape differs.
+  const overTime = series.points.length > 3
+  const divisor = series.kind === 'money' ? 100 : 1
+  const data = series.points.map((p) => ({ name: p.x, value: p.y / divisor }))
+  const label = (v: number) =>
+    series.kind === 'money'
+      ? `Rs ${v.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`
+      : v.toLocaleString('en-IN')
+
+  const tooltip = {
+    background: 'var(--card)',
+    border: '1px solid var(--border)',
+    borderRadius: 12,
+    color: 'var(--foreground)',
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-[#0b3c5d]">Reports</h1>
-        <Button variant="outline" size="sm" onClick={exportToCSV}>
-          <FileDown className="size-4 mr-1.5" />
-          Export CSV
-        </Button>
+    <section className={`${CARD} p-4 sm:p-5 mb-4`}>
+      <h2 className="font-semibold mb-4">{series.name}</h2>
+      <div className="h-64">
+        <ResponsiveContainer width="100%" height="100%">
+          {overTime ? (
+            <LineChart data={data} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+              <XAxis dataKey="name" tick={{ fontSize: 11 }} stroke="var(--muted-foreground)" />
+              <YAxis tick={{ fontSize: 11 }} stroke="var(--muted-foreground)" width={70} tickFormatter={label} />
+              <Tooltip formatter={(v: number) => label(v)} contentStyle={tooltip} />
+              <Line type="monotone" dataKey="value" stroke="var(--primary)" strokeWidth={2} dot={{ r: 3 }} />
+            </LineChart>
+          ) : (
+            <BarChart data={data} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+              <XAxis dataKey="name" tick={{ fontSize: 11 }} stroke="var(--muted-foreground)" />
+              <YAxis tick={{ fontSize: 11 }} stroke="var(--muted-foreground)" width={70} tickFormatter={label} />
+              <Tooltip formatter={(v: number) => label(v)} cursor={{ fill: 'var(--muted)' }} contentStyle={tooltip} />
+              <Bar dataKey="value" fill="var(--primary)" radius={[6, 6, 0, 0]} />
+            </BarChart>
+          )}
+        </ResponsiveContainer>
       </div>
+    </section>
+  )
+}
 
-      {/* Tab Bar */}
-      <div className="flex gap-2 border-b pb-2">
-        {[
-          { key: 'giving' as const, label: 'Giving', icon: DollarSign },
-          { key: 'people' as const, label: 'People', icon: Users },
-        ].map(t => (
-          <button key={t.key} onClick={() => setTab(t.key)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-t-lg text-sm font-medium transition-colors ${
-              tab === t.key ? 'bg-church-blue text-white' : 'text-gray-600 hover:bg-gray-100'
-            }`}>
-            <t.icon className="size-4" /> {t.label}
+export default function ReportsPage() {
+  const [key, setKey] = useState('giving-summary')
+  const [search, setSearch] = useState('')
+  const p = useMemo(() => presets(), [])
+  const [range, setRange] = useState({ from: p[3].from, to: p[3].to })
+  const [downloading, setDownloading] = useState(false)
+
+  const { data: catalogue, isLoading: catLoading } = useQuery({
+    queryKey: ['report-catalogue'],
+    queryFn: reportsApi.catalogue,
+  })
+
+  // Follow the catalogue rather than assume: a librarian's first report is
+  // whatever they can actually run, not the giving summary they cannot.
+  const available = catalogue ?? []
+  const selectedKey = available.some((r) => r.key === key) ? key : available[0]?.key ?? ''
+
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ['report', selectedKey, range.from, range.to],
+    queryFn: () => reportsApi.run(selectedKey, range.from, range.to),
+    enabled: !!selectedKey,
+  })
+
+  const download = async () => {
+    if (!data) return
+    setDownloading(true)
+    try {
+      // Fetched through the axios client so the bearer token and tenant host
+      // are the same ones the table used. A bare <a href> would be
+      // unauthenticated and quietly download a login page as a .csv.
+      const res = await api.get(reportsApi.exportUrl(selectedKey, range.from, range.to), {
+        responseType: 'blob',
+        transformResponse: [(d) => d],
+      })
+      const url = URL.createObjectURL(new Blob([res.data as BlobPart], { type: 'text/csv' }))
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${selectedKey}-${range.from}-to-${range.to}.csv`
+      a.click()
+      URL.revokeObjectURL(url)
+      toast.success('Downloaded')
+    } catch (e) {
+      toast.error((e as Error).message || 'Could not export this report')
+    } finally {
+      setDownloading(false)
+    }
+  }
+
+  const groups = available.reduce<Record<string, typeof available>>((acc, r) => {
+    ;(acc[r.group] ??= []).push(r)
+    return acc
+  }, {})
+
+  const q = search.trim().toLowerCase()
+  const rows = (data?.rows ?? []).filter(
+    (row) => !q || Object.values(row).some((v) => String(v ?? '').toLowerCase().includes(q))
+  )
+
+  return (
+    <>
+      <PageHeader
+        title="Reports"
+        subtitle="Figures for a period, next to the period before it"
+        actions={
+          <button
+            type="button"
+            onClick={download}
+            disabled={!data || downloading || !!data.unavailable}
+            className={btn.secondary}
+          >
+            <FileDown className="size-4" aria-hidden />
+            {downloading ? 'Preparing…' : 'Export CSV'}
           </button>
-        ))}
+        }
+      />
+
+      {/* Period */}
+      <div className={`${CARD} p-3 sm:p-4 mb-4`}>
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="flex flex-wrap gap-1.5">
+            {p.map((preset) => {
+              const active = range.from === preset.from && range.to === preset.to
+              return (
+                <button
+                  key={preset.label}
+                  type="button"
+                  onClick={() => setRange({ from: preset.from, to: preset.to })}
+                  aria-pressed={active}
+                  className={`min-h-9 px-3 rounded-lg text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                    active
+                      ? 'bg-primary text-primary-foreground'
+                      : 'border border-border bg-card text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {preset.label}
+                </button>
+              )
+            })}
+          </div>
+          <div className="flex items-end gap-2 ml-auto">
+            <div>
+              <Label htmlFor="from">From</Label>
+              <input id="from" type="date" className={field} value={range.from} onChange={(e) => setRange((s) => ({ ...s, from: e.target.value }))} />
+            </div>
+            <div>
+              <Label htmlFor="to">To</Label>
+              <input id="to" type="date" className={field} value={range.to} onChange={(e) => setRange((s) => ({ ...s, to: e.target.value }))} />
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* Giving Tab */}
-      {tab === 'giving' && (
-        <div className="space-y-6">
-          {/* Summary Cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            {[
-              { label: 'Total Giving', value: `Rs ${(givingSummary.totalGiving || 0).toLocaleString()}`, change: givingSummary.givingChange, icon: DollarSign, color: 'bg-green-500' },
-              { label: 'Total Donors', value: givingSummary.totalDonors || 0, change: givingSummary.donorChange, icon: Users, color: 'bg-blue-500' },
-              { label: 'Average Gift', value: `Rs ${(givingSummary.averageGift || 0).toLocaleString()}`, icon: TrendingUp, color: 'bg-purple-500' },
-              { label: 'This Month', value: `Rs ${(givingSummary.thisMonth || 0).toLocaleString()}`, icon: BarChart3, color: 'bg-orange-500' },
-            ].map(({ label, value, change, icon: Icon, color }) => (
-              <Card key={label}>
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className={`size-10 rounded-lg ${color} flex items-center justify-center text-white`}>
-                      <Icon className="size-5" />
-                    </div>
-                    <div>
-                      <div className="text-xl font-bold">{value}</div>
-                      <div className="text-xs text-muted-foreground flex items-center gap-1">
-                        {label}
-                        {change !== undefined && (
-                          <span className={change >= 0 ? 'text-green-600' : 'text-red-600'}>
-                            {change >= 0 ? <ArrowUpRight className="size-3" /> : <ArrowDownRight className="size-3" />}
-                            {Math.abs(change)}%
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+      <div className="flex gap-4">
+        {/* Report picker */}
+        <aside className="hidden lg:block w-60 shrink-0">
+          <div className={`${CARD} p-2 sticky top-4`}>
+            {catLoading ? (
+              <div className="p-2 space-y-2" aria-busy="true">
+                {[0, 1, 2, 3].map((i) => <div key={i} className="h-8 rounded bg-muted animate-pulse" />)}
+              </div>
+            ) : !available.length ? (
+              <p className="p-3 text-sm text-muted-foreground">No reports are available to you.</p>
+            ) : (
+              Object.entries(groups).map(([group, items]) => (
+                <div key={group} className="mb-3 last:mb-0">
+                  <p className="px-3 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/70">
+                    {group}
+                  </p>
+                  <ul className="space-y-0.5">
+                    {items.map((r) => (
+                      <li key={r.key}>
+                        <button
+                          type="button"
+                          onClick={() => setKey(r.key)}
+                          aria-current={selectedKey === r.key ? 'page' : undefined}
+                          className={`w-full text-left flex items-center gap-2 min-h-9 px-3 rounded-lg text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                            selectedKey === r.key
+                              ? 'bg-primary/10 text-primary font-medium'
+                              : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                          }`}
+                        >
+                          <span className="truncate">{r.name}</span>
+                          {!r.available && (
+                            <Chip className="ml-auto bg-muted text-muted-foreground border-border">off</Chip>
+                          )}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))
+            )}
+          </div>
+        </aside>
+
+        <div className="flex-1 min-w-0">
+          {/* Mobile picker */}
+          <select
+            className={`${field} lg:hidden mb-4`}
+            aria-label="Report"
+            value={selectedKey}
+            onChange={(e) => setKey(e.target.value)}
+          >
+            {available.map((r) => (
+              <option key={r.key} value={r.key}>{r.group} — {r.name}</option>
             ))}
-          </div>
+          </select>
 
-          <div className="grid lg:grid-cols-2 gap-6">
-            {/* Monthly Trend Chart */}
-            <Card>
-              <CardHeader><CardTitle className="text-base">Monthly Giving Trend</CardTitle></CardHeader>
-              <CardContent>
-                {givingLoading ? (
-                  <div className="h-64 flex items-center justify-center"><Loading /></div>
-                ) : givingError ? (
-                  <ErrorState message="Failed to load giving report" onRetry={() => refetchGiving()} />
-                ) : monthlyData.length === 0 ? (
-                  <EmptyState icon={<BarChart3 className="size-8" />} title="No giving data yet" description="Giving trends appear here once gifts are recorded." />
-                ) : (
-                  <ResponsiveContainer width="100%" height={280}>
-                    <LineChart data={monthlyData}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-                      <YAxis tick={{ fontSize: 12 }} />
-                      <Tooltip formatter={(val: number) => [`Rs ${val.toLocaleString()}`, 'Amount']} />
-                      <Line type="monotone" dataKey="total" stroke="#3B82F6" strokeWidth={2} dot={{ r: 4 }} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                )}
-              </CardContent>
-            </Card>
+          {error ? (
+            <div className={CARD}><ErrorState message={(error as Error).message} onRetry={() => refetch()} /></div>
+          ) : isLoading || !data ? (
+            <div className="space-y-4" aria-busy="true">
+              <div className="grid gap-4 sm:grid-cols-4">
+                {[0, 1, 2, 3].map((i) => <div key={i} className="h-24 rounded-2xl bg-muted animate-pulse" />)}
+              </div>
+              <div className="h-64 rounded-2xl bg-muted animate-pulse" />
+            </div>
+          ) : data.unavailable ? (
+            <div className={CARD}>
+              <EmptyState
+                icon={PackageOpen}
+                title="This module is not installed"
+                subtitle={data.unavailable}
+              />
+            </div>
+          ) : (
+            <>
+              <div className="mb-4">
+                <h2 className="font-semibold">{data.name}</h2>
+                <p className="text-sm text-muted-foreground">{data.description}</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {data.from} to {data.to}, compared with {data.compareFrom} to {data.compareTo}
+                </p>
+              </div>
 
-            {/* By Type Pie Chart */}
-            <Card>
-              <CardHeader><CardTitle className="text-base">Giving by Type</CardTitle></CardHeader>
-              <CardContent>
-                {givingLoading ? (
-                  <div className="h-64 flex items-center justify-center"><Loading /></div>
-                ) : givingError ? (
-                  <ErrorState message="Failed to load giving report" onRetry={() => refetchGiving()} />
-                ) : byTypeData.length === 0 ? (
-                  <EmptyState icon={<BarChart3 className="size-8" />} title="No giving data yet" description="Giving by type appears here once gifts are recorded." />
-                ) : (
-                  <ResponsiveContainer width="100%" height={280}>
-                    <PieChart>
-                      <Pie data={byTypeData} dataKey="total" nameKey="type" cx="50%" cy="50%" outerRadius={90} label={({ type, percent }) => `${type} (${(percent * 100).toFixed(0)}%)`}>
-                        {byTypeData.map((_: any, i: number) => (
-                          <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip formatter={(val: number) => `Rs ${val.toLocaleString()}`} />
-                      <Legend />
-                    </PieChart>
-                  </ResponsiveContainer>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Top Donors */}
-          <Card>
-            <CardHeader><CardTitle className="text-base">Top Donors</CardTitle></CardHeader>
-            <CardContent>
-              {topDonors.length === 0 ? (
-                <p className="text-muted-foreground text-sm">No donor data available</p>
-              ) : (
-                <div className="space-y-3">
-                  {topDonors.map((d: any, i: number) => (
-                    <div key={i} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <span className="text-sm font-bold text-muted-foreground w-6">{i + 1}.</span>
-                        <div>
-                          <div className="font-medium text-sm">{d.name || d.donorName || 'Anonymous'}</div>
-                          <div className="text-xs text-muted-foreground">{d.count || d.donationCount || 0} donations</div>
-                        </div>
-                      </div>
-                      <span className="font-semibold text-sm">Rs {(d.total || d.totalGiven || 0).toLocaleString()}</span>
-                    </div>
-                  ))}
+              {data.stats.length > 0 && (
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 mb-4">
+                  {data.stats.map((s) => <StatCard key={s.label} stat={s} />)}
                 </div>
               )}
-            </CardContent>
-          </Card>
-        </div>
-      )}
 
-      {/* People Tab */}
-      {tab === 'people' && (
-        <div className="space-y-6">
-          {/* Summary Cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            {[
-              { label: 'Total People', value: membershipSummary.total ?? peopleSummary.totalPeople ?? 0, icon: Users, color: 'bg-blue-500' },
-              { label: 'Active Members', value: membershipSummary.members ?? peopleSummary.activeMembers ?? 0, icon: Users, color: 'bg-green-500' },
-              { label: 'Visitors', value: membershipSummary.visitors ?? peopleSummary.visitors ?? 0, icon: Users, color: 'bg-yellow-500' },
-              { label: 'Inactive', value: membershipSummary.inactive ?? peopleSummary.inactive ?? 0, icon: Users, color: 'bg-gray-500' },
-            ].map(({ label, value, icon: Icon, color }) => (
-              <Card key={label}>
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className={`size-10 rounded-lg ${color} flex items-center justify-center text-white`}>
-                      <Icon className="size-5" />
-                    </div>
-                    <div>
-                      <div className="text-xl font-bold">{value}</div>
-                      <div className="text-xs text-muted-foreground">{label}</div>
-                    </div>
+              <Chart report={data} />
+
+              <div className={`${CARD} overflow-hidden`}>
+                {data.rows.length > 12 && (
+                  <div className="p-3 border-b border-border relative">
+                    <Search className="absolute left-6 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" aria-hidden />
+                    <input
+                      className={`${field} pl-9`}
+                      placeholder={`Filter ${data.rows.length} rows`}
+                      aria-label="Filter rows"
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                    />
                   </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-
-          <div className="grid lg:grid-cols-2 gap-6">
-            {/* Status Distribution Pie Chart */}
-            <Card>
-              <CardHeader><CardTitle className="text-base">Status Distribution</CardTitle></CardHeader>
-              <CardContent>
-                {peopleLoading ? (
-                  <div className="h-64 flex items-center justify-center"><Loading /></div>
-                ) : peopleError ? (
-                  <ErrorState message="Failed to load people report" onRetry={() => refetchPeople()} />
-                ) : statusDistribution.length === 0 ? (
-                  <EmptyState icon={<Users className="size-8" />} title="No people data yet" description="Status distribution appears here once people are added." />
-                ) : (
-                  <ResponsiveContainer width="100%" height={280}>
-                    <PieChart>
-                      <Pie data={statusDistribution} dataKey="count" nameKey="status" cx="50%" cy="50%" outerRadius={90} label={({ status, percent }) => `${status} (${(percent * 100).toFixed(0)}%)`}>
-                        {statusDistribution.map((_: any, i: number) => (
-                          <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                      <Legend />
-                    </PieChart>
-                  </ResponsiveContainer>
                 )}
-              </CardContent>
-            </Card>
-
-            {/* Membership Summary */}
-            <Card>
-              <CardHeader><CardTitle className="text-base">Membership Summary</CardTitle></CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {Object.entries(membershipSummary).filter(([k]) => k !== 'total').map(([key, val]) => (
-                    <div key={key} className="flex items-center justify-between">
-                      <span className="text-sm capitalize text-muted-foreground">{key.replace(/([A-Z])/g, ' $1')}</span>
-                      <span className="font-semibold">{val as number}</span>
-                    </div>
-                  ))}
-                  {Object.keys(membershipSummary).length === 0 && (
-                    <p className="text-muted-foreground text-sm">No membership data available</p>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+                {!rows.length ? (
+                  <EmptyState
+                    icon={BarChart3}
+                    title={q ? 'Nothing matches that' : 'Nothing in this period'}
+                    subtitle={q ? undefined : 'Try a wider date range.'}
+                  />
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="sticky top-0 z-10 bg-card/95 backdrop-blur border-b border-border">
+                        <tr>
+                          {data.columns.map((c) => (
+                            <th
+                              key={c.key}
+                              scope="col"
+                              className={`px-4 py-3 font-medium text-muted-foreground whitespace-nowrap ${isNumeric(c.kind) ? 'text-right' : 'text-left'}`}
+                            >
+                              {c.label}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {rows.map((row, i) => (
+                          <tr key={i} className="border-b border-border last:border-0 hover:bg-muted/50 transition-colors">
+                            {data.columns.map((c) => (
+                              <td
+                                key={c.key}
+                                className={`px-4 py-2.5 whitespace-nowrap ${isNumeric(c.kind) ? 'text-right tabular-nums' : ''}`}
+                              >
+                                {formatCell(row[c.key], c.kind)}
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+                {rows.length > 0 && (
+                  <p className="px-4 py-3 border-t border-border text-xs text-muted-foreground">
+                    {rows.length}
+                    {q && rows.length !== data.rows.length ? ` of ${data.rows.length}` : ''} row
+                    {rows.length === 1 ? '' : 's'}
+                  </p>
+                )}
+              </div>
+            </>
+          )}
         </div>
-      )}
-    </div>
+      </div>
+    </>
   )
 }
