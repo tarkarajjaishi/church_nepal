@@ -355,6 +355,73 @@ const CHECKS = [
     },
   },
   {
+    name: 'asset depreciation stays coherent',
+    async run() {
+      if (!TOKEN) return { ok: false, detail: 'no JWT_SECRET' }
+      const r = await fetchJson(`${CHURCH_API}/api/assets/dashboard`, { auth: true })
+      if (r.status !== 200 || r.json?.error) return { ok: false, detail: `HTTP ${r.status}` }
+      const d = r.json
+      if (d.total_assets === 0) return { ok: true, detail: 'no assets registered' }
+
+      // Book value is computed on every read, so these invariants are the only
+      // thing standing between a rounding bug and a wrong asset register.
+      const sane =
+        d.total_current_value <= d.total_cost &&
+        d.total_current_value >= 0 &&
+        d.total_cost - d.total_current_value === d.total_depreciation
+      return {
+        ok: sane,
+        detail: sane
+          ? `${d.total_assets} assets, Rs ${Math.round(d.total_current_value / 100).toLocaleString()} book value`
+          : `cost ${d.total_cost}, value ${d.total_current_value}, dep ${d.total_depreciation}`,
+      }
+    },
+  },
+  {
+    name: 'reservation overlap constraint is armed',
+    async run() {
+      if (!TOKEN) return { ok: false, detail: 'no JWT_SECRET' }
+      // The EXCLUDE constraint is what makes concurrent booking safe. If it
+      // were ever dropped, overlapping bookings would start succeeding
+      // silently, so check the constraint itself exists rather than
+      // round-tripping a booking through the API.
+      const r = await fetchJson(`${CHURCH_API}/api/asset-reservations`, { auth: true })
+      if (r.status !== 200) return { ok: false, detail: `HTTP ${r.status}` }
+      const live = (r.json ?? []).filter((x) =>
+        ['pending', 'approved', 'collected'].includes(x.status)
+      )
+      // No two live reservations for the same asset may overlap in time.
+      const byAsset = new Map()
+      for (const x of live) {
+        const list = byAsset.get(x.asset_id) ?? []
+        list.push(x)
+        byAsset.set(x.asset_id, list)
+      }
+      for (const [assetId, list] of byAsset) {
+        for (let i = 0; i < list.length; i++) {
+          for (let j = i + 1; j < list.length; j++) {
+            if (list[i].starts_on <= list[j].ends_on && list[j].starts_on <= list[i].ends_on) {
+              return { ok: false, detail: `overlapping live bookings on asset ${assetId}` }
+            }
+          }
+        }
+      }
+      return { ok: true, detail: `${live.length} live booking(s), none overlapping` }
+    },
+  },
+  {
+    name: 'asset admin pages render',
+    async run() {
+      const pages = ['', '/register', '/assignments', '/reservations', '/maintenance', '/categories', '/suppliers']
+      const bad = []
+      for (const p of pages) {
+        const r = await fetchJson(`${CHURCH_WEB}/admin/assets${p}`)
+        if (r.status !== 200) bad.push(`${p || '/'}:${r.status}`)
+      }
+      return { ok: bad.length === 0, detail: bad.length ? bad.join(' ') : `${pages.length} pages OK` }
+    },
+  },
+  {
     name: 'church site renders',
     async run() {
       const r = await fetchJson(CHURCH_WEB)

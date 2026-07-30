@@ -623,6 +623,22 @@ pub fn admin_routes() -> Router {
         )
         // Live control
         // ---- Worship Management -------------------------------------------
+        // ---- Asset Management ---------------------------------------------
+        .route("/assets/dashboard", get(assets::dashboard))
+        .route("/asset-categories", get(assets::categories_list).post(assets::categories_create))
+        .route("/suppliers", get(assets::suppliers_list).post(assets::suppliers_create))
+        .route("/assets", get(assets::assets_list).post(assets::assets_create))
+        .route("/assets/{id}", get(assets::assets_get).put(assets::assets_update))
+        .route("/assets/{id}/dispose/{status}", post(assets::assets_dispose))
+        .route("/assets/{id}/assign", post(assets::assign))
+        .route("/asset-assignments", get(assets::assignments_list))
+        .route("/asset-assignments/{id}/return", post(assets::assignment_return))
+        .route("/assets/{id}/reserve", post(assets::reserve))
+        .route("/asset-reservations", get(assets::reservations_list))
+        .route("/asset-reservations/{id}/{decision}", post(assets::reservation_decide))
+        .route("/assets/{id}/maintenance", post(assets::maintenance_create))
+        .route("/asset-maintenance", get(assets::maintenance_list))
+        .route("/asset-maintenance/{id}/complete", post(assets::maintenance_complete))
         .route("/worship/dashboard", get(worship::dashboard))
         .route("/worship/roles", get(worship::roles_list))
         .route("/worship/members", get(worship::members_list).post(worship::members_create))

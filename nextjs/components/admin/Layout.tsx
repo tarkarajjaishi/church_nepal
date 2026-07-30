@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/lib/auth'
-import { LayoutDashboard, BookOpen, Calendar, Users, Image, Quote, Bell, UserCheck, Clock, BookMarked, DollarSign, Settings, LogOut, Church, Shield, LayoutGrid, Heart, CheckSquare, UserCircle, Newspaper, Briefcase, Globe, Mail, Contact, Palette, Receipt, HandHelping, TrendingUp, Wallet, Target, ClipboardCheck, Radio, FileText, BarChart3, HandHeart, MessageSquare, MonitorPlay, Music } from 'lucide-react'
+import { LayoutDashboard, BookOpen, Calendar, Users, Image, Quote, Bell, UserCheck, Clock, BookMarked, DollarSign, Settings, LogOut, Church, Shield, LayoutGrid, Heart, CheckSquare, UserCircle, Newspaper, Briefcase, Globe, Mail, Contact, Palette, Receipt, HandHelping, TrendingUp, Wallet, Target, ClipboardCheck, Radio, FileText, BarChart3, HandHeart, MessageSquare, MonitorPlay, Music, Package } from 'lucide-react'
 
 const navItems = [
   { to: '/admin/overview', icon: Church, label: 'Church Overview' },
@@ -37,6 +37,7 @@ const navItems = [
   { to: '/admin/member-applications', icon: Users, label: 'Member Applications' },
   { to: '/admin/todos', icon: CheckSquare, label: 'Todos' },
   { divider: true, label: 'Operations' },
+  { to: '/admin/assets', icon: Package, label: 'Assets' },
   { to: '/admin/attendance', icon: ClipboardCheck, label: 'Attendance' },
   { to: '/admin/rsvps', icon: Users, label: 'Event RSVPs' },
   { to: '/admin/volunteers', icon: HandHelping, label: 'Volunteers' },
