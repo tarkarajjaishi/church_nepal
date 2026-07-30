@@ -1,5 +1,24 @@
 import type { Config } from 'tailwindcss'
 
+/**
+ * A theme colour that still works with an opacity modifier.
+ *
+ * These colours are CSS variables, and their values are hex in light mode and
+ * oklch in dark. Tailwind cannot inject alpha into either, so every
+ * `bg-muted/50`, `bg-card/95` and `bg-primary/5` in the codebase — 160 of
+ * them — generated no rule at all and rendered fully transparent. The symptom
+ * was silent: table rows with no hover, sticky headers you could read the
+ * content through, and selected rows that looked unselected.
+ *
+ * `color-mix` takes any colour format, so this needs no change to globals.css
+ * and none to the theme customiser, which writes hex at runtime.
+ */
+const themed = (name: string) =>
+  ({ opacityValue }: { opacityValue?: string }) =>
+    opacityValue === undefined || opacityValue === '1'
+      ? `var(${name})`
+      : `color-mix(in srgb, var(${name}) calc(${opacityValue} * 100%), transparent)`
+
 const config: Config = {
   darkMode: ['class'],
   content: [
@@ -11,47 +30,47 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        border: 'var(--border)',
-        input: 'var(--input)',
-        ring: 'var(--ring)',
-        background: 'var(--background)',
-        foreground: 'var(--foreground)',
+        border: themed('--border'),
+        input: themed('--input'),
+        ring: themed('--ring'),
+        background: themed('--background'),
+        foreground: themed('--foreground'),
         primary: {
-          DEFAULT: 'var(--primary)',
-          foreground: 'var(--primary-foreground)',
+          DEFAULT: themed('--primary'),
+          foreground: themed('--primary-foreground'),
         },
         secondary: {
-          DEFAULT: 'var(--secondary)',
-          foreground: 'var(--secondary-foreground)',
+          DEFAULT: themed('--secondary'),
+          foreground: themed('--secondary-foreground'),
         },
         destructive: {
-          DEFAULT: 'var(--destructive)',
-          foreground: 'var(--destructive-foreground)',
+          DEFAULT: themed('--destructive'),
+          foreground: themed('--destructive-foreground'),
         },
         muted: {
-          DEFAULT: 'var(--muted)',
-          foreground: 'var(--muted-foreground)',
+          DEFAULT: themed('--muted'),
+          foreground: themed('--muted-foreground'),
         },
         accent: {
-          DEFAULT: 'var(--accent)',
-          foreground: 'var(--accent-foreground)',
+          DEFAULT: themed('--accent'),
+          foreground: themed('--accent-foreground'),
         },
         popover: {
-          DEFAULT: 'var(--popover)',
-          foreground: 'var(--popover-foreground)',
+          DEFAULT: themed('--popover'),
+          foreground: themed('--popover-foreground'),
         },
         card: {
-          DEFAULT: 'var(--card)',
-          foreground: 'var(--card-foreground)',
+          DEFAULT: themed('--card'),
+          foreground: themed('--card-foreground'),
         },
-        'church-blue': 'var(--church-blue)',
-        'sky-blue': 'var(--sky-blue)',
-        gold: 'var(--gold)',
-        'gold-text': 'var(--gold-text)',
-        'gold-soft': 'var(--gold-soft)',
-        success: 'var(--success)',
-        section: 'var(--section-bg)',
-        'section-bg': 'var(--section-bg)',
+        'church-blue': themed('--church-blue'),
+        'sky-blue': themed('--sky-blue'),
+        gold: themed('--gold'),
+        'gold-text': themed('--gold-text'),
+        'gold-soft': themed('--gold-soft'),
+        success: themed('--success'),
+        section: themed('--section-bg'),
+        'section-bg': themed('--section-bg'),
       },
       borderRadius: {
         lg: 'var(--radius)',
