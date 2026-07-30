@@ -44,7 +44,7 @@ struct Def {
     requires_table: &'static str,
 }
 
-const REPORTS: [Def; 9] = [
+const REPORTS: [Def; 14] = [
     Def {
         key: "giving-summary",
         name: "Giving summary",
@@ -68,6 +68,46 @@ const REPORTS: [Def; 9] = [
         group: "Giving",
         permission: permissions::GIVING_VIEW,
         requires_table: "offerings",
+    },
+    Def {
+        key: "pledge-fulfilment",
+        name: "Pledge fulfilment",
+        description: "What people promised against what has actually come in.",
+        group: "Giving",
+        permission: permissions::GIVING_VIEW,
+        requires_table: "pledges",
+    },
+    Def {
+        key: "giving-by-household",
+        name: "Giving by household",
+        description: "Households rather than individuals, so a couple counts once.",
+        group: "Giving",
+        permission: permissions::GIVING_VIEW,
+        requires_table: "households",
+    },
+    Def {
+        key: "campaign-progress",
+        name: "Campaign progress",
+        description: "How each appeal is tracking against the figure it asked for.",
+        group: "Giving",
+        permission: permissions::GIVING_VIEW,
+        requires_table: "campaigns",
+    },
+    Def {
+        key: "visitor-follow-up",
+        name: "Visitor follow-up",
+        description: "Who came recently and has not been back — the list nobody keeps.",
+        group: "People",
+        permission: permissions::PEOPLE_VIEW,
+        requires_table: "people",
+    },
+    Def {
+        key: "volunteer-service",
+        name: "Volunteer service",
+        description: "Who is serving, how often, and which shifts went unfilled.",
+        group: "Ministry",
+        permission: permissions::PEOPLE_VIEW,
+        requires_table: "volunteer_assignments",
     },
     Def {
         key: "membership",
@@ -605,6 +645,11 @@ pub(crate) async fn build(
         "asset-register" => asset_register(pool, &p, &mut report).await?,
         "library-circulation" => library_circulation(pool, &p, &mut report).await?,
         "helpdesk-performance" => helpdesk_performance(pool, &p, &mut report).await?,
+        "pledge-fulfilment" => pledge_fulfilment(pool, &p, &mut report).await?,
+        "giving-by-household" => giving_by_household(pool, &p, &mut report).await?,
+        "campaign-progress" => campaign_progress(pool, &p, &mut report).await?,
+        "visitor-follow-up" => visitor_follow_up(pool, &p, &mut report).await?,
+        "volunteer-service" => volunteer_service(pool, &p, &mut report).await?,
         _ => unreachable!("catalogue and dispatch are the same list"),
     }
     apply_view(&mut report, view)?;
@@ -1404,6 +1449,421 @@ async fn helpdesk_performance(
     Ok(())
 }
 
+
+// ===========================================================================
+// Giving: pledges, households, campaigns
+// ===========================================================================
+
+async fn pledge_fulfilment(
+    pool: &sqlx::PgPool,
+    p: &Period,
+    r: &mut Report,
+) -> Result<(), AppError> {
+    // The period narrows *when a pledge was promised*; the balance is always
+    // current. A pledge made last year is still outstanding this year, and
+    // dropping it because it was promised outside the window is how a
+    // shortfall quietly disappears from the report that exists to show it.
+    let rows = sqlx::query_as::<_, (String, String, i64, i64, String)>(
+        "SELECT COALESCE(NULLIF(pl.person_name,''), 'Anonymous'),
+                COALESCE(c.title, 'No campaign'),
+                pl.amount::bigint,
+                COALESCE(pl.fulfilled_amount, 0)::bigint,
+                COALESCE(NULLIF(pl.status,''), 'open')
+         FROM pledges pl LEFT JOIN campaigns c ON c.id = pl.campaign_id
+         WHERE pl.created_at::date BETWEEN $1 AND $2
+         ORDER BY (pl.amount - COALESCE(pl.fulfilled_amount, 0)) DESC LIMIT 300",
+    )
+    .bind(p.from)
+    .bind(p.to)
+    .fetch_all(pool)
+    .await?;
+
+    let promised: i64 = rows.iter().map(|x| x.2).sum();
+    let received: i64 = rows.iter().map(|x| x.3).sum();
+    // Clamped at zero per pledge: someone who gave more than they promised has
+    // not created a negative shortfall that offsets everyone else's.
+    let outstanding: i64 = rows.iter().map(|x| (x.2 - x.3).max(0)).sum();
+    let complete = rows.iter().filter(|x| x.2 > 0 && x.3 >= x.2).count() as i64;
+
+    let (prev_promised,): (i64,) = sqlx::query_as(
+        "SELECT COALESCE(SUM(amount)::bigint, 0) FROM pledges
+         WHERE created_at::date BETWEEN $1 AND $2",
+    )
+    .bind(p.compare_from)
+    .bind(p.compare_to)
+    .fetch_one(pool)
+    .await?;
+
+    r.stats = vec![
+        stat_vs("Promised", promised, ColumnKind::Money, prev_promised),
+        stat("Received against it", received, ColumnKind::Money),
+        hint(
+            stat("Still outstanding", outstanding, ColumnKind::Money),
+            "Promised and not yet given",
+        ),
+        hint(stat("Pledges kept", complete, ColumnKind::Number), "Fulfilled in full"),
+    ];
+
+    let mut by_campaign: std::collections::BTreeMap<String, i64> = Default::default();
+    for x in &rows {
+        *by_campaign.entry(x.1.clone()).or_default() += (x.2 - x.3).max(0);
+    }
+    r.series = vec![Series {
+        name: "Outstanding by campaign".into(),
+        kind: ColumnKind::Money,
+        points: by_campaign
+            .into_iter()
+            .filter(|(_, v)| *v > 0)
+            .map(|(x, y)| Point { x, y })
+            .collect(),
+        comparison: false,
+    }];
+
+    r.columns = vec![
+        Column::new("person", "Who", ColumnKind::Text),
+        Column::new("campaign", "Campaign", ColumnKind::Text),
+        Column::new("promised", "Promised", ColumnKind::Money),
+        Column::new("received", "Received", ColumnKind::Money),
+        Column::new("outstanding", "Outstanding", ColumnKind::Money),
+        Column::new("progress", "Fulfilled", ColumnKind::Percent),
+        Column::new("status", "Status", ColumnKind::Text),
+    ];
+    r.rows = rows
+        .into_iter()
+        .map(|(person, campaign, amount, fulfilled, status)| {
+            let progress = if amount > 0 {
+                ((fulfilled as f64 / amount as f64) * 1000.0).round() / 10.0
+            } else {
+                0.0
+            };
+            serde_json::json!({
+                "person": person, "campaign": campaign, "promised": amount,
+                "received": fulfilled, "outstanding": (amount - fulfilled).max(0),
+                "progress": progress, "status": status,
+            })
+        })
+        .collect();
+    Ok(())
+}
+
+async fn giving_by_household(
+    pool: &sqlx::PgPool,
+    p: &Period,
+    r: &mut Report,
+) -> Result<(), AppError> {
+    // Matched on email, the only link between a donation and a person here.
+    // Anything that cannot be placed lands in its own row rather than being
+    // dropped: a giving report that silently omits gifts is worse than one
+    // that admits it could not attribute them.
+    let unmatched = "Not matched to a household";
+    let rows = sqlx::query_as::<_, (String, i64, i64, i64)>(&format!(
+        "SELECT COALESCE(h.name, '{unmatched}'),
+                COUNT(DISTINCT pe.id)::bigint,
+                {NET},
+                COUNT(d.id)::bigint
+         FROM donations d
+         LEFT JOIN people pe ON lower(pe.email) = lower(NULLIF(d.donor_email, ''))
+         LEFT JOIN households h ON h.id = pe.household_id
+         WHERE {GIVEN} AND d.created_at::date BETWEEN $1 AND $2
+         GROUP BY h.name ORDER BY 3 DESC LIMIT 300"
+    ))
+    .bind(p.from)
+    .bind(p.to)
+    .fetch_all(pool)
+    .await?;
+
+    let total: i64 = rows.iter().map(|x| x.2).sum();
+    let matched: i64 = rows.iter().filter(|x| x.0 != unmatched).map(|x| x.2).sum();
+    let households = rows.iter().filter(|x| x.0 != unmatched).count() as i64;
+
+    r.stats = vec![
+        stat("Given in total", total, ColumnKind::Money),
+        stat("Households giving", households, ColumnKind::Number),
+        hint(
+            stat(
+                "Average per household",
+                if households > 0 { matched / households } else { 0 },
+                ColumnKind::Money,
+            ),
+            "Over the households we could match",
+        ),
+        hint(
+            stat("Could not be placed", total - matched, ColumnKind::Money),
+            "Given under an email address not on file",
+        ),
+    ];
+    r.series = vec![Series {
+        name: "By household".into(),
+        kind: ColumnKind::Money,
+        points: rows.iter().take(10).map(|x| Point { x: x.0.clone(), y: x.2 }).collect(),
+        comparison: false,
+    }];
+    r.columns = vec![
+        Column::new("household", "Household", ColumnKind::Text),
+        Column::new("people", "People", ColumnKind::Number),
+        Column::new("total", "Given", ColumnKind::Money),
+        Column::new("gifts", "Gifts", ColumnKind::Number),
+    ];
+    r.rows = rows
+        .into_iter()
+        .map(|(household, people, total, gifts)| {
+            serde_json::json!({
+                "household": household, "people": people, "total": total, "gifts": gifts,
+            })
+        })
+        .collect();
+    Ok(())
+}
+
+async fn campaign_progress(
+    pool: &sqlx::PgPool,
+    p: &Period,
+    r: &mut Report,
+) -> Result<(), AppError> {
+    // `campaigns.raised` is a stored figure and drifts. This recomputes from
+    // the donations, so the report and the ledger cannot disagree about how
+    // an appeal is doing.
+    let rows = sqlx::query_as::<_, (String, i64, i64, i64, bool)>(&format!(
+        "SELECT c.title,
+                COALESCE(c.goal, 0)::bigint,
+                COALESCE(g.total, 0)::bigint,
+                COALESCE(g.gifts, 0)::bigint,
+                c.enabled
+         FROM campaigns c
+         LEFT JOIN (
+             SELECT campaign_id, {NET} AS total, COUNT(*)::bigint AS gifts
+             FROM donations WHERE {GIVEN} AND created_at::date BETWEEN $1 AND $2
+             GROUP BY campaign_id
+         ) g ON g.campaign_id = c.id
+         ORDER BY 3 DESC, c.title"
+    ))
+    .bind(p.from)
+    .bind(p.to)
+    .fetch_all(pool)
+    .await?;
+
+    let raised: i64 = rows.iter().map(|x| x.2).sum();
+    let target: i64 = rows.iter().filter(|x| x.4).map(|x| x.1).sum();
+    let met = rows.iter().filter(|x| x.1 > 0 && x.2 >= x.1).count() as i64;
+    let running = rows.iter().filter(|x| x.4).count() as i64;
+
+    r.stats = vec![
+        stat("Raised in this period", raised, ColumnKind::Money),
+        hint(stat("Asked for", target, ColumnKind::Money), "Across live campaigns"),
+        stat("Targets met", met, ColumnKind::Number),
+        stat("Campaigns running", running, ColumnKind::Number),
+    ];
+    r.series = vec![Series {
+        name: "Raised by campaign".into(),
+        kind: ColumnKind::Money,
+        points: rows
+            .iter()
+            .filter(|x| x.2 > 0)
+            .take(10)
+            .map(|x| Point { x: x.0.clone(), y: x.2 })
+            .collect(),
+        comparison: false,
+    }];
+    r.columns = vec![
+        Column::new("campaign", "Campaign", ColumnKind::Text),
+        Column::new("goal", "Target", ColumnKind::Money),
+        Column::new("raised", "Raised", ColumnKind::Money),
+        Column::new("gifts", "Gifts", ColumnKind::Number),
+        Column::new("progress", "Toward target", ColumnKind::Percent),
+        Column::new("status", "Status", ColumnKind::Text),
+    ];
+    r.rows = rows
+        .into_iter()
+        .map(|(title, goal, total, gifts, enabled)| {
+            // A campaign with no target is not at 0% of it. That reads as
+            // failure where there is simply nothing to measure against.
+            let progress = if goal > 0 {
+                Some(((total as f64 / goal as f64) * 1000.0).round() / 10.0)
+            } else {
+                None
+            };
+            serde_json::json!({
+                "campaign": title, "goal": goal, "raised": total, "gifts": gifts,
+                "progress": progress,
+                "status": if enabled { "Running" } else { "Closed" },
+            })
+        })
+        .collect();
+    Ok(())
+}
+
+// ===========================================================================
+// People and ministry
+// ===========================================================================
+
+async fn visitor_follow_up(
+    pool: &sqlx::PgPool,
+    p: &Period,
+    r: &mut Report,
+) -> Result<(), AppError> {
+    // The list nobody keeps: people who came, were written down, and were
+    // never contacted again. Ordered by longest-unseen first, because the
+    // ones about to be forgotten are the entire point of the report.
+    let rows = sqlx::query_as::<_, (
+        String,
+        String,
+        String,
+        chrono::NaiveDateTime,
+        Option<chrono::NaiveDate>,
+        i64,
+    )>(
+        "SELECT TRIM(COALESCE(pe.first_name, '') || ' ' || COALESCE(pe.last_name, '')),
+                COALESCE(pe.email, ''), COALESCE(pe.phone, ''),
+                pe.created_at,
+                MAX(a.service_date),
+                COUNT(a.id)::bigint
+         FROM people pe
+         LEFT JOIN attendance a ON a.person_id = pe.id
+         WHERE pe.enabled
+           AND COALESCE(NULLIF(pe.member_status, ''), 'visitor') NOT IN ('member', 'inactive')
+           AND pe.created_at::date BETWEEN $1 AND $2
+         GROUP BY pe.id, pe.first_name, pe.last_name, pe.email, pe.phone, pe.created_at
+         ORDER BY MAX(a.service_date) NULLS FIRST, pe.created_at
+         LIMIT 300",
+    )
+    .bind(p.from)
+    .bind(p.to)
+    .fetch_all(pool)
+    .await?;
+
+    let today: chrono::NaiveDate =
+        sqlx::query_scalar("SELECT CURRENT_DATE").fetch_one(pool).await?;
+    let never = rows.iter().filter(|x| x.4.is_none()).count() as i64;
+    let once = rows.iter().filter(|x| x.5 == 1).count() as i64;
+    let reachable = rows.iter().filter(|x| !x.1.is_empty() || !x.2.is_empty()).count() as i64;
+
+    let (prev_new,): (i64,) = sqlx::query_as(
+        "SELECT COUNT(*) FROM people
+         WHERE enabled
+           AND COALESCE(NULLIF(member_status, ''), 'visitor') NOT IN ('member', 'inactive')
+           AND created_at::date BETWEEN $1 AND $2",
+    )
+    .bind(p.compare_from)
+    .bind(p.compare_to)
+    .fetch_one(pool)
+    .await?;
+
+    r.stats = vec![
+        stat_vs("New faces", rows.len() as i64, ColumnKind::Number, prev_new),
+        hint(
+            stat("Came once and no more", once, ColumnKind::Number),
+            "The people most likely to be lost",
+        ),
+        hint(
+            stat("No attendance recorded", never, ColumnKind::Number),
+            "On file but never checked in",
+        ),
+        hint(
+            stat("Have contact details", reachable, ColumnKind::Number),
+            "The rest cannot be followed up at all",
+        ),
+    ];
+    r.columns = vec![
+        Column::new("name", "Name", ColumnKind::Text),
+        Column::new("email", "Email", ColumnKind::Text),
+        Column::new("phone", "Phone", ColumnKind::Text),
+        Column::new("first_seen", "On file since", ColumnKind::Date),
+        Column::new("last_seen", "Last attended", ColumnKind::Date),
+        Column::new("visits", "Visits", ColumnKind::Number),
+        Column::new("days_since", "Days since", ColumnKind::Number),
+    ];
+    r.rows = rows
+        .into_iter()
+        .map(|(name, email, phone, created, last, visits)| {
+            serde_json::json!({
+                "name": name, "email": email, "phone": phone,
+                "first_seen": created.date().to_string(),
+                "last_seen": last.map(|d| d.to_string()),
+                "visits": visits,
+                "days_since": last.map(|d| (today - d).num_days()),
+            })
+        })
+        .collect();
+    Ok(())
+}
+
+async fn volunteer_service(
+    pool: &sqlx::PgPool,
+    p: &Period,
+    r: &mut Report,
+) -> Result<(), AppError> {
+    let rows = sqlx::query_as::<_, (String, i64, i64, i64, Option<chrono::NaiveDate>)>(
+        "SELECT COALESCE(NULLIF(va.name, ''), 'Unnamed'),
+                COUNT(*)::bigint,
+                COUNT(*) FILTER (WHERE va.status = 'assigned')::bigint,
+                COUNT(DISTINCT vs.team_id)::bigint,
+                MAX(vs.shift_date)
+         FROM volunteer_assignments va
+         JOIN volunteer_shifts vs ON vs.id = va.shift_id
+         WHERE vs.shift_date BETWEEN $1 AND $2
+         GROUP BY va.name ORDER BY 2 DESC LIMIT 300",
+    )
+    .bind(p.from)
+    .bind(p.to)
+    .fetch_all(pool)
+    .await?;
+
+    // Slots against people. A rota that looks covered because three volunteers
+    // took thirty shifts is a rota about to break, and only the two figures
+    // side by side show it.
+    let (slots, filled): (i64, i64) = sqlx::query_as(
+        "SELECT COALESCE(SUM(vs.slots)::bigint, 0),
+                (SELECT COUNT(*) FROM volunteer_assignments va2
+                 JOIN volunteer_shifts s2 ON s2.id = va2.shift_id
+                 WHERE s2.shift_date BETWEEN $1 AND $2)::bigint
+         FROM volunteer_shifts vs WHERE vs.shift_date BETWEEN $1 AND $2",
+    )
+    .bind(p.from)
+    .bind(p.to)
+    .fetch_one(pool)
+    .await?;
+
+    r.stats = vec![
+        stat("People serving", rows.len() as i64, ColumnKind::Number),
+        stat("Shifts covered", filled, ColumnKind::Number),
+        hint(
+            stat("Slots unfilled", (slots - filled).max(0), ColumnKind::Number),
+            "Places on the rota nobody took",
+        ),
+        hint(
+            stat(
+                "Average shifts each",
+                if rows.is_empty() { 0 } else { filled / rows.len() as i64 },
+                ColumnKind::Number,
+            ),
+            "A high number means a rota resting on few people",
+        ),
+    ];
+    r.series = vec![Series {
+        name: "Shifts served".into(),
+        kind: ColumnKind::Number,
+        points: rows.iter().take(12).map(|x| Point { x: x.0.clone(), y: x.1 }).collect(),
+        comparison: false,
+    }];
+    r.columns = vec![
+        Column::new("name", "Volunteer", ColumnKind::Text),
+        Column::new("shifts", "Shifts", ColumnKind::Number),
+        Column::new("confirmed", "Confirmed", ColumnKind::Number),
+        Column::new("teams", "Teams", ColumnKind::Number),
+        Column::new("last", "Last served", ColumnKind::Date),
+    ];
+    r.rows = rows
+        .into_iter()
+        .map(|(name, shifts, confirmed, teams, last)| {
+            serde_json::json!({
+                "name": name, "shifts": shifts, "confirmed": confirmed,
+                "teams": teams, "last": last.map(|d| d.to_string()),
+            })
+        })
+        .collect();
+    Ok(())
+}
+
 // ===========================================================================
 // CSV export
 // ===========================================================================
@@ -1621,6 +2081,6 @@ mod tests {
                 def.permission
             );
         }
-        assert_eq!(REPORTS.len(), 9);
+        assert_eq!(REPORTS.len(), 14);
     }
 }

@@ -82,7 +82,7 @@ async function main() {
   // -- 1. Catalogue --------------------------------------------------------
   console.log('1. Catalogue')
   const cat = await api('/reports')
-  check('every report is listed', cat.length === 9, `${cat.length}`)
+  check('every report is listed', cat.length === 14, `${cat.length}`)
   check('reports are grouped', new Set(cat.map((r) => r.group)).size >= 4)
   check('each carries the permission it needs', cat.every((r) => r.permission.includes('.')))
   check('each says whether its module is installed',
@@ -449,6 +449,122 @@ async function main() {
     ROOT, `/reports/giving-summary/drill?${FULL}`)
   await expectStatus('drilling a report that does not exist is a 404', 404,
     ROOT, `/reports/made-up/drill?${FULL}&value=x`)
+
+
+  // -- 6e. The reports that had no data ------------------------------------
+  //
+  // Pledges and volunteer rotas were empty, and an empty table looks exactly
+  // like a broken join. Seed a little through the real API so these three
+  // reports are exercised rather than merely returning nothing.
+  console.log('\n6e. Pledge, campaign and volunteer reports')
+
+  // /campaigns is paginated, so the rows are under `data`. Reading it as a
+  // bare array silently yielded undefined and the seeding did nothing —
+  // which looked exactly like the report being broken.
+  const campaignsRes = await api('/campaigns')
+  const campaigns = Array.isArray(campaignsRes) ? campaignsRes : (campaignsRes.data ?? [])
+  if (campaigns.length) {
+    const c = campaigns[0]
+    const pledgeRes = await api('/pledges')
+    const existingPledges = Array.isArray(pledgeRes) ? pledgeRes : (pledgeRes.data ?? [])
+    if (existingPledges.length < 3) {
+      for (const [name, amount] of [
+        ['Bishal Rai', 5000000],
+        ['Suman Tamang', 2500000],
+        ['Anita Gurung', 1000000],
+      ]) {
+        await api('/pledges', 'POST', {
+          campaign_id: c.id, person_name: name,
+          person_email: `${name.split(' ')[0].toLowerCase()}@gracenepal.org`,
+          amount, notes: 'Seeded for the pledge report',
+        })
+      }
+    }
+  }
+
+  const teamRes = await api('/volunteer-teams')
+  const teams = Array.isArray(teamRes) ? teamRes : (teamRes.data ?? [])
+  let team = teams.find((t) => t.name === 'Sunday Welcome')
+  if (!team) {
+    team = await api('/volunteer-teams', 'POST', {
+      name: 'Sunday Welcome', description: 'Door, tea and seating',
+    })
+  }
+  const shiftRes = await api('/volunteer-shifts')
+  const allShifts = Array.isArray(shiftRes) ? shiftRes : (shiftRes.data ?? [])
+  let shifts = allShifts.filter((x) => x.team_id === team.id)
+  if (shifts.length < 3) {
+    for (let i = shifts.length; i < 3; i++) {
+      const d = new Date()
+      d.setDate(d.getDate() - i * 7)
+      await api('/volunteer-shifts', 'POST', {
+        team_id: team.id,
+        title: 'Sunday morning', shift_date: d.toISOString().slice(0, 10),
+        start_time: '09:00', end_time: '12:00', slots: 4, location: 'Main door',
+      })
+    }
+    const again = await api('/volunteer-shifts')
+    shifts = (Array.isArray(again) ? again : (again.data ?? []))
+      .filter((x) => x.team_id === team.id)
+  }
+
+  // Rostered separately from shift creation. Nesting the two meant a re-run
+  // found the shifts already there, skipped the whole block, and left them
+  // unstaffed — so the report read as broken when it was reporting an empty
+  // rota correctly.
+  for (const shift of shifts) {
+    const on = await api(`/volunteer-shifts/${shift.id}/assignments`)
+    const rostered = Array.isArray(on) ? on : (on.data ?? [])
+    for (const who of ['Sita Rai', 'Deepak Karki']) {
+      if (rostered.some((a) => a.name === who)) continue
+      await api(`/volunteer-shifts/${shift.id}/assignments`, 'POST', {
+        shift_id: shift.id, name: who, status: 'assigned',
+      })
+    }
+  }
+
+  const pledgeReport = await api(`/reports/pledge-fulfilment?${FULL}`)
+  check('the pledge report finds the pledges', pledgeReport.rows.length > 0,
+    `${pledgeReport.rows.length} rows`)
+  check('promised equals the sum of the pledges',
+    pledgeReport.stats.find((s) => s.label === 'Promised').value
+      === pledgeReport.rows.reduce((s, r) => s + r.promised, 0))
+  check('outstanding is never negative',
+    pledgeReport.rows.every((r) => r.outstanding >= 0)
+    && pledgeReport.stats.find((s) => s.label === 'Still outstanding').value >= 0)
+  check('a fully-kept pledge shows 100%',
+    pledgeReport.rows.every((r) => r.promised === 0 || Math.abs(r.progress - (r.received / r.promised) * 100) < 0.11))
+
+  const campaignReport = await api(`/reports/campaign-progress?${FULL}`)
+  check('the campaign report lists the campaigns', campaignReport.rows.length > 0)
+  check('a campaign with no target has no percentage rather than 0%',
+    campaignReport.rows.every((r) => r.goal > 0 || r.progress === null),
+    JSON.stringify(campaignReport.rows.find((r) => r.goal === 0 && r.progress !== null)))
+
+  const volunteerReport = await api(`/reports/volunteer-service?${FULL}`)
+  check('the volunteer report finds the rota', volunteerReport.rows.length > 0,
+    `${volunteerReport.rows.length} rows`)
+  check('shifts covered equals the sum of the rows',
+    volunteerReport.stats.find((s) => s.label === 'Shifts covered').value
+      === volunteerReport.rows.reduce((s, r) => s + r.shifts, 0))
+  check('unfilled slots are never negative',
+    volunteerReport.stats.find((s) => s.label === 'Slots unfilled').value >= 0)
+
+  const household = await api(`/reports/giving-by-household?${FULL}`)
+  check('household giving totals the same money as the giving summary',
+    household.rows.reduce((s, r) => s + r.total, 0)
+      === reports['giving-summary'].stats.find((s) => s.label === 'Total given').value,
+    `${household.rows.reduce((s, r) => s + r.total, 0)}`)
+  check('gifts that could not be matched are shown, not dropped',
+    household.stats.some((s) => s.label === 'Could not be placed'))
+
+  const visitors = await api(`/reports/visitor-follow-up?${FULL}`)
+  check('the visitor report excludes people already on the roll',
+    visitors.rows.length <= reports.membership.stats.find((s) => s.label === 'On the roll').value)
+  check('longest-unseen come first',
+    visitors.rows.every((r, i) => i === 0 || r.last_seen === null
+      || visitors.rows[i - 1].last_seen === null
+      || visitors.rows[i - 1].last_seen <= r.last_seen))
 
   // -- 7. Permission scoping -----------------------------------------------
   console.log('\n7. A report is as closed as the module it reads')
