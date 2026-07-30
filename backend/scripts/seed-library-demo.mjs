@@ -18,7 +18,7 @@ const API = process.env.API || 'http://localhost:3002'
 const HERE = path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'))
 
 function mintToken() {
-  const env = fs.readFileSync(path.join(HERE, '..', 'backend', '.env'), 'utf8')
+  const env = fs.readFileSync(path.join(HERE, '..', '.env'), 'utf8')
   const secret = (env.match(/^JWT_SECRET=(.*)$/m) || [])[1]?.trim()
   if (!secret) throw new Error('JWT_SECRET missing from backend/.env')
   const b64 = (o) => Buffer.from(JSON.stringify(o)).toString('base64url')
