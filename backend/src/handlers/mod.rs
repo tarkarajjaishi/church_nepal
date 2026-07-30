@@ -43,6 +43,7 @@ pub mod volunteers;
 pub mod webhooks;
 pub mod offering_mgmt;
 pub mod church_dashboard;
+pub mod worship;
 pub mod presentation;
 pub mod presentation_live;
 

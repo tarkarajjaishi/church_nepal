@@ -622,6 +622,23 @@ pub fn admin_routes() -> Router {
             put(presentation_live::displays_update).delete(presentation_live::displays_delete),
         )
         // Live control
+        // ---- Worship Management -------------------------------------------
+        .route("/worship/dashboard", get(worship::dashboard))
+        .route("/worship/roles", get(worship::roles_list))
+        .route("/worship/members", get(worship::members_list).post(worship::members_create))
+        .route("/worship/members/{id}", put(worship::members_update).delete(worship::members_delete))
+        .route("/worship/services", get(worship::services_list).post(worship::services_create))
+        .route("/worship/services/{id}", get(worship::services_get).put(worship::services_update).delete(worship::services_delete))
+        .route("/worship/services/{id}/duplicate", post(worship::services_duplicate))
+        .route("/worship/services/{id}/items", post(worship::items_add))
+        .route("/worship/services/{id}/items/reorder", put(worship::items_reorder))
+        .route("/worship/items/{id}", put(worship::items_update).delete(worship::items_delete))
+        .route("/worship/services/{id}/assign", post(worship::assign))
+        .route("/worship/assignments/{id}", delete(worship::unassign))
+        .route("/worship/assignments/{id}/status/{status}", post(worship::assignment_status))
+        .route("/worship/rehearsals", get(worship::rehearsals_list).post(worship::rehearsals_create))
+        .route("/worship/rehearsals/{id}", delete(worship::rehearsals_delete))
+        .route("/worship/rehearsals/{id}/attendance", post(worship::rehearsals_attendance))
         .route("/church-dashboard", get(church_dashboard::overview))
         .route("/presentation/dashboard", get(presentation_live::dashboard))
         .route("/presentation/live", get(presentation_live::live_get))

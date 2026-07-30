@@ -37,6 +37,7 @@ pub mod member_application;
 pub mod prayer_request;
 pub mod webhook;
 pub mod offering_mgmt;
+pub mod worship;
 pub mod presentation;
 
 pub use pagination::*;

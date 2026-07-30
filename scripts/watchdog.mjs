@@ -296,6 +296,65 @@ const CHECKS = [
     },
   },
   {
+    name: 'worship plans stay internally consistent',
+    async run() {
+      if (!TOKEN) return { ok: false, detail: 'no JWT_SECRET' }
+      const list = await fetchJson(`${CHURCH_API}/api/worship/services`, { auth: true })
+      if (list.status !== 200 || list.json?.error) return { ok: false, detail: `HTTP ${list.status}` }
+      const services = list.json ?? []
+      if (!services.length) return { ok: true, detail: 'no service plans yet' }
+
+      // The list row computes counts with correlated subqueries; a regression
+      // to a plain JOIN would multiply planned_seconds by the team size. Check
+      // one plan's totals against the detail endpoint that sums them directly.
+      const row = services[0]
+      const detail = await fetchJson(`${CHURCH_API}/api/worship/services/${row.id}`, { auth: true })
+      if (detail.status !== 200) return { ok: false, detail: `detail HTTP ${detail.status}` }
+      const d = detail.json
+      const agree =
+        d.planned_seconds === row.planned_seconds &&
+        d.items.length === row.item_count &&
+        d.team.length === row.team_count
+      return {
+        ok: agree,
+        detail: agree
+          ? `${services.length} plans, "${row.name}" consistent`
+          : `list/detail drift: ${row.planned_seconds}s vs ${d.planned_seconds}s, ${row.item_count}/${d.items.length} items`,
+      }
+    },
+  },
+  {
+    name: 'worship dashboard reports coverage gaps',
+    async run() {
+      if (!TOKEN) return { ok: false, detail: 'no JWT_SECRET' }
+      const r = await fetchJson(`${CHURCH_API}/api/worship/dashboard`, { auth: true })
+      if (r.status !== 200 || r.json?.error) return { ok: false, detail: `HTTP ${r.status}` }
+      const d = r.json
+      const shaped =
+        Array.isArray(d.uncovered_roles) &&
+        Array.isArray(d.upcoming_services) &&
+        typeof d.active_members === 'number'
+      return {
+        ok: shaped,
+        detail: shaped
+          ? `${d.active_members} active, ${d.uncovered_roles.length} uncovered role(s)`
+          : 'dashboard shape changed',
+      }
+    },
+  },
+  {
+    name: 'worship admin pages render',
+    async run() {
+      const pages = ['', '/services', '/team', '/rehearsals']
+      const bad = []
+      for (const p of pages) {
+        const r = await fetchJson(`${CHURCH_WEB}/admin/worship${p}`)
+        if (r.status !== 200) bad.push(`${p || '/'}:${r.status}`)
+      }
+      return { ok: bad.length === 0, detail: bad.length ? bad.join(' ') : `${pages.length} pages OK` }
+    },
+  },
+  {
     name: 'church site renders',
     async run() {
       const r = await fetchJson(CHURCH_WEB)

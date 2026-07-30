@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/lib/auth'
-import { LayoutDashboard, BookOpen, Calendar, Users, Image, Quote, Bell, UserCheck, Clock, BookMarked, DollarSign, Settings, LogOut, Church, Shield, LayoutGrid, Heart, CheckSquare, UserCircle, Newspaper, Briefcase, Globe, Mail, Contact, Palette, Receipt, HandHelping, TrendingUp, Wallet, Target, ClipboardCheck, Radio, FileText, BarChart3, HandHeart, MessageSquare, MonitorPlay } from 'lucide-react'
+import { LayoutDashboard, BookOpen, Calendar, Users, Image, Quote, Bell, UserCheck, Clock, BookMarked, DollarSign, Settings, LogOut, Church, Shield, LayoutGrid, Heart, CheckSquare, UserCircle, Newspaper, Briefcase, Globe, Mail, Contact, Palette, Receipt, HandHelping, TrendingUp, Wallet, Target, ClipboardCheck, Radio, FileText, BarChart3, HandHeart, MessageSquare, MonitorPlay, Music } from 'lucide-react'
 
 const navItems = [
   { to: '/admin/overview', icon: Church, label: 'Church Overview' },
@@ -25,6 +25,7 @@ const navItems = [
   { to: '/admin/people', icon: Users, label: 'People' },
   { to: '/admin/prayer-requests', icon: HandHeart, label: 'Prayer Requests' },
   { to: '/admin/contact-messages', icon: MessageSquare, label: 'Contact Messages' },
+  { to: '/admin/worship', icon: Music, label: 'Worship' },
   { to: '/admin/presentation', icon: MonitorPlay, label: 'Presentation' },
   { to: '/admin/offering-management', icon: DollarSign, label: 'Offering Management' },
   { to: '/admin/offerings', icon: DollarSign, label: 'Offerings (legacy)' },
