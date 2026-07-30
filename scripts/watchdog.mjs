@@ -171,6 +171,71 @@ const CHECKS = [
     },
   },
   {
+    name: 'presentation live state is coherent',
+    async run() {
+      if (!TOKEN) return { ok: false, detail: 'no JWT_SECRET' }
+      const r = await fetchJson(`${CHURCH_API}/api/presentation/live`, { auth: true })
+      if (r.status !== 200 || r.json?.error) return { ok: false, detail: `HTTP ${r.status}` }
+      // LiveFrame is flattened, so these sit at the top level. A wrapper here
+      // would mean the serde contract changed under the UI.
+      const f = r.json
+      const shaped = typeof f.version === 'number' && typeof f.is_live === 'boolean'
+        && typeof f.screen_mode === 'string' && typeof f.slide_total === 'number'
+      if (!shaped) return { ok: false, detail: 'live frame shape changed — UI reads these flattened' }
+      // A live presentation must have a current slide, or the projector is
+      // showing nothing while the console claims to be on air.
+      const consistent = !f.is_live || f.slide_total === 0 || !!f.current_slide
+      return {
+        ok: consistent,
+        detail: consistent
+          ? `${f.is_live ? 'live' : 'off air'}, screen ${f.screen_mode}, ${f.slide_total} slides`
+          : 'live with slides but no current slide',
+      }
+    },
+  },
+  {
+    name: 'display watch long-polls and gates on version',
+    async run() {
+      const first = await fetchJson(`${CHURCH_API}/api/presentation/live/watch?version=0&timeout_ms=1000`)
+      if (first.status !== 200) return { ok: false, detail: `unauthed watch got ${first.status}, expected 200` }
+      const v = first.json?.version
+      if (typeof v !== 'number') return { ok: false, detail: 'watch frame has no version' }
+
+      // Holding the current version must block; returning instantly would turn
+      // every display into a busy-loop against the database.
+      const t0 = Date.now()
+      await fetchJson(`${CHURCH_API}/api/presentation/live/watch?version=${v}&timeout_ms=1500`)
+      const held = Date.now() - t0
+      return { ok: held >= 1200, detail: `held ${held}ms on current version (want >=1200)` }
+    },
+  },
+  {
+    name: 'display output pages render',
+    async run() {
+      const r = await fetchJson(`${CHURCH_API}/api/displays`, { auth: true })
+      const slugs = (r.json ?? []).map((d) => d.slug).filter(Boolean).slice(0, 3)
+      if (!slugs.length) return { ok: true, detail: 'no displays configured' }
+      const bad = []
+      for (const s of slugs) {
+        const page = await fetchJson(`${CHURCH_WEB}/display/${s}`)
+        if (page.status !== 200) bad.push(`${s}:${page.status}`)
+      }
+      return { ok: bad.length === 0, detail: bad.length ? bad.join(' ') : `${slugs.length} display pages OK` }
+    },
+  },
+  {
+    name: 'presentation admin pages render',
+    async run() {
+      const pages = ['', '/live', '/songs', '/playlists', '/displays', '/presentations', '/themes']
+      const bad = []
+      for (const p of pages) {
+        const r = await fetchJson(`${CHURCH_WEB}/admin/presentation${p}`)
+        if (r.status !== 200) bad.push(`${p || '/'}:${r.status}`)
+      }
+      return { ok: bad.length === 0, detail: bad.length ? bad.join(' ') : `${pages.length} pages OK` }
+    },
+  },
+  {
     name: 'church site renders',
     async run() {
       const r = await fetchJson(CHURCH_WEB)

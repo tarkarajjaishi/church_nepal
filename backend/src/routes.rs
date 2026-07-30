@@ -103,6 +103,11 @@ fn public_read_routes() -> Router {
         )
         .route("/funds", get(funds::list))
         .route("/funds/{id}", get(funds::get))
+        // Display devices poll this unauthenticated — see live_watch_public.
+        .route(
+            "/presentation/live/watch",
+            get(presentation_live::live_watch_public),
+        )
         .route("/prayer-requests/public", get(prayer_requests::list_public))
 }
 
@@ -558,6 +563,78 @@ pub fn admin_routes() -> Router {
             "/deposits/{id}/status/{status}",
             post(offering_mgmt::deposits_set_status),
         )
+        // ---- Presentation & Worship Display module ------------------------
+        // Songs
+        .route("/songs", get(presentation::songs_list).post(presentation::songs_create))
+        .route(
+            "/songs/{id}",
+            get(presentation::songs_get)
+                .put(presentation::songs_update)
+                .delete(presentation::songs_delete),
+        )
+        .route("/songs/{id}/slide-preview", get(presentation::songs_preview_slides))
+        // Themes
+        .route(
+            "/presentation-themes",
+            get(presentation::themes_list).post(presentation::themes_create),
+        )
+        // Presentations (decks) and slides
+        .route(
+            "/presentations",
+            get(presentation::presentations_list).post(presentation::presentations_create),
+        )
+        .route(
+            "/presentations/{id}",
+            get(presentation::presentations_get).delete(presentation::presentations_delete),
+        )
+        .route("/presentations/from-song", post(presentation::presentations_from_song))
+        .route("/presentations/{id}/slides", post(presentation::slides_create))
+        .route("/presentations/{id}/slides/reorder", put(presentation::slides_reorder))
+        .route(
+            "/slides/{id}",
+            put(presentation::slides_update).delete(presentation::slides_delete),
+        )
+        // Playlists
+        .route(
+            "/playlists",
+            get(presentation_live::playlists_list).post(presentation_live::playlists_create),
+        )
+        .route(
+            "/playlists/{id}",
+            get(presentation_live::playlists_get)
+                .put(presentation_live::playlists_update)
+                .delete(presentation_live::playlists_delete),
+        )
+        .route("/playlists/{id}/duplicate", post(presentation_live::playlists_duplicate))
+        .route("/playlists/{id}/items", post(presentation_live::playlist_items_add))
+        .route(
+            "/playlists/{id}/items/reorder",
+            put(presentation_live::playlist_items_reorder),
+        )
+        .route("/playlist-items/{id}", delete(presentation_live::playlist_items_delete))
+        // Displays
+        .route(
+            "/displays",
+            get(presentation_live::displays_list).post(presentation_live::displays_create),
+        )
+        .route(
+            "/displays/{id}",
+            put(presentation_live::displays_update).delete(presentation_live::displays_delete),
+        )
+        // Live control
+        .route("/presentation/dashboard", get(presentation_live::dashboard))
+        .route("/presentation/live", get(presentation_live::live_get))
+        .route("/presentation/live/go", post(presentation_live::live_go))
+        .route("/presentation/live/stop", post(presentation_live::live_stop))
+        .route("/presentation/live/step/{direction}", post(presentation_live::live_step))
+        .route("/presentation/live/goto", post(presentation_live::live_goto))
+        .route("/presentation/live/screen", post(presentation_live::live_screen_mode))
+        .route("/presentation/live/countdown", post(presentation_live::live_countdown))
+        .route(
+            "/presentation/live/countdown/toggle",
+            post(presentation_live::live_countdown_toggle),
+        )
+        .route("/presentation/live/lower-third", post(presentation_live::live_lower_third))
         // Event RSVPs (admin)
         .route(
             "/rsvps/{id}",

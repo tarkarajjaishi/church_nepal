@@ -42,6 +42,8 @@ pub mod verses;
 pub mod volunteers;
 pub mod webhooks;
 pub mod offering_mgmt;
+pub mod presentation;
+pub mod presentation_live;
 
 // ── Validation infrastructure ────────────────────────────────────────────────
 
