@@ -566,6 +566,128 @@ async function main() {
       || visitors.rows[i - 1].last_seen === null
       || visitors.rows[i - 1].last_seen <= r.last_seen))
 
+
+  // -- 6f. The report builder ----------------------------------------------
+  //
+  // The builder composes a view on the query string. The property that makes
+  // it trustworthy is that the *server* applies it: the table, the CSV and
+  // the PDF must all show the same rows, or the export becomes the most
+  // convincing wrong spreadsheet in the building.
+  console.log('\n6f. Report builder')
+  const composed = {
+    columns: ['donor', 'total'],
+    filters: [{ column: 'total', op: 'gte', value: '50000' }],
+    sort_column: 'total',
+    sort_desc: true,
+  }
+  const enc = (v) => `&view=${encodeURIComponent(JSON.stringify(v))}`
+
+  const plain = await api(`/reports/giving-summary?${FULL}`)
+  const built = await api(`/reports/giving-summary?${FULL}${enc(composed)}`)
+
+  check('a composed view narrows the columns',
+    built.columns.map((c) => c.key).join(',') === 'donor,total',
+    built.columns.map((c) => c.key).join(','))
+  check('and the rows', built.rows.length < plain.rows.length,
+    `${built.rows.length} vs ${plain.rows.length}`)
+  check('while reporting how many there were before',
+    built.total_rows === plain.rows.length, `${built.total_rows}`)
+  check('every surviving row passes the condition', built.rows.every((r) => r.total >= 50000))
+  check('and they are in the order asked for',
+    built.rows.every((r, i) => i === 0 || built.rows[i - 1].total >= r.total))
+  check('totals cover the rows shown, not the period',
+    built.totals.total === built.rows.reduce((s, r) => s + r.total, 0))
+
+  // Each operator has to actually do something, or it is a control that
+  // reassures without working.
+  const OPS = [
+    ['eq', 'Bishal Rai', 'donor'],
+    ['ne', 'Bishal Rai', 'donor'],
+    ['contains', 'rai', 'donor'],
+    ['gt', '100000', 'total'],
+    ['gte', '100000', 'total'],
+    ['lt', '100000', 'total'],
+    ['lte', '100000', 'total'],
+    ['not_empty', '', 'email'],
+    ['empty', '', 'email'],
+  ]
+  const opResults = {}
+  for (const [op, value, column] of OPS) {
+    const r = await api(`/reports/giving-summary?${FULL}${enc({
+      columns: [], filters: [{ column, op, value }], sort_column: '', sort_desc: false })}`)
+    opResults[op] = r.rows.length
+  }
+  check('every operator is implemented and selective',
+    opResults.eq === 1
+    && opResults.ne === plain.rows.length - 1
+    && opResults.contains >= 1
+    && opResults.gt < opResults.gte
+    && opResults.lt < opResults.lte
+    && opResults.not_empty + opResults.empty === plain.rows.length,
+    JSON.stringify(opResults))
+
+  // Numbers must compare as numbers. As strings "1000" > "500" is false, and
+  // that is the commonest way a filter quietly returns the wrong set.
+  const overFive = await api(`/reports/giving-summary?${FULL}${enc({
+    columns: [], filters: [{ column: 'total', op: 'gt', value: '5000' }],
+    sort_column: '', sort_desc: false })}`)
+  check('numeric conditions compare as numbers, not as text',
+    overFive.rows.every((r) => r.total > 5000)
+    && overFive.rows.some((r) => String(r.total).length > String(5000).length),
+    `${overFive.rows.length} rows`)
+
+  // The export must carry the same view.
+  const builtCsv = (await req(ROOT,
+    `/reports/giving-summary/export?${FULL}&format=csv${enc(composed)}`)).text
+  const csvBody = builtCsv.split('Donor,Given')[1] ?? ''
+  const csvRows = csvBody.trim().split('\n').filter(Boolean)
+  check('the CSV export carries the composed view',
+    builtCsv.includes('Donor,Given') && !builtCsv.includes('Email')
+    && csvRows.length === built.rows.length,
+    `${csvRows.length} csv rows vs ${built.rows.length} on screen`)
+
+  const builtPdf = Buffer.from(await (await fetch(
+    `${API}/api/reports/giving-summary/export?${FULL}&format=pdf${enc(composed)}`,
+    { headers: { authorization: `Bearer ${ROOT}` } })).arrayBuffer()).toString('latin1')
+  const builtDrawn = [...builtPdf.matchAll(/\((.*?)\) Tj/g)].map((m) => m[1])
+  check('and so does the PDF',
+    builtDrawn.includes('Donor') && builtDrawn.includes('Given')
+    && !builtDrawn.includes('Email'),
+    builtDrawn.slice(0, 12).join(' | '))
+
+  // A malformed view must be refused, not ignored. Falling back to the whole
+  // table would show every row to somebody who asked for a filtered one — the
+  // wrong answer, presented as the right one.
+  await expectStatus('a view that cannot be read is refused', 400, ROOT,
+    `/reports/giving-summary?${FULL}&view=notjson`)
+  await expectStatus('a condition on a column that does not exist is refused', 400, ROOT,
+    `/reports/giving-summary?${FULL}${enc({ columns: [], sort_column: '', sort_desc: false,
+      filters: [{ column: 'nope', op: 'eq', value: '1' }] })}`)
+  await expectStatus('sorting by a column that does not exist is refused', 400, ROOT,
+    `/reports/giving-summary?${FULL}${enc({ columns: [], filters: [],
+      sort_column: 'nope', sort_desc: false })}`)
+
+  // An operator nobody implemented keeps every row rather than emptying the
+  // table: a filter that does nothing is visible, one that shows nothing looks
+  // exactly like having no data.
+  const unknownOp = await api(`/reports/giving-summary?${FULL}${enc({
+    columns: [], filters: [{ column: 'total', op: 'roughly', value: '1' }],
+    sort_column: '', sort_desc: false })}`)
+  check('an unimplemented operator keeps the rows rather than emptying the table',
+    unknownOp.rows.length === plain.rows.length, `${unknownOp.rows.length}`)
+
+  // A composed view works on every report, not just the giving one.
+  let acrossAll = 0
+  for (const r of cat) {
+    const body = reports[r.key]
+    if (body.unavailable || !body.columns.length) continue
+    const first = body.columns[0].key
+    const v = await api(`/reports/${r.key}?${FULL}${enc({
+      columns: [first], filters: [], sort_column: first, sort_desc: true })}`)
+    if (v.columns.length === 1 && v.columns[0].key === first) acrossAll++
+  }
+  check('a view can be composed on any report', acrossAll >= 12, `${acrossAll} reports`)
+
   // -- 7. Permission scoping -----------------------------------------------
   console.log('\n7. A report is as closed as the module it reads')
   const users = await api('/role-assignments')

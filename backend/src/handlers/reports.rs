@@ -285,6 +285,7 @@ pub(crate) fn resolve_window(
             to: to.map(String::from),
             period: period_name.map(String::from),
             format: None,
+            view: None,
         },
         today,
     )?;
@@ -578,13 +579,27 @@ fn hint(mut s: Stat, h: &str) -> Stat {
 // Dispatch
 // ===========================================================================
 
+/// The view carried on the query string, if any.
+///
+/// A malformed one is refused rather than ignored. Silently falling back to
+/// the default view would show the whole table to someone who asked for a
+/// filtered one — the wrong answer, presented as the right one.
+pub(crate) fn view_from(q: &ReportQuery) -> Result<View, AppError> {
+    match q.view.as_deref().filter(|v| !v.is_empty()) {
+        None => Ok(View::default()),
+        Some(raw) => serde_json::from_str(raw)
+            .map_err(|_| AppError::bad_request("That view could not be read")),
+    }
+}
+
 pub async fn run(
     auth: AuthUser,
     Db(pool): Db,
     Path(key): Path<String>,
     Query(q): Query<ReportQuery>,
 ) -> Result<Json<Report>, AppError> {
-    Ok(Json(build(&auth, &pool, &key, &q, &View::default()).await?))
+    let view = view_from(&q)?;
+    Ok(Json(build(&auth, &pool, &key, &q, &view).await?))
 }
 
 pub(crate) async fn build(
@@ -1914,7 +1929,11 @@ pub async fn export(
     Path(key): Path<String>,
     Query(q): Query<ReportQuery>,
 ) -> Result<Response, AppError> {
-    let r = build(&auth, &pool, &key, &q, &View::default()).await?;
+    // The export honours the composed view, so what downloads is what is on
+    // screen. An export that quietly ignored the filters would be the most
+    // convincing wrong spreadsheet in the building.
+    let view = view_from(&q)?;
+    let r = build(&auth, &pool, &key, &q, &view).await?;
     render(&r, q.format.as_deref().unwrap_or("csv"))
 }
 

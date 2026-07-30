@@ -138,6 +138,11 @@ pub struct ReportQuery {
     pub period: Option<String>,
     /// `csv` or `pdf`. Only read by the export routes.
     pub format: Option<String>,
+    /// A `View` as JSON — the columns, filters and order the report builder
+    /// composed. Sent as one encoded parameter rather than a dozen repeated
+    /// ones so a filter value can contain a colon, a comma or an equals sign
+    /// without the parser having to guess where it ends.
+    pub view: Option<String>,
 }
 
 /// One row filter. Applied to the report's own output, so the same nine

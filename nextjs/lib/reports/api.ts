@@ -76,6 +76,25 @@ export interface Filter {
   value: string
 }
 
+export interface View {
+  columns: string[]
+  filters: Filter[]
+  sort_column: string
+  sort_desc: boolean
+}
+
+export const EMPTY_VIEW: View = { columns: [], filters: [], sort_column: '', sort_desc: false }
+
+/** True when the view narrows or reorders anything. */
+export function viewIsSet(v: View): boolean {
+  return v.columns.length > 0 || v.filters.length > 0 || v.sort_column !== ''
+}
+
+/** Serialise for the query string. Empty means "the report's own view". */
+export function viewParam(v: View): string | undefined {
+  return viewIsSet(v) ? JSON.stringify(v) : undefined
+}
+
 export interface SavedReport {
   id: string
   name: string
@@ -217,10 +236,17 @@ export const reportsApi = {
   drill: (key: string, value: string, from: string, to: string) =>
     api.get<DrillDown>(`/reports/${key}/drill`, { params: { value, from, to } })
       .then((r) => r.data),
-  run: (key: string, from: string, to: string) =>
-    api.get<Report>(`/reports/${key}`, { params: { from, to } }).then((r) => r.data),
-  exportUrl: (key: string, from: string, to: string, format = 'csv') =>
-    `/reports/${key}/export?from=${from}&to=${to}&format=${format}`,
+  run: (key: string, from: string, to: string, view?: View) =>
+    api.get<Report>(`/reports/${key}`, {
+      params: { from, to, view: view ? viewParam(view) : undefined },
+    }).then((r) => r.data),
+  exportUrl: (key: string, from: string, to: string, format = 'csv', view?: View) => {
+    const v = view ? viewParam(view) : undefined
+    // The export carries the same view as the screen. One that ignored it
+    // would be the most convincing wrong spreadsheet in the building.
+    return `/reports/${key}/export?from=${from}&to=${to}&format=${format}` +
+      (v ? `&view=${encodeURIComponent(v)}` : '')
+  },
 }
 
 /**

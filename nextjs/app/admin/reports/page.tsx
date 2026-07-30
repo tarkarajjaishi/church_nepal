@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import {
   BarChart3, FileDown, Printer, TrendingUp, TrendingDown, Minus, PackageOpen, Search,
-  Bookmark, BookmarkPlus, Pencil, Trash2, Users, FileText, Mail,
+  Bookmark, BookmarkPlus, Pencil, Trash2, Users, FileText, Mail, SlidersHorizontal,
 } from 'lucide-react'
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -15,10 +15,12 @@ import Link from 'next/link'
 import api from '@/lib/api'
 import {
   reportsApi, savedApi, formatCell, isNumeric, presets, DRILLABLE,
-  type Report, type Stat, type SavedReport,
+  EMPTY_VIEW, viewIsSet,
+  type Report, type Stat, type SavedReport, type View,
 } from '@/lib/reports/api'
 import { SaveViewDialog } from '@/components/reports/SaveViewDialog'
 import { DrillPanel } from '@/components/reports/DrillPanel'
+import { ViewBuilder } from '@/components/reports/ViewBuilder'
 import {
   CARD, PageHeader, EmptyState, ErrorState, TableSkeleton, Chip, btn, field, Label,
 } from '@/components/offerings/ui'
@@ -171,6 +173,8 @@ export default function ReportsPage() {
   const [range, setRange] = useState({ from: p[3].from, to: p[3].to })
   const [downloading, setDownloading] = useState(false)
   const [drill, setDrill] = useState<string | null>(null)
+  const [building, setBuilding] = useState(false)
+  const [view, setView] = useState<View>(EMPTY_VIEW)
 
   const { data: catalogue, isLoading: catLoading } = useQuery({
     queryKey: ['report-catalogue'],
@@ -202,9 +206,9 @@ export default function ReportsPage() {
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: savedId
       ? ['report', 'saved', savedId]
-      : ['report', selectedKey, range.from, range.to],
+      : ['report', selectedKey, range.from, range.to, view],
     queryFn: () =>
-      savedId ? savedApi.run(savedId) : reportsApi.run(selectedKey, range.from, range.to),
+      savedId ? savedApi.run(savedId) : reportsApi.run(selectedKey, range.from, range.to, view),
     enabled: savedId ? true : !!selectedKey,
   })
 
@@ -217,7 +221,7 @@ export default function ReportsPage() {
       // unauthenticated and quietly download a login page as a .csv.
       const route = savedId
         ? savedApi.exportUrl(savedId, format)
-        : reportsApi.exportUrl(selectedKey, range.from, range.to, format)
+        : reportsApi.exportUrl(selectedKey, range.from, range.to, format, view)
       const res = await api.get(route, {
         // `arraybuffer`, not `blob` — a PDF that goes through any text
         // decoding on the way is a file no reader will open.
@@ -261,6 +265,16 @@ export default function ReportsPage() {
             {/* A treasurer takes this to a board meeting. The print stylesheet
                 below drops the chrome so the page comes out as a report
                 rather than a screenshot of an admin panel. */}
+            <button
+              type="button"
+              onClick={() => setBuilding((b) => !b)}
+              disabled={!data || !!data.unavailable || !!savedId}
+              title={savedId ? 'Open the report itself to build a new view' : undefined}
+              className={viewIsSet(view) ? btn.primary : btn.secondary}
+            >
+              <SlidersHorizontal className="size-4" aria-hidden />
+              {viewIsSet(view) ? 'View applied' : 'Build a view'}
+            </button>
             <Link href="/admin/reports/schedules" className={btn.secondary}>
               <Mail className="size-4" aria-hidden /> Scheduled
             </Link>
@@ -360,7 +374,7 @@ export default function ReportsPage() {
                       <li key={v.id} className="group flex items-center">
                         <button
                           type="button"
-                          onClick={() => { setSavedId(v.id); setKey(v.reportKey) }}
+                          onClick={() => { setSavedId(v.id); setKey(v.reportKey); setView(EMPTY_VIEW) }}
                           aria-current={savedId === v.id ? 'page' : undefined}
                           title={v.description || v.reportName}
                           className={`flex-1 text-left flex items-center gap-2 min-h-9 px-3 rounded-lg text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
@@ -404,7 +418,7 @@ export default function ReportsPage() {
                       <li key={r.key}>
                         <button
                           type="button"
-                          onClick={() => { setKey(r.key); setSavedId(null) }}
+                          onClick={() => { setKey(r.key); setSavedId(null); setView(EMPTY_VIEW) }}
                           aria-current={!savedId && selectedKey === r.key ? 'page' : undefined}
                           className={`w-full text-left flex items-center gap-2 min-h-9 px-3 rounded-lg text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                             !savedId && selectedKey === r.key
@@ -466,6 +480,16 @@ export default function ReportsPage() {
                   {data.from} to {data.to}, compared with {data.compareFrom} to {data.compareTo}
                 </p>
               </div>
+
+              {building && !savedId && (
+                <ViewBuilder
+                  columns={data.columns}
+                  view={view}
+                  onChange={setView}
+                  onClose={() => setBuilding(false)}
+                  onSave={() => { setEditingView(null); setSaving(true) }}
+                />
+              )}
 
               {data.stats.length > 0 && (
                 <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 mb-4">
@@ -560,14 +584,9 @@ export default function ReportsPage() {
                 )}
                 {rows.length > 0 && (
                   <p className="px-4 py-3 border-t border-border text-xs text-muted-foreground">
-                    {rows.length}
-                    {rows.length !== data.totalRows ? ` of ${data.totalRows}` : ''} row
-                    {rows.length === 1 ? '' : 's'}
-                    {data.rows.length !== data.totalRows && (
-                      <span className="ml-1">
-                        · {data.totalRows - data.rows.length} hidden by this view&apos;s filters
-                      </span>
-                    )}
+                    {`${rows.length}${rows.length !== data.totalRows ? ` of ${data.totalRows}` : ''} row${rows.length === 1 ? '' : 's'}`}
+                    {data.rows.length !== data.totalRows &&
+                      ` · ${data.totalRows - data.rows.length} hidden by this view's filters`}
                   </p>
                 )}
               </div>
@@ -591,10 +610,10 @@ export default function ReportsPage() {
         onClose={() => { setSaving(false); setEditingView(null) }}
         reportKey={openView?.reportKey ?? selectedKey}
         reportName={data?.name ?? ''}
-        columns={openView?.columns ?? []}
-        filters={openView?.filters ?? []}
-        sortColumn={openView?.sortColumn ?? ''}
-        sortDesc={openView?.sortDesc ?? false}
+        columns={openView?.columns ?? view.columns}
+        filters={openView?.filters ?? view.filters}
+        sortColumn={openView?.sortColumn ?? view.sort_column}
+        sortDesc={openView?.sortDesc ?? view.sort_desc}
         editing={editingView}
       />
     </>
