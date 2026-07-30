@@ -50,6 +50,7 @@ pub mod presentation_live;
 pub mod library;
 pub mod helpdesk;
 pub mod roles;
+pub mod report_drill;
 pub mod report_pdf;
 pub mod report_schedules;
 pub mod saved_reports;

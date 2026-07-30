@@ -230,6 +230,27 @@ pub fn named_period(name: &str, today: chrono::NaiveDate) -> Option<(chrono::Nai
     })
 }
 
+/// Resolve a period from the same inputs a report takes, for callers that
+/// need the window but not the whole report — the drill-downs, which have to
+/// cover exactly the window of the row that was clicked.
+pub(crate) fn resolve_window(
+    period_name: Option<&str>,
+    from: Option<&str>,
+    to: Option<&str>,
+    today: chrono::NaiveDate,
+) -> Result<(chrono::NaiveDate, chrono::NaiveDate), AppError> {
+    let p = period(
+        &ReportQuery {
+            from: from.map(String::from),
+            to: to.map(String::from),
+            period: period_name.map(String::from),
+            format: None,
+        },
+        today,
+    )?;
+    Ok((p.from, p.to))
+}
+
 fn period(q: &ReportQuery, today: chrono::NaiveDate) -> Result<Period, AppError> {
     // A named range wins over explicit dates, so a saved view keeps meaning
     // what it said rather than what it meant on the day it was saved.

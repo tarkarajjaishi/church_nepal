@@ -199,6 +199,33 @@ pub struct SavedReport {
     pub schedule_count: i64,
 }
 
+/// The records behind one row of a report.
+///
+/// A report answers "how much"; a drill-down answers "which ones". Without it
+/// the only way to check a figure that looks wrong is to go to the module and
+/// rebuild the filter by hand — which is how people stop trusting reports.
+#[derive(Debug, Serialize)]
+pub struct DrillDown {
+    /// What was clicked, for the panel heading.
+    pub label: String,
+    pub columns: Vec<Column>,
+    pub rows: Vec<serde_json::Value>,
+    /// Rows found; `rows` is capped, so the two differ on a busy donor.
+    pub total: i64,
+    /// Where to go for the full picture — the module's own page, already
+    /// filtered. A drill-down is a look, not a replacement for the module.
+    pub link: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Default)]
+pub struct DrillQuery {
+    pub from: Option<String>,
+    pub to: Option<String>,
+    pub period: Option<String>,
+    /// The clicked row's key value, as it appeared in the table.
+    pub value: Option<String>,
+}
+
 #[derive(Debug, Serialize, sqlx::FromRow)]
 pub struct ReportSchedule {
     pub id: uuid::Uuid,

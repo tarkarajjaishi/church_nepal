@@ -14,10 +14,11 @@ import {
 import Link from 'next/link'
 import api from '@/lib/api'
 import {
-  reportsApi, savedApi, formatCell, isNumeric, presets,
+  reportsApi, savedApi, formatCell, isNumeric, presets, DRILLABLE,
   type Report, type Stat, type SavedReport,
 } from '@/lib/reports/api'
 import { SaveViewDialog } from '@/components/reports/SaveViewDialog'
+import { DrillPanel } from '@/components/reports/DrillPanel'
 import {
   CARD, PageHeader, EmptyState, ErrorState, TableSkeleton, Chip, btn, field, Label,
 } from '@/components/offerings/ui'
@@ -169,6 +170,7 @@ export default function ReportsPage() {
   const p = useMemo(() => presets(), [])
   const [range, setRange] = useState({ from: p[3].from, to: p[3].to })
   const [downloading, setDownloading] = useState(false)
+  const [drill, setDrill] = useState<string | null>(null)
 
   const { data: catalogue, isLoading: catLoading } = useQuery({
     queryKey: ['report-catalogue'],
@@ -509,8 +511,17 @@ export default function ReportsPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {rows.map((row, i) => (
-                          <tr key={i} className="border-b border-border last:border-0 hover:bg-muted/50 transition-colors">
+                        {rows.map((row, i) => {
+                          const drillCol = DRILLABLE[data.key]
+                          const drillValue = drillCol ? String(row[drillCol] ?? '') : ''
+                          const canDrill = !!drillValue
+                          return (
+                          <tr
+                            key={i}
+                            onClick={canDrill ? () => setDrill(drillValue) : undefined}
+                            className={`border-b border-border last:border-0 hover:bg-muted/50 transition-colors ${canDrill ? 'cursor-pointer' : ''}`}
+                            title={canDrill ? `See the records behind ${drillValue}` : undefined}
+                          >
                             {data.columns.map((c) => (
                               <td
                                 key={c.key}
@@ -520,7 +531,7 @@ export default function ReportsPage() {
                               </td>
                             ))}
                           </tr>
-                        ))}
+                        )})}
                       </tbody>
                       {/* Totals over the rows actually shown, sent by the
                           server so the footer cannot disagree with the body
@@ -564,6 +575,16 @@ export default function ReportsPage() {
           )}
         </div>
       </div>
+
+      {drill && data && (
+        <DrillPanel
+          reportKey={data.key}
+          value={drill}
+          from={data.from}
+          to={data.to}
+          onClose={() => setDrill(null)}
+        />
+      )}
 
       <SaveViewDialog
         open={saving}

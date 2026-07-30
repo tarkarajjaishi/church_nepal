@@ -405,6 +405,51 @@ async function main() {
   check('deleting a view reports how many schedules it stopped',
     typeof del.schedules_stopped === 'number')
 
+  // -- 6d. Drill-down ------------------------------------------------------
+  //
+  // The property that makes a drill worth having: the records behind a row
+  // must add up to the row. If they do not, one of the two is wrong, and a
+  // figure nobody can check is a figure nobody trusts for long.
+  console.log('\n6d. Drill-down')
+  const DRILLS = [
+    ['giving-summary', 'donor', 'total', 'amount'],
+    ['giving-by-fund', 'fund', 'total', 'amount'],
+    ['offering-collections', 'category', 'total', 'amount'],
+    ['asset-register', 'category', 'cost', 'cost'],
+    ['membership', 'status', 'people', null],
+    ['worship-team', 'name', 'served', null],
+    ['library-circulation', 'title', 'loans', null],
+    ['helpdesk-performance', 'area', 'raised', null],
+  ]
+  const mismatched = []
+  let drilled = 0
+  for (const [key, col, figure, sumCol] of DRILLS) {
+    const rep = reports[key]
+    if (!rep || rep.unavailable) continue
+    const row = rep.rows.find((r) => r[figure] > 0)
+    if (!row) continue
+    const d = await api(
+      `/reports/${key}/drill?${FULL}&value=${encodeURIComponent(String(row[col]))}`)
+    drilled++
+    if (sumCol) {
+      const sum = d.rows.reduce((s, r) => s + r[sumCol], 0)
+      if (sum !== row[figure]) mismatched.push(`${key}: drill sums ${sum}, row says ${row[figure]}`)
+    } else if (d.total !== row[figure]) {
+      mismatched.push(`${key}: drill has ${d.total} records, row says ${row[figure]}`)
+    }
+    if (!d.columns.length) mismatched.push(`${key}: drill has no columns`)
+    if (!d.link) mismatched.push(`${key}: drill offers no way to the module`)
+  }
+  check(`every drill adds up to the row it came from (${drilled} reports)`,
+    mismatched.length === 0, mismatched.slice(0, 3).join(' | '))
+
+  await expectStatus('a report whose rows are already the detail has no drill', 400,
+    ROOT, `/reports/attendance/drill?${FULL}&value=x`)
+  await expectStatus('drilling with nothing selected is refused', 400,
+    ROOT, `/reports/giving-summary/drill?${FULL}`)
+  await expectStatus('drilling a report that does not exist is a 404', 404,
+    ROOT, `/reports/made-up/drill?${FULL}&value=x`)
+
   // -- 7. Permission scoping -----------------------------------------------
   console.log('\n7. A report is as closed as the module it reads')
   const users = await api('/role-assignments')

@@ -692,6 +692,7 @@ pub fn admin_routes() -> Router {
         .route("/reports/deliveries", get(report_schedules::deliveries))
         .route("/reports/{key}", get(reports::run))
         .route("/reports/{key}/export", get(reports::export))
+        .route("/reports/{key}/drill", get(report_drill::drill))
         // ---- Roles & permissions --------------------------------------------
         // Separate top-level segments rather than nesting everything under
         // /roles/, so no static path ever sits where the matcher expects an id.

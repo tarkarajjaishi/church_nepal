@@ -191,8 +191,32 @@ export const savedApi = {
   exportUrl: (id: string, format = 'csv') => `/reports/saved/${id}/export?format=${format}`,
 }
 
+export interface DrillDown {
+  label: string
+  columns: Column[]
+  rows: Record<string, unknown>[]
+  total: number
+  /** Where the full records live — a drill-down is a look, not the module. */
+  link: string | null
+}
+
+/** Reports whose rows have records underneath them. */
+export const DRILLABLE: Record<string, string> = {
+  'giving-summary': 'donor',
+  'giving-by-fund': 'fund',
+  'offering-collections': 'category',
+  membership: 'status',
+  'worship-team': 'name',
+  'asset-register': 'category',
+  'library-circulation': 'title',
+  'helpdesk-performance': 'area',
+}
+
 export const reportsApi = {
   catalogue: () => api.get<ReportInfo[]>('/reports').then((r) => r.data),
+  drill: (key: string, value: string, from: string, to: string) =>
+    api.get<DrillDown>(`/reports/${key}/drill`, { params: { value, from, to } })
+      .then((r) => r.data),
   run: (key: string, from: string, to: string) =>
     api.get<Report>(`/reports/${key}`, { params: { from, to } }).then((r) => r.data),
   exportUrl: (key: string, from: string, to: string, format = 'csv') =>
