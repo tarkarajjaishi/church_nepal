@@ -41,6 +41,7 @@ pub mod worship;
 pub mod asset;
 pub mod presentation;
 pub mod library;
+pub mod helpdesk;
 
 pub use pagination::*;
 pub use user::*;

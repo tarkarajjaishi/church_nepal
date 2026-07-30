@@ -26,6 +26,12 @@ const WATCH = process.argv.includes('--watch')
 const JSON_OUT = process.argv.includes('--json')
 const INTERVAL_MS = 60_000
 const TIMEOUT_MS = 20_000
+// Next is run with `next dev --webpack` here, so the first request to a route
+// compiles it — 30s+ for a big admin page is normal and means nothing is
+// wrong. Page-render checks get their own budget rather than reporting a
+// cold compile as an outage; API checks keep the tight one, where a slow
+// response really is a signal.
+const PAGE_TIMEOUT_MS = 90_000
 
 const CHURCH_API = process.env.CHURCH_API || 'http://localhost:3002'
 const CHURCH_WEB = process.env.CHURCH_WEB || 'http://localhost:3005'
@@ -51,9 +57,9 @@ function adminToken() {
 
 const TOKEN = adminToken()
 
-async function fetchJson(url, { auth = false, headers = {} } = {}) {
+async function fetchJson(url, { auth = false, headers = {}, timeout = TIMEOUT_MS } = {}) {
   const ctrl = new AbortController()
-  const t = setTimeout(() => ctrl.abort(), TIMEOUT_MS)
+  const t = setTimeout(() => ctrl.abort(), timeout)
   try {
     const res = await fetch(url, {
       signal: ctrl.signal,
@@ -69,6 +75,29 @@ async function fetchJson(url, { auth = false, headers = {} } = {}) {
   } finally {
     clearTimeout(t)
   }
+}
+
+/**
+ * Fetch a module's admin pages together rather than one after another.
+ *
+ * Sequentially this took minutes: `next dev` compiles each route on its first
+ * request, and forty routes at 30s apiece is long enough that nobody runs the
+ * watchdog. Concurrently the dev server compiles them in parallel and the
+ * whole pass finishes in the time of the slowest page.
+ */
+async function checkPages(base, pages) {
+  const results = await Promise.all(
+    pages.map(async (p) => {
+      try {
+        const r = await fetchJson(`${CHURCH_WEB}${base}${p}`, { timeout: PAGE_TIMEOUT_MS })
+        return r.status === 200 ? null : `${p || '/'}:${r.status}`
+      } catch (e) {
+        return `${p || '/'}:${e.name === 'AbortError' ? 'timeout' : e.message}`
+      }
+    })
+  )
+  const bad = results.filter(Boolean)
+  return { ok: bad.length === 0, detail: bad.length ? bad.join(' ') : `${pages.length} pages OK` }
 }
 
 /**
@@ -101,10 +130,10 @@ const CHECKS = [
     async run() {
       // John 3:16 must be "For God so loved the world", not John 2:16. This is
       // the off-by-one that shipped once; it is cheap to keep asserting.
-      const r = await fetchJson(`${CHURCH_WEB}/api/bible?book=JHN&chapter=3&verse=16`)
+      const r = await fetchJson(`${CHURCH_WEB}/api/bible?book=JHN&chapter=3&verse=16`, { timeout: PAGE_TIMEOUT_MS })
       const t = r.json?.text ?? ''
       const ok = r.status === 200 && t.includes('संसारलाई')
-      const c = await fetchJson(`${CHURCH_WEB}/api/bible?book=JHN&chapter=1`)
+      const c = await fetchJson(`${CHURCH_WEB}/api/bible?book=JHN&chapter=1`, { timeout: PAGE_TIMEOUT_MS })
       const chapters = c.json?.totalChapters
       return {
         ok: ok && chapters === 21,
@@ -278,24 +307,14 @@ const CHECKS = [
       const r = await fetchJson(`${CHURCH_API}/api/displays`, { auth: true })
       const slugs = (r.json ?? []).map((d) => d.slug).filter(Boolean).slice(0, 3)
       if (!slugs.length) return { ok: true, detail: 'no displays configured' }
-      const bad = []
-      for (const s of slugs) {
-        const page = await fetchJson(`${CHURCH_WEB}/display/${s}`)
-        if (page.status !== 200) bad.push(`${s}:${page.status}`)
-      }
-      return { ok: bad.length === 0, detail: bad.length ? bad.join(' ') : `${slugs.length} display pages OK` }
+      const res = await checkPages('/display/', slugs)
+      return { ...res, detail: res.ok ? `${slugs.length} display pages OK` : res.detail }
     },
   },
   {
     name: 'presentation admin pages render',
     async run() {
-      const pages = ['', '/live', '/songs', '/playlists', '/displays', '/presentations', '/themes']
-      const bad = []
-      for (const p of pages) {
-        const r = await fetchJson(`${CHURCH_WEB}/admin/presentation${p}`)
-        if (r.status !== 200) bad.push(`${p || '/'}:${r.status}`)
-      }
-      return { ok: bad.length === 0, detail: bad.length ? bad.join(' ') : `${pages.length} pages OK` }
+      return checkPages('/admin/presentation', ['', '/live', '/songs', '/playlists', '/displays', '/presentations', '/themes'])
     },
   },
   {
@@ -348,13 +367,7 @@ const CHECKS = [
   {
     name: 'worship admin pages render',
     async run() {
-      const pages = ['', '/services', '/team', '/rehearsals']
-      const bad = []
-      for (const p of pages) {
-        const r = await fetchJson(`${CHURCH_WEB}/admin/worship${p}`)
-        if (r.status !== 200) bad.push(`${p || '/'}:${r.status}`)
-      }
-      return { ok: bad.length === 0, detail: bad.length ? bad.join(' ') : `${pages.length} pages OK` }
+      return checkPages('/admin/worship', ['', '/services', '/team', '/rehearsals'])
     },
   },
   {
@@ -471,27 +484,93 @@ const CHECKS = [
     },
   },
   {
+    name: 'help desk SLA figures agree with the queue',
+    async run() {
+      if (!TOKEN) return { ok: false, detail: 'no JWT_SECRET' }
+      const [d, b, a] = await Promise.all([
+        fetchJson(`${CHURCH_API}/api/helpdesk/dashboard`, { auth: true }),
+        fetchJson(`${CHURCH_API}/api/helpdesk/tickets?view=breached&per_page=200`, { auth: true }),
+        fetchJson(`${CHURCH_API}/api/helpdesk/tickets?status=open&per_page=200`, { auth: true }),
+      ])
+      if (d.status !== 200 || b.status !== 200 || a.status !== 200) {
+        return { ok: false, detail: `HTTP ${d.status}/${b.status}/${a.status}` }
+      }
+      const dash = d.json
+      if (dash.open === 0 && dash.resolved_this_month === 0) {
+        return { ok: true, detail: 'no tickets raised' }
+      }
+
+      // The tile and the list are computed by two different queries. If they
+      // ever disagree, one of them is lying to whoever is triaging.
+      if (dash.breaching !== b.json.total) {
+        return { ok: false, detail: `tile says ${dash.breaching} breaching, list has ${b.json.total}` }
+      }
+      if (dash.open !== a.json.total) {
+        return { ok: false, detail: `tile says ${dash.open} open, list has ${a.json.total}` }
+      }
+      if (dash.unassigned > dash.open) {
+        return { ok: false, detail: `${dash.unassigned} unassigned exceeds ${dash.open} open` }
+      }
+
+      // Every flagged ticket must actually be past a target, and no finished
+      // ticket may sit in the breach list.
+      const wrong = (b.json.data ?? []).find(
+        (t) => (!t.response_breached && !t.resolve_breached)
+            || ['resolved', 'closed', 'cancelled'].includes(t.status)
+      )
+      if (wrong) return { ok: false, detail: `${wrong.ticket_code} is flagged but is not late` }
+
+      return {
+        ok: true,
+        detail: `${dash.open} open, ${dash.unassigned} unclaimed, ${dash.breaching} past SLA`,
+      }
+    },
+  },
+  {
+    name: 'no ticket is owned by two people',
+    async run() {
+      if (!TOKEN) return { ok: false, detail: 'no JWT_SECRET' }
+      // Claiming is UPDATE ... WHERE assignee_name = ''. The property that
+      // guarantees is one owner per ticket, and a first-response time that
+      // never moves once set — both checked here against live data.
+      const r = await fetchJson(`${CHURCH_API}/api/helpdesk/tickets?per_page=200`, { auth: true })
+      if (r.status !== 200) return { ok: false, detail: `HTTP ${r.status}` }
+      const rows = r.json?.data ?? []
+      if (!rows.length) return { ok: true, detail: 'no tickets raised' }
+
+      const codes = new Set()
+      for (const t of rows) {
+        if (codes.has(t.ticket_code)) {
+          return { ok: false, detail: `ticket code ${t.ticket_code} issued twice` }
+        }
+        codes.add(t.ticket_code)
+        if (t.first_responded_at && new Date(t.first_responded_at) < new Date(t.opened_at)) {
+          return { ok: false, detail: `${t.ticket_code} was answered before it was raised` }
+        }
+        if (t.status === 'resolved' && !t.resolution) {
+          return { ok: false, detail: `${t.ticket_code} is resolved with no record of the fix` }
+        }
+      }
+      const owned = rows.filter((t) => t.assignee_name).length
+      return { ok: true, detail: `${rows.length} tickets, ${owned} owned, codes unique` }
+    },
+  },
+  {
+    name: 'help desk admin pages render',
+    async run() {
+      return checkPages('/admin/helpdesk', ['', '/tickets', '/unassigned', '/breaching', '/knowledge', '/categories'])
+    },
+  },
+  {
     name: 'library admin pages render',
     async run() {
-      const pages = ['', '/catalogue', '/loans', '/holds', '/borrowers', '/settings']
-      const bad = []
-      for (const p of pages) {
-        const r = await fetchJson(`${CHURCH_WEB}/admin/library${p}`)
-        if (r.status !== 200) bad.push(`${p || '/'}:${r.status}`)
-      }
-      return { ok: bad.length === 0, detail: bad.length ? bad.join(' ') : `${pages.length} pages OK` }
+      return checkPages('/admin/library', ['', '/catalogue', '/loans', '/holds', '/borrowers', '/settings'])
     },
   },
   {
     name: 'asset admin pages render',
     async run() {
-      const pages = ['', '/register', '/assignments', '/reservations', '/maintenance', '/categories', '/suppliers']
-      const bad = []
-      for (const p of pages) {
-        const r = await fetchJson(`${CHURCH_WEB}/admin/assets${p}`)
-        if (r.status !== 200) bad.push(`${p || '/'}:${r.status}`)
-      }
-      return { ok: bad.length === 0, detail: bad.length ? bad.join(' ') : `${pages.length} pages OK` }
+      return checkPages('/admin/assets', ['', '/register', '/assignments', '/reservations', '/maintenance', '/categories', '/suppliers'])
     },
   },
   {
@@ -505,19 +584,13 @@ const CHECKS = [
   {
     name: 'offering admin pages render',
     async run() {
-      const pages = ['', '/offerings', '/new', '/cash-counting', '/deposits', '/bank-accounts', '/settings']
-      const bad = []
-      for (const p of pages) {
-        const r = await fetchJson(`${CHURCH_WEB}/admin/offering-management${p}`)
-        if (r.status !== 200) bad.push(`${p || '/'}:${r.status}`)
-      }
-      return { ok: bad.length === 0, detail: bad.length ? bad.join(' ') : `${pages.length} pages OK` }
+      return checkPages('/admin/offering-management', ['', '/offerings', '/new', '/cash-counting', '/deposits', '/bank-accounts', '/settings'])
     },
   },
   {
     name: 'sitemap includes detail URLs',
     async run() {
-      const r = await fetchJson(`${CHURCH_WEB}/sitemap.xml`)
+      const r = await fetchJson(`${CHURCH_WEB}/sitemap.xml`, { timeout: PAGE_TIMEOUT_MS })
       const details = (r.text.match(/<loc>[^<]*\/(sermons|events|ministries)\/[^<]+<\/loc>/g) || []).length
       return { ok: r.status === 200 && details > 0, detail: `${details} detail URLs` }
     },

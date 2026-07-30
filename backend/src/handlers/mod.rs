@@ -48,6 +48,7 @@ pub mod assets;
 pub mod presentation;
 pub mod presentation_live;
 pub mod library;
+pub mod helpdesk;
 
 // ── Validation infrastructure ────────────────────────────────────────────────
 

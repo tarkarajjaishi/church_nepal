@@ -473,7 +473,7 @@ pub async fn overview(Db(pool): Db) -> Result<Json<ChurchDashboard>, AppError> {
 
     // ---- module availability ---------------------------------------------
     let modules = ModuleAvailability {
-        help_desk: table_exists(&pool, "support_tickets").await,
+        help_desk: table_exists(&pool, "helpdesk_tickets").await,
         assets: table_exists(&pool, "assets").await,
         library: table_exists(&pool, "library_books").await,
         expenses: table_exists(&pool, "expenses").await,
