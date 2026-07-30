@@ -1,10 +1,11 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import {
   BarChart3, FileDown, Printer, TrendingUp, TrendingDown, Minus, PackageOpen, Search,
+  Bookmark, BookmarkPlus, Pencil, Trash2, Users,
 } from 'lucide-react'
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -12,8 +13,10 @@ import {
 } from 'recharts'
 import api from '@/lib/api'
 import {
-  reportsApi, formatCell, isNumeric, presets, type Report, type Stat,
+  reportsApi, savedApi, formatCell, isNumeric, presets,
+  type Report, type Stat, type SavedReport,
 } from '@/lib/reports/api'
+import { SaveViewDialog } from '@/components/reports/SaveViewDialog'
 import {
   CARD, PageHeader, EmptyState, ErrorState, TableSkeleton, Chip, btn, field, Label,
 } from '@/components/offerings/ui'
@@ -155,7 +158,12 @@ function Chart({ report }: { report: Report }) {
 }
 
 export default function ReportsPage() {
+  const qc = useQueryClient()
   const [key, setKey] = useState('giving-summary')
+  // Which saved view is open, if any. `null` means an ad-hoc run of `key`.
+  const [savedId, setSavedId] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [editingView, setEditingView] = useState<SavedReport | null>(null)
   const [search, setSearch] = useState('')
   const p = useMemo(() => presets(), [])
   const [range, setRange] = useState({ from: p[3].from, to: p[3].to })
@@ -165,16 +173,36 @@ export default function ReportsPage() {
     queryKey: ['report-catalogue'],
     queryFn: reportsApi.catalogue,
   })
+  const { data: saved } = useQuery({ queryKey: ['saved-reports'], queryFn: savedApi.list })
+
+  const removeView = useMutation({
+    mutationFn: (id: string) => savedApi.remove(id),
+    onSuccess: (r: { schedulesStopped: number }) => {
+      qc.invalidateQueries({ queryKey: ['saved-reports'] })
+      setSavedId(null)
+      toast.success(
+        r.schedulesStopped > 0
+          ? `View deleted — ${r.schedulesStopped} schedule(s) stopped`
+          : 'View deleted'
+      )
+    },
+    onError: (e: Error) => toast.error(e.message || 'Could not delete this view'),
+  })
 
   // Follow the catalogue rather than assume: a librarian's first report is
   // whatever they can actually run, not the giving summary they cannot.
   const available = catalogue ?? []
   const selectedKey = available.some((r) => r.key === key) ? key : available[0]?.key ?? ''
 
+  const openView = saved?.find((v) => v.id === savedId) ?? null
+
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['report', selectedKey, range.from, range.to],
-    queryFn: () => reportsApi.run(selectedKey, range.from, range.to),
-    enabled: !!selectedKey,
+    queryKey: savedId
+      ? ['report', 'saved', savedId]
+      : ['report', selectedKey, range.from, range.to],
+    queryFn: () =>
+      savedId ? savedApi.run(savedId) : reportsApi.run(selectedKey, range.from, range.to),
+    enabled: savedId ? true : !!selectedKey,
   })
 
   const download = async () => {
@@ -184,16 +212,21 @@ export default function ReportsPage() {
       // Fetched through the axios client so the bearer token and tenant host
       // are the same ones the table used. A bare <a href> would be
       // unauthenticated and quietly download a login page as a .csv.
-      const res = await api.get(reportsApi.exportUrl(selectedKey, range.from, range.to), {
+      const route = savedId
+        ? savedApi.exportUrl(savedId)
+        : reportsApi.exportUrl(selectedKey, range.from, range.to)
+      const res = await api.get(route, {
         responseType: 'blob',
         transformResponse: [(d) => d],
       })
-      const url = URL.createObjectURL(new Blob([res.data as BlobPart], { type: 'text/csv' }))
+      const href = URL.createObjectURL(new Blob([res.data as BlobPart], { type: 'text/csv' }))
       const a = document.createElement('a')
-      a.href = url
-      a.download = `${selectedKey}-${range.from}-to-${range.to}.csv`
+      a.href = href
+      a.download = savedId
+        ? `${openView?.name ?? 'report'}.csv`
+        : `${selectedKey}-${range.from}-to-${range.to}.csv`
       a.click()
-      URL.revokeObjectURL(url)
+      URL.revokeObjectURL(href)
       toast.success('Downloaded')
     } catch (e) {
       toast.error((e as Error).message || 'Could not export this report')
@@ -222,6 +255,15 @@ export default function ReportsPage() {
             {/* A treasurer takes this to a board meeting. The print stylesheet
                 below drops the chrome so the page comes out as a report
                 rather than a screenshot of an admin panel. */}
+            <button
+              type="button"
+              onClick={() => { setEditingView(openView); setSaving(true) }}
+              disabled={!data || !!data.unavailable}
+              className={btn.secondary}
+            >
+              {openView ? <Pencil className="size-4" aria-hidden /> : <BookmarkPlus className="size-4" aria-hidden />}
+              {openView ? 'Edit view' : 'Save view'}
+            </button>
             <button
               type="button"
               onClick={() => window.print()}
@@ -290,7 +332,52 @@ export default function ReportsPage() {
             ) : !available.length ? (
               <p className="p-3 text-sm text-muted-foreground">No reports are available to you.</p>
             ) : (
-              Object.entries(groups).map(([group, items]) => (
+              <>
+              {!!saved?.length && (
+                <div className="mb-3">
+                  <p className="px-3 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/70">
+                    Saved views
+                  </p>
+                  <ul className="space-y-0.5">
+                    {saved.map((v) => (
+                      <li key={v.id} className="group flex items-center">
+                        <button
+                          type="button"
+                          onClick={() => { setSavedId(v.id); setKey(v.reportKey) }}
+                          aria-current={savedId === v.id ? 'page' : undefined}
+                          title={v.description || v.reportName}
+                          className={`flex-1 text-left flex items-center gap-2 min-h-9 px-3 rounded-lg text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                            savedId === v.id
+                              ? 'bg-primary/10 text-primary font-medium'
+                              : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                          }`}
+                        >
+                          <Bookmark className="size-3.5 shrink-0" aria-hidden />
+                          <span className="truncate">{v.name}</span>
+                          {v.scheduleCount > 0 && (
+                            <span className="ml-auto text-[10px] text-muted-foreground shrink-0" title={`${v.scheduleCount} schedule(s)`}>
+                              ✉ {v.scheduleCount}
+                            </span>
+                          )}
+                          {!v.isShared && (
+                            <Users className="ml-auto size-3 shrink-0 opacity-40" aria-label="Only you" />
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => removeView.mutate(v.id)}
+                          disabled={removeView.isPending}
+                          aria-label={`Delete ${v.name}`}
+                          className="opacity-0 group-hover:opacity-100 focus:opacity-100 p-1.5 rounded text-muted-foreground hover:text-destructive transition-opacity"
+                        >
+                          <Trash2 className="size-3.5" aria-hidden />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {Object.entries(groups).map(([group, items]) => (
                 <div key={group} className="mb-3 last:mb-0">
                   <p className="px-3 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/70">
                     {group}
@@ -300,10 +387,10 @@ export default function ReportsPage() {
                       <li key={r.key}>
                         <button
                           type="button"
-                          onClick={() => setKey(r.key)}
-                          aria-current={selectedKey === r.key ? 'page' : undefined}
+                          onClick={() => { setKey(r.key); setSavedId(null) }}
+                          aria-current={!savedId && selectedKey === r.key ? 'page' : undefined}
                           className={`w-full text-left flex items-center gap-2 min-h-9 px-3 rounded-lg text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-                            selectedKey === r.key
+                            !savedId && selectedKey === r.key
                               ? 'bg-primary/10 text-primary font-medium'
                               : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                           }`}
@@ -317,7 +404,8 @@ export default function ReportsPage() {
                     ))}
                   </ul>
                 </div>
-              ))
+              ))}
+              </>
             )}
           </div>
         </aside>
@@ -419,14 +507,41 @@ export default function ReportsPage() {
                           </tr>
                         ))}
                       </tbody>
+                      {/* Totals over the rows actually shown, sent by the
+                          server so the footer cannot disagree with the body
+                          above it. Percentages are shares and have no
+                          meaningful sum, so they are left blank. */}
+                      {Object.keys(data.totals ?? {}).length > 0 && (
+                        <tfoot className="border-t-2 border-border bg-muted/40">
+                          <tr>
+                            {data.columns.map((c, i) => (
+                              <td
+                                key={c.key}
+                                className={`px-4 py-2.5 font-medium whitespace-nowrap ${isNumeric(c.kind) ? 'text-right tabular-nums' : ''}`}
+                              >
+                                {i === 0
+                                  ? (q ? 'Total shown' : 'Total')
+                                  : c.key in (data.totals ?? {})
+                                  ? formatCell(data.totals[c.key], c.kind)
+                                  : ''}
+                              </td>
+                            ))}
+                          </tr>
+                        </tfoot>
+                      )}
                     </table>
                   </div>
                 )}
                 {rows.length > 0 && (
                   <p className="px-4 py-3 border-t border-border text-xs text-muted-foreground">
                     {rows.length}
-                    {q && rows.length !== data.rows.length ? ` of ${data.rows.length}` : ''} row
+                    {rows.length !== data.totalRows ? ` of ${data.totalRows}` : ''} row
                     {rows.length === 1 ? '' : 's'}
+                    {data.rows.length !== data.totalRows && (
+                      <span className="ml-1">
+                        · {data.totalRows - data.rows.length} hidden by this view&apos;s filters
+                      </span>
+                    )}
                   </p>
                 )}
               </div>
@@ -434,6 +549,18 @@ export default function ReportsPage() {
           )}
         </div>
       </div>
+
+      <SaveViewDialog
+        open={saving}
+        onClose={() => { setSaving(false); setEditingView(null) }}
+        reportKey={openView?.reportKey ?? selectedKey}
+        reportName={data?.name ?? ''}
+        columns={openView?.columns ?? []}
+        filters={openView?.filters ?? []}
+        sortColumn={openView?.sortColumn ?? ''}
+        sortDesc={openView?.sortDesc ?? false}
+        editing={editingView}
+      />
     </>
   )
 }

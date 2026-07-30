@@ -116,6 +116,16 @@ pub struct Report {
     /// the empty table means "nothing here to report on", not "nothing
     /// happened".
     pub unavailable: Option<String>,
+    /// How many rows the report produced before filters. `rows.len()` is what
+    /// survived them — shown as "12 of 340" so a filter never looks like a
+    /// small dataset.
+    pub total_rows: usize,
+    /// Column-key → sum, over the rows actually shown, for numeric columns.
+    ///
+    /// Computed from the visible rows rather than from the period, so it
+    /// cannot disagree with the table above it. The headline `stats` describe
+    /// the whole period; this describes what you are looking at.
+    pub totals: serde_json::Value,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -123,4 +133,83 @@ pub struct ReportQuery {
     /// YYYY-MM-DD. Defaults to the start of the current year.
     pub from: Option<String>,
     pub to: Option<String>,
+    /// A named range (`this_month`, `last_year`, …) resolved against today.
+    /// Takes precedence over `from`/`to` when present.
+    pub period: Option<String>,
+    /// `csv` or `pdf`. Only read by the export routes.
+    pub format: Option<String>,
+}
+
+/// One row filter. Applied to the report's own output, so the same nine
+/// operators work on every report rather than each one growing its own
+/// filter clauses.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Filter {
+    pub column: String,
+    /// `eq`, `ne`, `contains`, `gt`, `gte`, `lt`, `lte`, `empty`, `not_empty`.
+    pub op: String,
+    #[serde(default)]
+    pub value: String,
+}
+
+/// A saved way of looking at a report: which columns, which rows, what order.
+///
+/// Never a stored copy of the figures. A view saves the *question*; the answer
+/// is computed from the records as they are when it is opened. Storing the
+/// numbers is how a treasurer opens "Giving 2026" in December and reads July's
+/// total because that is when the snapshot was taken.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct View {
+    /// Column keys to show, in order. Empty means the report's own set, so a
+    /// saved view does not freeze the column list against a report that later
+    /// gains one.
+    #[serde(default)]
+    pub columns: Vec<String>,
+    #[serde(default)]
+    pub filters: Vec<Filter>,
+    #[serde(default)]
+    pub sort_column: String,
+    #[serde(default)]
+    pub sort_desc: bool,
+}
+
+#[derive(Debug, Serialize, sqlx::FromRow)]
+pub struct SavedReport {
+    pub id: uuid::Uuid,
+    pub name: String,
+    pub description: String,
+    pub report_key: String,
+    pub period: String,
+    pub custom_from: Option<chrono::NaiveDate>,
+    pub custom_to: Option<chrono::NaiveDate>,
+    pub columns: Vec<String>,
+    pub filters: serde_json::Value,
+    pub sort_column: String,
+    pub sort_desc: bool,
+    pub is_shared: bool,
+    pub created_by: String,
+    pub updated_at: chrono::NaiveDateTime,
+    /// Filled from the catalogue: the report this view is of may have been
+    /// removed, or may need a permission the reader does not hold.
+    #[sqlx(default)]
+    pub report_name: String,
+    #[sqlx(default)]
+    pub runnable: bool,
+    #[sqlx(default)]
+    pub schedule_count: i64,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct UpsertSavedReport {
+    pub name: String,
+    pub description: Option<String>,
+    pub report_key: String,
+    pub period: Option<String>,
+    pub custom_from: Option<String>,
+    pub custom_to: Option<String>,
+    pub columns: Option<Vec<String>>,
+    pub filters: Option<Vec<Filter>>,
+    pub sort_column: Option<String>,
+    pub sort_desc: Option<bool>,
+    pub is_shared: Option<bool>,
 }

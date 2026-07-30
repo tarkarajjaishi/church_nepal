@@ -63,6 +63,77 @@ export interface Report {
   series: Series[]
   /** Set when the module is not installed — an empty table means nothing here. */
   unavailable: string | null
+  /** Rows before filters; `rows.length` is what survived them. */
+  totalRows: number
+  /** Column key → sum over the rows actually shown. */
+  totals: Record<string, number>
+}
+
+export interface Filter {
+  column: string
+  /** eq · ne · contains · gt · gte · lt · lte · empty · not_empty */
+  op: string
+  value: string
+}
+
+export interface SavedReport {
+  id: string
+  name: string
+  description: string
+  reportKey: string
+  period: string
+  customFrom: string | null
+  customTo: string | null
+  columns: string[]
+  filters: Filter[]
+  sortColumn: string
+  sortDesc: boolean
+  isShared: boolean
+  createdBy: string
+  updatedAt: string
+  reportName: string
+  runnable: boolean
+  scheduleCount: number
+}
+
+export const FILTER_OPS: { value: string; label: string; needsValue: boolean }[] = [
+  { value: 'eq', label: 'is', needsValue: true },
+  { value: 'ne', label: 'is not', needsValue: true },
+  { value: 'contains', label: 'contains', needsValue: true },
+  { value: 'gt', label: 'is more than', needsValue: true },
+  { value: 'gte', label: 'is at least', needsValue: true },
+  { value: 'lt', label: 'is less than', needsValue: true },
+  { value: 'lte', label: 'is at most', needsValue: true },
+  { value: 'empty', label: 'is blank', needsValue: false },
+  { value: 'not_empty', label: 'is not blank', needsValue: false },
+]
+
+/**
+ * Named periods, stored on a saved view instead of two dates.
+ *
+ * "This month" saved in July has to still mean this month in December — a
+ * schedule that emails a fixed 1–31 July window every week is a stuck clock,
+ * not a report.
+ */
+export const PERIODS: { value: string; label: string }[] = [
+  { value: 'this_month', label: 'This month' },
+  { value: 'last_month', label: 'Last month' },
+  { value: 'last_3_months', label: 'Last 3 months' },
+  { value: 'last_12_months', label: 'Last 12 months' },
+  { value: 'this_year', label: 'This year' },
+  { value: 'last_year', label: 'Last year' },
+  { value: 'custom', label: 'Fixed dates' },
+]
+
+export const savedApi = {
+  list: () => api.get<SavedReport[]>('/reports/saved').then((r) => r.data),
+  create: (body: Record<string, unknown>) =>
+    api.post('/reports/saved', body).then((r) => r.data),
+  update: (id: string, body: Record<string, unknown>) =>
+    api.put(`/reports/saved/${id}`, body).then((r) => r.data),
+  remove: (id: string) => api.delete(`/reports/saved/${id}`).then((r) => r.data),
+  run: (id: string) => api.get<Report>(`/reports/saved/${id}/run`).then((r) => r.data),
+  exportUrl: (id: string, format = 'csv') => `/reports/saved/${id}/export?format=${format}`,
 }
 
 export const reportsApi = {

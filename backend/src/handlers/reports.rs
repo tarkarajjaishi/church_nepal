@@ -123,6 +123,18 @@ fn find(key: &str) -> Option<&'static Def> {
     REPORTS.iter().find(|d| d.key == key)
 }
 
+/// A report's display name and the permission it needs, for callers that hold
+/// a key from elsewhere — a saved view, a schedule — and must not guess.
+pub(crate) fn describe(key: &str) -> Option<(&'static str, &'static str)> {
+    find(key).map(|d| (d.name, d.permission))
+}
+
+/// The caller's permissions. Exposed so saved views resolve access exactly the
+/// way the reports themselves do, rather than approximating it.
+pub(crate) async fn permissions_of(pool: &sqlx::PgPool, auth: &AuthUser) -> HashSet<String> {
+    held_by(pool, auth).await
+}
+
 /// Is the module this report reads actually installed here?
 ///
 /// Churches are provisioned with different modules, so a report has to be able
@@ -186,7 +198,47 @@ fn parse_date(s: &str) -> Result<chrono::NaiveDate, AppError> {
         .map_err(|_| AppError::bad_request("Invalid date, expected YYYY-MM-DD"))
 }
 
+/// Resolve a named range against today.
+///
+/// Stored on a saved report instead of two dates, because "this month" saved
+/// in July has to still mean this month in December. A schedule that emails a
+/// fixed 1–31 July window every Monday for a year is not a report, it is a
+/// stuck clock.
+pub fn named_period(name: &str, today: chrono::NaiveDate) -> Option<(chrono::NaiveDate, chrono::NaiveDate)> {
+    use chrono::Datelike;
+    let first_of = |y: i32, m: u32| chrono::NaiveDate::from_ymd_opt(y, m, 1);
+    let month_start = first_of(today.year(), today.month())?;
+    // Last day of a month, without needing to know which months have 31.
+    let end_of = |d: chrono::NaiveDate| {
+        d.checked_add_months(chrono::Months::new(1))?.pred_opt()
+    };
+
+    Some(match name {
+        "this_month" => (month_start, today),
+        "last_month" => {
+            let start = month_start.checked_sub_months(chrono::Months::new(1))?;
+            (start, end_of(start)?)
+        }
+        "last_3_months" => (month_start.checked_sub_months(chrono::Months::new(2))?, today),
+        "last_12_months" => (month_start.checked_sub_months(chrono::Months::new(11))?, today),
+        "this_year" => (first_of(today.year(), 1)?, today),
+        "last_year" => (
+            first_of(today.year() - 1, 1)?,
+            chrono::NaiveDate::from_ymd_opt(today.year() - 1, 12, 31)?,
+        ),
+        _ => return None,
+    })
+}
+
 fn period(q: &ReportQuery, today: chrono::NaiveDate) -> Result<Period, AppError> {
+    // A named range wins over explicit dates, so a saved view keeps meaning
+    // what it said rather than what it meant on the day it was saved.
+    if let Some(name) = q.period.as_deref().filter(|s| !s.is_empty() && *s != "custom") {
+        let (from, to) = named_period(name, today)
+            .ok_or_else(|| AppError::bad_request(format!("There is no period called \"{name}\"")))?;
+        return Ok(with_comparison(from, to));
+    }
+
     let to = match q.to.as_deref().filter(|s| !s.is_empty()) {
         Some(s) => parse_date(s)?,
         None => today,
@@ -200,13 +252,153 @@ fn period(q: &ReportQuery, today: chrono::NaiveDate) -> Result<Period, AppError>
         return Err(AppError::bad_request("The start date is after the end date"));
     }
 
-    // The comparison window is the same length, ending the day before `from`.
-    // Comparing a 9-day period against a full previous month would make every
-    // report look like a collapse.
+    Ok(with_comparison(from, to))
+}
+
+/// Attach the comparison window: the same length, ending the day before.
+///
+/// Comparing a nine-day period against a full previous month would make every
+/// report look like a collapse.
+fn with_comparison(from: chrono::NaiveDate, to: chrono::NaiveDate) -> Period {
     let len = (to - from).num_days();
     let compare_to = from.pred_opt().unwrap_or(from);
     let compare_from = compare_to - chrono::Duration::days(len);
-    Ok(Period { from, to, compare_from, compare_to })
+    Period { from, to, compare_from, compare_to }
+}
+
+// ===========================================================================
+// Views: which columns, which rows, what order
+// ===========================================================================
+
+/// Does one row pass a filter?
+///
+/// Numeric comparisons are attempted first so `gt 500` on a money column
+/// compares 1000 > 500 rather than "1000" > "500", which is false as strings
+/// and is the single most common way a filter quietly returns the wrong set.
+fn passes(row: &serde_json::Value, f: &Filter) -> bool {
+    let cell = row.get(&f.column).unwrap_or(&serde_json::Value::Null);
+    let text = match cell {
+        serde_json::Value::Null => String::new(),
+        serde_json::Value::String(s) => s.clone(),
+        other => other.to_string(),
+    };
+
+    match f.op.as_str() {
+        "empty" => text.is_empty(),
+        "not_empty" => !text.is_empty(),
+        "contains" => text.to_lowercase().contains(&f.value.to_lowercase()),
+        "eq" => text.eq_ignore_ascii_case(&f.value),
+        "ne" => !text.eq_ignore_ascii_case(&f.value),
+        "gt" | "gte" | "lt" | "lte" => {
+            match (cell.as_f64(), f.value.parse::<f64>()) {
+                (Some(a), Ok(b)) => match f.op.as_str() {
+                    "gt" => a > b,
+                    "gte" => a >= b,
+                    "lt" => a < b,
+                    _ => a <= b,
+                },
+                // Dates are ISO strings, so lexical order is chronological
+                // order. Anything else compares as text, which is at least
+                // predictable.
+                _ => match f.op.as_str() {
+                    "gt" => text > f.value,
+                    "gte" => text >= f.value,
+                    "lt" => text < f.value,
+                    _ => text <= f.value,
+                },
+            }
+        }
+        // An operator nobody implemented must not silently drop every row, and
+        // must not silently keep them either. Keeping them is the safer of the
+        // two: a filter that does nothing is visible, one that empties the
+        // table looks like "no data".
+        _ => true,
+    }
+}
+
+fn is_numeric(kind: ColumnKind) -> bool {
+    matches!(
+        kind,
+        ColumnKind::Money | ColumnKind::Number | ColumnKind::Percent | ColumnKind::Duration
+    )
+}
+
+/// Narrow, reorder and sort a report's table, then total what is left.
+///
+/// Applied to the report's output rather than pushed into each report's SQL:
+/// one implementation covers all of them, and a report cannot end up with
+/// filters that behave subtly differently from its neighbours.
+///
+/// The headline `stats` are deliberately *not* recomputed — they describe the
+/// period, and a filtered table describes a slice of it. `totals` bridges the
+/// two by summing the rows actually on screen, so nothing on the page can
+/// disagree with anything else on the page.
+fn apply_view(r: &mut Report, view: &View) -> Result<(), AppError> {
+    r.total_rows = r.rows.len();
+
+    let known: std::collections::HashSet<&str> =
+        r.columns.iter().map(|c| c.key.as_str()).collect();
+    if let Some(bad) = view.filters.iter().find(|f| !known.contains(f.column.as_str())) {
+        return Err(AppError::bad_request(format!(
+            "This report has no column called \"{}\"",
+            bad.column
+        )));
+    }
+
+    if !view.filters.is_empty() {
+        r.rows.retain(|row| view.filters.iter().all(|f| passes(row, f)));
+    }
+
+    if !view.sort_column.is_empty() {
+        if !known.contains(view.sort_column.as_str()) {
+            return Err(AppError::bad_request(format!(
+                "This report has no column called \"{}\"",
+                view.sort_column
+            )));
+        }
+        let key = view.sort_column.clone();
+        r.rows.sort_by(|a, b| {
+            let (x, y) = (a.get(&key), b.get(&key));
+            let ord = match (x.and_then(|v| v.as_f64()), y.and_then(|v| v.as_f64())) {
+                (Some(p), Some(q)) => p.partial_cmp(&q).unwrap_or(std::cmp::Ordering::Equal),
+                _ => {
+                    let s = |v: Option<&serde_json::Value>| match v {
+                        Some(serde_json::Value::String(s)) => s.to_lowercase(),
+                        Some(other) => other.to_string(),
+                        None => String::new(),
+                    };
+                    s(x).cmp(&s(y))
+                }
+            };
+            if view.sort_desc { ord.reverse() } else { ord }
+        });
+    }
+
+    // Column selection last, so a filter or sort may reference a column the
+    // reader chose not to display.
+    if !view.columns.is_empty() {
+        let wanted: Vec<Column> = view
+            .columns
+            .iter()
+            .filter_map(|k| r.columns.iter().find(|c| &c.key == k).cloned())
+            .collect();
+        if !wanted.is_empty() {
+            r.columns = wanted;
+        }
+    }
+
+    let mut totals = serde_json::Map::new();
+    for c in r.columns.iter().filter(|c| is_numeric(c.kind)) {
+        // Percent columns are shares, and a column of shares does not have a
+        // meaningful sum once rows are filtered out.
+        if matches!(c.kind, ColumnKind::Percent) {
+            continue;
+        }
+        let sum: i64 = r.rows.iter().filter_map(|row| row.get(&c.key)?.as_i64()).sum();
+        totals.insert(c.key.clone(), serde_json::json!(sum));
+    }
+    r.totals = serde_json::Value::Object(totals);
+    Ok(())
 }
 
 /// Percentage movement, guarding the division that turns a first month into
@@ -331,14 +523,15 @@ pub async fn run(
     Path(key): Path<String>,
     Query(q): Query<ReportQuery>,
 ) -> Result<Json<Report>, AppError> {
-    Ok(Json(build(&auth, &pool, &key, &q).await?))
+    Ok(Json(build(&auth, &pool, &key, &q, &View::default()).await?))
 }
 
-async fn build(
+pub(crate) async fn build(
     auth: &AuthUser,
     pool: &sqlx::PgPool,
     key: &str,
     q: &ReportQuery,
+    view: &View,
 ) -> Result<Report, AppError> {
     let def = find(key).ok_or_else(|| AppError::not_found("There is no report by that name"))?;
 
@@ -369,6 +562,8 @@ async fn build(
         rows: Vec::new(),
         series: Vec::new(),
         unavailable: None,
+        total_rows: 0,
+        totals: serde_json::json!({}),
     };
 
     if !table_exists(pool, def.requires_table).await {
@@ -391,6 +586,7 @@ async fn build(
         "helpdesk-performance" => helpdesk_performance(pool, &p, &mut report).await?,
         _ => unreachable!("catalogue and dispatch are the same list"),
     }
+    apply_view(&mut report, view)?;
     Ok(report)
 }
 
@@ -1237,8 +1433,25 @@ pub async fn export(
     Path(key): Path<String>,
     Query(q): Query<ReportQuery>,
 ) -> Result<Response, AppError> {
-    let r = build(&auth, &pool, &key, &q).await?;
+    let r = build(&auth, &pool, &key, &q, &View::default()).await?;
+    render(&r, q.format.as_deref().unwrap_or("csv"))
+}
 
+/// Render a report in the requested format.
+///
+/// One dispatcher, so a saved view, a schedule and an ad-hoc download all
+/// produce byte-identical files — nobody has to wonder whether the emailed
+/// copy matches the one they downloaded.
+pub(crate) fn render(r: &Report, format: &str) -> Result<Response, AppError> {
+    match format {
+        "csv" => Ok(csv_response(r)),
+        other => Err(AppError::bad_request(format!(
+            "\"{other}\" is not a format this can be exported as"
+        ))),
+    }
+}
+
+pub(crate) fn to_csv(r: &Report) -> String {
     let mut csv = String::new();
     csv.push_str(&format!("{}\n", cell(&r.name)));
     csv.push_str(&format!("{},{} to {}\n\n", cell("Period"), r.from, r.to));
@@ -1271,8 +1484,12 @@ pub async fn export(
         csv.push('\n');
     }
 
+    csv
+}
+
+fn csv_response(r: &Report) -> Response {
     let filename = format!("{}-{}-to-{}.csv", r.key, r.from, r.to);
-    Ok((
+    (
         [
             (axum::http::header::CONTENT_TYPE, "text/csv; charset=utf-8".to_string()),
             (
@@ -1280,9 +1497,9 @@ pub async fn export(
                 format!("attachment; filename=\"{filename}\""),
             ),
         ],
-        csv,
+        to_csv(r),
     )
-        .into_response())
+        .into_response()
 }
 
 #[cfg(test)]
@@ -1294,7 +1511,7 @@ mod tests {
     }
 
     fn q(from: &str, to: &str) -> ReportQuery {
-        ReportQuery { from: Some(from.into()), to: Some(to.into()) }
+        ReportQuery { from: Some(from.into()), to: Some(to.into()), ..Default::default() }
     }
 
     #[test]

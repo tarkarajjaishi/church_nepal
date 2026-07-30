@@ -672,6 +672,15 @@ pub fn admin_routes() -> Router {
         // each a single route. The permission is checked per report inside the
         // handler, since one route cannot know which module is being asked for.
         .route("/reports", get(reports::catalogue))
+        // Static segments before the `{key}` param, so a saved-report route is
+        // never swallowed by the ad-hoc runner.
+        .route("/reports/saved", get(saved_reports::list).post(saved_reports::create))
+        .route(
+            "/reports/saved/{id}",
+            put(saved_reports::update).delete(saved_reports::delete),
+        )
+        .route("/reports/saved/{id}/run", get(saved_reports::run))
+        .route("/reports/saved/{id}/export", get(saved_reports::export))
         .route("/reports/{key}", get(reports::run))
         .route("/reports/{key}/export", get(reports::export))
         // ---- Roles & permissions --------------------------------------------
