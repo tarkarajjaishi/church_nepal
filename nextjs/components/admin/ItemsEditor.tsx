@@ -181,7 +181,8 @@ export function ItemsEditor({ items, onChange, maxFields = 6 }: ItemsEditorProps
                         <button
                           type="button"
                           onClick={() => updateItem(idx, fieldKey, '')}
-                          className="absolute -top-1 -right-1 size-4 rounded-full bg-destructive text-white flex items-center justify-center hover:bg-destructive/90"
+                          aria-label={`Clear ${fieldKey}`}
+                          className="absolute -top-1 -right-1 size-5 rounded-full bg-destructive text-white flex items-center justify-center hover:bg-destructive/90"
                         >
                           <X className="size-2.5" />
                         </button>

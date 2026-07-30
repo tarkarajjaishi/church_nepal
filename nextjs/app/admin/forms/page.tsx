@@ -194,8 +194,8 @@ export default function FormsPage() {
                       <span className="text-sm font-medium flex-1">{field.label}</span>
                       <Badge variant="secondary" className="text-xs">{field.type}</Badge>
                       {field.required && <Badge variant="secondary" className="text-xs bg-red-100 text-red-800">Required</Badge>}
-                      <button type="button" onClick={() => removeField(field.id)} className="text-destructive hover:bg-destructive/10 p-1 rounded">
-                        <X className="size-3.5" />
+                      <button type="button" onClick={() => removeField(field.id)} aria-label={`Remove the "${field.label}" field`} className="inline-flex items-center justify-center size-8 text-destructive hover:bg-destructive/10 rounded">
+                        <X className="size-3.5" aria-hidden />
                       </button>
                     </div>
                   ))}
@@ -229,8 +229,12 @@ export default function FormsPage() {
               )}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Switch checked={newFieldRequired} onCheckedChange={setNewFieldRequired} />
-                  <Label className="text-xs">Required</Label>
+                  <Switch
+                    id="field-required"
+                    checked={newFieldRequired}
+                    onCheckedChange={setNewFieldRequired}
+                  />
+                  <Label htmlFor="field-required" className="text-xs">Required</Label>
                 </div>
                 <Button type="button" variant="outline" size="sm" onClick={addField} disabled={!newFieldLabel.trim()}>
                   <Plus className="size-3 mr-1" /> Add Field

@@ -128,10 +128,10 @@ export function CrudListPage({
                 </div>
                 <div className="flex items-center gap-1 px-4 pb-4 pt-2 border-t border-gray-100">
                   {featured && (
-                    <button onClick={() => handleToggleFeatured(item)} disabled={togglingId === item.id} className={`flex-1 p-2 rounded-lg transition text-xs font-medium flex items-center justify-center gap-1 ${item.featured ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-600'} disabled:opacity-50`}><Star className={`w-3.5 h-3.5 ${item.featured ? 'fill-current' : ''}`} /></button>
+                    <button onClick={() => handleToggleFeatured(item)} disabled={togglingId === item.id} aria-pressed={!!item.featured} aria-label={`${item.featured ? 'Unfeature' : 'Feature'} ${item.title}`} className={`flex-1 min-h-9 p-2 rounded-lg transition text-xs font-medium flex items-center justify-center gap-1 ${item.featured ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-600'} disabled:opacity-50`}><Star className={`w-3.5 h-3.5 ${item.featured ? 'fill-current' : ''}`} aria-hidden /></button>
                   )}
-                  <Link href={`/${endpoint}/${item.id}`} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"><Edit className="w-4 h-4" /></Link>
-                  <button onClick={() => handleDelete(item.id)} disabled={deletingId === item.id} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition disabled:opacity-50"><Trash2 className="w-4 h-4" /></button>
+                  <Link href={`/${endpoint}/${item.id}`} aria-label={`Edit ${item.title}`} className="inline-flex items-center justify-center size-9 text-blue-600 hover:bg-blue-50 rounded-lg transition"><Edit className="w-4 h-4" aria-hidden /></Link>
+                  <button onClick={() => handleDelete(item.id)} disabled={deletingId === item.id} aria-label={`Delete ${item.title}`} className="inline-flex items-center justify-center size-9 text-red-600 hover:bg-red-50 rounded-lg transition disabled:opacity-50"><Trash2 className="w-4 h-4" aria-hidden /></button>
                 </div>
               </motion.div>
             ))}
@@ -159,10 +159,10 @@ export function CrudListPage({
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-1">
                           {featured && (
-                            <button onClick={() => handleToggleFeatured(item)} disabled={togglingId === item.id} className={`p-2 rounded-lg transition disabled:opacity-50 ${item.featured ? 'bg-yellow-100 text-yellow-600' : 'bg-gray-100 text-gray-400'}`}><Star className={`w-4 h-4 ${item.featured ? 'fill-current' : ''}`} /></button>
+                            <button onClick={() => handleToggleFeatured(item)} disabled={togglingId === item.id} aria-pressed={!!item.featured} aria-label={`${item.featured ? 'Unfeature' : 'Feature'} ${item.title}`} className={`inline-flex items-center justify-center size-9 rounded-lg transition disabled:opacity-50 ${item.featured ? 'bg-yellow-100 text-yellow-600' : 'bg-gray-100 text-gray-400'}`}><Star className={`w-4 h-4 ${item.featured ? 'fill-current' : ''}`} aria-hidden /></button>
                           )}
-                          <Link href={`/${endpoint}/${item.id}`} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"><Edit className="w-4 h-4" /></Link>
-                          <button onClick={() => handleDelete(item.id)} disabled={deletingId === item.id} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition disabled:opacity-50"><Trash2 className="w-4 h-4" /></button>
+                          <Link href={`/${endpoint}/${item.id}`} aria-label={`Edit ${item.title}`} className="inline-flex items-center justify-center size-9 text-blue-600 hover:bg-blue-50 rounded-lg transition"><Edit className="w-4 h-4" aria-hidden /></Link>
+                          <button onClick={() => handleDelete(item.id)} disabled={deletingId === item.id} aria-label={`Delete ${item.title}`} className="inline-flex items-center justify-center size-9 text-red-600 hover:bg-red-50 rounded-lg transition disabled:opacity-50"><Trash2 className="w-4 h-4" aria-hidden /></button>
                         </div>
                       </td>
                     </motion.tr>

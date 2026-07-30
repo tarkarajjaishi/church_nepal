@@ -102,9 +102,9 @@ export default function ImageManagerPage() {
                         <>
                           <img src={getImageSrc(currentUrl)} alt={slot.label} className="w-full h-full object-cover"
                             onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
-                          <button onClick={() => handleClear(slot.key)}
-                            className="absolute top-2 right-2 size-7 bg-destructive/90 text-white rounded-full flex items-center justify-center hover:bg-destructive">
-                            <Trash2 className="size-3.5" />
+                          <button onClick={() => handleClear(slot.key)} aria-label={`Remove the ${slot.label} image`}
+                            className="absolute top-2 right-2 size-8 bg-destructive/90 text-white rounded-full flex items-center justify-center hover:bg-destructive">
+                            <Trash2 className="size-3.5" aria-hidden />
                           </button>
                           <a href={getImageSrc(currentUrl)} target="_blank" rel="noopener noreferrer"
                             className="absolute top-2 left-2 size-7 bg-black/50 text-white rounded-full flex items-center justify-center hover:bg-black/70">

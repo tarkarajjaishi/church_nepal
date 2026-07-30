@@ -24,6 +24,19 @@ interface Field {
   options?: string[]
 }
 
+/**
+ * A row's name, for labelling the controls that act on it.
+ *
+ * Falls back through the fields these tables actually carry, then to the id —
+ * "Move row 3f2a… up" is poor, but it is still better than "button".
+ */
+function rowLabel(row: any): string {
+  return (
+    row?.title || row?.name || row?.label || row?.heading ||
+    row?.sectionKey || row?.question || row?.reference || row?.id || 'this row'
+  )
+}
+
 export function CrudPage({ endpoint, title, fields, enablePin = false }: { endpoint: string; title: string; fields: Field[]; enablePin?: boolean }) {
   const queryClient = useQueryClient()
   const { useList, useCreate, useUpdate, useDelete, useToggle, useReorder, usePin } = createResourceHooks<any>(endpoint)
@@ -109,11 +122,29 @@ export function CrudPage({ endpoint, title, fields, enablePin = false }: { endpo
       header: '#',
       cell: ({ row }) => {
         const idx = row.index
+        // Named after the row they move. An arrow announced as "button" tells
+        // a screen-reader user nothing, and two of them in a column tell them
+        // nothing twice.
+        const what = rowLabel(row.original)
         return (
-          <div className="flex flex-col items-center gap-0.5">
-            <button onClick={() => moveItem(idx, 'up')} disabled={idx === 0 || reorderMut.isPending} className="p-0.5 text-gray-400 hover:text-church-blue disabled:opacity-30"><ChevronUp className="size-3.5" /></button>
+          <div className="flex flex-col items-center">
+            <button
+              onClick={() => moveItem(idx, 'up')}
+              disabled={idx === 0 || reorderMut.isPending}
+              aria-label={`Move ${what} up`}
+              className="inline-flex items-center justify-center size-6 rounded text-gray-400 hover:text-church-blue hover:bg-muted disabled:opacity-30 disabled:pointer-events-none transition-colors"
+            >
+              <ChevronUp className="size-3.5" aria-hidden />
+            </button>
             <span className="text-xs font-mono text-gray-500">{row.original.sortOrder ?? idx}</span>
-            <button onClick={() => moveItem(idx, 'down')} disabled={idx === items.length - 1 || reorderMut.isPending} className="p-0.5 text-gray-400 hover:text-church-blue disabled:opacity-30"><ChevronDown className="size-3.5" /></button>
+            <button
+              onClick={() => moveItem(idx, 'down')}
+              disabled={idx === items.length - 1 || reorderMut.isPending}
+              aria-label={`Move ${what} down`}
+              className="inline-flex items-center justify-center size-6 rounded text-gray-400 hover:text-church-blue hover:bg-muted disabled:opacity-30 disabled:pointer-events-none transition-colors"
+            >
+              <ChevronDown className="size-3.5" aria-hidden />
+            </button>
           </div>
         )
       },
@@ -128,6 +159,7 @@ export function CrudPage({ endpoint, title, fields, enablePin = false }: { endpo
             checked={row.original.enabled ?? true}
             onCheckedChange={() => toggleMut.mutate(row.original.id)}
             disabled={toggleMut.isPending}
+            aria-label={`Show ${rowLabel(row.original)} on the website`}
           />
           <Badge variant={row.original.enabled !== false ? 'default' : 'secondary'}>
             {row.original.enabled !== false ? 'On' : 'Off'}
@@ -143,10 +175,14 @@ export function CrudPage({ endpoint, title, fields, enablePin = false }: { endpo
         <button
           onClick={() => pinMut.mutate(row.original.id)}
           disabled={pinMut.isPending}
-          className={`p-1 rounded transition-colors ${row.original.isPinned ? 'text-gold bg-gold/10' : 'text-gray-400 hover:text-gold hover:bg-gold/5'}`}
+          className={`inline-flex items-center justify-center size-8 rounded transition-colors ${row.original.isPinned ? 'text-gold bg-gold/10' : 'text-gray-400 hover:text-gold hover:bg-gold/5'}`}
+          aria-pressed={!!row.original.isPinned}
+          aria-label={row.original.isPinned
+            ? `Unpin ${rowLabel(row.original)} as Verse of the Day`
+            : `Pin ${rowLabel(row.original)} as Verse of the Day`}
           title={row.original.isPinned ? 'Pinned as Verse of the Day' : 'Pin as Verse of the Day'}
         >
-          <Pin className="size-4" fill={row.original.isPinned ? 'currentColor' : 'none'} />
+          <Pin className="size-4" fill={row.original.isPinned ? 'currentColor' : 'none'} aria-hidden />
         </button>
       ),
       size: 80,
@@ -175,7 +211,9 @@ export function CrudPage({ endpoint, title, fields, enablePin = false }: { endpo
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="sm" className="size-8 p-0">
-              <span className="sr-only">Actions</span>
+              {/* Named per row: twenty menus all called "Actions" are twenty
+                  identical announcements. */}
+              <span className="sr-only">Actions for {rowLabel(row.original)}</span>
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-4"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
             </Button>
           </DropdownMenuTrigger>
@@ -219,6 +257,7 @@ export function CrudPage({ endpoint, title, fields, enablePin = false }: { endpo
             onSuccess: () => queryClient.invalidateQueries({ queryKey: ['settings', 'sections'] }),
           })}
           disabled={sectionToggling}
+          aria-label={`Show the ${title} section on the homepage`}
         />
       </div>
 

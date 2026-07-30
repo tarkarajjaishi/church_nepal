@@ -259,13 +259,25 @@ export function Sidebar() {
                                   <Link
                                     href={c.to}
                                     aria-current={cur ? 'page' : undefined}
-                                    className={`block truncate rounded-lg px-2.5 h-8 leading-8 text-[13px] transition-colors ${
+                                    className={`flex items-center gap-2 rounded-lg px-2.5 h-8 text-[13px] transition-colors ${
                                       cur
                                         ? 'bg-white/15 text-white font-medium'
                                         : 'text-white/60 hover:bg-white/10 hover:text-white'
                                     }`}
                                   >
-                                    {c.label}
+                                    <span className="truncate">{c.label}</span>
+                                    {/* Marked before you click, not after: these
+                                        pages are in the plan with nothing behind
+                                        them, and a dead end you were warned about
+                                        is not a dead end. */}
+                                    {c.stub && (
+                                      <span
+                                        className="ml-auto shrink-0 text-[10px] uppercase tracking-wide text-white/35 border border-white/20 rounded px-1"
+                                        title="Planned — no implementation behind it yet"
+                                      >
+                                        soon
+                                      </span>
+                                    )}
                                   </Link>
                                 </li>
                               )

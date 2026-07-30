@@ -74,12 +74,14 @@ export default function CalendarView({ events, selectedCategory }: CalendarViewP
         <div className="flex items-center gap-2">
           <button
             onClick={() => setCurrentDate(new Date(year, month - 1))}
+            aria-label="Previous month"
             className="btn btn-ghost hover:btn-active"
           >
             <ChevronLeft className="h-4 w-4" />
           </button>
           <button
             onClick={() => setCurrentDate(new Date(year, month + 1))}
+            aria-label="Next month"
             className="btn btn-ghost hover:btn-active"
           >
             <ChevronRight className="h-4 w-4" />

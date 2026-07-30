@@ -146,9 +146,9 @@ export default function TodosPage() {
                     <tr key={item.id} className={`hover:bg-gray-50 ${item.status === 'done' ? 'opacity-60' : ''}`}>
                       <td className="px-3 py-3 text-center">
                         <div className="flex flex-col items-center gap-0.5">
-                          <button onClick={() => moveItem(index, 'up')} disabled={index === 0} className="p-0.5 text-gray-400 hover:text-[#0b3c5d] disabled:opacity-30"><ChevronUp className="size-3.5" /></button>
+                          <button onClick={() => moveItem(index, 'up')} disabled={index === 0} aria-label={`Move "${item.title}" up`} className="inline-flex items-center justify-center size-6 text-gray-400 hover:text-[#0b3c5d] disabled:opacity-30 disabled:pointer-events-none"><ChevronUp className="size-3.5" aria-hidden /></button>
                           <span className="text-xs font-mono text-gray-500">{item.sortOrder ?? index}</span>
-                          <button onClick={() => moveItem(index, 'down')} disabled={index === filteredItems.length - 1} className="p-0.5 text-gray-400 hover:text-[#0b3c5d] disabled:opacity-30"><ChevronDown className="size-3.5" /></button>
+                          <button onClick={() => moveItem(index, 'down')} disabled={index === filteredItems.length - 1} aria-label={`Move "${item.title}" down`} className="inline-flex items-center justify-center size-6 text-gray-400 hover:text-[#0b3c5d] disabled:opacity-30 disabled:pointer-events-none"><ChevronDown className="size-3.5" aria-hidden /></button>
                         </div>
                       </td>
                       <td className="px-4 py-3 text-center">
@@ -167,8 +167,8 @@ export default function TodosPage() {
                       </td>
                       <td className="px-4 py-3 text-gray-500 text-xs">{item.dueDate || '—'}</td>
                       <td className="px-4 py-3 text-right">
-                        <button onClick={() => openEdit(item)} className="p-1.5 text-gray-400 hover:text-blue-600"><Pencil className="size-4" /></button>
-                        <button onClick={() => setConfirmDelete(item.id)} className="p-1.5 text-gray-400 hover:text-red-600 ml-1"><Trash2 className="size-4" /></button>
+                        <button onClick={() => openEdit(item)} aria-label={`Edit "${item.title}"`} className="inline-flex items-center justify-center size-8 text-gray-400 hover:text-blue-600"><Pencil className="size-4" aria-hidden /></button>
+                        <button onClick={() => setConfirmDelete(item.id)} aria-label={`Delete "${item.title}"`} className="inline-flex items-center justify-center size-8 text-gray-400 hover:text-red-600 ml-1"><Trash2 className="size-4" aria-hidden /></button>
                       </td>
                     </tr>
                   )
@@ -185,7 +185,7 @@ export default function TodosPage() {
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between p-5 border-b">
               <h2 className="text-lg font-bold text-[#0b3c5d]">{editing ? 'Edit Todo' : 'New Todo'}</h2>
-              <button onClick={() => { setShowForm(false); setEditing(null) }} className="p-1 text-gray-400 hover:text-gray-600"><X className="size-5" /></button>
+              <button onClick={() => { setShowForm(false); setEditing(null) }} aria-label="Close" className="inline-flex items-center justify-center size-9 text-gray-400 hover:text-gray-600"><X className="size-5" aria-hidden /></button>
             </div>
             <form onSubmit={handleSubmit} className="p-5 space-y-4">
               <div>

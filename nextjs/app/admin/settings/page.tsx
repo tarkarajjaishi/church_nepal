@@ -495,6 +495,7 @@ function ServiceTimesTab() {
                     checked={st.enabled ?? false}
                     onCheckedChange={() => handleToggle(st.id)}
                     disabled={deletingId === st.id}
+                    aria-label={`Show ${st.name} in the service times list`}
                   />
                   <Button
                     variant="ghost"

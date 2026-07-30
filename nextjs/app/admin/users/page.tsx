@@ -95,6 +95,7 @@ function UsersTable({ users }: { users: User[] }) {
                   <button
                     onClick={() => { if (confirm(`Delete user ${user.email}?`)) deleteMut.mutate(user.id) }}
                     disabled={deleteMut.isPending}
+                    aria-label={`Delete ${user.email}`}
                     className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition disabled:opacity-50"
                   >
                     <Trash2 className="w-4 h-4" />

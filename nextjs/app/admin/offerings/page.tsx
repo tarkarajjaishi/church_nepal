@@ -237,8 +237,8 @@ export default function OfferingsPage() {
                       <td className="p-2 text-muted-foreground">{o.recordedBy || '-'}</td>
                       <td className="p-2 text-right">
                         <div className="flex items-center justify-end gap-1">
-                          <button onClick={() => openEdit(o)} className="p-1 hover:bg-muted rounded"><Pencil className="size-3.5" /></button>
-                          <button onClick={() => setConfirmDelete(o.id)} className="p-1 hover:bg-destructive/10 text-destructive rounded"><Trash2 className="size-3.5" /></button>
+                          <button onClick={() => openEdit(o)} aria-label={`Edit the offering recorded on ${o.serviceDate}`} className="inline-flex items-center justify-center size-8 hover:bg-muted rounded"><Pencil className="size-3.5" aria-hidden /></button>
+                          <button onClick={() => setConfirmDelete(o.id)} aria-label={`Delete the offering recorded on ${o.serviceDate}`} className="inline-flex items-center justify-center size-8 hover:bg-destructive/10 text-destructive rounded"><Trash2 className="size-3.5" aria-hidden /></button>
                         </div>
                       </td>
                     </tr>

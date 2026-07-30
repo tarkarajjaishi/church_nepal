@@ -247,9 +247,9 @@ export default function VolunteersPage() {
         <>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <button onClick={() => setWeekOffset(weekOffset - 1)} className="p-2 hover:bg-muted rounded-lg"><ChevronLeft className="size-4" /></button>
+              <button onClick={() => setWeekOffset(weekOffset - 1)} aria-label="Previous week" className="inline-flex items-center justify-center size-9 hover:bg-muted rounded-lg"><ChevronLeft className="size-4" aria-hidden /></button>
               <span className="font-medium text-sm">{weekLabel}</span>
-              <button onClick={() => setWeekOffset(weekOffset + 1)} className="p-2 hover:bg-muted rounded-lg"><ChevronRight className="size-4" /></button>
+              <button onClick={() => setWeekOffset(weekOffset + 1)} aria-label="Next week" className="inline-flex items-center justify-center size-9 hover:bg-muted rounded-lg"><ChevronRight className="size-4" aria-hidden /></button>
               {weekOffset !== 0 && <Button variant="outline" size="sm" onClick={() => setWeekOffset(0)}>Today</Button>}
             </div>
             <Button onClick={() => openCreateShift()} className="bg-church-blue hover:bg-church-blue/90"><Plus className="size-4 mr-1" /> Add Shift</Button>
@@ -313,11 +313,11 @@ export default function VolunteersPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-1">
-                      <button onClick={() => toggleTeamMut.mutate(team.id)} className="p-1 hover:bg-muted rounded">
-                        {team.enabled ? <ToggleRight className="size-5 text-green-600" /> : <ToggleLeft className="size-5 text-muted-foreground" />}
+                      <button onClick={() => toggleTeamMut.mutate(team.id)} aria-pressed={!!team.enabled} aria-label={`${team.enabled ? 'Disable' : 'Enable'} the ${team.name} team`} className="inline-flex items-center justify-center size-8 hover:bg-muted rounded">
+                        {team.enabled ? <ToggleRight className="size-5 text-green-600" aria-hidden /> : <ToggleLeft className="size-5 text-muted-foreground" aria-hidden />}
                       </button>
-                      <button onClick={() => openEditTeam(team)} className="p-1 hover:bg-muted rounded"><Pencil className="size-3.5" /></button>
-                      <button onClick={() => setConfirmDelete({ type: 'team', id: team.id })} className="p-1 hover:bg-destructive/10 text-destructive rounded"><Trash2 className="size-3.5" /></button>
+                      <button onClick={() => openEditTeam(team)} aria-label={`Edit the ${team.name} team`} className="inline-flex items-center justify-center size-8 hover:bg-muted rounded"><Pencil className="size-3.5" aria-hidden /></button>
+                      <button onClick={() => setConfirmDelete({ type: 'team', id: team.id })} aria-label={`Delete the ${team.name} team`} className="inline-flex items-center justify-center size-8 hover:bg-destructive/10 text-destructive rounded"><Trash2 className="size-3.5" aria-hidden /></button>
                     </div>
                   </div>
                   <div className="mt-3 text-xs text-muted-foreground">

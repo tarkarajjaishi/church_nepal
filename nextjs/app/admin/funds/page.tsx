@@ -83,11 +83,11 @@ export default function FundsPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-1">
-                  <button onClick={() => toggleMut.mutate(fund.id)} className="p-1 hover:bg-muted rounded">
-                    {fund.isActive ? <ToggleRight className="size-5 text-green-600" /> : <ToggleLeft className="size-5 text-muted-foreground" />}
+                  <button onClick={() => toggleMut.mutate(fund.id)} aria-pressed={!!fund.isActive} aria-label={`${fund.isActive ? 'Close' : 'Reopen'} the ${fund.name} fund`} className="inline-flex items-center justify-center size-8 hover:bg-muted rounded">
+                    {fund.isActive ? <ToggleRight className="size-5 text-green-600" aria-hidden /> : <ToggleLeft className="size-5 text-muted-foreground" aria-hidden />}
                   </button>
-                  <button onClick={() => openEdit(fund)} className="p-1 hover:bg-muted rounded">
-                    <Pencil className="size-3.5" />
+                  <button onClick={() => openEdit(fund)} aria-label={`Edit the ${fund.name} fund`} className="inline-flex items-center justify-center size-8 hover:bg-muted rounded">
+                    <Pencil className="size-3.5" aria-hidden />
                   </button>
                 </div>
               </div>

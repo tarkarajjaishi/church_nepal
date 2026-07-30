@@ -103,8 +103,8 @@ function SortableRow({ row, children }: { row: any; children: React.ReactNode })
 function DragHandle({ id }: { id: string }) {
   const { attributes, listeners } = useSortable({ id })
   return (
-    <button className="cursor-grab active:cursor-grabbing p-1 text-gray-400 hover:text-church-blue" {...attributes} {...listeners}>
-      <GripVertical className="size-4" />
+    <button aria-label="Drag to reorder this section" className="cursor-grab active:cursor-grabbing inline-flex items-center justify-center size-8 text-gray-400 hover:text-church-blue" {...attributes} {...listeners}>
+      <GripVertical className="size-4" aria-hidden />
     </button>
   )
 }
@@ -121,7 +121,12 @@ export default function ContentBlocksPage() {
 
   const { data: items = [], isLoading } = useQuery({
     queryKey: ['content-blocks'],
-    queryFn: () => api.get('/content-blocks').then(r => r.data),
+    // This endpoint answers with a paginated envelope, not a bare array. Read
+    // straight, `items` becomes an object and `[...items]` below throws
+    // "items is not iterable" — which the error boundary catches, so the whole
+    // page becomes "Something went wrong" with no clue which call was wrong.
+    queryFn: () =>
+      api.get('/content-blocks').then((r) => (Array.isArray(r.data) ? r.data : r.data?.data ?? [])),
   })
 
   const sortedItems = useMemo(() => {
@@ -350,6 +355,7 @@ export default function ContentBlocksPage() {
                                     checked={item.enabled ?? true}
                                     onCheckedChange={() => toggleMut.mutate(item.id)}
                                     disabled={toggleMut.isPending}
+                                    aria-label={`Show "${item.title || item.sectionKey}" on the website`}
                                   />
                                   <Badge variant={item.enabled ? 'default' : 'secondary'}>
                                     {item.enabled ? 'Visible' : 'Hidden'}

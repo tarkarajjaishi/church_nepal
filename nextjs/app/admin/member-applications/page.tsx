@@ -173,8 +173,8 @@ export default function MemberApplicationsPage() {
                     <td className="p-2 text-muted-foreground text-xs">{new Date(app.createdAt).toLocaleDateString()}</td>
                     <td className="p-2 text-right" onClick={e => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-1">
-                        <button onClick={() => { setSelected(app); setReviewNotes(app.notes || '') }} className="p-1 hover:bg-muted rounded"><Eye className="size-3.5" /></button>
-                        <button onClick={() => setConfirmDelete(app.id)} className="p-1 hover:bg-destructive/10 text-destructive rounded"><Trash2 className="size-3.5" /></button>
+                        <button onClick={() => { setSelected(app); setReviewNotes(app.notes || '') }} aria-label={`Review ${app.fullName || 'this application'}`} className="inline-flex items-center justify-center size-8 hover:bg-muted rounded"><Eye className="size-3.5" aria-hidden /></button>
+                        <button onClick={() => setConfirmDelete(app.id)} aria-label={`Delete ${app.fullName || 'this application'}`} className="inline-flex items-center justify-center size-8 hover:bg-destructive/10 text-destructive rounded"><Trash2 className="size-3.5" aria-hidden /></button>
                       </div>
                     </td>
                   </tr>

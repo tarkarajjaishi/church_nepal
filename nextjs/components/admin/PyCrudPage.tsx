@@ -13,6 +13,16 @@ interface Field {
   placeholder?: string
 }
 
+/**
+ * A row's name, for labelling the controls that act on it.
+ *
+ * "Delete" repeated down a column is barely more use to a screen-reader user
+ * than "button"; "Delete Sunday Worship" is.
+ */
+function rowName(row: any): string {
+  return row?.title || row?.name || row?.label || row?.heading || row?.question || 'this row'
+}
+
 export function PyCrudPage({ endpoint, title, fields }: { endpoint: string; title: string; fields: Field[] }) {
   const queryClient = useQueryClient()
   const { useList, useCreate, useUpdate, useDelete, usePin } = createResourceHooks<any>(endpoint)
@@ -91,15 +101,15 @@ export function PyCrudPage({ endpoint, title, fields }: { endpoint: string; titl
                   ))}
                   {item.featured !== undefined && (
                     <td className="px-4 py-3">
-                      <button onClick={() => featuredMut.mutate(item.id)} className={`p-1 rounded ${item.featured ? 'text-yellow-500' : 'text-gray-300'} hover:text-yellow-500`}>
-                        <Star className={`size-4 ${item.featured ? 'fill-yellow-500' : ''}`} />
+                      <button onClick={() => featuredMut.mutate(item.id)} aria-pressed={!!item.featured} aria-label={`${item.featured ? 'Unfeature' : 'Feature'} ${rowName(item)}`} className={`inline-flex items-center justify-center size-8 rounded ${item.featured ? 'text-yellow-500' : 'text-gray-300'} hover:text-yellow-500`}>
+                        <Star className={`size-4 ${item.featured ? 'fill-yellow-500' : ''}`} aria-hidden />
                       </button>
                     </td>
                   )}
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-1">
-                      <button onClick={() => openEdit(item)} className="p-1.5 text-gray-400 hover:text-blue-600 rounded"><Pencil className="size-4" /></button>
-                      <button onClick={() => setConfirmDelete(item.id)} className="p-1.5 text-gray-400 hover:text-red-600 rounded"><Trash2 className="size-4" /></button>
+                      <button onClick={() => openEdit(item)} aria-label={`Edit ${rowName(item)}`} className="inline-flex items-center justify-center size-8 text-gray-400 hover:text-blue-600 rounded"><Pencil className="size-4" aria-hidden /></button>
+                      <button onClick={() => setConfirmDelete(item.id)} aria-label={`Delete ${rowName(item)}`} className="inline-flex items-center justify-center size-8 text-gray-400 hover:text-red-600 rounded"><Trash2 className="size-4" aria-hidden /></button>
                     </div>
                   </td>
                 </tr>
@@ -115,7 +125,7 @@ export function PyCrudPage({ endpoint, title, fields }: { endpoint: string; titl
           <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-[#0b3c5d]">{editing ? 'Edit' : 'Add'} {title.replace(/s$/, '')}</h2>
-              <button onClick={() => setShowForm(false)} className="p-1 text-gray-400 hover:text-gray-600"><X className="size-5" /></button>
+              <button onClick={() => setShowForm(false)} aria-label="Close" className="inline-flex items-center justify-center size-9 text-gray-400 hover:text-gray-600"><X className="size-5" aria-hidden /></button>
             </div>
             {error && <div className="mb-3 p-2 bg-red-50 text-red-600 text-sm rounded">{error}</div>}
             <div className="space-y-4">

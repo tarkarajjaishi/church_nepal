@@ -264,8 +264,8 @@ export default function PeoplePage() {
                         <td className="p-2 text-muted-foreground">{p.joinedDate || '-'}</td>
                         <td className="p-2 text-right" onClick={e => e.stopPropagation()}>
                           <div className="flex items-center justify-end gap-1">
-                            <button onClick={() => openEdit(p)} className="p-1 hover:bg-muted rounded"><Pencil className="size-3.5" /></button>
-                            <button onClick={() => setConfirmDelete(p.id)} className="p-1 hover:bg-destructive/10 text-destructive rounded"><Trash2 className="size-3.5" /></button>
+                            <button onClick={() => openEdit(p)} aria-label={`Edit ${p.firstName} ${p.lastName}`} className="inline-flex items-center justify-center size-8 hover:bg-muted rounded"><Pencil className="size-3.5" aria-hidden /></button>
+                            <button onClick={() => setConfirmDelete(p.id)} aria-label={`Delete ${p.firstName} ${p.lastName}`} className="inline-flex items-center justify-center size-8 hover:bg-destructive/10 text-destructive rounded"><Trash2 className="size-3.5" aria-hidden /></button>
                           </div>
                         </td>
                       </tr>
@@ -302,8 +302,8 @@ export default function PeoplePage() {
                           {h.phone && <p className="text-sm text-muted-foreground">{h.phone}</p>}
                         </div>
                         <div className="flex gap-1">
-                          <button onClick={() => { setEditingHousehold(h); setHouseholdForm(h); setShowHouseholdForm(true) }} className="p-1 hover:bg-muted rounded"><Pencil className="size-3.5" /></button>
-                          <button onClick={() => deleteHouseholdMut.mutate(h.id)} className="p-1 hover:bg-destructive/10 text-destructive rounded"><Trash2 className="size-3.5" /></button>
+                          <button onClick={() => { setEditingHousehold(h); setHouseholdForm(h); setShowHouseholdForm(true) }} aria-label={`Edit the ${h.name} household`} className="inline-flex items-center justify-center size-8 hover:bg-muted rounded"><Pencil className="size-3.5" aria-hidden /></button>
+                          <button onClick={() => deleteHouseholdMut.mutate(h.id)} aria-label={`Delete the ${h.name} household`} className="inline-flex items-center justify-center size-8 hover:bg-destructive/10 text-destructive rounded"><Trash2 className="size-3.5" aria-hidden /></button>
                         </div>
                       </div>
                       <div className="mt-3 flex flex-wrap gap-1">
@@ -342,7 +342,7 @@ export default function PeoplePage() {
                 <div key={t.id} className="flex items-center gap-2 px-3 py-2 rounded-lg border" style={{ borderColor: t.color + '40' }}>
                   <div className="size-3 rounded-full" style={{ backgroundColor: t.color }} />
                   <span className="text-sm font-medium">{t.name}</span>
-                  <button onClick={() => deleteTagMut.mutate(t.id)} className="text-muted-foreground hover:text-destructive"><X className="size-3.5" /></button>
+                  <button onClick={() => deleteTagMut.mutate(t.id)} aria-label={`Delete the "${t.name}" tag`} className="inline-flex items-center justify-center size-6 text-muted-foreground hover:text-destructive"><X className="size-3.5" aria-hidden /></button>
                 </div>
               ))}
               {tags.length === 0 && <p className="text-muted-foreground">No tags yet</p>}
@@ -388,8 +388,8 @@ export default function PeoplePage() {
                       <Badge key={t.id} variant="secondary" className="text-xs gap-1" style={{ backgroundColor: t.color + '20', color: t.color }}>
                         {t.name}
                         {showTagManager && (
-                          <button onClick={() => removePersonTagMut.mutate({ personId: selectedPerson.id, tagId: t.id })} className="hover:text-destructive">
-                            <X className="size-3" />
+                          <button onClick={() => removePersonTagMut.mutate({ personId: selectedPerson.id, tagId: t.id })} aria-label={`Remove the "${t.name}" tag`} className="inline-flex items-center justify-center size-5 hover:text-destructive">
+                            <X className="size-3" aria-hidden />
                           </button>
                         )}
                       </Badge>
@@ -430,8 +430,8 @@ export default function PeoplePage() {
                           <div key={n.id} className="p-3 bg-muted/50 rounded-lg text-sm">
                             <div className="flex items-center justify-between mb-1">
                               <span className="text-muted-foreground text-xs">{n.author} - {new Date(n.createdAt).toLocaleDateString()}</span>
-                              <button onClick={() => deleteNoteMut.mutate({ personId: selectedPerson.id, noteId: n.id })} className="text-muted-foreground hover:text-destructive">
-                                <Trash2 className="size-3" />
+                              <button onClick={() => deleteNoteMut.mutate({ personId: selectedPerson.id, noteId: n.id })} aria-label={`Delete the note by ${n.author}`} className="inline-flex items-center justify-center size-6 text-muted-foreground hover:text-destructive">
+                                <Trash2 className="size-3" aria-hidden />
                               </button>
                             </div>
                             <p>{n.note}</p>

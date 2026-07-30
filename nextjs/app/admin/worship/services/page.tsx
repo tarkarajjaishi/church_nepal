@@ -245,7 +245,7 @@ function ServicesInner() {
                     <button type="button" onClick={onDuplicate} className={btn.secondary}>
                       <Copy className="size-4" aria-hidden /> Duplicate
                     </button>
-                    <button type="button" onClick={() => window.print()} className={btn.secondary}>
+                    <button type="button" onClick={() => window.print()} aria-label="Print this service plan" className={btn.secondary}>
                       <Printer className="size-4" aria-hidden />
                     </button>
                     <button type="button"

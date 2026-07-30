@@ -30,7 +30,7 @@ export type NavLink = {
    * in it — a module's own sub-navigation used to be a second column beside the
    * sidebar, which cost 224px of table width and meant two menus to read.
    */
-  children?: { to: string; label: string }[]
+  children?: { to: string; label: string; stub?: boolean }[]
 }
 
 export type NavGroup = {
@@ -90,13 +90,13 @@ export const NAV: NavGroup[] = [
           { to: '/admin/offering-management/cash-counting', label: 'Cash counting' },
           { to: '/admin/offering-management/deposits', label: 'Deposits' },
           { to: '/admin/offering-management/bank-accounts', label: 'Bank accounts' },
-          { to: '/admin/offering-management/donors', label: 'Donors' },
-          { to: '/admin/offering-management/recurring', label: 'Recurring giving' },
-          { to: '/admin/offering-management/campaigns', label: 'Campaigns' },
-          { to: '/admin/offering-management/funds', label: 'Funds' },
-          { to: '/admin/offering-management/receipts', label: 'Receipts' },
-          { to: '/admin/offering-management/reports', label: 'Financial reports' },
-          { to: '/admin/offering-management/analytics', label: 'Analytics' },
+          { stub: true, to: '/admin/offering-management/donors', label: 'Donors' },
+          { stub: true, to: '/admin/offering-management/recurring', label: 'Recurring giving' },
+          { stub: true, to: '/admin/offering-management/campaigns', label: 'Campaigns' },
+          { stub: true, to: '/admin/offering-management/funds', label: 'Funds' },
+          { stub: true, to: '/admin/offering-management/receipts', label: 'Receipts' },
+          { stub: true, to: '/admin/offering-management/reports', label: 'Financial reports' },
+          { stub: true, to: '/admin/offering-management/analytics', label: 'Analytics' },
           { to: '/admin/offering-management/settings', label: 'Settings' },
         ],
       },
@@ -134,7 +134,7 @@ export const NAV: NavGroup[] = [
           { to: '/admin/presentation/presentations', label: 'Presentations' },
           { to: '/admin/presentation/displays', label: 'Displays' },
           { to: '/admin/presentation/themes', label: 'Themes' },
-          { to: '/admin/presentation/history', label: 'History' },
+          { stub: true, to: '/admin/presentation/history', label: 'History' },
         ],
       },
       {

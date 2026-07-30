@@ -62,11 +62,11 @@ function TeamCard({ member, onDelete, onToggleFeatured, deletingId, togglingId }
           <Star className={`w-3.5 h-3.5 ${member.featured ? 'fill-current' : ''}`} />
           {member.featured ? 'Featured' : 'Feature'}
         </button>
-        <Link href={`/admin/team/${member.id}`} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition">
-          <Edit className="w-4 h-4" />
+        <Link href={`/admin/team/${member.id}`} aria-label={`Edit ${member.name}`} className="inline-flex items-center justify-center size-9 text-blue-600 hover:bg-blue-50 rounded-lg transition">
+          <Edit className="w-4 h-4" aria-hidden />
         </Link>
-        <button onClick={() => onDelete(member.id)} disabled={deletingId === member.id} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition disabled:opacity-50">
-          <Trash2 className="w-4 h-4" />
+        <button onClick={() => onDelete(member.id)} disabled={deletingId === member.id} aria-label={`Delete ${member.name}`} className="inline-flex items-center justify-center size-9 text-red-600 hover:bg-red-50 rounded-lg transition disabled:opacity-50">
+          <Trash2 className="w-4 h-4" aria-hidden />
         </button>
       </div>
     </motion.div>
