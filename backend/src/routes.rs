@@ -521,6 +521,24 @@ pub fn admin_routes() -> Router {
             "/offering-management/dashboard",
             get(offering_mgmt::dashboard),
         )
+        // Donors, fund balances and analytics are read models over the same
+        // offerings the dashboard counts — nothing here is stored.
+        .route("/offering-management/donors", get(offering_insights::donors_list))
+        .route("/offering-management/donors/{key}", get(offering_insights::donor_detail))
+        .route("/offering-management/fund-balances", get(offering_insights::fund_balances))
+        .route("/offering-management/analytics", get(offering_insights::analytics))
+        // `receipts/issue` before `receipts/{id}/...` so the static segment wins.
+        .route(
+            "/offering-management/recurring",
+            get(offering_insights::recurring_list).post(offering_insights::recurring_create),
+        )
+        .route("/offering-management/recurring/{id}/collect", post(offering_insights::recurring_collect))
+        .route("/offering-management/recurring/{id}/{action}", post(offering_insights::recurring_status))
+        .route("/offering-management/receipts", get(offering_receipts::list))
+        .route("/offering-management/receipts/issue", post(offering_receipts::issue_bulk))
+        .route("/offering-management/receipts/{id}/issue", post(offering_receipts::issue))
+        .route("/offering-management/receipts/{id}/pdf", get(offering_receipts::pdf))
+        .route("/offering-management/receipts/{id}/send", post(offering_receipts::send))
         .route("/offering-management/offerings", get(offering_mgmt::offerings_page))
         .route(
             "/offering-management/offerings/create",

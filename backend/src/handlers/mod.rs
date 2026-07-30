@@ -42,6 +42,8 @@ pub mod verses;
 pub mod volunteers;
 pub mod webhooks;
 pub mod offering_mgmt;
+pub mod offering_insights;
+pub mod offering_receipts;
 pub mod church_dashboard;
 pub mod worship;
 pub mod assets;
