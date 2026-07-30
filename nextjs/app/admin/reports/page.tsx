@@ -5,12 +5,13 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import {
   BarChart3, FileDown, Printer, TrendingUp, TrendingDown, Minus, PackageOpen, Search,
-  Bookmark, BookmarkPlus, Pencil, Trash2, Users, FileText,
+  Bookmark, BookmarkPlus, Pencil, Trash2, Users, FileText, Mail,
 } from 'lucide-react'
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer,
 } from 'recharts'
+import Link from 'next/link'
 import api from '@/lib/api'
 import {
   reportsApi, savedApi, formatCell, isNumeric, presets,
@@ -258,6 +259,9 @@ export default function ReportsPage() {
             {/* A treasurer takes this to a board meeting. The print stylesheet
                 below drops the chrome so the page comes out as a report
                 rather than a screenshot of an admin panel. */}
+            <Link href="/admin/reports/schedules" className={btn.secondary}>
+              <Mail className="size-4" aria-hidden /> Scheduled
+            </Link>
             <button
               type="button"
               onClick={() => { setEditingView(openView); setSaving(true) }}

@@ -159,6 +159,7 @@ async fn run_recurring_job(reg: TenantRegistry) {
             process_due_recurring_donations(pool).await;
             process_scheduled_broadcasts(pool).await;
             process_webhook_deliveries(pool.clone()).await;
+            handlers::report_schedules::process_due(pool).await;
         }
     }
 }

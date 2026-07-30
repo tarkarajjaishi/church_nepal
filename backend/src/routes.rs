@@ -681,6 +681,15 @@ pub fn admin_routes() -> Router {
         )
         .route("/reports/saved/{id}/run", get(saved_reports::run))
         .route("/reports/saved/{id}/export", get(saved_reports::export))
+        // Schedules and their delivery log. `schedules` before `{key}` for the
+        // same reason `saved` is.
+        .route("/reports/schedules", get(report_schedules::list).post(report_schedules::create))
+        .route(
+            "/reports/schedules/{id}",
+            put(report_schedules::update).delete(report_schedules::delete),
+        )
+        .route("/reports/schedules/{id}/send", post(report_schedules::send_now))
+        .route("/reports/deliveries", get(report_schedules::deliveries))
         .route("/reports/{key}", get(reports::run))
         .route("/reports/{key}/export", get(reports::export))
         // ---- Roles & permissions --------------------------------------------

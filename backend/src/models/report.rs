@@ -199,6 +199,55 @@ pub struct SavedReport {
     pub schedule_count: i64,
 }
 
+#[derive(Debug, Serialize, sqlx::FromRow)]
+pub struct ReportSchedule {
+    pub id: uuid::Uuid,
+    pub saved_report_id: uuid::Uuid,
+    pub frequency: String,
+    /// 0 = Sunday. Read for weekly only.
+    pub day_of_week: i32,
+    /// 1..28, so February always has one. Read for monthly only.
+    pub day_of_month: i32,
+    pub hour: i32,
+    pub recipients: String,
+    pub is_active: bool,
+    pub next_run_at: chrono::NaiveDateTime,
+    pub last_run_at: Option<chrono::NaiveDateTime>,
+    pub last_status: String,
+    pub last_error: String,
+    pub run_count: i32,
+    pub created_by: String,
+    /// From the saved report, so a list of schedules reads as sentences
+    /// rather than as a column of UUIDs.
+    #[sqlx(default)]
+    pub report_name: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct UpsertSchedule {
+    pub saved_report_id: uuid::Uuid,
+    pub frequency: Option<String>,
+    pub day_of_week: Option<i32>,
+    pub day_of_month: Option<i32>,
+    pub hour: Option<i32>,
+    /// Comma or newline separated.
+    pub recipients: String,
+    pub is_active: Option<bool>,
+}
+
+#[derive(Debug, Serialize, sqlx::FromRow)]
+pub struct ReportDelivery {
+    pub id: uuid::Uuid,
+    pub report_name: String,
+    pub recipients: String,
+    pub status: String,
+    pub error: String,
+    pub period_from: Option<chrono::NaiveDate>,
+    pub period_to: Option<chrono::NaiveDate>,
+    pub row_count: i32,
+    pub sent_at: chrono::NaiveDateTime,
+}
+
 #[derive(Debug, Deserialize)]
 pub struct UpsertSavedReport {
     pub name: String,

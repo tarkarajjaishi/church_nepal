@@ -728,6 +728,12 @@ const CHECKS = [
     },
   },
   {
+    name: 'report pages render',
+    async run() {
+      return checkPages('/admin/reports', ['', '/schedules'])
+    },
+  },
+  {
     name: 'library admin pages render',
     async run() {
       return checkPages('/admin/library', ['', '/catalogue', '/loans', '/holds', '/borrowers', '/settings'])

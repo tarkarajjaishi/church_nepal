@@ -32,17 +32,19 @@ function tokenFor(id, email) {
 }
 const ROOT = tokenFor('seed', 'seed@local')
 
-async function req(token, route) {
+async function req(token, route, method = 'GET', body) {
   const res = await fetch(`${API}/api${route}`, {
-    headers: { authorization: `Bearer ${token}` },
+    method,
+    headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+    body: body === undefined ? undefined : JSON.stringify(body),
   })
   const text = await res.text()
   let parsed
   try { parsed = text ? JSON.parse(text) : null } catch { parsed = text }
   return { status: res.status, body: parsed, text }
 }
-async function api(route) {
-  const r = await req(ROOT, route)
+async function api(route, method = 'GET', body) {
+  const r = await req(ROOT, route, method, body)
   if (r.status >= 400) {
     const e = new Error(`GET ${route} -> ${r.status} ${JSON.stringify(r.body)?.slice(0, 200)}`)
     e.status = r.status
@@ -57,8 +59,8 @@ function check(name, cond, detail = '') {
   if (cond) { passed++; console.log(`  PASS  ${name}`) }
   else { failures.push(`${name}${detail ? ` — ${detail}` : ''}`); console.log(`  FAIL  ${name}${detail ? ` — ${detail}` : ''}`) }
 }
-async function expectStatus(name, want, token, route) {
-  const r = await req(token, route)
+async function expectStatus(name, want, token, route, method = 'GET', body) {
+  const r = await req(token, route, method, body)
   if (r.status === 429) {
     failures.push(`${name} — rate limited, result unknown`)
     console.log(`  FAIL  ${name} — rate limited, result unknown`)
@@ -326,6 +328,82 @@ async function main() {
 
   await expectStatus('an unknown format is refused', 400, ROOT,
     `/reports/giving-summary/export?${FULL}&format=xlsx`)
+
+  // -- 6c. Saved views and schedules ---------------------------------------
+  console.log('\n6c. Saved views and schedules')
+  const viewName = `Test view ${Date.now()}`
+  const view = await api('/reports/saved', 'POST', {
+    name: viewName, report_key: 'giving-summary', period: 'this_year',
+    columns: ['donor', 'total', 'gifts'], sort_column: 'total', sort_desc: true,
+    filters: [{ column: 'total', op: 'gte', value: '50000' }],
+  })
+  const ran = await api(`/reports/saved/${view.id}/run`)
+  check('a saved view keeps its own name', ran.name === viewName)
+  check('and only the columns it chose', ran.columns.map((c) => c.key).join(',') === 'donor,total,gifts',
+    ran.columns.map((c) => c.key).join(','))
+  check('its filter narrows the table', ran.rows.length < ran.total_rows,
+    `${ran.rows.length} of ${ran.total_rows}`)
+  check('every surviving row passes the filter', ran.rows.every((r) => r.total >= 50000))
+  check('and they are sorted as asked',
+    ran.rows.every((r, i) => i === 0 || ran.rows[i - 1].total >= r.total))
+  check('totals are over the rows shown, not the whole period',
+    ran.totals.total === ran.rows.reduce((s, r) => s + r.total, 0),
+    `${ran.totals.total}`)
+
+  // A named period must move with the calendar, or a weekly email becomes a
+  // stuck clock pointing at whenever it was set up.
+  check('a named period resolves to now, not to when it was saved',
+    ran.from === `${YEAR}-01-01`, ran.from)
+
+  await expectStatus('a filter on a column that does not exist is refused at save time', 400,
+    ROOT, '/reports/saved', 'POST',
+    { name: 'Bad', report_key: 'giving-summary', filters: [{ column: 'nope', op: 'eq', value: '1' }] })
+  await expectStatus('so is a made-up report', 400, ROOT, '/reports/saved', 'POST',
+    { name: 'Bad2', report_key: 'not-a-report' })
+  await expectStatus('and a duplicate name', 409, ROOT, '/reports/saved', 'POST',
+    { name: viewName, report_key: 'giving-summary' })
+
+  const sched = await api('/reports/schedules', 'POST', {
+    saved_report_id: view.id, frequency: 'weekly', day_of_week: 1, hour: 7,
+    recipients: 'treasurer@test.local, pastor@test.local',
+  })
+  check('a schedule computes its next send', /^\d{4}-\d{2}-\d{2}T07:00/.test(sched.next_run_at),
+    sched.next_run_at)
+  check('and lands on the chosen day',
+    new Date(sched.next_run_at + 'Z').getUTCDay() === 1, sched.next_run_at)
+
+  await expectStatus('an unimplemented frequency is refused', 400, ROOT,
+    '/reports/schedules', 'POST',
+    { saved_report_id: view.id, frequency: 'fortnightly', recipients: 'a@b.org' })
+  await expectStatus('a bad address is refused, naming it', 400, ROOT,
+    '/reports/schedules', 'POST',
+    { saved_report_id: view.id, recipients: 'a@b.org, not-an-address' })
+
+  // The one that matters: with no SMTP configured this must FAIL, and the
+  // failure must be recorded. A schedule that says "sent" while sending
+  // nothing is the worst outcome, because the treasurer stops checking.
+  const send = await req(ROOT, `/reports/schedules/${sched.id}/send`, 'POST')
+  const configured = !!process.env.SMTP_HOST
+  if (configured) {
+    check('sending works when SMTP is configured', send.status === 200)
+  } else {
+    check('an unconfigured SMTP server is a failure, not a silent success',
+      send.status === 400 && /SMTP/i.test(JSON.stringify(send.body)),
+      JSON.stringify(send.body).slice(0, 120))
+  }
+  const log = await api('/reports/deliveries')
+  check('every attempt is recorded, including the failures', log.length > 0)
+  check('and the record says why', configured || (log[0].status === 'failed' && !!log[0].error),
+    JSON.stringify(log[0]).slice(0, 140))
+
+  const after = (await api('/reports/schedules')).find((s) => s.id === sched.id)
+  check('a manual send does not move the schedule', after.next_run_at === sched.next_run_at)
+  check('but it does record the outcome', after.last_status !== '')
+
+  await api(`/reports/schedules/${sched.id}`, 'DELETE')
+  const del = await api(`/reports/saved/${view.id}`, 'DELETE')
+  check('deleting a view reports how many schedules it stopped',
+    typeof del.schedules_stopped === 'number')
 
   // -- 7. Permission scoping -----------------------------------------------
   console.log('\n7. A report is as closed as the module it reads')

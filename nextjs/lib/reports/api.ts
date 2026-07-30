@@ -125,6 +125,61 @@ export const PERIODS: { value: string; label: string }[] = [
   { value: 'custom', label: 'Fixed dates' },
 ]
 
+export interface ReportSchedule {
+  id: string
+  savedReportId: string
+  frequency: 'daily' | 'weekly' | 'monthly'
+  dayOfWeek: number
+  dayOfMonth: number
+  hour: number
+  recipients: string
+  isActive: boolean
+  nextRunAt: string
+  lastRunAt: string | null
+  lastStatus: string
+  lastError: string
+  runCount: number
+  createdBy: string
+  reportName: string
+}
+
+export interface ReportDelivery {
+  id: string
+  reportName: string
+  recipients: string
+  status: string
+  error: string
+  periodFrom: string | null
+  periodTo: string | null
+  rowCount: number
+  sentAt: string
+}
+
+export const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+
+/** "Every Monday at 07:00" — a schedule should read as a sentence. */
+export function describeSchedule(s: ReportSchedule): string {
+  const hour = `${String(s.hour).padStart(2, '0')}:00`
+  if (s.frequency === 'daily') return `Every day at ${hour}`
+  if (s.frequency === 'monthly') {
+    const n = s.dayOfMonth
+    const suffix = n === 1 ? 'st' : n === 2 ? 'nd' : n === 3 ? 'rd' : 'th'
+    return `The ${n}${suffix} of each month at ${hour}`
+  }
+  return `Every ${DAYS[s.dayOfWeek] ?? 'Monday'} at ${hour}`
+}
+
+export const schedulesApi = {
+  list: () => api.get<ReportSchedule[]>('/reports/schedules').then((r) => r.data),
+  create: (body: Record<string, unknown>) =>
+    api.post('/reports/schedules', body).then((r) => r.data),
+  update: (id: string, body: Record<string, unknown>) =>
+    api.put(`/reports/schedules/${id}`, body).then((r) => r.data),
+  remove: (id: string) => api.delete(`/reports/schedules/${id}`).then((r) => r.data),
+  sendNow: (id: string) => api.post(`/reports/schedules/${id}/send`).then((r) => r.data),
+  deliveries: () => api.get<ReportDelivery[]>('/reports/deliveries').then((r) => r.data),
+}
+
 export const savedApi = {
   list: () => api.get<SavedReport[]>('/reports/saved').then((r) => r.data),
   create: (body: Record<string, unknown>) =>
