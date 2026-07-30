@@ -11,9 +11,17 @@ import {
   Plus,
   Church,
   ScrollText,
+  Info,
 } from 'lucide-react'
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
-import { BOOK_NAMES, OT_BOOKS, NT_BOOKS, normalizeBookCode } from '@/lib/bible/books'
+import { ThemeToggle } from '@/components/site/ThemeToggle'
+import {
+  BOOK_NAMES,
+  OT_BOOKS,
+  NT_BOOKS,
+  CHAPTER_COUNTS,
+  normalizeBookCode,
+} from '@/lib/bible/books'
 
 interface BibleSidebarProps {
   selectedBook: string
@@ -35,6 +43,9 @@ export function BibleSidebar({
 }: BibleSidebarProps) {
   const book = normalizeBookCode(selectedBook)
   const [searchQuery, setSearchQuery] = useState('')
+  // Which book's chapter grid is open. Defaults to the book being read, so
+  // its chapters are one click away on arrival.
+  const [expandedBook, setExpandedBook] = useState<string | null>(book)
   const [otOpen, setOtOpen] = useState(true)
   const [ntOpen, setNtOpen] = useState(
     (NT_BOOKS as readonly string[]).includes(book)
@@ -135,6 +146,8 @@ export function BibleSidebar({
               key={abbr}
               abbr={abbr}
               active={book === abbr}
+              expanded={expandedBook === abbr}
+              onToggle={() => setExpandedBook(expandedBook === abbr ? null : abbr)}
               onNavigate={mode === 'drawer' ? onClose : undefined}
             />
           ))}
@@ -157,6 +170,8 @@ export function BibleSidebar({
               key={abbr}
               abbr={abbr}
               active={book === abbr}
+              expanded={expandedBook === abbr}
+              onToggle={() => setExpandedBook(expandedBook === abbr ? null : abbr)}
               onNavigate={mode === 'drawer' ? onClose : undefined}
             />
           ))}
@@ -258,34 +273,80 @@ function Section({
   )
 }
 
+/**
+ * A book row that expands into its chapter grid in place.
+ *
+ * Picking a chapter used to mean: open the book (full navigation), then open
+ * a separate chapter dialog. The grid lives under the book instead, so the
+ * whole choice is one list — the ⓘ tile is the book introduction, ahead of
+ * chapter 1, matching how printed Bibles and other readers order it.
+ */
 function BookLink({
   abbr,
   active,
+  expanded,
+  onToggle,
   onNavigate,
 }: {
   abbr: string
   active: boolean
+  expanded: boolean
+  onToggle: () => void
   onNavigate?: () => void
 }) {
+  const chapters = CHAPTER_COUNTS[abbr] ?? 1
+  const gridId = `bible-chapters-${abbr}`
+
   return (
-    <Link
-      href={`/bible/${abbr}`}
-      onClick={onNavigate}
-      className={`group flex items-center gap-2.5 min-h-11 px-3 py-2.5 rounded-xl text-[13px] font-nepali transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/40 ${
-        active
-          ? 'bg-white/15 text-white shadow-sm ring-1 ring-white/10'
-          : 'text-white/65 hover:bg-white/[0.08] hover:text-white'
-      }`}
-    >
-      <BookOpen
-        className={`size-4 shrink-0 ${
-          active ? 'text-gold' : 'text-white/35 group-hover:text-white/55'
+    <div>
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={expanded}
+        aria-controls={gridId}
+        className={`group w-full flex items-center gap-2.5 min-h-11 px-3 py-2.5 rounded-xl text-[13px] font-nepali transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/40 ${
+          active || expanded
+            ? 'bg-white/15 text-white shadow-sm ring-1 ring-white/10'
+            : 'text-white/65 hover:bg-white/[0.08] hover:text-white'
         }`}
-      />
-      <span className="truncate leading-snug">{BOOK_NAMES[abbr]}</span>
-      {active && (
-        <span className="ml-auto size-1.5 rounded-full bg-gold shrink-0" aria-hidden />
+      >
+        <BookOpen
+          className={`size-4 shrink-0 ${
+            active ? 'text-gold' : 'text-white/35 group-hover:text-white/55'
+          }`}
+        />
+        <span className="truncate leading-snug text-left flex-1">{BOOK_NAMES[abbr]}</span>
+        {active && <span className="size-1.5 rounded-full bg-gold shrink-0" aria-hidden />}
+        <ChevronDown
+          className={`size-3.5 shrink-0 text-white/35 transition-transform duration-200 ${
+            expanded ? 'rotate-180' : ''
+          }`}
+        />
+      </button>
+
+      {expanded && (
+        <div id={gridId} className="grid grid-cols-5 gap-1 px-2 pt-1.5 pb-2">
+          <Link
+            href={`/bible/${abbr}?chapter=0`}
+            onClick={onNavigate}
+            aria-label={`${BOOK_NAMES[abbr]} — पुस्तक परिचय`}
+            title="पुस्तक परिचय"
+            className="aspect-square min-h-9 grid place-items-center rounded-lg bg-gold/15 text-gold hover:bg-gold/25 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/40"
+          >
+            <Info className="size-3.5" />
+          </Link>
+          {Array.from({ length: chapters }, (_, i) => i + 1).map((n) => (
+            <Link
+              key={n}
+              href={`/bible/${abbr}${n === 1 ? '' : `?chapter=${n}`}`}
+              onClick={onNavigate}
+              className="aspect-square min-h-9 grid place-items-center rounded-lg bg-white/[0.07] text-white/75 text-xs font-semibold tabular-nums hover:bg-white/15 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/40"
+            >
+              {n}
+            </Link>
+          ))}
+        </div>
       )}
-    </Link>
+    </div>
   )
 }
