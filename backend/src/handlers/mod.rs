@@ -47,6 +47,7 @@ pub mod worship;
 pub mod assets;
 pub mod presentation;
 pub mod presentation_live;
+pub mod library;
 
 // ── Validation infrastructure ────────────────────────────────────────────────
 

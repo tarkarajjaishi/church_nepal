@@ -40,6 +40,7 @@ pub mod offering_mgmt;
 pub mod worship;
 pub mod asset;
 pub mod presentation;
+pub mod library;
 
 pub use pagination::*;
 pub use user::*;

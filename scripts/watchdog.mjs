@@ -51,13 +51,16 @@ function adminToken() {
 
 const TOKEN = adminToken()
 
-async function fetchJson(url, { auth = false } = {}) {
+async function fetchJson(url, { auth = false, headers = {} } = {}) {
   const ctrl = new AbortController()
   const t = setTimeout(() => ctrl.abort(), TIMEOUT_MS)
   try {
     const res = await fetch(url, {
       signal: ctrl.signal,
-      headers: auth && TOKEN ? { authorization: `Bearer ${TOKEN}` } : {},
+      headers: {
+        ...(auth && TOKEN ? { authorization: `Bearer ${TOKEN}` } : {}),
+        ...headers,
+      },
     })
     const text = await res.text()
     let json = null
@@ -410,6 +413,76 @@ const CHECKS = [
     },
   },
   {
+    name: 'no copy is lent to two people',
+    async run() {
+      if (!TOKEN) return { ok: false, detail: 'no JWT_SECRET' }
+      // A partial unique index on (copy_id) WHERE returned_on IS NULL is what
+      // makes concurrent lending safe. If it were ever dropped, the second
+      // borrower would succeed silently and the shelf would go short, so
+      // assert the property it guarantees rather than trusting the index.
+      const r = await fetchJson(`${CHURCH_API}/api/library/loans?status=open`, { auth: true })
+      if (r.status !== 200) return { ok: false, detail: `HTTP ${r.status}` }
+      const open = r.json ?? []
+      const seen = new Set()
+      for (const l of open) {
+        if (seen.has(l.copy_id)) {
+          return { ok: false, detail: `copy ${l.copy_code} is out to two people` }
+        }
+        seen.add(l.copy_id)
+      }
+      return { ok: true, detail: `${open.length} open loan(s), each on its own copy` }
+    },
+  },
+  {
+    name: 'library stock adds up',
+    async run() {
+      if (!TOKEN) return { ok: false, detail: 'no JWT_SECRET' }
+      const [d, b] = await Promise.all([
+        fetchJson(`${CHURCH_API}/api/library/dashboard`, { auth: true }),
+        fetchJson(`${CHURCH_API}/api/library/books?per_page=200`, { auth: true }),
+      ])
+      if (d.status !== 200 || b.status !== 200) {
+        return { ok: false, detail: `HTTP ${d.status}/${b.status}` }
+      }
+      const dash = d.json
+      if (dash.total_copies === 0) return { ok: true, detail: 'no copies catalogued' }
+
+      // Availability is derived on every read. These are the invariants that
+      // separate a correct shelf count from a plausible-looking wrong one.
+      if (dash.available + dash.on_loan !== dash.total_copies) {
+        return {
+          ok: false,
+          detail: `${dash.available} available + ${dash.on_loan} out != ${dash.total_copies} copies`,
+        }
+      }
+      const bad = (b.json?.data ?? []).filter(
+        (x) => x.available_copies + x.on_loan !== x.total_copies || x.available_copies < 0
+      )
+      if (bad.length) return { ok: false, detail: `${bad[0].title} reports impossible stock` }
+
+      // A title with copies free must have nobody queued for it.
+      const stuck = (b.json?.data ?? []).find((x) => x.holds_waiting > 0 && x.available_copies > 0)
+      if (stuck) return { ok: false, detail: `${stuck.title} has a queue but sits on the shelf` }
+
+      return {
+        ok: true,
+        detail: `${dash.total_titles} titles, ${dash.available}/${dash.total_copies} on shelf, ${dash.overdue} overdue`,
+      }
+    },
+  },
+  {
+    name: 'library admin pages render',
+    async run() {
+      const pages = ['', '/catalogue', '/loans', '/holds', '/borrowers', '/settings']
+      const bad = []
+      for (const p of pages) {
+        const r = await fetchJson(`${CHURCH_WEB}/admin/library${p}`)
+        if (r.status !== 200) bad.push(`${p || '/'}:${r.status}`)
+      }
+      return { ok: bad.length === 0, detail: bad.length ? bad.join(' ') : `${pages.length} pages OK` }
+    },
+  },
+  {
     name: 'asset admin pages render',
     async run() {
       const pages = ['', '/register', '/assignments', '/reservations', '/maintenance', '/categories', '/suppliers']
@@ -469,10 +542,17 @@ const CHECKS = [
     async run() {
       // A bogus subdomain once exhausted the pool and 500'd every tenant.
       // It must 404 quickly instead.
+      //
+      // Sent to 127.0.0.1 with an explicit Host header rather than to
+      // nosuchchurch.localhost: Windows does not resolve *.localhost, so that
+      // form tested the resolver and reported ENOTFOUND as an app failure.
+      // The Host header is the only thing tenant resolution reads anyway.
       const t0 = Date.now()
       let status
       try {
-        const r = await fetchJson('http://nosuchchurch.localhost:3002/api/sermons')
+        const r = await fetchJson('http://127.0.0.1:3002/api/sermons', {
+          headers: { host: 'nosuchchurch.localhost' },
+        })
         status = r.status
       } catch (e) {
         return { ok: false, detail: `request failed: ${e.message}` }
