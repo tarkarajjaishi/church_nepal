@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 import { Plus, X, Save, Search, ChevronLeft, ChevronRight } from 'lucide-react'
 import { helpdeskApi, STATUS_LABEL, type TicketFilters, type Status } from '@/lib/helpdesk/api'
 import { TicketTable } from '@/components/helpdesk/TicketTable'
+import { BulkBar } from '@/components/helpdesk/BulkBar'
 import { CARD, PageHeader, btn, field, Label } from '@/components/offerings/ui'
 
 const PRIORITIES = ['low', 'normal', 'high', 'urgent'] as const
@@ -23,6 +24,7 @@ function TicketsInner() {
   const [creating, setCreating] = useState(params.get('new') === '1')
   const [f, setF] = useState(EMPTY)
   const [search, setSearch] = useState('')
+  const [selected, setSelected] = useState<Set<string>>(new Set())
   const [filters, setFilters] = useState<TicketFilters>({
     page: 1,
     per_page: 25,
@@ -56,8 +58,19 @@ function TicketsInner() {
     onError: (e: Error) => toast.error(e.message || 'Could not raise this ticket'),
   })
 
-  const apply = (patch: Partial<TicketFilters>) =>
+  const apply = (patch: Partial<TicketFilters>) => {
+    // A selection is of rows you can see. Keeping it across a filter change
+    // would act on tickets that are no longer on screen.
+    setSelected(new Set())
     setFilters((s) => ({ ...s, ...patch, page: patch.page ?? 1 }))
+  }
+
+  const select = (ids: string[], checked: boolean) =>
+    setSelected((prev) => {
+      const next = new Set(prev)
+      for (const id of ids) checked ? next.add(id) : next.delete(id)
+      return next
+    })
 
   const page = data?.page ?? 1
   const totalPages = data?.totalPages ?? 1
@@ -162,12 +175,16 @@ function TicketsInner() {
         </form>
       </div>
 
+      <BulkBar ids={[...selected]} categories={cats} onDone={() => setSelected(new Set())} />
+
       <div className={`${CARD} overflow-hidden`}>
         <TicketTable
           data={data?.data}
           isLoading={isLoading}
           error={error}
           onRetry={() => refetch()}
+          selected={selected}
+          onSelect={select}
           emptyTitle="Nothing here"
           emptySubtitle={filters.search || filters.status ? 'No ticket matches these filters.' : 'Nothing has been reported yet.'}
           action={<button type="button" onClick={() => setCreating(true)} className={btn.primary}>Raise a ticket</button>}

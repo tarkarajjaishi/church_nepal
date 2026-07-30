@@ -15,7 +15,9 @@ const IMAGE_WIDTHS: [u32; 3] = [300, 800, 1600];
 fn storage_root() -> String {
     std::env::var("STORAGE_ROOT").unwrap_or_else(|_| "../storage".into())
 }
-fn storage_dir(slug: &str) -> std::path::PathBuf {
+/// Shared with the help desk, so attachments land beside every other
+/// upload for this church rather than in a second place nobody backs up.
+pub(crate) fn storage_dir(slug: &str) -> std::path::PathBuf {
     std::path::Path::new(&storage_root()).join(slug)
 }
 

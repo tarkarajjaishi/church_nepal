@@ -43,6 +43,9 @@ fn public_submit_routes() -> Router {
         .route("/support/report", post(helpdesk_public::report))
         .route("/support/{token}/reply", post(helpdesk_public::add_reply))
         .route("/support/{token}/rate", post(helpdesk_public::rate))
+        // Token-gated, not an open upload: you must already hold a ticket,
+        // which means you already went through the rate-limited form.
+        .route("/support/{token}/attach", post(helpdesk_files::public_attach))
 }
 
 // Public-read routes (GET-only, no JSON body) — same per-IP bucket as the
@@ -737,6 +740,18 @@ pub fn admin_routes() -> Router {
         .route("/helpdesk/tickets/{id}/release", post(helpdesk::tickets_release))
         .route("/helpdesk/tickets/{id}/status", post(helpdesk::tickets_status))
         .route("/helpdesk/tickets/{id}/comments", post(helpdesk::comments_add))
+        .route(
+            "/helpdesk/tickets/{id}/attachments",
+            get(helpdesk_files::list).post(helpdesk_files::attach),
+        )
+        .route("/helpdesk/attachments/{id}", delete(helpdesk_files::detach))
+        .route("/helpdesk/tickets/{id}/watchers", post(helpdesk_team::watch))
+        .route("/helpdesk/tickets/{id}/watchers/{email}", delete(helpdesk_team::unwatch))
+        .route("/helpdesk/tickets/{id}/merge", post(helpdesk_team::merge))
+        .route("/helpdesk/bulk", post(helpdesk_team::bulk))
+        .route("/helpdesk/replies", get(helpdesk_team::replies))
+        .route("/helpdesk/replies/{id}/used", post(helpdesk_team::reply_used))
+        .route("/helpdesk/suggest", get(helpdesk_team::suggest))
         .route("/helpdesk/articles", get(helpdesk::articles_list).post(helpdesk::articles_create))
         .route("/helpdesk/articles/{id}/helpful", post(helpdesk::articles_helpful))
         .route("/church-dashboard", get(church_dashboard::overview))

@@ -462,7 +462,31 @@ pub async fn tickets_get(
         None => Vec::new(),
     };
 
-    Ok(Json(TicketDetail { ticket, comments, related }))
+    let attachments = sqlx::query_as::<_, crate::handlers::helpdesk_files::Attachment>(
+        "SELECT id, url, filename, content_type, size_bytes, uploaded_by, created_at
+         FROM helpdesk_attachments WHERE ticket_id = $1 ORDER BY created_at",
+    )
+    .bind(id)
+    .fetch_all(&pool)
+    .await?;
+
+    let watchers = sqlx::query_as::<_, crate::handlers::helpdesk_team::Watcher>(
+        "SELECT email, name, added_by, added_at
+         FROM helpdesk_watchers WHERE ticket_id = $1 ORDER BY added_at",
+    )
+    .bind(id)
+    .fetch_all(&pool)
+    .await?;
+
+    let duplicates = sqlx::query_as::<_, TicketBrief>(
+        "SELECT id, ticket_code, subject, status, opened_at
+         FROM helpdesk_tickets WHERE merged_into = $1 ORDER BY opened_at",
+    )
+    .bind(id)
+    .fetch_all(&pool)
+    .await?;
+
+    Ok(Json(TicketDetail { ticket, comments, related, attachments, watchers, duplicates }))
 }
 
 pub async fn tickets_update(
@@ -892,6 +916,15 @@ pub async fn dashboard(Db(pool): Db) -> Result<Json<HelpdeskDashboard>, AppError
     .fetch_one(&pool)
     .await?;
 
+    // What the people who reported things thought of the fix. Only tickets
+    // that were actually rated count — treating "not asked" as zero would
+    // punish a team for a reporter who never came back.
+    let (avg_satisfaction, rated_count): (Option<f64>, i64) = sqlx::query_as(
+        "SELECT AVG(satisfaction)::float8, COUNT(satisfaction)::bigint FROM helpdesk_tickets",
+    )
+    .fetch_one(&pool)
+    .await?;
+
     let by_category = sqlx::query_as::<_, LabelCount>(
         r#"SELECT COALESCE(c.name, 'Uncategorised') AS label, c.color, COUNT(t.id)::bigint AS count
            FROM helpdesk_tickets t LEFT JOIN helpdesk_categories c ON c.id = t.category_id
@@ -960,6 +993,10 @@ pub async fn dashboard(Db(pool): Db) -> Result<Json<HelpdeskDashboard>, AppError
         reopened,
         avg_response_hours: avg_response.map(|v| v.round() as i64),
         avg_resolve_hours: avg_resolve.map(|v| v.round() as i64),
+        // One decimal place: "4.3 out of 5" is a rating; "4 out of 5" throws
+        // away most of what a five-point scale tells you.
+        avg_satisfaction: avg_satisfaction.map(|v| (v * 10.0).round() / 10.0),
+        rated_count,
         by_category,
         by_priority,
         agents,

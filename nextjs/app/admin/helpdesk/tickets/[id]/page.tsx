@@ -7,13 +7,15 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import {
   ChevronLeft, Send, UserPlus, UserMinus, CheckCircle2, AlertTriangle,
-  Lock, Settings2, MapPin, Package, Clock,
+  Lock, Settings2, MapPin, Package, Clock, GitMerge, Globe,
 } from 'lucide-react'
 import {
   helpdeskApi, duration, breachReason, PRIORITY_TONE, STATUS_TONE, STATUS_LABEL,
   type Status,
 } from '@/lib/helpdesk/api'
 import { CARD, PageHeader, ErrorState, Chip, btn, field, Label } from '@/components/offerings/ui'
+import { Attachments, Watchers, Duplicates, Satisfaction } from '@/components/helpdesk/TicketSidePanels'
+import { CannedReplies, ArticleHints } from '@/components/helpdesk/ReplyHelpers'
 
 const NEXT_STATUS: { key: Status; label: string }[] = [
   { key: 'in_progress', label: 'Working on it' },
@@ -105,7 +107,7 @@ export default function TicketDetailPage() {
     )
   }
 
-  const { ticket: t, comments, related } = data
+  const { ticket: t, comments, related, attachments, watchers, duplicates } = data
   const reason = breachReason(t)
   const live = !['resolved', 'closed', 'cancelled'].includes(t.status)
 
@@ -142,7 +144,28 @@ export default function TicketDetailPage() {
         {t.reopenCount > 0 && (
           <Chip className="bg-amber-100 text-amber-800 border-amber-200">Reopened {t.reopenCount}×</Chip>
         )}
+        {t.source === 'public' && (
+          <Chip className="bg-muted text-muted-foreground border-border">
+            <Globe className="size-3" aria-hidden /> reported from the website
+          </Chip>
+        )}
       </div>
+
+      {t.mergedInto && (
+        <div className="rounded-2xl border border-border bg-muted p-4 mb-4 flex items-start gap-3">
+          <GitMerge className="size-5 shrink-0 text-muted-foreground mt-0.5" aria-hidden />
+          <div className="text-sm">
+            <p className="font-medium">This was a duplicate</p>
+            <p className="mt-0.5 text-muted-foreground">
+              It was folded into{' '}
+              <Link href={`/admin/helpdesk/tickets/${t.mergedInto}`} className="underline hover:text-foreground">
+                another ticket
+              </Link>
+              , which is where the work is being tracked.
+            </p>
+          </div>
+        </div>
+      )}
 
       {reason && (
         <div className="rounded-2xl border border-red-200 bg-red-50 p-4 mb-4 flex items-start gap-3">
@@ -224,7 +247,11 @@ export default function TicketDetailPage() {
                   onChange={(e) => setReply(e.target.value)}
                 />
               </div>
+              <ArticleHints text={reply} />
               <div className="flex flex-wrap items-center gap-3">
+                <CannedReplies onPick={(b) => setReply((v) => (v.trim() ? `${v.trimEnd()}
+
+${b}` : b))} />
                 <input
                   className={`${field} max-w-[14rem]`}
                   placeholder="Your name"
@@ -343,6 +370,16 @@ export default function TicketDetailPage() {
               </div>
             </dl>
           </section>
+
+          {t.satisfaction !== null && (
+            <Satisfaction score={t.satisfaction} note={t.satisfactionNote} />
+          )}
+
+          <Attachments id={id} items={attachments} />
+          <Watchers id={id} items={watchers} />
+          {!t.mergedInto && (
+            <Duplicates id={id} ticketCode={t.ticketCode} duplicates={duplicates} />
+          )}
 
           {related.length > 0 && (
             <section className={`${CARD} p-4 sm:p-5`}>

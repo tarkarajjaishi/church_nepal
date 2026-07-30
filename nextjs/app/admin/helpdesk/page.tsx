@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useQuery } from '@tanstack/react-query'
 import {
   Ticket, Inbox, AlertTriangle, Clock, CheckCircle2, RotateCcw,
-  Timer, ArrowRight, Users,
+  Timer, ArrowRight, Users, Star,
 } from 'lucide-react'
 import { helpdeskApi, duration, breachReason, PRIORITY_TONE } from '@/lib/helpdesk/api'
 import { CARD, PageHeader, StatTile, EmptyState, ErrorState, Chip } from '@/components/offerings/ui'
@@ -80,8 +80,16 @@ export default function HelpdeskDashboardPage() {
         />
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-4 mb-6">
+      <div className="grid gap-4 sm:grid-cols-5 mb-6">
         <StatTile label="Resolved this month" value={d?.resolvedThisMonth ?? 0} icon={CheckCircle2} tone="good" loading={isLoading} />
+        <StatTile
+          label="What reporters said"
+          value={d?.avgSatisfaction === null || d?.avgSatisfaction === undefined ? '—' : `${d.avgSatisfaction} / 5`}
+          hint={d?.ratedCount ? `From ${d.ratedCount} rating${d.ratedCount === 1 ? '' : 's'}` : 'Nobody has rated a fix yet'}
+          icon={Star}
+          tone={d?.avgSatisfaction !== null && d?.avgSatisfaction !== undefined && d.avgSatisfaction < 3 ? 'warn' : 'default'}
+          loading={isLoading}
+        />
         <StatTile
           label="Typical first reply"
           value={duration(d?.avgResponseHours)}

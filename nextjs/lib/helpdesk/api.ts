@@ -63,6 +63,15 @@ export interface Ticket {
   responseHoursTaken: number | null
   responseBreached: boolean
   resolveBreached: boolean
+  /** `staff`, `public` or `email` — how it arrived. */
+  source: string
+  /** Set when this was folded into another ticket as a duplicate. */
+  mergedInto: string | null
+  /** 1–5 from the reporter, or null if not asked or not answered. */
+  satisfaction: number | null
+  satisfactionNote: string
+  attachmentCount: number
+  watcherCount: number
 }
 
 export interface TicketPage {
@@ -92,10 +101,46 @@ export interface TicketBrief {
   openedAt: string
 }
 
+export interface Attachment {
+  id: string
+  url: string
+  filename: string
+  contentType: string
+  sizeBytes: number
+  uploadedBy: string
+  createdAt: string
+}
+
+export interface Watcher {
+  email: string
+  name: string
+  addedBy: string
+  addedAt: string
+}
+
+export interface CannedReply {
+  id: string
+  title: string
+  body: string
+  categoryId: string | null
+  useCount: number
+}
+
+export interface Suggestion {
+  id: string
+  title: string
+  slug: string
+  keywords: string
+}
+
 export interface TicketDetail {
   ticket: Ticket
   comments: Comment[]
   related: TicketBrief[]
+  attachments: Attachment[]
+  watchers: Watcher[]
+  /** Other reports of the same fault, folded in here. */
+  duplicates: TicketBrief[]
 }
 
 export interface Article {
@@ -138,6 +183,9 @@ export interface HelpdeskDashboard {
   reopened: number
   avgResponseHours: number | null
   avgResolveHours: number | null
+  /** Mean of the ratings actually given, 1–5. Null until somebody rates one. */
+  avgSatisfaction: number | null
+  ratedCount: number
   byCategory: LabelCount[]
   byPriority: LabelCount[]
   agents: AgentLoad[]
@@ -188,6 +236,29 @@ export const helpdeskApi = {
     api.post('/helpdesk/articles', body).then((r) => r.data),
   markHelpful: (id: string) =>
     api.post(`/helpdesk/articles/${id}/helpful`).then((r) => r.data),
+
+  attach: (id: string, body: { url: string; filename?: string }) =>
+    api.post(`/helpdesk/tickets/${id}/attachments`, body).then((r) => r.data),
+  detach: (attachmentId: string) =>
+    api.delete(`/helpdesk/attachments/${attachmentId}`).then((r) => r.data),
+
+  watch: (id: string, body: { email: string; name?: string }) =>
+    api.post(`/helpdesk/tickets/${id}/watchers`, body).then((r) => r.data),
+  unwatch: (id: string, email: string) =>
+    api.delete(`/helpdesk/tickets/${id}/watchers/${encodeURIComponent(email)}`).then((r) => r.data),
+
+  merge: (id: string, into: string) =>
+    api.post(`/helpdesk/tickets/${id}/merge`, { into }).then((r) => r.data),
+
+  replies: () => api.get<CannedReply[]>('/helpdesk/replies').then((r) => r.data),
+  replyUsed: (id: string) => api.post(`/helpdesk/replies/${id}/used`).then((r) => r.data),
+
+  suggest: (q: string) =>
+    api.get<Suggestion[]>('/helpdesk/suggest', { params: { q } }).then((r) => r.data),
+
+  bulk: (body: { ids: string[]; action: string; value?: string; category_id?: string }) =>
+    api.post<{ changed: number; requested: number; skipped: number }>('/helpdesk/bulk', body)
+      .then((r) => r.data),
 }
 
 /** "3d 4h", "6h", "just now" — an age a person can read at a glance. */

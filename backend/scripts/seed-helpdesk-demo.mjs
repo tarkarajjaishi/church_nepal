@@ -14,6 +14,7 @@
 import crypto from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
+import zlib from 'node:zlib'
 
 const API = process.env.API || 'http://localhost:3002'
 const HERE = path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'))
@@ -423,6 +424,134 @@ async function main() {
   check('some are resolved',
     (await api('GET', '/helpdesk/tickets?status=resolved&per_page=1')).total >= 4)
 
+  // -- 10b. Public reports, photos, watchers, duplicates and ratings --------
+  console.log('\n10b. Public reports, photos, watchers, duplicates and ratings')
+
+  // A real PNG, generated rather than pasted, because the server decides what
+  // a file is by reading its first bytes — a fake would be rejected, which is
+  // the point.
+  //
+  // Not a 1x1 pixel: at that size a correctly-loaded attachment renders as an
+  // empty box, and demo data that looks broken gets reported as a bug.
+  const crc32 = (buf) => {
+    let crc = 0xffffffff
+    for (const byte of buf) {
+      crc ^= byte
+      for (let k = 0; k < 8; k++) crc = (crc >>> 1) ^ (0xedb88320 & -(crc & 1))
+    }
+    return (crc ^ 0xffffffff) >>> 0
+  }
+  const chunk = (type, data) => {
+    const body = Buffer.concat([Buffer.from(type, 'ascii'), data])
+    const len = Buffer.alloc(4); len.writeUInt32BE(data.length)
+    const crc = Buffer.alloc(4); crc.writeUInt32BE(crc32(body))
+    return Buffer.concat([len, body, crc])
+  }
+  const solidPng = (w, h, [r, g, b]) => {
+    const raw = Buffer.alloc(h * (1 + w * 3))
+    for (let y = 0; y < h; y++) {
+      const row = y * (1 + w * 3)
+      raw[row] = 0 // filter: none
+      for (let x = 0; x < w; x++) {
+        // A soft vertical gradient, so it reads as a photograph rather than a
+        // colour swatch.
+        const f = 0.75 + (0.25 * y) / h
+        raw.set([r * f, g * f, b * f].map(Math.round), row + 1 + x * 3)
+      }
+    }
+    const ihdr = Buffer.alloc(13)
+    ihdr.writeUInt32BE(w, 0); ihdr.writeUInt32BE(h, 4)
+    ihdr[8] = 8; ihdr[9] = 2 // 8-bit RGB
+    return Buffer.concat([
+      Buffer.from('89504e470d0a1a0a', 'hex'),
+      chunk('IHDR', ihdr),
+      chunk('IDAT', zlib.deflateSync(raw)),
+      chunk('IEND', Buffer.alloc(0)),
+    ])
+  }
+  const PNG = solidPng(320, 240, [96, 125, 139])
+
+  const publicReport = async (subject, reporter, contact, location) => {
+    const r = await fetch(`${API}/api/support/report`, {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        subject, reporter_name: reporter, reporter_contact: contact,
+        location: location || '', body: 'Reported from the website.',
+      }),
+    })
+    if (!r.ok) throw new Error(`public report failed: ${r.status}`)
+    return r.json()
+  }
+
+  const attachPhoto = async (token, name, bytes = PNG) => {
+    const form = new FormData()
+    form.append('file', new Blob([bytes], { type: 'image/png' }), name)
+    const r = await fetch(`${API}/api/support/${token}/attach`, { method: 'POST', body: form })
+    return r.ok
+  }
+
+  // Re-runnable: reuse whatever a previous run created rather than piling up
+  // a new set of near-identical reports every time.
+  const PUBLIC_SUBJECT = 'Dripping tap in the ladies toilet'
+  const DUP_SUBJECT = 'Water on the floor by the toilets'
+  const seenAll = (await api('GET', '/helpdesk/tickets?per_page=300')).data
+  let publicTicket = seenAll.find((t) => t.subject === PUBLIC_SUBJECT)
+
+  if (!publicTicket) {
+    const rep = await publicReport(PUBLIC_SUBJECT, 'Sunita Rai', 'sunita@example.org', 'Ground floor')
+    check('a stranger can report without an account', !!rep.token && rep.token.length === 64)
+    check('a photo can be attached to it', await attachPhoto(rep.token, 'tap.png'))
+    // A Windows executable, renamed and declared image/png. The header is not
+    // what decides — the first bytes are.
+    check('a renamed executable is refused',
+      !(await attachPhoto(rep.token, 'photo.png',
+        Buffer.from('4d5a90000300000004000000ffff0000', 'hex'))))
+
+    // Somebody else reports the same puddle.
+    const dup = await publicReport(DUP_SUBJECT, 'Kamal Shrestha', 'kamal@example.org', 'Ground floor')
+    await attachPhoto(dup.token, 'floor.png', solidPng(320, 240, [121, 85, 72]))
+
+    publicTicket = (await api('GET', `/helpdesk/tickets?search=${encodeURIComponent(PUBLIC_SUBJECT)}`)).data[0]
+    const dupTicket = (await api('GET', `/helpdesk/tickets?search=${encodeURIComponent(DUP_SUBJECT)}`)).data[0]
+
+    await api('POST', `/helpdesk/tickets/${dupTicket.id}/merge`, { into: publicTicket.id })
+    check('the duplicate is folded in',
+      (await api('GET', `/helpdesk/tickets/${dupTicket.id}`)).ticket.merged_into === publicTicket.id)
+
+    const merged = await api('GET', `/helpdesk/tickets/${publicTicket.id}`)
+    check('both photos ended up on the surviving ticket', merged.attachments.length === 2,
+      `${merged.attachments.length}`)
+    check('the second reporter now follows the original',
+      merged.watchers.some((w) => w.email === 'kamal@example.org'))
+
+    // The warden wants to know too, though they reported nothing.
+    await api('POST', `/helpdesk/tickets/${publicTicket.id}/watchers`,
+      { email: 'warden@example.org', name: 'Bikash Tamang' })
+
+    // Fix it, then let the reporter say what they thought.
+    await api('POST', `/helpdesk/tickets/${publicTicket.id}/claim`, { assignee_name: TEAM[0] })
+    await api('POST', `/helpdesk/tickets/${publicTicket.id}/status`, {
+      status: 'resolved', resolution: 'New washer fitted. Tap no longer drips.',
+    })
+    const rated = await fetch(`${API}/api/support/${rep.token}/rate`, {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ score: 5, note: 'Done the same week — thank you.' }),
+    })
+    check('the reporter can rate the fix', rated.ok)
+    const twice = await fetch(`${API}/api/support/${rep.token}/rate`, {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ score: 1 }),
+    })
+    check('but only once', !twice.ok)
+  }
+
+  const pub = await api('GET', `/helpdesk/tickets/${publicTicket.id}`)
+  check('the ticket knows it came from the website', pub.ticket.source === 'public')
+  check('it carries its photos', pub.attachments.length >= 2, `${pub.attachments.length}`)
+  check('it carries its watchers', pub.watchers.length >= 2, `${pub.watchers.length}`)
+  check('it lists the duplicate folded into it', pub.duplicates.length >= 1)
+  check('the rating is on the ticket', pub.ticket.satisfaction === 5, `${pub.ticket.satisfaction}`)
+
   // -- 11. Dashboard -------------------------------------------------------
   console.log('\n11. Dashboard')
   const dash = await api('GET', '/helpdesk/dashboard')
@@ -448,6 +577,10 @@ async function main() {
     dash.oldest_open.every((t) => !['resolved', 'closed', 'cancelled'].includes(t.status)))
   check('needs-reply list has nobody who has been replied to',
     dash.needs_reply.every((t) => t.first_responded_at === null))
+  check('satisfaction is averaged only over tickets that were rated',
+    dash.avg_satisfaction !== null && dash.rated_count >= 1 &&
+    dash.avg_satisfaction >= 1 && dash.avg_satisfaction <= 5,
+    `${dash.avg_satisfaction} over ${dash.rated_count}`)
 
   const hrs = (h) => (h === null || h === undefined ? '—' : `${h}h`)
   console.log('\n--- Help Desk ---')
@@ -459,6 +592,7 @@ async function main() {
   console.log(`  Reopened          ${dash.reopened}`)
   console.log(`  Avg first reply   ${hrs(dash.avg_response_hours)}`)
   console.log(`  Avg to resolve    ${hrs(dash.avg_resolve_hours)}`)
+  console.log(`  Reporter rating   ${dash.avg_satisfaction ?? '—'} / 5 (${dash.rated_count} rated)`)
 
   console.log(`\n${passed} passed, ${failures.length} failed`)
   if (failures.length) {

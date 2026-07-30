@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import {
-  LifeBuoy, Send, CheckCircle2, Clock, MessageSquare, Star, AlertCircle,
+  LifeBuoy, Send, CheckCircle2, Clock, MessageSquare, Star, AlertCircle, Camera,
 } from 'lucide-react'
 import { API_ORIGIN } from '@/lib/apiBase'
 
@@ -53,6 +53,8 @@ export default function TrackPage() {
   const [busy, setBusy] = useState(false)
   const [rated, setRated] = useState(false)
   const [note, setNote] = useState('')
+  const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState('')
 
   const load = useCallback(async () => {
     try {
@@ -81,6 +83,28 @@ export default function TrackPage() {
       await load()
     } finally {
       setBusy(false)
+    }
+  }
+
+  const addPhoto = async (file: File) => {
+    setUploading(true)
+    setUploadError('')
+    try {
+      const form = new FormData()
+      form.append('file', file)
+      const res = await fetch(`${API_ORIGIN}/api/support/${token}/attach`, {
+        method: 'POST',
+        body: form,
+      })
+      const data = await res.json().catch(() => ({}))
+      // The server checks the actual bytes, not the file extension, so this is
+      // where a renamed non-image is caught. Say why rather than just failing.
+      if (!res.ok) throw new Error(data?.error ?? 'That photo could not be added')
+      await load()
+    } catch (err) {
+      setUploadError((err as Error).message)
+    } finally {
+      setUploading(false)
     }
   }
 
@@ -170,6 +194,50 @@ export default function TrackPage() {
           <p className="whitespace-pre-wrap text-green-900">{ticket.resolution}</p>
         </section>
       )}
+
+      <section className={`${card} p-5 mb-4`}>
+        <h2 className="font-medium mb-1 flex items-center gap-2">
+          <Camera className="size-4 text-muted-foreground" aria-hidden /> Photos
+        </h2>
+        <p className="text-sm text-muted-foreground mb-3">
+          A picture of the problem usually saves someone a trip to come and look.
+        </p>
+
+        {ticket.attachments.length > 0 && (
+          <ul className="grid grid-cols-3 sm:grid-cols-4 gap-2 mb-3">
+            {ticket.attachments.map((a) => (
+              <li key={a.url}>
+                <a href={`${API_ORIGIN}${a.url}`} target="_blank" rel="noreferrer">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={`${API_ORIGIN}${a.url}`}
+                    alt="A photo you sent with this report"
+                    className="aspect-square w-full rounded-xl object-cover border border-border"
+                    loading="lazy"
+                  />
+                </a>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <input
+          type="file"
+          id="photo"
+          accept="image/jpeg,image/png,image/gif,image/webp"
+          capture="environment"
+          className="sr-only"
+          onChange={(e) => { const f = e.target.files?.[0]; if (f) addPhoto(f); e.target.value = '' }}
+        />
+        <label
+          htmlFor="photo"
+          className="inline-flex items-center gap-1.5 min-h-11 px-4 rounded-xl border border-border bg-card font-medium hover:bg-muted cursor-pointer"
+        >
+          <Camera className="size-4" aria-hidden />
+          {uploading ? 'Adding…' : ticket.attachments.length ? 'Add another photo' : 'Add a photo'}
+        </label>
+        {uploadError && <p role="alert" className="text-sm text-destructive mt-2">{uploadError}</p>}
+      </section>
 
       <section className={`${card} p-5 mb-4`}>
         <h2 className="font-medium mb-3 flex items-center gap-2">

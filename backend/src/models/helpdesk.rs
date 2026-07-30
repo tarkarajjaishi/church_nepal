@@ -200,6 +200,11 @@ pub struct TicketDetail {
     /// Other tickets raised against the same asset — a projector on its fourth
     /// ticket is a replacement decision, not a fifth repair.
     pub related: Vec<TicketBrief>,
+    pub attachments: Vec<crate::handlers::helpdesk_files::Attachment>,
+    pub watchers: Vec<crate::handlers::helpdesk_team::Watcher>,
+    /// Duplicates folded into this one. Three reports of the same dead bulb
+    /// is a different priority from one.
+    pub duplicates: Vec<TicketBrief>,
 }
 
 #[derive(Debug, Serialize, sqlx::FromRow)]
@@ -267,6 +272,9 @@ pub struct HelpdeskDashboard {
     pub reopened: i64,
     pub avg_response_hours: Option<i64>,
     pub avg_resolve_hours: Option<i64>,
+    /// Mean of the ratings actually given, 1–5. None until somebody rates one.
+    pub avg_satisfaction: Option<f64>,
+    pub rated_count: i64,
     pub by_category: Vec<LabelCount>,
     pub by_priority: Vec<LabelCount>,
     pub agents: Vec<AgentLoad>,
