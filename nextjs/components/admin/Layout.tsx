@@ -6,6 +6,7 @@ import { useAuth } from '@/lib/auth'
 import { LayoutDashboard, BookOpen, Calendar, Users, Image, Quote, Bell, UserCheck, Clock, BookMarked, DollarSign, Settings, LogOut, Church, Shield, LayoutGrid, Heart, CheckSquare, UserCircle, Newspaper, Briefcase, Globe, Mail, Contact, Palette, Receipt, HandHelping, TrendingUp, Wallet, Target, ClipboardCheck, Radio, FileText, BarChart3, HandHeart, MessageSquare, MonitorPlay } from 'lucide-react'
 
 const navItems = [
+  { to: '/admin/overview', icon: Church, label: 'Church Overview' },
   { to: '/admin/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/admin/content-blocks', icon: LayoutGrid, label: 'Homepage Sections' },
   { divider: true, label: 'Content' },

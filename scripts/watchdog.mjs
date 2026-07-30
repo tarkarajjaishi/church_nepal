@@ -171,6 +171,66 @@ const CHECKS = [
     },
   },
   {
+    name: 'church dashboard agrees with its sources',
+    async run() {
+      if (!TOKEN) return { ok: false, detail: 'no JWT_SECRET' }
+      const r = await fetchJson(`${CHURCH_API}/api/church-dashboard`, { auth: true })
+      if (r.status !== 200 || r.json?.error) return { ok: false, detail: `HTTP ${r.status}` }
+      const d = r.json
+
+      // The dashboard and the offering module must not disagree about the same
+      // day's giving — they read the same rows and a mismatch means one of the
+      // two definitions of "counted" has drifted.
+      const off = await fetchJson(`${CHURCH_API}/api/offering-management/dashboard`, { auth: true })
+      if (off.status === 200 && !off.json?.error) {
+        const same =
+          d.finance.offering_today === off.json.today &&
+          d.finance.offering_this_year === off.json.this_year
+        if (!same) {
+          return {
+            ok: false,
+            detail: `finance drift: dashboard ${d.finance.offering_today}/${d.finance.offering_this_year} vs offerings ${off.json.today}/${off.json.this_year}`,
+          }
+        }
+      }
+
+      // Internally coherent: members cannot exceed people, and high >= avg >= low.
+      const sane =
+        d.people.active_members <= d.people.total &&
+        d.attendance.highest >= d.attendance.average &&
+        d.attendance.average >= d.attendance.lowest
+      return {
+        ok: sane,
+        detail: sane
+          ? `${d.people.total} people, attendance ${d.attendance.today} today`
+          : 'internally inconsistent counts',
+      }
+    },
+  },
+  {
+    name: 'absent modules report absent, not zero',
+    async run() {
+      if (!TOKEN) return { ok: false, detail: 'no JWT_SECRET' }
+      const r = await fetchJson(`${CHURCH_API}/api/church-dashboard`, { auth: true })
+      if (r.status !== 200) return { ok: false, detail: `HTTP ${r.status}` }
+      const m = r.json?.modules
+      if (!m) return { ok: false, detail: 'modules block missing — UI would show fake zeros' }
+      // If one of these ever flips true, the module was built and the dashboard
+      // should start reporting real figures for it.
+      const absent = ['help_desk', 'assets', 'library', 'expenses'].filter((k) => m[k] === false)
+      return { ok: 'help_desk' in m, detail: `${absent.length} module(s) correctly absent` }
+    },
+  },
+  {
+    name: 'prayer requests table present',
+    async run() {
+      // This table was missing entirely and the public endpoint 500'd; the
+      // check exists so a fresh database without migration 063 fails loudly.
+      const r = await fetchJson(`${CHURCH_API}/api/prayer-requests/public`)
+      return { ok: r.status === 200, detail: `HTTP ${r.status}` }
+    },
+  },
+  {
     name: 'presentation live state is coherent',
     async run() {
       if (!TOKEN) return { ok: false, detail: 'no JWT_SECRET' }

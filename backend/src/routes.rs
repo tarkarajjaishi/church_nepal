@@ -622,6 +622,7 @@ pub fn admin_routes() -> Router {
             put(presentation_live::displays_update).delete(presentation_live::displays_delete),
         )
         // Live control
+        .route("/church-dashboard", get(church_dashboard::overview))
         .route("/presentation/dashboard", get(presentation_live::dashboard))
         .route("/presentation/live", get(presentation_live::live_get))
         .route("/presentation/live/go", post(presentation_live::live_go))
