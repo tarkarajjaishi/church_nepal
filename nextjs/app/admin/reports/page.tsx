@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import {
   BarChart3, FileDown, Printer, TrendingUp, TrendingDown, Minus, PackageOpen, Search,
-  Bookmark, BookmarkPlus, Pencil, Trash2, Users,
+  Bookmark, BookmarkPlus, Pencil, Trash2, Users, FileText,
 } from 'lucide-react'
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -205,7 +205,7 @@ export default function ReportsPage() {
     enabled: savedId ? true : !!selectedKey,
   })
 
-  const download = async () => {
+  const download = async (format: 'csv' | 'pdf') => {
     if (!data) return
     setDownloading(true)
     try {
@@ -213,18 +213,21 @@ export default function ReportsPage() {
       // are the same ones the table used. A bare <a href> would be
       // unauthenticated and quietly download a login page as a .csv.
       const route = savedId
-        ? savedApi.exportUrl(savedId)
-        : reportsApi.exportUrl(selectedKey, range.from, range.to)
+        ? savedApi.exportUrl(savedId, format)
+        : reportsApi.exportUrl(selectedKey, range.from, range.to, format)
       const res = await api.get(route, {
-        responseType: 'blob',
+        // `arraybuffer`, not `blob` — a PDF that goes through any text
+        // decoding on the way is a file no reader will open.
+        responseType: 'arraybuffer',
         transformResponse: [(d) => d],
       })
-      const href = URL.createObjectURL(new Blob([res.data as BlobPart], { type: 'text/csv' }))
+      const mime = format === 'pdf' ? 'application/pdf' : 'text/csv'
+      const href = URL.createObjectURL(new Blob([res.data as BlobPart], { type: mime }))
       const a = document.createElement('a')
       a.href = href
       a.download = savedId
-        ? `${openView?.name ?? 'report'}.csv`
-        : `${selectedKey}-${range.from}-to-${range.to}.csv`
+        ? `${openView?.name ?? 'report'}.${format}`
+        : `${selectedKey}-${range.from}-to-${range.to}.${format}`
       a.click()
       URL.revokeObjectURL(href)
       toast.success('Downloaded')
@@ -274,12 +277,20 @@ export default function ReportsPage() {
             </button>
             <button
               type="button"
-              onClick={download}
+              onClick={() => download('pdf')}
+              disabled={!data || downloading || !!data.unavailable}
+              className={btn.secondary}
+            >
+              <FileText className="size-4" aria-hidden /> PDF
+            </button>
+            <button
+              type="button"
+              onClick={() => download('csv')}
               disabled={!data || downloading || !!data.unavailable}
               className={btn.secondary}
             >
               <FileDown className="size-4" aria-hidden />
-              {downloading ? 'Preparing…' : 'Export CSV'}
+              {downloading ? 'Preparing…' : 'CSV'}
             </button>
           </>
         }

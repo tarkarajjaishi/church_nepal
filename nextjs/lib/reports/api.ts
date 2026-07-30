@@ -140,8 +140,8 @@ export const reportsApi = {
   catalogue: () => api.get<ReportInfo[]>('/reports').then((r) => r.data),
   run: (key: string, from: string, to: string) =>
     api.get<Report>(`/reports/${key}`, { params: { from, to } }).then((r) => r.data),
-  exportUrl: (key: string, from: string, to: string) =>
-    `/reports/${key}/export?from=${from}&to=${to}`,
+  exportUrl: (key: string, from: string, to: string, format = 'csv') =>
+    `/reports/${key}/export?from=${from}&to=${to}&format=${format}`,
 }
 
 /**

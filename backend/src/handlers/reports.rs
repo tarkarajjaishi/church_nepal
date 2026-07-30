@@ -1445,6 +1445,7 @@ pub async fn export(
 pub(crate) fn render(r: &Report, format: &str) -> Result<Response, AppError> {
     match format {
         "csv" => Ok(csv_response(r)),
+        "pdf" => Ok(pdf_response(r)),
         other => Err(AppError::bad_request(format!(
             "\"{other}\" is not a format this can be exported as"
         ))),
@@ -1485,6 +1486,21 @@ pub(crate) fn to_csv(r: &Report) -> String {
     }
 
     csv
+}
+
+fn pdf_response(r: &Report) -> Response {
+    let filename = format!("{}-{}-to-{}.pdf", r.key, r.from, r.to);
+    (
+        [
+            (axum::http::header::CONTENT_TYPE, "application/pdf".to_string()),
+            (
+                axum::http::header::CONTENT_DISPOSITION,
+                format!("attachment; filename=\"{filename}\""),
+            ),
+        ],
+        crate::handlers::report_pdf::render(r),
+    )
+        .into_response()
 }
 
 fn csv_response(r: &Report) -> Response {

@@ -289,6 +289,44 @@ async function main() {
   check('every report exports, not just the giving one',
     otherCsv.includes('Library circulation'))
 
+  // -- 6b. PDF export ------------------------------------------------------
+  console.log('\n6b. PDF export')
+  const pdfRes = await fetch(
+    `${API}/api/reports/giving-summary/export?${FULL}&format=pdf`,
+    { headers: { authorization: `Bearer ${ROOT}` } })
+  const pdf = Buffer.from(await pdfRes.arrayBuffer())
+  const raw = pdf.toString('latin1')
+  check('a PDF is returned as a PDF', pdfRes.status === 200
+    && pdfRes.headers.get('content-type') === 'application/pdf')
+  check('it is a well-formed file', raw.startsWith('%PDF-1.4') && raw.endsWith('%%EOF\n'))
+
+  // A wrong cross-reference offset is the difference between a file that
+  // opens and one that says "damaged" with no other clue.
+  const xrefAt = parseInt(raw.split('startxref\n').pop().split('\n')[0], 10)
+  check('startxref points at the cross-reference table', raw.slice(xrefAt, xrefAt + 4) === 'xref')
+  const entries = raw.slice(xrefAt).split('\n').slice(2)
+    .filter((l) => /^\d{10} 00000 n/.test(l))
+    .map((l) => parseInt(l.slice(0, 10), 10))
+  check('every cross-reference offset lands on an object',
+    entries.length > 0 && entries.every((o) => /^\d+ 0 obj/.test(raw.slice(o, o + 20))),
+    `${entries.length} entries`)
+
+  const drawn = [...raw.matchAll(/\((.*?)\) Tj/g)].map((m) => m[1])
+  check('the report name and figures are on the page',
+    drawn.includes('Giving summary') && drawn.some((d) => /^\d+\.\d{2}$/.test(d)))
+  check('the totals row is on the page', drawn.includes('Total'))
+  check('nothing the renderer draws itself is a replacement character',
+    drawn.filter((d) => d.includes('?')).length === 0,
+    drawn.filter((d) => d.includes('?')).slice(0, 2).join(' | '))
+
+  const pdfLib = await fetch(
+    `${API}/api/reports/library-circulation/export?${FULL}&format=pdf`,
+    { headers: { authorization: `Bearer ${ROOT}` } })
+  check('every report exports as PDF, not only the giving one', pdfLib.status === 200)
+
+  await expectStatus('an unknown format is refused', 400, ROOT,
+    `/reports/giving-summary/export?${FULL}&format=xlsx`)
+
   // -- 7. Permission scoping -----------------------------------------------
   console.log('\n7. A report is as closed as the module it reads')
   const users = await api('/role-assignments')
