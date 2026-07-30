@@ -1,4 +1,7 @@
-const CACHE = 'grace-church-v1'
+// Bumped whenever the caching rules change: `activate` deletes every cache
+// whose name is not this one, so the name is the only eviction mechanism there
+// is. Leaving it fixed meant a stale entry could outlive the code that made it.
+const CACHE = 'grace-church-v2'
 const APP_SHELL = ['/', '/offline.html']
 
 self.addEventListener('install', (event) => {
@@ -30,6 +33,17 @@ self.addEventListener('fetch', (event) => {
   if (url.origin !== self.location.origin) return
 
   if (url.pathname.startsWith('/api/')) return
+
+  // Never a GET we should replay from cache.
+  if (event.request.method !== 'GET') return
+
+  // The admin is not an offline surface. Someone editing the giving records
+  // must not be served yesterday's JavaScript, and in development webpack
+  // reuses chunk filenames — so a cache-first rule pins a stale bundle and the
+  // page keeps rendering code that no longer exists on disk. That cost hours
+  // of chasing a fix that was already applied.
+  if (url.pathname.startsWith('/admin')) return
+  if (self.location.hostname === 'localhost' || self.location.hostname === '127.0.0.1') return
 
   if (event.request.mode === 'navigate') {
     event.respondWith(

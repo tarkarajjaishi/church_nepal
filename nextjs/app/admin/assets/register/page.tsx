@@ -49,11 +49,15 @@ function RegisterInner() {
     queryFn: assetsApi.categories,
     staleTime: 300_000,
   })
-  const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
+  const { data, isLoading, isError, error, failureReason, refetch, isFetching } = useQuery({
     queryKey: ['assets', filters],
     queryFn: () => assetsApi.list(filters),
     placeholderData: (p) => p,
   })
+
+  // While a query is still retrying, `error` is null and only `failureReason`
+  // knows why it failed.
+  const failure = (error ?? failureReason) as (Error & { isForbidden?: boolean }) | null
 
   const patch = (p: Partial<AssetFilters>) => setFilters((f) => ({ ...f, ...p, page: p.page ?? 1 }))
   const clear = () => { setFilters({ page: 1, perPage: filters.perPage }); setSearchDraft('') }
@@ -185,9 +189,16 @@ function RegisterInner() {
       </div>
 
       <div className={`${CARD} overflow-hidden`}>
-        {isError ? (
-          <ErrorState message={(error as Error)?.message} onRetry={() => refetch()} />
-        ) : isLoading ? (
+        {isError || (!isLoading && !isFetching && !data) ? (
+          // Two things here. `!data` matters as much as `isError`, because a
+          // refused request leaves the payload undefined and falling through to
+          // the empty state tells someone their church owns nothing. And the
+          // reason comes from `error ?? failureReason`: while a query is still
+          // retrying, `error` is null and only `failureReason` knows why — read
+          // just `error` and the page says "something went wrong" about a
+          // permission problem it could have named.
+          <ErrorState message={failure?.message} forbidden={failure?.isForbidden} onRetry={() => refetch()} />
+        ) : isLoading || !data ? (
           <TableSkeleton cols={7} />
         ) : !rows.length ? (
           <EmptyState

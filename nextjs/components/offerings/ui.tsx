@@ -1,7 +1,7 @@
 'use client'
 
 import type { LucideIcon } from 'lucide-react'
-import { AlertCircle, Inbox } from 'lucide-react'
+import { AlertCircle, Inbox, Lock } from 'lucide-react'
 
 /** Card shell used across the module. One place so radius/shadow stay uniform. */
 export const CARD =
@@ -102,20 +102,30 @@ export function EmptyState({
 export function ErrorState({
   message,
   onRetry,
+  forbidden,
 }: {
   message?: string
   onRetry?: () => void
+  /** Refused rather than broken: a different thing to say, and nothing to retry. */
+  forbidden?: boolean
 }) {
+  const denied = forbidden || /permission/i.test(message ?? '')
   return (
     <div className="text-center py-14 px-4">
-      <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-2xl bg-red-100">
-        <AlertCircle className="size-6 text-red-700" aria-hidden />
+      <div className={`mx-auto mb-4 flex size-14 items-center justify-center rounded-2xl ${denied ? 'bg-muted' : 'bg-red-100'}`}>
+        {denied
+          ? <Lock className="size-6 text-muted-foreground" aria-hidden />
+          : <AlertCircle className="size-6 text-red-700" aria-hidden />}
       </div>
-      <p className="font-medium text-foreground">Could not load this data</p>
-      <p className="text-sm text-muted-foreground mt-1">
-        {message || 'Something went wrong. Please try again.'}
+      <p className="font-medium text-foreground">
+        {denied ? 'You do not have access to this' : 'Could not load this data'}
       </p>
-      {onRetry && (
+      <p className="text-sm text-muted-foreground mt-1">
+        {denied
+          ? 'Ask an administrator to grant you this permission.'
+          : message || 'Something went wrong. Please try again.'}
+      </p>
+      {onRetry && !denied && (
         <button
           type="button"
           onClick={onRetry}

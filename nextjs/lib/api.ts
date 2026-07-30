@@ -39,6 +39,14 @@ api.interceptors.response.use((res) => {
 api.interceptors.response.use(
   (res) => res,
   (error) => {
+    // A refused request answers 403 with an empty body, so axios reports it as
+    // "Request failed with status code 403" — which a page then shows, or
+    // worse, renders as an empty list that reads as "your church has none".
+    // Say what actually happened instead.
+    if (error.response?.status === 403) {
+      error.message = 'You do not have permission to view this. Ask an administrator for access.'
+      error.isForbidden = true
+    }
     if (error.response?.status === 401 && typeof window !== 'undefined') {
       localStorage.removeItem('admin_token')
       // Only bounce to the login page from inside the admin area. A 401 from a
