@@ -83,8 +83,9 @@ export default function ProfilePage() {
 
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+            <label htmlFor="profile-name" className="block text-sm font-medium text-gray-700 mb-1">Name</label>
             <input
+              id="profile-name"
               type="text"
               value={name}
               onChange={e => setName(e.target.value)}
@@ -92,8 +93,9 @@ export default function ProfilePage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+            <label htmlFor="profile-email" className="block text-sm font-medium text-gray-700 mb-1">Email</label>
             <input
+              id="profile-email"
               type="email"
               value={email}
               disabled
@@ -128,8 +130,9 @@ export default function ProfilePage() {
 
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Current Password</label>
+            <label htmlFor="current-password" className="block text-sm font-medium text-gray-700 mb-1">Current Password</label>
             <input
+              id="current-password"
               type="password"
               value={currentPassword}
               onChange={e => setCurrentPassword(e.target.value)}
@@ -137,8 +140,9 @@ export default function ProfilePage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">New Password</label>
+            <label htmlFor="new-password" className="block text-sm font-medium text-gray-700 mb-1">New Password</label>
             <input
+              id="new-password"
               type="password"
               value={newPassword}
               onChange={e => setNewPassword(e.target.value)}
@@ -146,8 +150,9 @@ export default function ProfilePage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Confirm New Password</label>
+            <label htmlFor="confirm-password" className="block text-sm font-medium text-gray-700 mb-1">Confirm New Password</label>
             <input
+              id="confirm-password"
               type="password"
               value={confirmPassword}
               onChange={e => setConfirmPassword(e.target.value)}

@@ -284,6 +284,7 @@ export default function ThemePage() {
         </div>
         <div className="flex items-center gap-3">
           <select
+            aria-label="Corner roundness"
             value={radius}
             onChange={e => changeRadius(e.target.value)}
             className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring"
