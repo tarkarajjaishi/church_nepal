@@ -37,6 +37,12 @@ fn public_submit_routes() -> Router {
             post(prayer_requests::pray),
         )
         .route("/testimonies/submit", post(testimonies::submit_public))
+        // Anyone may report a fault. Same strict per-IP bucket as the contact
+        // form — it is the same abuse surface, and a help desk that only staff
+        // can reach is a help desk that never hears about the broken tap.
+        .route("/support/report", post(helpdesk_public::report))
+        .route("/support/{token}/reply", post(helpdesk_public::add_reply))
+        .route("/support/{token}/rate", post(helpdesk_public::rate))
 }
 
 // Public-read routes (GET-only, no JSON body) — same per-IP bucket as the
@@ -109,6 +115,10 @@ fn public_read_routes() -> Router {
             get(presentation_live::live_watch_public),
         )
         .route("/prayer-requests/public", get(prayer_requests::list_public))
+        // Follow your own ticket. The token is 256 random bits, not the
+        // sequential ticket code, so it cannot be walked.
+        .route("/support/categories", get(helpdesk_public::categories))
+        .route("/support/{token}", get(helpdesk_public::track))
 }
 
 /// Public + authenticated-write routes — same per-IP bucket (30/min) as

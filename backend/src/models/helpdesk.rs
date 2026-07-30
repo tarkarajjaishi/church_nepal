@@ -70,6 +70,18 @@ pub struct Ticket {
     pub resolution: String,
     pub reopen_count: i32,
     pub comment_count: i64,
+    /// `staff`, `public` or `email`. A ticket raised by a stranger at 2am is
+    /// triaged differently from one an administrator typed, and after the fact
+    /// there is no other way to tell.
+    pub source: String,
+    /// Set when this was folded into another as a duplicate.
+    pub merged_into: Option<uuid::Uuid>,
+    /// 1..5 from the reporter, or None if not asked or not answered. Never 0,
+    /// which would drag every average down.
+    pub satisfaction: Option<i32>,
+    pub satisfaction_note: String,
+    pub attachment_count: i64,
+    pub watcher_count: i64,
     /// SLA targets copied from the category so the client can show the
     /// deadline without a second lookup.
     pub response_target_hours: i32,

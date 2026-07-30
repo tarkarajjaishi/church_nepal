@@ -213,6 +213,11 @@ const TICKET_SELECT: &str = r#"
            t.resolution, t.reopen_count,
            (SELECT COUNT(*) FROM helpdesk_comments hc
             WHERE hc.ticket_id = t.id AND hc.event_kind = '')::bigint AS comment_count,
+           t.source, t.merged_into, t.satisfaction, t.satisfaction_note,
+           (SELECT COUNT(*) FROM helpdesk_attachments ha
+            WHERE ha.ticket_id = t.id)::bigint AS attachment_count,
+           (SELECT COUNT(*) FROM helpdesk_watchers hw
+            WHERE hw.ticket_id = t.id)::bigint AS watcher_count,
            COALESCE(c.response_hours, 24) AS response_target_hours,
            COALESCE(c.resolve_hours, 72) AS resolve_target_hours,
            0::bigint AS age_hours,
@@ -319,6 +324,14 @@ pub async fn tickets_list(
         per_page,
         total_pages: (total + per_page - 1) / per_page,
     }))
+}
+
+/// Exposed so the public form allocates codes from the same locked sequence.
+/// Two allocators would eventually hand out the same number.
+pub(crate) async fn next_ticket_code_tx(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+) -> Result<String, AppError> {
+    next_ticket_code(tx).await
 }
 
 async fn next_ticket_code(
@@ -539,6 +552,9 @@ pub async fn tickets_claim(
     }
 
     log_event(&pool, id, &format!("Assigned to {name}"), "assigned").await?;
+    // Best effort: the assignment has already happened, and failing the
+    // request because the mail server is down would undo work that succeeded.
+    crate::handlers::helpdesk_notify::assigned(&pool, id).await;
     Ok(Json(serde_json::json!({ "assigned_to": name })))
 }
 
@@ -628,6 +644,13 @@ pub async fn tickets_status(
         add_comment_row(&pool, id, input.author_name.as_deref(), &note, false).await?;
     }
 
+    // The message that closes the loop. Only on the way *out* — telling
+    // someone their ticket is "in progress" every time it is nudged is how a
+    // help desk teaches people to ignore it.
+    if matches!(input.status.as_str(), "resolved" | "closed") && !reopening {
+        crate::handlers::helpdesk_notify::resolved(&pool, id).await;
+    }
+
     Ok(Json(serde_json::json!({ "status": input.status, "reopened": reopening })))
 }
 
@@ -714,6 +737,13 @@ pub async fn comments_add(
         .execute(&pool)
         .await?;
         first = res.rows_affected() == 1;
+    }
+
+    // Only a reply the reporter can see. An internal note is the team talking
+    // to itself, and emailing it to the reporter would be worse than not
+    // notifying at all.
+    if !internal {
+        crate::handlers::helpdesk_notify::replied(&pool, id, &input.body).await;
     }
 
     Ok(Json(serde_json::json!({
@@ -976,6 +1006,12 @@ mod tests {
             resolution: String::new(),
             reopen_count: 0,
             comment_count: 0,
+            source: "staff".into(),
+            merged_into: None,
+            satisfaction: None,
+            satisfaction_note: String::new(),
+            attachment_count: 0,
+            watcher_count: 0,
             response_target_hours: 4,
             resolve_target_hours: 24,
             age_hours: 0,

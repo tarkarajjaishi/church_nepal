@@ -49,6 +49,8 @@ pub mod presentation;
 pub mod presentation_live;
 pub mod library;
 pub mod helpdesk;
+pub mod helpdesk_notify;
+pub mod helpdesk_public;
 pub mod roles;
 pub mod report_drill;
 pub mod report_pdf;

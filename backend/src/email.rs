@@ -497,3 +497,48 @@ Bcc: attacker@evil.test");
         assert!(raw.contains("report.pdf"));
     }
 }
+
+/// Send a plain-text message to one or more people.
+///
+/// Fails loudly when SMTP is unconfigured, like `send_report` and unlike the
+/// older notification helpers: the help desk records every attempt, and a log
+/// that only ever says "sent" is not a log.
+pub async fn send_plain(
+    pool: &PgPool,
+    to: &[String],
+    subject: &str,
+    body: &str,
+) -> anyhow::Result<()> {
+    let smtp_host = match std::env::var("SMTP_HOST") {
+        Ok(h) if !h.is_empty() => h,
+        _ => anyhow::bail!("no SMTP server is configured (set SMTP_HOST)"),
+    };
+    if to.is_empty() {
+        anyhow::bail!("nobody to send to");
+    }
+
+    let church_email: Option<String> =
+        sqlx::query_scalar("SELECT value FROM settings WHERE key = 'church_email'")
+            .fetch_optional(pool)
+            .await?;
+    let from_email = church_email.unwrap_or_else(|| "info@gracenepal.org".to_string());
+
+    let mut builder = lettre::Message::builder()
+        .from(format!("Grace Nepal Church <{from_email}>").parse()?)
+        .subject(subject.to_string());
+    for addr in to {
+        builder = builder.to(addr.parse()?);
+    }
+    let email = builder.body(body.to_string())?;
+
+    let creds = lettre::transport::smtp::authentication::Credentials::new(
+        std::env::var("SMTP_USERNAME").unwrap_or_default(),
+        std::env::var("SMTP_PASSWORD").unwrap_or_default(),
+    );
+    tokio::task::spawn_blocking(move || -> anyhow::Result<()> {
+        let mailer = lettre::SmtpTransport::relay(&smtp_host)?.credentials(creds).build();
+        lettre::Transport::send(&mailer, &email)?;
+        Ok(())
+    })
+    .await?
+}
