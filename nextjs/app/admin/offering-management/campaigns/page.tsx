@@ -4,10 +4,19 @@ import Link from 'next/link'
 import { useQuery, useQueries } from '@tanstack/react-query'
 import { Target, TrendingUp, Users, ArrowRight, Wallet } from 'lucide-react'
 import api, { asList } from '@/lib/api'
-import { money } from '@/lib/offerings/api'
+
 import {
   CARD, PageHeader, StatTile, EmptyState, ErrorState, TableSkeleton, Chip,
 } from '@/components/offerings/ui'
+
+/**
+ * Campaigns and pledges are stored in **rupees**, not the paisa the rest of the
+ * offering module uses: the public giving form posts what the donor typed, and
+ * `campaigns.raised` is a SUM of that. Formatting these with the offering
+ * module's `money()` would divide by a hundred and show Rs 3,800 where
+ * /admin/campaigns shows Rs 380,000 — two pages disagreeing about one campaign.
+ */
+const rupees = (n: number) => `Rs ${(n || 0).toLocaleString('en-IN')}`
 
 /**
  * Campaign progress, from the giving side.
@@ -76,11 +85,11 @@ export default function CampaignsPage() {
 
       <div className="grid gap-4 sm:grid-cols-4 mb-4">
         <StatTile label="Campaigns" value={campaigns.length} icon={Target} loading={isLoading} />
-        <StatTile label="Raised" value={money(totalRaised)} icon={TrendingUp} loading={isLoading} />
-        <StatTile label="Pledged" value={money(totalPledged)} hint="Promised, not yet received" icon={Users} loading={isLoading} />
+        <StatTile label="Raised" value={rupees(totalRaised)} icon={TrendingUp} loading={isLoading} />
+        <StatTile label="Pledged" value={rupees(totalPledged)} hint="Promised, not yet received" icon={Users} loading={isLoading} />
         <StatTile
           label="Combined goal"
-          value={money(totalGoal)}
+          value={rupees(totalGoal)}
           hint={totalGoal ? `${Math.round((totalRaised / totalGoal) * 100)}% raised` : undefined}
           icon={Wallet}
           loading={isLoading}
@@ -120,7 +129,7 @@ export default function CampaignsPage() {
                   <div className="min-w-0">
                     <h2 className="font-semibold truncate">{c.title}</h2>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      {money(raised)} of {money(goal)}
+                      {rupees(raised)} of {rupees(goal)}
                     </p>
                   </div>
                   <Chip className={c.enabled !== false ? 'bg-green-100 text-green-800 border-green-200' : 'bg-muted text-muted-foreground border-border'}>
@@ -152,17 +161,17 @@ export default function CampaignsPage() {
                 <dl className="grid grid-cols-3 gap-3 text-sm">
                   <div>
                     <dt className="text-xs text-muted-foreground">Donations</dt>
-                    <dd className="font-medium tabular-nums">{money(s?.donationAmount ?? 0)}</dd>
+                    <dd className="font-medium tabular-nums">{rupees(s?.donationAmount ?? 0)}</dd>
                     <dd className="text-xs text-muted-foreground">{s?.donationCount ?? 0} payments</dd>
                   </div>
                   <div>
                     <dt className="text-xs text-muted-foreground">Pledges</dt>
-                    <dd className="font-medium tabular-nums">{money(pledged)}</dd>
+                    <dd className="font-medium tabular-nums">{rupees(pledged)}</dd>
                     <dd className="text-xs text-muted-foreground">{s?.pledgeCount ?? 0} committed</dd>
                   </div>
                   <div>
                     <dt className="text-xs text-muted-foreground">Still needed</dt>
-                    <dd className="font-medium tabular-nums">{money(Math.max(0, goal - raised))}</dd>
+                    <dd className="font-medium tabular-nums">{rupees(Math.max(0, goal - raised))}</dd>
                   </div>
                 </dl>
 

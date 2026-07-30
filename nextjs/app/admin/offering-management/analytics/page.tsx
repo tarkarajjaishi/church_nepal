@@ -83,7 +83,10 @@ export default function AnalyticsPage() {
       <section className={`${CARD} p-4 sm:p-5 mb-4`}>
         <h2 className="font-semibold mb-1">Giving by month</h2>
         <p className="text-xs text-muted-foreground mb-4">The last twelve months, gap-filled — a month with no giving is a gap, not a missing bar.</p>
-        <div className="flex items-end gap-1.5 h-40" role="img" aria-label="Giving by month for the last twelve months">
+        {/* items-stretch, not items-end: with items-end each column shrinks to its
+            label, so the bar's percentage height has nothing to resolve against
+            and collapses to nothing. */}
+        <div className="flex items-stretch gap-1.5 h-40" role="img" aria-label="Giving by month for the last twelve months">
           {data.months.map((m) => (
             <div key={m.month} className="flex-1 flex flex-col items-center justify-end gap-1 min-w-0">
               <span

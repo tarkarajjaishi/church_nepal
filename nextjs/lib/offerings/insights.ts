@@ -205,7 +205,26 @@ export const insightsApi = {
     api.post(`/offering-management/recurring/${id}/collect`).then((r) => r.data),
 }
 
-/** Where the browser should go to print a receipt. */
-export function receiptPdfUrl(origin: string, id: string): string {
-  return `${origin}/api/offering-management/receipts/${id}/pdf`
+/**
+ * Open a receipt PDF in a new tab.
+ *
+ * Fetched through the axios client rather than linked to directly: the bearer
+ * token lives in localStorage, so a bare `<a href>` to an authenticated
+ * endpoint arrives unauthenticated and shows a 401 instead of the receipt.
+ * `arraybuffer`, not `blob` — a PDF put through any text decoding on the way
+ * is a file no reader will open.
+ */
+export async function openReceiptPdf(id: string, receiptNo: string): Promise<void> {
+  const res = await api.get(`/offering-management/receipts/${id}/pdf`, {
+    responseType: 'arraybuffer',
+    transformResponse: [(d) => d],
+  })
+  const href = URL.createObjectURL(
+    new Blob([res.data as BlobPart], { type: 'application/pdf' })
+  )
+  const a = document.createElement('a')
+  a.href = href
+  a.download = `receipt-${receiptNo}.pdf`
+  a.click()
+  URL.revokeObjectURL(href)
 }

@@ -466,7 +466,8 @@ mod tests {
         assert_eq!(rupees(5), "Rs 0.05");
         assert_eq!(rupees(100), "Rs 1.00");
         assert_eq!(rupees(123_45), "Rs 123.45");
-        assert_eq!(rupees(1_000_000_00), "Rs 100000000.00");
+        // 100,000,000 paisa is one million rupees.
+        assert_eq!(rupees(1_000_000_00), "Rs 1000000.00");
     }
 
     #[test]

@@ -7,8 +7,7 @@ import {
   Receipt, Search, Printer, Send, Hash, CheckCircle2, ChevronLeft, ChevronRight, Mail,
 } from 'lucide-react'
 import { money } from '@/lib/offerings/api'
-import { insightsApi, receiptPdfUrl, type ReceiptRow } from '@/lib/offerings/insights'
-import { API_ORIGIN } from '@/lib/apiBase'
+import { insightsApi, openReceiptPdf, type ReceiptRow } from '@/lib/offerings/insights'
 import {
   CARD, PageHeader, StatTile, EmptyState, ErrorState, TableSkeleton, Chip, btn, field,
 } from '@/components/offerings/ui'
@@ -227,16 +226,19 @@ export default function ReceiptsPage() {
                           </button>
                         ) : (
                           <>
-                            <a
-                              href={receiptPdfUrl(API_ORIGIN, r.id)}
-                              target="_blank"
-                              rel="noreferrer"
+                            <button
+                              type="button"
+                              onClick={() =>
+                                openReceiptPdf(r.id, r.receiptNo).catch((e: Error) =>
+                                  toast.error(e.message || 'Could not open that receipt')
+                                )
+                              }
                               aria-label={`Print receipt ${r.receiptNo}`}
                               title="Print"
                               className="inline-flex items-center justify-center size-9 rounded-lg hover:bg-muted transition-colors"
                             >
                               <Printer className="size-4" aria-hidden />
-                            </a>
+                            </button>
                             <button
                               type="button"
                               onClick={() => setSending(r)}
