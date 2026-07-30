@@ -60,6 +60,24 @@ api.interceptors.response.use(
   }
 )
 
+/**
+ * Read a list endpoint without having to know whether it paginates.
+ *
+ * Some endpoints answer with a bare array and some with `{data, total, page}`,
+ * and there is no way to tell from the URL. Reading an enveloped one as an
+ * array throws "x.map is not a function" — which the error boundary catches,
+ * so the whole page becomes "Something went wrong" and never says which call
+ * was wrong. That has now cost three pages: /admin/content-blocks,
+ * /admin/rsvps and /admin/pledges.
+ */
+export function asList<T = any>(res: unknown): T[] {
+  if (Array.isArray(res)) return res as T[]
+  if (res && typeof res === 'object' && Array.isArray((res as { data?: unknown }).data)) {
+    return (res as { data: T[] }).data
+  }
+  return []
+}
+
 // Public API — no auth needed for reading
 export interface PaginatedResponse<T> {
   data: T[]

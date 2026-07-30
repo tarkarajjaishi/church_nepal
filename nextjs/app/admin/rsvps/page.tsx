@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api from '@/lib/admin/api'
+import api, { asList } from '@/lib/admin/api'
 import { Users, Search, Trash2, Calendar } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -25,12 +25,13 @@ export default function AdminRsvpsPage() {
 
   const { data: events = [] } = useQuery<ChurchEvent[]>({
     queryKey: ['events'],
-    queryFn: () => api.get<ChurchEvent[]>('/events').then(r => r.data),
+    // /events paginates; read bare it throws "events.map is not a function".
+    queryFn: () => api.get('/events').then((r) => asList<ChurchEvent>(r.data)),
   })
 
   const { data: rsvps = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['events', selectedEventId, 'rsvps'],
-    queryFn: () => api.get<EventRsvp[]>(`/events/${selectedEventId}/rsvps`).then(r => r.data),
+    queryFn: () => api.get(`/events/${selectedEventId}/rsvps`).then((r) => asList<EventRsvp>(r.data)),
     enabled: !!selectedEventId,
   })
 

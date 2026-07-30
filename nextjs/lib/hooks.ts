@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { fetchAll, fetchOne } from "./api"
+import { fetchAll, fetchOne, asList } from "./api"
 import api from "./admin/api"
 import {
   serviceTimes as fallbackServiceTimes,
@@ -55,7 +55,7 @@ function wrapQuery<T>(query: any) {
 export function useBlogPosts() {
   const query = useQuery({
     queryKey: ["blog"],
-    queryFn: () => api.get("/blog").then(r => r.data),
+    queryFn: () => api.get("/blog").then((r) => asList(r.data)),
   })
   return wrapQuery(query)
 }
@@ -63,7 +63,7 @@ export function useBlogPosts() {
 export function useUsers() {
   const query = useQuery({
     queryKey: ["users"],
-    queryFn: () => api.get("/users").then(r => r.data),
+    queryFn: () => api.get("/users").then((r) => asList(r.data)),
   })
   return wrapQuery(query)
 }
@@ -71,7 +71,7 @@ export function useUsers() {
 export function useServices() {
   const query = useQuery({
     queryKey: ["services"],
-    queryFn: () => api.get("/services").then(r => r.data),
+    queryFn: () => api.get("/services").then((r) => asList(r.data)),
   })
   return wrapQuery(query)
 }
@@ -79,7 +79,7 @@ export function useServices() {
 export function usePortfolio() {
   const query = useQuery({
     queryKey: ["portfolio"],
-    queryFn: () => api.get("/portfolio").then(r => r.data),
+    queryFn: () => api.get("/portfolio").then((r) => asList(r.data)),
   })
   return wrapQuery(query)
 }
@@ -253,7 +253,7 @@ export function useEnabledCampaigns() {
 export function useGroups() {
   const query = useQuery({
     queryKey: ["groups"],
-    queryFn: () => api.get("/groups").then(r => r.data),
+    queryFn: () => api.get("/groups").then((r) => asList(r.data)),
   })
   return wrapQuery(query)
 }
@@ -513,9 +513,17 @@ export function useCreateContactInfo() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["contact-info"] }),
   })
 }
+/**
+ * Note there is a second hook of this name in `lib/hooks/content-blocks.ts`.
+ * `@/lib/hooks` resolves to this file, not that directory, so this is the one
+ * callers get — and it returned the block itself while every caller wrote
+ * `const { data } = useContentBlockByKey(...)`. Destructuring null threw and
+ * took the whole Settings page down. It now answers in the shape its name
+ * promises.
+ */
 export function useContentBlockByKey(key: string) {
   const { data: blocks = [] } = useContentBlocks()
-  return blocks.find((b: ContentBlock) => b.sectionKey === key) ?? null
+  return { data: blocks.find((b: ContentBlock) => b.sectionKey === key) ?? null }
 }
 export function useUpdateContentBlock() {
   const qc = useQueryClient()

@@ -110,3 +110,7 @@ export async function uploadFile(file: File): Promise<{ url: string; filename: s
   }
   return res.json()
 }
+
+// Same helper as the public client: some list endpoints paginate and some
+// do not, and the URL does not say which.
+export { asList } from '@/lib/api'

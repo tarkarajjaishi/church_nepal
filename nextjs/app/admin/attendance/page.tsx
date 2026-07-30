@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api from '@/lib/admin/api'
+import api, { asList } from '@/lib/admin/api'
 import {
   Users,
   UserPlus,
@@ -33,12 +33,6 @@ const TABS: { key: Tab; label: string }[] = [
   { key: 'reports', label: 'Reports' },
 ]
 
-function unwrapPaginated(res: unknown): any[] {
-  if (Array.isArray(res)) return res
-  if (res && typeof res === 'object' && Array.isArray((res as any).data)) return (res as any).data
-  return []
-}
-
 const SAMPLE_SERVICES = [{ name: 'Sunday Service' }, { name: 'Midweek Service' }]
 
 export default function AttendancePage() {
@@ -59,14 +53,14 @@ export default function AttendancePage() {
     queryKey: ['events'],
     queryFn: () => api.get('/events').then(r => r.data),
   })
-  const events = useMemo(() => unwrapPaginated(eventsRaw), [eventsRaw])
+  const events = useMemo(() => asList(eventsRaw), [eventsRaw])
 
   const { data: serviceTimesRaw } = useQuery({
     queryKey: ['service-times'],
     queryFn: () => api.get('/service-times').then(r => r.data),
   })
   const serviceList = useMemo(() => {
-    const raw = unwrapPaginated(serviceTimesRaw).map((s: any) => ({ name: s.name }))
+    const raw = asList(serviceTimesRaw).map((s: any) => ({ name: s.name }))
     return raw.length > 0 ? raw : SAMPLE_SERVICES
   }, [serviceTimesRaw])
 
@@ -114,7 +108,7 @@ export default function AttendancePage() {
     enabled: tab === 'kiosk' && memberSearch.trim().length >= 2,
   })
   const members = useMemo(() => {
-    const all = unwrapPaginated(membersRaw)
+    const all = asList(membersRaw)
     const term = memberSearch.toLowerCase()
     return term ? all.filter((m: any) => (m.name || '').toLowerCase().includes(term)) : all
   }, [membersRaw, memberSearch])

@@ -17,7 +17,8 @@ function RoleSelect({ user, onChangeRole }: { user: User; onChangeRole: (role: s
     <select
       value={user.role ?? 'viewer'}
       onChange={(e) => onChangeRole(e.target.value)}
-      className="px-3 py-1 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+      aria-label={`Role for ${user.email}`}
+      className="min-h-9 px-3 py-1 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
     >
       {roles.map((role) => (
         <option key={role} value={role}>

@@ -20,7 +20,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import api, { uploadFile } from '@/lib/admin/api'
+import api, { uploadFile, asList } from '@/lib/admin/api'
 import { Plus, Pencil, Trash2, Upload, GripVertical, LayoutGrid } from 'lucide-react'
 import { Badge, Switch, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, Button } from '@/components/admin/DataTable'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -125,8 +125,7 @@ export default function ContentBlocksPage() {
     // straight, `items` becomes an object and `[...items]` below throws
     // "items is not iterable" — which the error boundary catches, so the whole
     // page becomes "Something went wrong" with no clue which call was wrong.
-    queryFn: () =>
-      api.get('/content-blocks').then((r) => (Array.isArray(r.data) ? r.data : r.data?.data ?? [])),
+    queryFn: () => api.get('/content-blocks').then((r) => asList<ContentBlock>(r.data)),
   })
 
   const sortedItems = useMemo(() => {

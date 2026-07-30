@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api from '@/lib/admin/api'
+import api, { asList } from '@/lib/admin/api'
 import { Plus, Pencil, Target, DollarSign, User } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -41,7 +41,8 @@ export default function PledgesPage() {
 
   const { data: campaigns = [] } = useQuery({
     queryKey: ['campaigns'],
-    queryFn: () => api.get('/campaigns').then(r => r.data),
+    // /campaigns paginates.
+    queryFn: () => api.get('/campaigns').then((r) => asList(r.data)),
   })
 
   const campaignMap = Object.fromEntries((campaigns as any[]).map((c: any) => [c.id, c.title]))
@@ -152,8 +153,8 @@ export default function PledgesPage() {
                       </td>
                       <td className="p-2 text-right">
                         <div className="flex items-center justify-end gap-1">
-                          <Button size="sm" variant="ghost" onClick={() => openEdit(p)}>
-                            <Pencil className="size-3.5" />
+                          <Button size="sm" variant="ghost" onClick={() => openEdit(p)} aria-label={`Edit the pledge from ${p.personName || p.name || 'this donor'}`}>
+                            <Pencil className="size-3.5" aria-hidden />
                           </Button>
                           {p.status === 'active' && (
                             <Button size="sm" variant="ghost" onClick={() => toggleStatusMut.mutate({ id: p.id, status: 'fulfilled' })}>

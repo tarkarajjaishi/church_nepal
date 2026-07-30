@@ -115,7 +115,11 @@ function normalizeHex(hex: string): string {
   return '#' + h.toLowerCase()
 }
 
-export function isValidHex(hex: string): boolean {
+export function isValidHex(hex: string | null | undefined): boolean {
+  // A setting that has never been saved reads back undefined, and calling
+  // .trim() on it took the whole Theme page down with "Cannot read properties
+  // of undefined". An absent colour is simply not a valid one.
+  if (typeof hex !== 'string') return false
   return /^#?([a-f\d]{3}|[a-f\d]{6})$/i.test(hex.trim())
 }
 
