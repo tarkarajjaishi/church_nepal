@@ -409,13 +409,13 @@ export function useUpdateContactInfo() {
 export function useGivingSummary() {
   return useQuery({
     queryKey: ["reports", "giving-summary"],
-    queryFn: () => api.get("/reports/giving-summary").then(r => r.data),
+    queryFn: () => api.get("/donations/summary").then(r => r.data),
   })
 }
 export function usePeopleSummary() {
   return useQuery({
     queryKey: ["reports", "people-summary"],
-    queryFn: () => api.get("/reports/people-summary").then(r => r.data),
+    queryFn: () => api.get("/people/summary").then(r => r.data),
   })
 }
 

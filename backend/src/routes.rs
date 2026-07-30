@@ -2,7 +2,7 @@ use axum::middleware::from_extractor;
 use axum::routing::{delete, get, patch, post, put};
 use axum::Router;
 
-use crate::auth::AdminGuard;
+use crate::auth::PermissionGuard;
 use crate::handlers::*;
 use crate::{lenient_ip_governor, per_token_governor, strict_ip_governor};
 use tower_governor::GovernorLayer;
@@ -129,6 +129,10 @@ pub fn public_routes() -> Router {
 pub fn auth_routes() -> Router {
     Router::new()
         .route("/auth/me", get(auth::me).put(auth::update_me))
+        // What the signed-in user may do. Deliberately not behind
+        // `users.manage`: every user needs to read their own access, and the
+        // UI cannot hide what it must not offer without asking.
+        .route("/auth/access", get(roles::my_access))
         .route("/auth/change-password", post(auth::change_password))
         .route("/auth/refresh", post(auth::refresh))
         .route("/auth/logout", post(auth::logout))
@@ -655,6 +659,25 @@ pub fn admin_routes() -> Router {
         .route("/worship/rehearsals", get(worship::rehearsals_list).post(worship::rehearsals_create))
         .route("/worship/rehearsals/{id}", delete(worship::rehearsals_delete))
         .route("/worship/rehearsals/{id}/attendance", post(worship::rehearsals_attendance))
+        // ---- Reports ---------------------------------------------------------
+        // These handlers existed but were never routed, so /admin/reports has
+        // been rendering empty charts from 404s that its `= {}` defaults
+        // swallowed. Mounted under the module each one reads from rather than a
+        // shared /reports prefix, so the giving summary needs `giving.view` and
+        // the people summary needs `people.view` — a coordinator gets the
+        // people half and a finance officer gets the money half, which is the
+        // whole point of splitting those permissions.
+        .route("/donations/summary", get(reports::giving_summary))
+        .route("/people/summary", get(reports::people_summary))
+        // ---- Roles & permissions --------------------------------------------
+        // Separate top-level segments rather than nesting everything under
+        // /roles/, so no static path ever sits where the matcher expects an id.
+        .route("/roles", get(roles::roles_list).post(roles::roles_create))
+        .route("/roles/{id}", delete(roles::roles_delete))
+        .route("/roles/{id}/permissions", put(roles::roles_set_permissions))
+        .route("/permissions", get(roles::permissions_list))
+        .route("/role-assignments", get(roles::users_with_roles))
+        .route("/role-assignments/{id}", put(roles::set_user_roles))
         // ---- Church Library -----------------------------------------------
         .route("/library/dashboard", get(library::dashboard))
         .route("/library/categories", get(library::categories_list))
@@ -875,9 +898,13 @@ pub fn api_routes() -> Router {
     let portal = portal_routes();
 
     let guarded_admin = admin_routes()
-        // AdminGuard is an axum extractor; it runs only after the request
-        // has cleared the rate limits above.
-        .layer(from_extractor::<AdminGuard>());
+        // `route_layer`, not `layer`. A `layer` wraps the router itself and so
+        // runs *before* the request is routed, which means `MatchedPath` is
+        // not set yet — the guard then saw an empty path, resolved it through
+        // the fail-closed branch, and refused every request from anyone who
+        // was not a full administrator. `route_layer` runs after matching,
+        // where the pattern the guard needs actually exists.
+        .route_layer(from_extractor::<PermissionGuard>());
 
     Router::new()
         .merge(public)

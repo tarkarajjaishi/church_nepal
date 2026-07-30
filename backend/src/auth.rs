@@ -154,6 +154,100 @@ where
     }
 }
 
+/// The permissions a user actually holds, as the union of their roles.
+///
+/// Resolved per request rather than carried in the token, because a token
+/// lives for 24 hours and "you may no longer see the giving records" has to
+/// take effect when it is said, not the following day.
+///
+/// Returns `None` when the subject is not a real user row — a hand-minted
+/// token used by the seed scripts and the watchdog. Those fall back to the
+/// signed `role` claim, which is exactly the authority model that existed
+/// before roles were added. Anyone able to mint one already holds the signing
+/// key, so this widens nothing.
+pub async fn permissions_for(
+    pool: &sqlx::PgPool,
+    user_id: &str,
+) -> Option<std::collections::HashSet<String>> {
+    let uuid = uuid::Uuid::parse_str(user_id).ok()?;
+    let exists: Option<uuid::Uuid> = sqlx::query_scalar("SELECT id FROM users WHERE id = $1")
+        .bind(uuid)
+        .fetch_optional(pool)
+        .await
+        .ok()
+        .flatten();
+    exists?;
+
+    let rows: Vec<String> = sqlx::query_scalar(
+        "SELECT DISTINCT rp.permission
+         FROM user_roles ur
+         JOIN role_permissions rp ON rp.role_id = ur.role_id
+         WHERE ur.user_id = $1",
+    )
+    .bind(uuid)
+    .fetch_all(pool)
+    .await
+    .unwrap_or_default();
+
+    Some(rows.into_iter().collect())
+}
+
+/// Guards every admin route: authenticated, an admin, and holding the
+/// permission that route requires.
+///
+/// The required permission comes from the *matched route pattern*
+/// (`/members/{id}/toggle`), never the raw URL, so it cannot be dodged by
+/// crafting a path that merely looks like a different module.
+pub struct PermissionGuard(pub AuthUser);
+
+impl<S> FromRequestParts<S> for PermissionGuard
+where
+    S: Send + Sync,
+{
+    type Rejection = StatusCode;
+
+    async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
+        let auth = AuthUser::from_request_parts(parts, state).await?;
+        auth.require_admin()?;
+
+        let Some(pool) = parts.extensions.get::<sqlx::PgPool>().cloned() else {
+            // No tenant pool means the request never reached a tenant. Deny
+            // rather than wave it through unchecked.
+            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+        };
+
+        let held = match permissions_for(&pool, &auth.user_id).await {
+            Some(p) => p,
+            // Synthetic token — the signed claim governs, as it always did.
+            None => return Ok(PermissionGuard(auth)),
+        };
+
+        // A real user with no roles has no access. Migration 069 backfilled
+        // every existing admin, so this state is only ever reached
+        // deliberately, and it means what it says.
+        // A missing MatchedPath is a wiring mistake, not a permission
+        // decision, and must not be silently answered with "denied" — that is
+        // how a guard mounted with `layer` instead of `route_layer` spent an
+        // afternoon looking like a librarian with no permissions. Fail loudly
+        // and distinguishably.
+        let Some(matched) = parts.extensions.get::<axum::extract::MatchedPath>() else {
+            eprintln!(
+                "FATAL: PermissionGuard ran before routing — mount it with route_layer, not layer"
+            );
+            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+        };
+        let path = matched.as_str().to_string();
+        let segment = crate::permissions::segment_of(&path);
+        let needed = crate::permissions::required_permission(segment, &parts.method);
+
+        if crate::permissions::allows(&held, needed) {
+            Ok(PermissionGuard(auth))
+        } else {
+            Err(StatusCode::FORBIDDEN)
+        }
+    }
+}
+
 pub fn create_token(
     user_id: &str,
     email: &str,

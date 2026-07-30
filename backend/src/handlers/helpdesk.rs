@@ -124,15 +124,27 @@ fn enrich(tickets: &mut [Ticket], now: chrono::NaiveDateTime) {
 
         let open = !matches!(t.status.as_str(), "resolved" | "closed" | "cancelled");
 
-        t.response_breached = match t.response_hours_taken {
-            Some(taken) => taken > i64::from(t.response_target_hours),
+        // Compared as instants, not as whole hours.
+        //
+        // `num_hours()` truncates, so a ticket four and a half hours past a
+        // four-hour target rounds down to "4 hours taken", and `4 > 4` is
+        // false. The SQL that selects the breached queue compares timestamps
+        // and counted it. The list and the flags on it then disagreed for
+        // anything inside the first hour past its target — a whole hour every
+        // ticket spends silently late.
+        let deadline = |hours: i32| t.opened_at + chrono::Duration::hours(i64::from(hours));
+        let response_due = deadline(t.response_target_hours);
+        let resolve_due = deadline(t.resolve_target_hours);
+
+        t.response_breached = match t.first_responded_at {
+            Some(replied) => replied > response_due,
             // Unanswered: the clock is still running, so compare against now.
-            None => open && hours_between(t.opened_at, now) > i64::from(t.response_target_hours),
+            None => open && now > response_due,
         };
 
         t.resolve_breached = match t.resolved_at {
-            Some(r) => hours_between(t.opened_at, r) > i64::from(t.resolve_target_hours),
-            None => open && hours_between(t.opened_at, now) > i64::from(t.resolve_target_hours),
+            Some(r) => r > resolve_due,
+            None => open && now > resolve_due,
         };
     }
 }
@@ -1011,6 +1023,36 @@ mod tests {
         t[0].resolved_at = Some(dt(3, 9)); // 48h, target 24h
         enrich(&mut t, dt(30, 9));
         assert!(t[0].resolve_breached, "closing it late does not un-breach it");
+    }
+
+    #[test]
+    fn a_breach_starts_the_moment_the_target_passes_not_an_hour_later() {
+        // The bug this pins: whole-hour arithmetic truncates, so a ticket 4h30
+        // past a 4h target reported "4 hours taken" and 4 > 4 is false. The SQL
+        // that builds the breached queue compares timestamps and had already
+        // counted it, so the list showed a ticket its own flags called fine.
+        let at = |h: u32, m: u32| {
+            chrono::NaiveDate::from_ymd_opt(2026, 7, 1).unwrap().and_hms_opt(h, m, 0).unwrap()
+        };
+        let mut t = [ticket("open")]; // opened 09:00, response target 4h
+        enrich(&mut t, at(13, 0)); // exactly on the deadline
+        assert!(!t[0].response_breached, "on the deadline is not past it");
+
+        let mut t = [ticket("open")];
+        enrich(&mut t, at(13, 30)); // half an hour past
+        assert!(t[0].response_breached, "half an hour late is late");
+        assert_eq!(t[0].age_hours, 4, "the displayed age still reads in whole hours");
+    }
+
+    #[test]
+    fn a_reply_a_minute_late_is_late() {
+        let mut t = [ticket("in_progress")];
+        t[0].first_responded_at = Some(
+            chrono::NaiveDate::from_ymd_opt(2026, 7, 1).unwrap().and_hms_opt(13, 1, 0).unwrap(),
+        );
+        enrich(&mut t, dt(1, 14));
+        assert!(t[0].response_breached);
+        assert_eq!(t[0].response_hours_taken, Some(4), "still reported as 4h taken");
     }
 
     #[test]

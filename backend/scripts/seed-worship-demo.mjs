@@ -127,8 +127,19 @@ async function main() {
 
   // 2. Team
   console.log('\n2. Team roster')
-  const existing = await api('GET', '/worship/members')
-  const have = new Map(existing.map((m) => [m.name, m]))
+  // Includes inactive members: step 11 deactivates one, so a second run would
+  // otherwise find them "already there", leave them inactive, and fail the
+  // active-count assertion for a reason that has nothing to do with the code.
+  const existing = await api('GET', '/worship/members?active=false')
+  const active = await api('GET', '/worship/members?active=true')
+  for (const m of existing) {
+    if (BAND.some((b) => b.name === m.name)) {
+      await api('PUT', `/worship/members/${m.id}`, { name: m.name, is_active: true })
+    }
+  }
+  if (existing.length) console.log(`  (reactivated ${existing.length} member(s) from a previous run)`)
+
+  const have = new Map([...active, ...existing].map((m) => [m.name, m]))
   const members = []
   for (const b of BAND) {
     if (have.has(b.name)) { members.push(have.get(b.name)); continue }

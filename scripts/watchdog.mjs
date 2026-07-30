@@ -57,6 +57,23 @@ function adminToken() {
 
 const TOKEN = adminToken()
 
+/**
+ * Mint a token for a *real* user row, so a check can see what that person can
+ * actually reach. No password is read, typed or sent — the signing key from
+ * backend/.env is the same authority the API already trusts.
+ */
+function tokenFor(userId, email) {
+  const secret = (fs.readFileSync(ENV_PATH, 'utf8').match(/^JWT_SECRET=(.*)$/m) || [])[1]?.trim()
+  const b64 = (o) => Buffer.from(JSON.stringify(o)).toString('base64url')
+  const now = Math.floor(Date.now() / 1000)
+  const body = `${b64({ alg: 'HS256', typ: 'JWT' })}.${b64({
+    sub: userId, email, role: 'admin',
+    exp: now + 300, jti: crypto.randomUUID(), iat: now,
+    last_active_at: now, pwd_changed_at: now + 60,
+  })}`
+  return `${body}.${crypto.createHmac('sha256', secret).update(body).digest('base64url')}`
+}
+
 async function fetchJson(url, { auth = false, headers = {}, timeout = TIMEOUT_MS } = {}) {
   const ctrl = new AbortController()
   const t = setTimeout(() => ctrl.abort(), timeout)
@@ -484,6 +501,68 @@ const CHECKS = [
     },
   },
   {
+    name: 'permission guard actually refuses',
+    async run() {
+      if (!TOKEN) return { ok: false, detail: 'no JWT_SECRET' }
+      // The failure this catches is the one that looks like success: a guard
+      // mounted so that MatchedPath is missing, or a mount prefix that makes
+      // every route resolve to the fail-closed default. Both leave the API
+      // *working* for a full administrator and broken for everyone else, so
+      // the only way to notice is to send a request that must be refused and
+      // one that must not.
+      const roles = await fetchJson(`${CHURCH_API}/api/roles`, { auth: true })
+      if (roles.status !== 200) return { ok: false, detail: `roles list HTTP ${roles.status}` }
+      const librarian = (roles.json ?? []).find((r) => r.slug === 'librarian')
+      if (!librarian) return { ok: true, detail: 'roles not seeded' }
+
+      const users = await fetchJson(`${CHURCH_API}/api/role-assignments`, { auth: true })
+      if (users.status !== 200) return { ok: false, detail: `assignments HTTP ${users.status}` }
+      const holder = (users.json ?? []).find(
+        (u) => u.role_slugs?.length === 1 && u.role_slugs[0] === 'librarian'
+      )
+      if (!holder) return { ok: true, detail: 'no single-role librarian to probe with' }
+
+      const t = tokenFor(holder.id, holder.email)
+      const allowed = await fetchJson(`${CHURCH_API}/api/library/dashboard`, {
+        headers: { authorization: `Bearer ${t}` },
+      })
+      const refused = await fetchJson(`${CHURCH_API}/api/donations/by-donor`, {
+        headers: { authorization: `Bearer ${t}` },
+      })
+
+      if (allowed.status === 403) {
+        return { ok: false, detail: 'a librarian is refused the library — guard is over-blocking' }
+      }
+      if (refused.status !== 403) {
+        return {
+          ok: false,
+          detail: `a librarian reached donor history (HTTP ${refused.status}) — giving is exposed`,
+        }
+      }
+      return { ok: true, detail: 'librarian: library 200, donor history 403' }
+    },
+  },
+  {
+    name: 'a church always has an administrator',
+    async run() {
+      if (!TOKEN) return { ok: false, detail: 'no JWT_SECRET' }
+      const users = await fetchJson(`${CHURCH_API}/api/role-assignments`, { auth: true })
+      if (users.status !== 200) return { ok: false, detail: `HTTP ${users.status}` }
+      const rows = users.json ?? []
+      if (!rows.length) return { ok: true, detail: 'no user accounts' }
+
+      const admins = rows.filter((u) => u.permissions?.includes('system.admin'))
+      const roleless = rows.filter((u) => (u.role_slugs?.length ?? 0) === 0)
+      if (admins.length === 0) {
+        return { ok: false, detail: `${rows.length} accounts and nobody can administer the church` }
+      }
+      return {
+        ok: true,
+        detail: `${admins.length} administrator(s), ${roleless.length} account(s) with no role`,
+      }
+    },
+  },
+  {
     name: 'help desk SLA figures agree with the queue',
     async run() {
       if (!TOKEN) return { ok: false, detail: 'no JWT_SECRET' }
@@ -559,6 +638,12 @@ const CHECKS = [
     name: 'help desk admin pages render',
     async run() {
       return checkPages('/admin/helpdesk', ['', '/tickets', '/unassigned', '/breaching', '/knowledge', '/categories'])
+    },
+  },
+  {
+    name: 'roles admin pages render',
+    async run() {
+      return checkPages('/admin/roles', ['', '/people'])
     },
   },
   {

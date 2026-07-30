@@ -233,6 +233,19 @@ async function main() {
   // 6. Reservations — the exclusion constraint
   console.log('\n6. Reservations')
   const projector = page.data.find((a) => a.name.startsWith('Epson'))
+
+  // Clear bookings left by an earlier run. Without this the exclusion
+  // constraint correctly refuses the first booking below and the script dies
+  // on its own guard working — a failure that reads like a bug and is not.
+  // Cancelled through the API rather than deleted, so who booked what survives.
+  const live = (await api('GET', '/asset-reservations')).filter(
+    (r) => r.asset_id === projector.id && ['pending', 'approved', 'collected'].includes(r.status)
+  )
+  for (const r of live) {
+    await api('POST', `/asset-reservations/${r.id}/cancelled`, {})
+  }
+  if (live.length) console.log(`  (cancelled ${live.length} booking(s) from a previous run)`)
+
   await api('POST', `/assets/${projector.id}/reserve`, {
     requested_by: 'Youth Ministry', purpose: 'Youth camp',
     starts_on: iso(addDays(10)), ends_on: iso(addDays(14)),
@@ -268,7 +281,11 @@ async function main() {
   )
 
   const reservations = await api('GET', '/asset-reservations')
-  const mine = reservations.filter((r) => r.asset_id === projector.id)
+  // Live ones only: the cleanup above leaves cancelled rows behind on a
+  // re-run, and those are history, not the state under test.
+  const mine = reservations.filter(
+    (r) => r.asset_id === projector.id && !['cancelled', 'rejected', 'returned'].includes(r.status)
+  )
   check('reservations listed for the asset', mine.length >= 2, `${mine.length}`)
   check('reservations start pending', mine.every((r) => ['pending', 'approved'].includes(r.status)))
 
@@ -297,19 +314,35 @@ async function main() {
   // 7. Maintenance
   console.log('\n7. Maintenance')
   const generator = page.data.find((a) => a.name.startsWith('Honda'))
-  await api('POST', `/assets/${generator.id}/maintenance`, {
-    maintenance_kind: 'preventive', title: 'Annual service', technician: 'Ram Mechanic',
-    performed_on: iso(addDays(-30)), cost: rupees(4500), next_due: iso(addDays(335)),
-    condition_after: 'good', status: 'completed',
-  })
-  await api('POST', `/assets/${generator.id}/maintenance`, {
-    maintenance_kind: 'inspection', title: 'Load test', scheduled_for: iso(addDays(14)),
-  })
+  // Created once, not once per run: a second Rs 4,500 service every time would
+  // make the cost total climb and the assertion below fail on arithmetic that
+  // is in fact correct.
+  const genExisting = (await api('GET', `/assets/${generator.id}`)).maintenance
+  if (!genExisting.some((m) => m.title === 'Annual service')) {
+    await api('POST', `/assets/${generator.id}/maintenance`, {
+      maintenance_kind: 'preventive', title: 'Annual service', technician: 'Ram Mechanic',
+      performed_on: iso(addDays(-30)), cost: rupees(4500), next_due: iso(addDays(335)),
+      condition_after: 'good', status: 'completed',
+    })
+  }
+  if (!genExisting.some((m) => m.title === 'Load test')) {
+    await api('POST', `/assets/${generator.id}/maintenance`, {
+      maintenance_kind: 'inspection', title: 'Load test', scheduled_for: iso(addDays(14)),
+    })
+  }
   const genDetail = await api('GET', `/assets/${generator.id}`)
   check('maintenance history recorded', genDetail.maintenance.length >= 2,
     `${genDetail.maintenance.length}`)
-  check('maintenance cost totalled', genDetail.maintenance_cost_total === rupees(4500),
-    `${genDetail.maintenance_cost_total}`)
+  // Compared against the records themselves rather than a fixed figure: what
+  // is being tested is that the server totals what it stored, and a hardcoded
+  // number only tests how many times this script has run.
+  const expectedCost = genDetail.maintenance
+    .filter((m) => m.status === 'completed')
+    .reduce((s, m) => s + m.cost, 0)
+  check('maintenance cost totalled', genDetail.maintenance_cost_total === expectedCost,
+    `${genDetail.maintenance_cost_total} vs ${expectedCost}`)
+  check('and only counts work that was actually done',
+    genDetail.maintenance.some((m) => m.status !== 'completed'))
   await expectReject('negative maintenance cost rejected', 400, () =>
     api('POST', `/assets/${generator.id}/maintenance`, { cost: -1 })
   )

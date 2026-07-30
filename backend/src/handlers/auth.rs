@@ -187,13 +187,22 @@ pub async fn me(
     auth: AuthUser,
     Db(pool): Db,
 ) -> Result<Json<UserPublic>, AppError> {
+    // A subject that is not a UUID is a token this server did not issue for a
+    // real account. That is an authentication problem, not a server fault —
+    // it used to surface as `500 invalid character: found 's' at 0`, which
+    // sent anyone debugging it looking for a database bug.
+    let id = auth
+        .user_id
+        .parse::<uuid::Uuid>()
+        .map_err(|_| AppError::unauthorized("This token is not for a real account"))?;
+
     let user = sqlx::query_as::<_, UserPublic>(
         "SELECT id, email, name, role FROM users WHERE id = $1",
     )
-    .bind(auth.user_id.parse::<uuid::Uuid>()?)
+    .bind(id)
     .fetch_optional(&pool)
     .await?
-    .ok_or_else(|| anyhow::anyhow!("User not found"))?;
+    .ok_or_else(|| AppError::unauthorized("This account no longer exists"))?;
 
     Ok(Json(user))
 }

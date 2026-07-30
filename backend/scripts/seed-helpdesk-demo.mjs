@@ -333,11 +333,20 @@ async function main() {
   check('every open ticket reports an age', open.data.every((t) => t.age_hours >= 0))
   check('an unanswered ticket has no response time',
     open.data.filter((t) => !t.first_responded_at).every((t) => t.response_hours_taken === null))
+  // Compared as instants, exactly as the server does. Comparing whole hours
+  // here would call a ticket 4h30 past a 4h target "not late", because 4 > 4
+  // is false — the same truncation bug this assertion is supposed to catch.
+  const past = (t) => {
+    const due = new Date(t.opened_at + 'Z').getTime() + t.response_target_hours * 3600_000
+    const at = t.first_responded_at ? new Date(t.first_responded_at + 'Z') : new Date()
+    return at.getTime() > due
+  }
   check('a breach flag is only set on tickets past their target',
-    open.data.filter((t) => t.response_breached)
-      .every((t) => t.response_hours_taken === null
-        ? t.age_hours > t.response_target_hours
-        : t.response_hours_taken > t.response_target_hours))
+    open.data.filter((t) => t.response_breached).every(past),
+    open.data.filter((t) => t.response_breached && !past(t)).map((t) => t.ticket_code).join(', '))
+  check('and every ticket past its target is flagged',
+    open.data.filter(past).every((t) => t.response_breached),
+    open.data.filter((t) => past(t) && !t.response_breached).map((t) => t.ticket_code).join(', '))
 
   const doneList = await api('GET', '/helpdesk/tickets?status=done&per_page=200')
   check('a finished ticket stops ageing',

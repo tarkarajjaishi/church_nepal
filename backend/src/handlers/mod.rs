@@ -49,6 +49,7 @@ pub mod presentation;
 pub mod presentation_live;
 pub mod library;
 pub mod helpdesk;
+pub mod roles;
 
 // ── Validation infrastructure ────────────────────────────────────────────────
 

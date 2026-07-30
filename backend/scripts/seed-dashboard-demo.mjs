@@ -198,13 +198,33 @@ async function main() {
   check('members do not exceed total', d.people.active_members <= d.people.total)
 
   // 7. Absent modules must be reported absent, never as zero
+  //
+  // Asserted against the tables themselves rather than a list written by hand.
+  // Hardcoding "library is absent" was true when this was written and became a
+  // failing test the day the library shipped — testing the calendar, not the
+  // code. What actually matters is that `modules` agrees with reality.
   console.log('\n7. Module honesty')
-  check('help desk reported absent', d.modules.help_desk === false)
-  check('assets reported absent', d.modules.assets === false)
-  check('library reported absent', d.modules.library === false)
-  check('expenses reported absent', d.modules.expenses === false)
-  check('offerings reported present', d.modules.offerings === true)
-  check('presentation reported present', d.modules.presentation === true)
+  const MODULE_TABLES = {
+    help_desk: 'helpdesk_tickets',
+    assets: 'assets',
+    library: 'library_books',
+    expenses: 'expenses',
+    offerings: 'offering_categories',
+    presentation: 'presentations',
+  }
+  const wrong = []
+  for (const [key, table] of Object.entries(MODULE_TABLES)) {
+    const real = Number(sql(
+      `SELECT COUNT(*) FROM information_schema.tables WHERE table_name='${table}'`
+    )) > 0
+    if (d.modules[key] !== real) wrong.push(`${key}: reported ${d.modules[key]}, table ${real ? 'exists' : 'missing'}`)
+  }
+  check('every module reports its real installed state', wrong.length === 0, wrong.join(' | '))
+  check('at least one module is genuinely absent, so absence is still exercised',
+    Object.values(d.modules).some((v) => v === false),
+    JSON.stringify(d.modules))
+  check('an installed module is never reported absent',
+    d.modules.offerings === true && d.modules.presentation === true)
 
   // 8. Activity feed
   console.log('\n8. Activity feed')

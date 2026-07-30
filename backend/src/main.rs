@@ -6,6 +6,7 @@ mod error;
 mod handlers;
 mod models;
 mod payment;
+mod permissions;
 mod routes;
 mod security;
 mod tenant;
