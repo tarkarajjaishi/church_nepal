@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '@/lib/admin/api'
-import { Plus, Pencil, Trash2, DollarSign, Users, RefreshCw } from 'lucide-react'
+import { Plus, Pencil, Trash2, DollarSign, Users, RefreshCw, Target } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -95,8 +95,12 @@ export default function CampaignsPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {(items as any[]).map((item: any) => {
             const stats = statsMap[item.id] || {}
-            const pct = Math.round(((stats.raised || item.raised || 0) / (item.goal || 1)) * 100)
-            const pledgePct = Math.round((stats.pledge_amount || 0) / (item.goal || 1) * 100)
+            // Capped, because a Progress bar given 2700 draws past its track.
+            // The real figure still shows as text beside it.
+            const rawPct = Math.round(((stats.raised || item.raised || 0) / (item.goal || 1)) * 100)
+            const rawPledgePct = Math.round((stats.pledgeAmount || 0) / (item.goal || 1) * 100)
+            const pct = Math.min(rawPct, 100)
+            const pledgePct = Math.min(rawPledgePct, 100)
 
             return (
               <Card key={item.id} className="border-border/60">
@@ -111,14 +115,14 @@ export default function CampaignsPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-1">
-                      <Button size="sm" variant="ghost" onClick={() => recalcMut.mutate(item.id)} title="Recalculate progress">
-                        <RefreshCw className={`size-4 ${recalcMut.isPending ? 'animate-spin' : ''}`} />
+                      <Button size="sm" variant="ghost" onClick={() => recalcMut.mutate(item.id)} aria-label={`Recalculate progress for ${item.title}`} title="Recalculate progress">
+                        <RefreshCw className={`size-4 ${recalcMut.isPending ? 'animate-spin' : ''}`} aria-hidden />
                       </Button>
-                      <Button size="sm" variant="ghost" onClick={() => openEdit(item)}>
-                        <Pencil className="size-4" />
+                      <Button size="sm" variant="ghost" onClick={() => openEdit(item)} aria-label={`Edit ${item.title}`}>
+                        <Pencil className="size-4" aria-hidden />
                       </Button>
-                      <Button size="sm" variant="ghost" onClick={() => { if (confirm('Delete this campaign?')) deleteMut.mutate(item.id) }}>
-                        <Trash2 className="size-4 text-destructive" />
+                      <Button size="sm" variant="ghost" onClick={() => { if (confirm('Delete this campaign?')) deleteMut.mutate(item.id) }} aria-label={`Delete ${item.title}`}>
+                        <Trash2 className="size-4 text-destructive" aria-hidden />
                       </Button>
                     </div>
                   </div>
@@ -128,7 +132,7 @@ export default function CampaignsPage() {
                   <div>
                     <div className="flex justify-between text-sm mb-1">
                       <span className="text-muted-foreground">Progress</span>
-                      <span className="font-semibold text-church-blue">{pct}%</span>
+                      <span className="font-semibold text-church-blue">{rawPct}%</span>
                     </div>
                     <Progress value={pct} className="h-2" />
                     <div className="flex justify-between text-xs text-muted-foreground mt-1">
@@ -144,16 +148,16 @@ export default function CampaignsPage() {
                         <DollarSign className="size-4" />
                         <span className="text-xs font-medium">Donations</span>
                       </div>
-                      <div className="text-lg font-bold text-green-900">Rs {(stats.donation_amount || 0).toLocaleString()}</div>
-                      <div className="text-xs text-green-700">{stats.donation_count || 0} payments</div>
+                      <div className="text-lg font-bold text-green-900">Rs {(stats.donationAmount || 0).toLocaleString()}</div>
+                      <div className="text-xs text-green-700">{stats.donationCount || 0} payments</div>
                     </div>
                     <div className="p-3 rounded-lg bg-blue-50 border border-blue-100">
                       <div className="flex items-center gap-2 text-blue-700 mb-1">
                         <Users className="size-4" />
                         <span className="text-xs font-medium">Pledges</span>
                       </div>
-                      <div className="text-lg font-bold text-blue-900">Rs {(stats.pledge_amount || 0).toLocaleString()}</div>
-                      <div className="text-xs text-blue-700">{stats.pledge_count || 0} committed</div>
+                      <div className="text-lg font-bold text-blue-900">Rs {(stats.pledgeAmount || 0).toLocaleString()}</div>
+                      <div className="text-xs text-blue-700">{stats.pledgeCount || 0} committed</div>
                     </div>
                   </div>
 
@@ -162,7 +166,7 @@ export default function CampaignsPage() {
                     <div className="space-y-1">
                       <div className="flex justify-between text-xs">
                         <span className="text-muted-foreground">Pledged toward goal</span>
-                        <span className="font-medium">{pledgePct}%</span>
+                        <span className="font-medium">{rawPledgePct}%</span>
                       </div>
                       <Progress value={pledgePct} className="h-1.5" />
                     </div>

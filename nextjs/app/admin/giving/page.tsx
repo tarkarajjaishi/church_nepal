@@ -101,9 +101,9 @@ export default function GivingDashboard() {
               <Label className="text-sm">Date Range:</Label>
             </div>
             <div className="flex items-center gap-2">
-              <Input type="date" value={fromDate} onChange={e => setFromDate(e.target.value)} className="w-40" />
+              <Input type="date" aria-label="Show giving from this date" value={fromDate} onChange={e => setFromDate(e.target.value)} className="w-40" />
               <span className="text-muted-foreground">to</span>
-              <Input type="date" value={toDate} onChange={e => setToDate(e.target.value)} className="w-40" />
+              <Input type="date" aria-label="Show giving up to this date" value={toDate} onChange={e => setToDate(e.target.value)} className="w-40" />
             </div>
             {(fromDate || toDate) && (
               <Button variant="outline" size="sm" onClick={clearDates}>Clear</Button>
@@ -146,8 +146,14 @@ export default function GivingDashboard() {
                         <td className="p-2 text-right">{d.donationCount || 0}</td>
                         <td className="p-2 text-right text-muted-foreground">Rs {(d.averageGift || 0).toLocaleString()}</td>
                         <td className="p-2 text-right">
-                          <Button variant="ghost" size="sm" onClick={() => setExpandedDonor(isExpanded ? null : d.donorEmail)}>
-                            {isExpanded ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            aria-expanded={isExpanded}
+                            aria-label={`${isExpanded ? 'Hide' : 'Show'} the gifts from ${d.donorName || d.donorEmail}`}
+                            onClick={() => setExpandedDonor(isExpanded ? null : d.donorEmail)}
+                          >
+                            {isExpanded ? <ChevronUp className="size-4" aria-hidden /> : <ChevronDown className="size-4" aria-hidden />}
                           </Button>
                         </td>
                       </tr>

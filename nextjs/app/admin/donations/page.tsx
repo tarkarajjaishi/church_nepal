@@ -154,10 +154,10 @@ export default function DonationsPage() {
       {/* Summary Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: 'Total Raised', value: formatNPR(stats.total_raised || 0), icon: DollarSign, color: 'bg-green-500' },
-          { label: 'Total Donations', value: stats.total_donations || 0, icon: TrendingUp, color: 'bg-blue-500' },
-          { label: 'eSewa Total', value: formatNPR(stats.esewa_total || 0), icon: CreditCard, color: 'bg-purple-500' },
-          { label: 'Khalti Total', value: formatNPR(stats.khalti_total || 0), icon: CreditCard, color: 'bg-red-500' },
+          { label: 'Total Raised', value: formatNPR(stats.totalRaised || 0), icon: DollarSign, color: 'bg-green-500' },
+          { label: 'Total Donations', value: stats.totalDonations || 0, icon: TrendingUp, color: 'bg-blue-500' },
+          { label: 'eSewa Total', value: formatNPR(stats.esewaTotal || 0), icon: CreditCard, color: 'bg-purple-500' },
+          { label: 'Khalti Total', value: formatNPR(stats.khaltiTotal || 0), icon: CreditCard, color: 'bg-red-500' },
         ].map(({ label, value, icon: Icon, color }) => (
           <Card key={label}>
             <CardContent className="p-4">
@@ -176,7 +176,7 @@ export default function DonationsPage() {
       </div>
 
       {/* Gateway Status */}
-      {stats.total_raised !== undefined && (
+      {stats.totalRaised !== undefined && (
         <Card>
           <CardContent className="p-4 flex flex-wrap items-center gap-3">
             <span className="text-xs font-medium text-muted-foreground mr-1">Gateways:</span>

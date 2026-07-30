@@ -345,8 +345,10 @@ function AssetEditor({
         is_reservable: f.isReservable,
         notes: f.notes.trim(),
       }),
-    onSuccess: (res: { asset_code?: string }) => {
-      toast.success(`Asset registered${res.asset_code ? ` as ${res.asset_code}` : ''}`)
+    // The response interceptor camelCases every key, so `asset_code` is always
+    // undefined and the toast silently drops the code it was written to show.
+    onSuccess: (res: { assetCode?: string }) => {
+      toast.success(`Asset registered${res.assetCode ? ` as ${res.assetCode}` : ''}`)
       onSaved()
     },
     onError: (e: Error) => toast.error(e.message || 'Could not register this asset'),

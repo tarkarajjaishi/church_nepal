@@ -111,13 +111,15 @@ export default function NewOfferingPage() {
         notes: form.notes.trim(),
         submit,
       }),
-    onSuccess: (res: { receipt_no?: string; status: string }) => {
+    // The response interceptor camelCases every key, so `receipt_no` is always
+    // undefined and the toast drops the receipt number it exists to show.
+    onSuccess: (res: { receiptNo?: string; status: string }) => {
       qc.invalidateQueries({ queryKey: ['offerings-table'] })
       qc.invalidateQueries({ queryKey: ['offering-dashboard'] })
       toast.success(
         res.status === 'draft'
           ? 'Saved as draft'
-          : `Submitted${res.receipt_no ? ` — receipt ${res.receipt_no}` : ''}`
+          : `Submitted${res.receiptNo ? ` — receipt ${res.receiptNo}` : ''}`
       )
       router.push('/admin/offering-management/offerings')
     },

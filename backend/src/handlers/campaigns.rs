@@ -20,11 +20,14 @@ pub async fn get(Db(pool): Db, Path(id): Path<uuid::Uuid>) -> Result<Json<Campai
 }
 
 pub async fn get_stats(Db(pool): Db, Path(id): Path<uuid::Uuid>) -> Result<Json<serde_json::Value>, AppError> {
-    let pledge_total: (i64,) = sqlx::query_as("SELECT COALESCE(SUM(amount), 0) FROM pledges WHERE campaign_id = $1 AND status = 'active'")
+    // ::bigint because SUM() over BIGINT comes back NUMERIC, which sqlx will
+    // not decode into i64 — the endpoint 500s, the page's try/catch swallows
+    // it, and every campaign card shows a confident "Rs 0".
+    let pledge_total: (i64,) = sqlx::query_as("SELECT COALESCE(SUM(amount), 0)::bigint FROM pledges WHERE campaign_id = $1 AND status = 'active'")
         .bind(id).fetch_one(&pool).await?;
     let pledge_count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM pledges WHERE campaign_id = $1")
         .bind(id).fetch_one(&pool).await?;
-    let donation_total: (i64,) = sqlx::query_as("SELECT COALESCE(SUM(amount), 0) FROM donations WHERE campaign_id = $1 AND status = 'completed'")
+    let donation_total: (i64,) = sqlx::query_as("SELECT COALESCE(SUM(amount), 0)::bigint FROM donations WHERE campaign_id = $1 AND status = 'completed'")
         .bind(id).fetch_one(&pool).await?;
     let donation_count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM donations WHERE campaign_id = $1 AND status = 'completed'")
         .bind(id).fetch_one(&pool).await?;
@@ -50,7 +53,7 @@ pub async fn get_stats(Db(pool): Db, Path(id): Path<uuid::Uuid>) -> Result<Json<
 pub async fn recalc_raised(Db(pool): Db, Path(id): Path<uuid::Uuid>) -> Result<Json<Campaign>, AppError> {
     let row = sqlx::query_as::<_, Campaign>(
         r#"UPDATE campaigns SET raised = COALESCE(
-            (SELECT SUM(amount) FROM donations WHERE campaign_id = $1 AND status = 'completed'),
+            (SELECT SUM(amount)::bigint FROM donations WHERE campaign_id = $1 AND status = 'completed'),
             0
         ) WHERE id = $1 RETURNING *"#,
     )

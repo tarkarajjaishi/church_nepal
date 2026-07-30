@@ -34,6 +34,12 @@ const statusColors: Record<string, string> = {
   done: 'text-green-500',
 }
 
+const statusLabels: Record<string, string> = {
+  pending: 'Not started',
+  in_progress: 'In progress',
+  done: 'Done',
+}
+
 export default function TodosPage() {
   const queryClient = useQueryClient()
   const [showForm, setShowForm] = useState(false)
@@ -152,8 +158,15 @@ export default function TodosPage() {
                         </div>
                       </td>
                       <td className="px-4 py-3 text-center">
-                        <button onClick={() => toggleMut.mutate(item.id)} className={`inline-flex items-center gap-1 ${statusColors[item.status]}`}>
-                          <StatusIcon className="size-5" />
+                        {/* An unknown status used to render `class="... undefined"`,
+                            which is a control with no colour and no name that
+                            still works — the worst of the three. */}
+                        <button
+                          onClick={() => toggleMut.mutate(item.id)}
+                          aria-label={`"${item.title}" is ${statusLabels[item.status] ?? item.status}. Mark it ${item.status === 'done' ? 'not started' : 'done'}.`}
+                          className={`inline-flex items-center justify-center size-8 rounded hover:bg-gray-100 ${statusColors[item.status] ?? 'text-gray-400'}`}
+                        >
+                          <StatusIcon className="size-5" aria-hidden />
                         </button>
                       </td>
                       <td className="px-4 py-3">

@@ -20,7 +20,7 @@ import type { Broadcast, BroadcastRecipient, BroadcastStats } from '@/lib/types'
 const statusConfig: Record<string, { color: string; icon: any }> = {
   draft: { color: 'bg-gray-100 text-gray-800', icon: Clock },
   sent: { color: 'bg-green-100 text-green-800', icon: CheckCircle2 },
-  scheduled: { color: 'bg-blue-100 text-blue-800', icon: Schedule },
+  scheduled: { color: 'bg-blue-100 text-blue-800', icon: CalendarClock },
   sending: { color: 'bg-yellow-100 text-yellow-800', icon: Clock },
   failed: { color: 'bg-red-100 text-red-800', icon: AlertCircle },
 }
