@@ -76,11 +76,15 @@ export function PricingSection() {
     ],
   ];
 
-  const planData = plans ?? [
-    { id: "free", name: "Free", price_monthly: 0, price_annual: 0 },
-    { id: "standard", name: "Standard", price_monthly: 2499, price_annual: 29988 },
-    { id: "pro", name: "Pro", price_monthly: 14999, price_annual: 179988 },
-  ];
+  // No hardcoded fallback prices.
+  //
+  // There used to be one - Standard 2,499 and Pro 14,999 - and because /plans
+  // answers 401 to anyone not signed in, that fallback was what every visitor
+  // saw. The platform bills 2,900 and 9,900, so the public price list quoted
+  // figures nobody is charged, and looked entirely healthy doing it. A price is
+  // the last thing that should be guessed at: if it cannot be loaded the section
+  // says so instead.
+  const planData = plans ?? [];
 
   const isRecommended = (planId: string) => planId === "standard";
 
@@ -93,10 +97,28 @@ export function PricingSection() {
         </p>
       </div>
 
+      {/* isLoading and isError were read from usePlans and then never used, so
+          with the invented fallback gone an unanswered request would have left
+          a silently empty section. Both are said out loud now. */}
+      {isLoading && (
+        <p className="text-center text-[var(--muted)]">Loading the current prices…</p>
+      )}
+      {!isLoading && (isError || planData.length === 0) && (
+        <p className="text-center text-[var(--muted)]">
+          The price list could not be loaded just now. Please{" "}
+          <a href="/contact" className="underline">get in touch</a> and we will
+          confirm the current pricing — we would rather say nothing than quote
+          you a figure we are not sure of.
+        </p>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-[var(--max)] mx-auto">
         {planData.map((plan, index) => {
           const features = staticPlans[index] || [];
-          const price = plan.price_monthly; // Use the monthly price for display
+          // The annual figure, because the line underneath already said "billed
+          // annually" while the number above it was a monthly one - two
+          // different periods in the same breath.
+          const price = plan.price_annual;
           const recommended = isRecommended(plan.id);
 
           return (
@@ -139,10 +161,14 @@ export function PricingSection() {
                   <span className="text-5xl font-bold text-[var(--text-strong)]">
                     {formatPrice(price)}
                   </span>
-                  <span className="text-[var(--muted)] text-base"> / per month</span>
+                  <span className="text-[var(--muted)] text-base"> / per year</span>
                 </div>
                 <div className="mb-6">
-                  <span className="text-sm text-[var(--muted)]">billed annually</span>
+                  <span className="text-sm text-[var(--muted)]">
+                    {plan.price_monthly
+                      ? `${formatPrice(plan.price_monthly)} a month if paid monthly`
+                      : "no charge"}
+                  </span>
                 </div>
 
                 <ul className="space-y-3">

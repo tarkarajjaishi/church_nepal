@@ -1144,8 +1144,11 @@ pub struct Plan {
     pub created_at: Option<chrono::NaiveDateTime>,
 }
 
-pub async fn list_plans(
-    _auth: Authenticated,State(st): State<AppState>) -> Result<Json<Vec<Plan>>, AppError> {
+/// Deliberately unauthenticated: this is the price list on the public
+/// marketing site. Guarding it made that page 401 for every visitor and
+/// silently fall back to hardcoded prices that did not match what the
+/// platform actually bills.
+pub async fn list_plans(State(st): State<AppState>) -> Result<Json<Vec<Plan>>, AppError> {
     // price_monthly and price_annual are NUMERIC in the database and i64 here.
     // sqlx will not decode one into the other, so `SELECT *` made this endpoint
     // 500 — and the pricing page, the plan picker and billing all read it.
@@ -1160,8 +1163,7 @@ pub async fn list_plans(
     Ok(Json(plans))
 }
 
-pub async fn get_plan(
-    _auth: Authenticated,Path(id): Path<uuid::Uuid>, State(st): State<AppState>) -> Result<Json<Plan>, AppError> {
+pub async fn get_plan(Path(id): Path<uuid::Uuid>, State(st): State<AppState>) -> Result<Json<Plan>, AppError> {
     let plan = sqlx::query_as(
         "SELECT id, name, price_monthly::bigint, price_annual::bigint,
                 max_members::bigint, max_storage_mb::bigint, max_emails::bigint,

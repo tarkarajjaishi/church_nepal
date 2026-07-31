@@ -124,7 +124,7 @@ console.log('0. Nothing answers without a token')
 {
   const CH = (await api('GET', '/churches'))[0]
   const shouldRefuse = [
-    '/invoices', '/plans', '/billing', '/billing/overview',
+    '/invoices', '/billing', '/billing/overview',
     '/analytics/overview', '/analytics/growth', '/analytics/top-churches',
     '/notifications', '/settings', '/admins', '/churches', '/audit-log',
     `/churches/${CH.id}`, `/churches/${CH.slug}/stats`,
@@ -136,6 +136,20 @@ console.log('0. Nothing answers without a token')
   }
   check(`${shouldRefuse.length} endpoints refuse an anonymous request`,
     open.length === 0, open.join('; '))
+
+  // The other half of the same rule. /plans is the price list on the public
+  // marketing site, so guarding it does not protect anything - it just makes
+  // the pricing page 401 for every visitor. It did, and the page quietly fell
+  // back to hardcoded figures that were not what the platform charges, which is
+  // a worse outcome than the endpoint being open ever was.
+  const priceList = await fetch(`${API}/api/plans`)
+  check('the public price list is readable without signing in',
+    priceList.status === 200, `HTTP ${priceList.status}`)
+  const prices = priceList.ok ? await priceList.json() : []
+  check('and it carries both periods, so no page has to invent one',
+    prices.length > 0 && prices.every((p) =>
+      typeof p.price_monthly === 'number' && typeof p.price_annual === 'number'),
+    prices.map((p) => `${p.name}:${p.price_monthly}/${p.price_annual}`).join(' '))
 
   // The 2FA shared secret is the second factor. Anyone holding it can generate
   // that account's codes forever, so it must not travel to a browser at all.

@@ -106,11 +106,10 @@ export default function PricingPlansSection() {
   const [isAnnual, setIsAnnual] = useState(false);
   const { data: plans, isLoading, isError } = usePlans();
 
-  const planData = plans ?? [
-    { id: "free", name: "Free", price_monthly: 0, price_annual: 0 },
-    { id: "standard", name: "Standard", price_monthly: 2499, price_annual: 29988 },
-    { id: "pro", name: "Pro", price_monthly: 14999, price_annual: 179988 },
-  ];
+  // No hardcoded fallback - see pricing-section.tsx. These figures were 2,499
+  // and 14,999 while the platform bills 2,900 and 9,900, and they were what
+  // every visitor saw, because /plans answered 401 to anyone not signed in.
+  const planData = plans ?? [];
 
   const isRecommended = (planId: string) => planId === "standard";
 
@@ -137,6 +136,24 @@ export default function PricingPlansSection() {
               </Card>
             ))}
           </div>
+        </div>
+      </section>
+    );
+  }
+
+  // Without the invented fallback, a failed or empty response has to be said
+  // rather than rendered as three missing cards.
+  if (isError || planData.length === 0) {
+    return (
+      <section className="section-wrapper-lg">
+        <div className="max-w-[var(--max)] mx-auto text-center">
+          <h2 className="lp-h2">Pricing</h2>
+          <p className="lp-sub2 mt-2">
+            The price list could not be loaded just now. Please{" "}
+            <a href="/contact" className="underline">get in touch</a> and we will
+            confirm the current pricing — we would rather say nothing than quote
+            you a figure we are not sure of.
+          </p>
         </div>
       </section>
     );
