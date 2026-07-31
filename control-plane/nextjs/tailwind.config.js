@@ -42,6 +42,39 @@ module.exports = {
         warning: 'var(--gold)',
         ring: 'var(--ring)',
         overlay: 'var(--overlay)',
+
+        // The shadcn-style names the shared primitives in app/components/ui
+        // are written against. They were never in this palette, so every one
+        // of these classes produced NO CSS AT ALL - silently, because an
+        // unknown colour name is not an error, it simply generates nothing.
+        //
+        // What that cost: the default Button's `bg-primary` painted no
+        // background and `text-primary-foreground` no colour; `bg-destructive`
+        // meant a delete button was not red; and `hover:text-accent-foreground`
+        // on the outline variant did nothing, so hovering it swapped in a solid
+        // accent background under text that stayed the colour it already was.
+        // On the pricing page that made "Get started free" blue-on-blue - a
+        // contrast ratio of 1.0, text that disappears under the pointer - and
+        // left the NPR chip near-black on accent blue at 3.44.
+        //
+        // Mapped onto the tokens this project already defines, so they follow
+        // the light and dark themes without a second set of values to keep in
+        // step. Foregrounds are chosen to contrast with their own surface,
+        // which is the entire point of the -foreground suffix.
+        foreground: 'var(--text)',
+        card: 'var(--panel)',
+        'card-foreground': 'var(--text)',
+        popover: 'var(--panel)',
+        'popover-foreground': 'var(--text)',
+        primary: 'var(--accent)',
+        'primary-foreground': 'var(--accent-contrast)',
+        secondary: 'var(--panel-2)',
+        'secondary-foreground': 'var(--text)',
+        'muted-foreground': 'var(--muted)',
+        'accent-foreground': 'var(--accent-contrast)',
+        destructive: 'var(--danger)',
+        'destructive-foreground': 'var(--accent-contrast)',
+        input: 'var(--border)',
       },
       fontFamily: {
         sans: 'var(--font-sans)',

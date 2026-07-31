@@ -59,7 +59,12 @@
     --accent: #4f8cff;
     --accent-2: #2f6fe0;
     --accent-soft: rgba(79, 140, 255, 0.14);
-    --accent-contrast: #ffffff;
+    /* Dark, not white. The dark theme's accent is a LIGHTER blue - it has to be,
+       to read against a dark page - so white on top of it measured 3.22, and
+       every primary button in dark mode failed. The contrast colour has to
+       follow the surface it sits on rather than being white by habit: dark ink
+       on that blue is 5.96. */
+    --accent-contrast: #0b0f17;
 
     --good: #2fbf6b;
     --good-soft: rgba(47, 191, 107, 0.14);
@@ -99,7 +104,13 @@
     --muted: #5a6a85;
     --muted-2: #8290a8;
 
-    --accent: #2f6fe0;
+    /* Darkened from #2f6fe0, which was a background colour being used as a text
+       colour. As text it measured 4.42 on --bg, 4.34 on --panel-2 and 4.06 on
+       --panel-3, all short of the 4.5 body text needs - eleven places on the
+       landing page alone, every one of them a heading, a label or a link. This
+       clears every surface (5.02 / 4.93 / 4.61) and happens to improve white on
+       top of it too, from 4.70 to 5.34. The difference is barely visible. */
+    --accent: #2b66d2;
     --accent-2: #1f56c8;
     --accent-soft: rgba(47, 111, 224, 0.10);
     --accent-contrast: #ffffff;
