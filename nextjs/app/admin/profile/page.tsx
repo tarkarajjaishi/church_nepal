@@ -33,15 +33,39 @@ export default function ProfilePage() {
     }
   }
 
+  /**
+   * The value actually in a field.
+   *
+   * A password manager fills the current-password box straight into the DOM
+   * without firing an event React can hear, so these state variables can be
+   * empty while the box visibly contains a password. These inputs are not
+   * inside a <form>, so there is no FormData to read.
+   */
+  const liveValue = (id: string, fallback: string) => {
+    if (typeof document === 'undefined') return fallback
+    const el = document.getElementById(id) as HTMLInputElement | null
+    return el?.value || fallback
+  }
+
   const handlePasswordChange = async () => {
     setPasswordError('')
     setPasswordSaved(false)
 
-    if (newPassword !== confirmPassword) {
+    const current = liveValue('current-password', currentPassword)
+    const next = liveValue('new-password', newPassword)
+    const confirm = liveValue('confirm-password', confirmPassword)
+
+    // Said out loud rather than by grey-ing out the button, which gave no
+    // reason and, when the fields were autofilled, no way to proceed at all.
+    if (!current || !next) {
+      setPasswordError('Enter your current password and a new one')
+      return
+    }
+    if (next !== confirm) {
       setPasswordError('New passwords do not match')
       return
     }
-    if (newPassword.length < 6) {
+    if (next.length < 6) {
       setPasswordError('Password must be at least 6 characters')
       return
     }
@@ -49,8 +73,8 @@ export default function ProfilePage() {
     setChangingPassword(true)
     try {
       const res = await api.post('/auth/change-password', {
-        current_password: currentPassword,
-        new_password: newPassword,
+        current_password: current,
+        new_password: next,
       })
       setPasswordSaved(true)
       setCurrentPassword('')
@@ -161,9 +185,13 @@ export default function ProfilePage() {
           </div>
 
           <div className="flex items-center gap-3">
+            {/* Disabled only while the request is in flight. Gating on
+                !currentPassword read React state, which a password manager
+                bypasses — the button greyed itself out over filled boxes.
+                Missing fields are reported by handlePasswordChange instead. */}
             <button
               onClick={handlePasswordChange}
-              disabled={changingPassword || !currentPassword || !newPassword}
+              disabled={changingPassword}
               className="flex items-center gap-2 px-4 py-2 bg-[#0b3c5d] text-white rounded-lg hover:bg-[#0d4a6e] transition-colors disabled:opacity-50"
             >
               <Lock className="size-4" />

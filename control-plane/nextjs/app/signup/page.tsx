@@ -31,6 +31,7 @@ const plans = [
 export default function SignupPage() {
   const [step, setStep] = useState<Step>(1);
   const [submitted, setSubmitted] = useState(false);
+  const [stepError, setStepError] = useState<string | null>(null);
   const [form, setForm] = useState<FormData>({
     churchName: "",
     country: "",
@@ -49,37 +50,77 @@ export default function SignupPage() {
     .replace(/[^a-z0-9\s-]/g, "")
     .replace(/\s+/g, "-");
 
-  const isStep1Valid = form.churchName.trim().length > 0;
-  const isStep2Valid =
-    form.fullName.trim().length > 0 &&
-    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email) &&
-    form.password.length > 0 &&
-    form.confirmPassword.length > 0 &&
-    form.password === form.confirmPassword;
-  const isStep3Valid = true;
-  const isStep4Valid = form.agreedToTerms;
-
-  const canProceed = () => {
-    switch (step) {
-      case 1:
-        return isStep1Valid;
-      case 2:
-        return isStep2Valid;
-      case 3:
-        return isStep3Valid;
-      case 4:
-        return isStep4Valid;
-    }
+  /**
+   * The value actually in a field.
+   *
+   * A password manager fills email and password straight into the DOM without
+   * firing an event React can hear, so `form` can be empty for exactly the
+   * fields the browser just completed. Gating the Next button on that state
+   * left people stuck on step 2 looking at a filled-in form.
+   */
+  const liveValue = (id: string, fallback: string) => {
+    if (typeof document === "undefined") return fallback;
+    const el = document.getElementById(id) as HTMLInputElement | null;
+    return el?.value || fallback;
   };
+
+  /** What is wrong with the current step, or null if nothing is. */
+  const problemWith = (s: Step): string | null => {
+    if (s === 1) {
+      return liveValue("churchName", form.churchName).trim()
+        ? null
+        : "Enter the name of your church.";
+    }
+    if (s === 2) {
+      const fullName = liveValue("fullName", form.fullName).trim();
+      const email = liveValue("email", form.email).trim();
+      const password = liveValue("password", form.password);
+      const confirm = liveValue("confirmPassword", form.confirmPassword);
+      if (!fullName) return "Enter your name.";
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+        return "That does not look like an email address.";
+      if (!password) return "Choose a password.";
+      if (password !== confirm) return "The two passwords do not match.";
+      return null;
+    }
+    if (s === 4) {
+      return form.agreedToTerms ? null : "Accept the terms to continue.";
+    }
+    return null;
+  };
+
+  const isStep4Valid = form.agreedToTerms;
 
   const update = <K extends keyof FormData>(field: K, value: FormData[K]) => {
     setForm((prev) => ({ ...prev, [field]: value }));
+    setStepError(null);
   };
 
   const handleNext = () => {
-    if (canProceed() && step < 4) {
-      setStep((s) => (s + 1) as Step);
+    // Checked on the way through rather than by disabling the button. A grey
+    // Next with no explanation is the worst of both: it does not say what is
+    // missing, and when the browser has filled the fields it is simply wrong.
+    const problem = problemWith(step);
+    if (problem) {
+      setStepError(problem);
+      return;
     }
+    // Adopt whatever the browser filled so later steps and the summary show
+    // what the person actually entered.
+    if (step === 2) {
+      setForm((prev) => ({
+        ...prev,
+        fullName: liveValue("fullName", prev.fullName),
+        email: liveValue("email", prev.email),
+        password: liveValue("password", prev.password),
+        confirmPassword: liveValue("confirmPassword", prev.confirmPassword),
+      }));
+    }
+    if (step === 1) {
+      setForm((prev) => ({ ...prev, churchName: liveValue("churchName", prev.churchName) }));
+    }
+    setStepError(null);
+    if (step < 4) setStep((s) => (s + 1) as Step);
   };
 
   const handleBack = () => {
@@ -376,6 +417,11 @@ export default function SignupPage() {
                     </div>
                   </div>
                 )}
+                {stepError && (
+                  <p className="mt-4 text-sm text-red-400" role="alert">
+                    {stepError}
+                  </p>
+                )}
               </CardContent>
 
               <CardFooter className="flex justify-between pt-6">
@@ -387,10 +433,13 @@ export default function SignupPage() {
                   )}
                 </div>
                 <div>
+                  {/* Never disabled from field state. Step 2 collects an email
+                      and a password, which a password manager fills without
+                      React hearing about it — the button then greyed itself out
+                      over a completed form and the person could not get past
+                      the step. handleNext says what is missing instead. */}
                   {step < 4 ? (
-                    <Button onClick={handleNext} disabled={!canProceed()}>
-                      Next
-                    </Button>
+                    <Button onClick={handleNext}>Next</Button>
                   ) : (
                     <Button onClick={handleSubmit} disabled={!isStep4Valid}>
                       Create my church

@@ -71,15 +71,39 @@ export default function PortalProfilePage() {
     }
   }
 
+  /**
+   * The value actually in a field.
+   *
+   * A password manager fills the current-password box straight into the DOM
+   * without firing an event React can hear, so these state variables can be
+   * empty while the box visibly contains a password. These inputs are not
+   * inside a <form>, so there is no FormData to read.
+   */
+  const liveValue = (id: string, fallback: string) => {
+    if (typeof document === 'undefined') return fallback
+    const el = document.getElementById(id) as HTMLInputElement | null
+    return el?.value || fallback
+  }
+
   const handlePasswordChange = async () => {
     setPasswordError('')
     setPasswordSaved(false)
 
-    if (newPassword !== confirmPassword) {
+    const current = liveValue('portal-current-password', currentPassword)
+    const next = liveValue('portal-new-password', newPassword)
+    const confirm = liveValue('portal-confirm-password', confirmPassword)
+
+    // Said out loud rather than by grey-ing out the button, which gave no
+    // reason and, when the fields were autofilled, no way to proceed at all.
+    if (!current || !next) {
+      setPasswordError('Enter your current password and a new one')
+      return
+    }
+    if (next !== confirm) {
       setPasswordError('New passwords do not match')
       return
     }
-    if (newPassword.length < 6) {
+    if (next.length < 6) {
       setPasswordError('Password must be at least 6 characters')
       return
     }
@@ -87,8 +111,8 @@ export default function PortalProfilePage() {
     setChangingPassword(true)
     try {
       await api.post('/auth/change-password', {
-        current_password: currentPassword,
-        new_password: newPassword,
+        current_password: current,
+        new_password: next,
       })
       setPasswordSaved(true)
       setCurrentPassword('')
@@ -199,27 +223,33 @@ export default function PortalProfilePage() {
 
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Current Password</label>
+            <label htmlFor="portal-current-password" className="block text-sm font-medium text-gray-700 mb-1">Current Password</label>
             <input
+              id="portal-current-password"
               type="password"
+              autoComplete="current-password"
               value={currentPassword}
               onChange={e => setCurrentPassword(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0b3c5d] focus:border-transparent"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">New Password</label>
+            <label htmlFor="portal-new-password" className="block text-sm font-medium text-gray-700 mb-1">New Password</label>
             <input
+              id="portal-new-password"
               type="password"
+              autoComplete="new-password"
               value={newPassword}
               onChange={e => setNewPassword(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0b3c5d] focus:border-transparent"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Confirm New Password</label>
+            <label htmlFor="portal-confirm-password" className="block text-sm font-medium text-gray-700 mb-1">Confirm New Password</label>
             <input
+              id="portal-confirm-password"
               type="password"
+              autoComplete="new-password"
               value={confirmPassword}
               onChange={e => setConfirmPassword(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0b3c5d] focus:border-transparent"
@@ -227,9 +257,13 @@ export default function PortalProfilePage() {
           </div>
 
           <div className="flex items-center gap-3">
+            {/* Disabled only while the request is in flight. Gating on
+                !currentPassword read React state, which a password manager
+                bypasses — the button greyed itself out over filled boxes.
+                Missing fields are reported by handlePasswordChange instead. */}
             <button
               onClick={handlePasswordChange}
-              disabled={changingPassword || !currentPassword || !newPassword}
+              disabled={changingPassword}
               className="flex items-center gap-2 px-4 py-2 bg-[#0b3c5d] text-white rounded-lg hover:bg-[#0d4a6e] transition-colors disabled:opacity-50"
             >
               <Lock className="size-4" />

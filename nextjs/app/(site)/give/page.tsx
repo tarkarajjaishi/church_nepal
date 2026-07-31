@@ -43,6 +43,22 @@ export default function Give() {
   const [fundId, setFundId] = useState<string>("");
   const [campaignId, setCampaignId] = useState<string>("");
 
+  /**
+   * The value a donor can actually see in a field.
+   *
+   * Browsers autofill name, email and phone straight into the DOM without
+   * firing an event React can hear, so these state variables can be empty while
+   * the donor is looking at a filled-in form. These inputs are deliberately not
+   * inside a <form> (the page is a CMS-driven layout), so there is no FormData
+   * to read — the field itself is the source of truth, with state as a fallback
+   * for the server-render pass.
+   */
+  const liveValue = (id: string, fallback: string) => {
+    if (typeof document === "undefined") return fallback;
+    const el = document.getElementById(id) as HTMLInputElement | null;
+    return (el?.value ?? "").trim() || fallback.trim();
+  };
+
   // CMS content blocks
   const hero = useContentBlock('give_hero');
   const formBlock = useContentBlock('give_form');
@@ -200,20 +216,32 @@ export default function Give() {
 
                 <Button
                   size="lg"
-                  // These fields are not inside a <form>, so `required` alone
-                  // never blocks anything — the guard has to live here.
-                  // Previously only `amount` was checked, so a donation could
-                  // be submitted with no donor name or email and there was then
-                  // no way to attribute it or send a receipt.
-                  disabled={
-                    donating ||
-                    !amount ||
-                    !donorName.trim() ||
-                    !/\S+@\S+\.\S+/.test(donorEmail)
-                  }
+                  // Disabled only while a payment is being started. It used to
+                  // also disable on the donor fields being empty in React
+                  // state — which a browser autofill bypasses, so the button
+                  // greyed itself out over a form the donor could see was
+                  // complete, and their click did nothing at all. On a giving
+                  // page that is a donation the church never receives.
+                  // The fields are still required; they are checked below,
+                  // against what is actually in them, and say so when missing.
+                  disabled={donating}
                   className="mt-6 w-full bg-gold text-church-blue hover:bg-gold/90"
                   onClick={async () => {
-                    if (!amount) return;
+                    const name = liveValue("donor-name", donorName);
+                    const email = liveValue("donor-email", donorEmail);
+                    const phone = liveValue("donor-phone", donorPhone);
+
+                    if (!amount) {
+                      toast.error("Choose an amount to give.");
+                      return;
+                    }
+                    if (!name || !/\S+@\S+\.\S+/.test(email)) {
+                      toast.error(
+                        "Add your name and email so the gift can be receipted.",
+                      );
+                      return;
+                    }
+
                     setDonating(true);
                     try {
                       const res = await fetch('/api/give', {
@@ -223,9 +251,9 @@ export default function Give() {
                           amount: Number(amount),
                           payment_method: method,
                           frequency: freq,
-                          donor_name: donorName,
-                          donor_email: donorEmail,
-                          donor_phone: donorPhone,
+                          donor_name: name,
+                          donor_email: email,
+                          donor_phone: phone,
                           fund_id: fundId || undefined,
                           campaign_id: campaignId || undefined,
                         }),
