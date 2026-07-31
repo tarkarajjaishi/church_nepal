@@ -10,8 +10,10 @@ import { PageTitle, Stat, Failed, Loading, Empty, Table, TR, TD, bytes } from "@
 /**
  * Snapshots, and whether they exist.
  *
- * "We have backups" is only a true sentence about churches that appear in a
- * successful run — so the ones that do not are named rather than counted.
+ * "We have backups" is only a true sentence about churches whose dump is still
+ * on disk — so the ones without are named rather than counted. A row recording
+ * that a backup was taken is a weaker claim than a file you can restore from,
+ * and every figure here is checked against the disk before it is shown.
  *
  * Coverage is worked out from the registry, which means it can only ever be a
  * statement about churches the registry remembers. A database left behind by a
@@ -23,14 +25,15 @@ import { PageTitle, Stat, Failed, Loading, Empty, Table, TR, TD, bytes } from "@
 interface Run {
   id: string; church_slug: string | null; kind: string; status: string;
   size_bytes: number; path: string; error: string; started_by: string;
-  started_at: string; finished_at: string | null;
+  started_at: string; finished_at: string | null; available: boolean;
 }
 interface Stray {
   name: string; size_bytes: number; last_backup_at: string | null;
 }
 interface Data {
   runs: Run[]; last_success_at: string | null; unprotected: string[];
-  unregistered: Stray[]; total_size_bytes: number; pg_dump_available: boolean;
+  unregistered: Stray[]; total_size_bytes: number; missing_files: number;
+  pg_dump_available: boolean;
 }
 
 export default function BackupsPage() {
@@ -95,7 +98,16 @@ export default function BackupsPage() {
               }
               tone={d.unregistered.length ? "bad" : "good"}
             />
-            <Stat label="Stored" value={bytes(d.total_size_bytes)} />
+            <Stat
+              label="Stored"
+              value={bytes(d.total_size_bytes)}
+              hint={
+                d.missing_files
+                  ? `${d.missing_files} recorded backup${d.missing_files > 1 ? "s are" : " is"} no longer on disk`
+                  : "Measured on disk"
+              }
+              tone={d.missing_files ? "bad" : undefined}
+            />
           </div>
 
           {message && <p className="text-sm text-red-400">{message}</p>}
@@ -148,11 +160,17 @@ export default function BackupsPage() {
           {!!d.unprotected.length && (
             <Card className="bg-[var(--panel)] border border-[var(--border)] rounded-xl p-5">
               <h2 className="font-semibold flex items-center gap-2">
-                <Database size={16} aria-hidden /> Never backed up
+                <Database size={16} aria-hidden /> Nothing to restore from
               </h2>
+              {/* Not "never backed up": a church lands here either because no
+                  dump was ever taken or because the one that was has gone from
+                  disk, and from a restore's point of view those are the same
+                  position. Saying "never" would flatly contradict a run above
+                  it that says ok. */}
               <p className="text-sm text-[var(--muted)] mt-1 mb-3">
-                Nothing has ever been dumped for these. If the instance were lost
-                today, so would they be.
+                No dump exists for these that could be restored — either none was
+                ever taken, or the file is no longer on disk. If the instance
+                were lost today, so would they be.
               </p>
               <div className="flex flex-wrap gap-2">
                 {d.unprotected.map((slug) => (
@@ -198,7 +216,17 @@ export default function BackupsPage() {
                         </span>
                       )}
                     </td>
-                    <td className={`${TD} tabular-nums`}>{r.size_bytes ? bytes(r.size_bytes) : "—"}</td>
+                    <td className={`${TD} tabular-nums`}>
+                      {r.size_bytes ? bytes(r.size_bytes) : "—"}
+                      {/* A run that succeeded and whose file has since gone is
+                          the dangerous row on this page: it reads as a backup
+                          until the day somebody needs it. */}
+                      {r.status === "ok" && !r.available && (
+                        <span className="block text-xs text-red-400 whitespace-nowrap">
+                          file missing
+                        </span>
+                      )}
+                    </td>
                     <td className={`${TD} text-[var(--muted)]`}>{r.started_by}</td>
                   </tr>
                 ))}

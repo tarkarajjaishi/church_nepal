@@ -11,6 +11,7 @@
  */
 
 import crypto from 'node:crypto'
+import { rename } from 'node:fs/promises'
 
 const API = process.env.CP_API || 'http://localhost:3100'
 
@@ -312,6 +313,68 @@ check('it says whether pg_dump is even available',
 check('churches with no successful backup are named, not just counted',
   Array.isArray(backups.unprotected))
 
+// A row saying a dump was taken and a dump you can restore from are different
+// claims. Rotation, a clear-out or a lost volume leave the row behind, and a
+// backup that reads as present until the day it is needed is worse than one
+// that reads as absent.
+check('every successful run says whether its file is still there',
+  backups.runs.filter(r => r.status === 'ok').every(r => typeof r.available === 'boolean'))
+check('runs whose file has gone are counted', typeof backups.missing_files === 'number',
+  `${backups.missing_files} missing`)
+// Measured, not summed from what each run reported writing.
+const liveBytes = backups.runs
+  .filter(r => r.status === 'ok' && r.available)
+  .reduce((s, r) => s + r.size_bytes, 0)
+check('the stored total never exceeds what the surviving runs account for',
+  backups.total_size_bytes >= 0
+  && (backups.runs.length < 100 ? backups.total_size_bytes >= liveBytes - 1024 : true),
+  `${backups.total_size_bytes} stored, ${liveBytes} across surviving runs`)
+check('a run reported missing is not also counted as available',
+  !backups.runs.some(r => r.available && r.status !== 'ok'))
+
+// The assertions above only check the shape. This one takes a real dump away
+// and requires the page to notice - which is the entire point of the feature,
+// and the only version of it that a regression could fail.
+{
+  const churchSlugs = new Set((await api('GET', '/churches')).map(c => c.slug))
+  const surviving = {}
+  for (const r of backups.runs) {
+    if (r.status === 'ok' && r.available && churchSlugs.has(r.church_slug)) {
+      (surviving[r.church_slug] ??= []).push(r)
+    }
+  }
+  // Needs a church whose coverage rests on exactly one file, or hiding it
+  // proves nothing: the others would still cover it.
+  const slug = Object.keys(surviving).find(s => surviving[s].length === 1)
+  if (!slug) {
+    console.log('  SKIP  no church is covered by exactly one surviving dump to hide')
+  } else {
+    const run = surviving[slug][0]
+    const file = run.path.split(/[\\/]/).pop()
+    const here = new URL(`../../../backups/${file}`, import.meta.url)
+    const held = new URL(`../../../backups/${file}.held-by-test`, import.meta.url)
+    try {
+      await rename(here, held)
+      const hidden = await api('GET', '/platform/backups')
+      check(`losing its only dump makes "${slug}" unprotected again`,
+        hidden.unprotected.includes(slug), hidden.unprotected.join(', ') || 'none')
+      check('the run itself is marked unavailable',
+        hidden.runs.some(r => r.id === run.id && r.available === false))
+      check('and its bytes stop counting toward the stored total',
+        hidden.total_size_bytes < backups.total_size_bytes
+        && hidden.missing_files > backups.missing_files,
+        `${backups.total_size_bytes} -> ${hidden.total_size_bytes}, missing ${backups.missing_files} -> ${hidden.missing_files}`)
+    } finally {
+      // Always put it back, including when an assertion above threw.
+      await rename(held, here).catch(() => {})
+    }
+    const restored = await api('GET', '/platform/backups')
+    check('putting the file back restores coverage',
+      !restored.unprotected.includes(slug)
+      && restored.total_size_bytes === backups.total_size_bytes)
+  }
+}
+
 // Coverage is computed from the registry, so it can only ever describe churches
 // the registry remembers. A database left by a provision that failed partway is
 // invisible to every other figure on the page while still holding real members
@@ -381,7 +444,7 @@ if (!SUPER_PW) {
 }
 
 // -- Report ---------------------------------------------------------------
-console.log('\n12. Platform report')
+console.log('\n13. Platform report')
 const report = await api('GET', '/platform/report')
 check('the report totals churches', report.totals.churches > 0, `${report.totals.churches}`)
 check('the plan breakdown adds up to the total',
@@ -397,7 +460,7 @@ check('MRR agrees with the analytics overview',
   `${report.totals.mrr}`)
 
 // -- Security -------------------------------------------------------------
-console.log('\n13. Security')
+console.log('\n14. Security')
 await expectReject('reading every admin session needs super_admin', 403, () =>
   api('GET', '/platform/security'))
 

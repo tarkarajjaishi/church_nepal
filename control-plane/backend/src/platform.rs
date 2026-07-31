@@ -1179,19 +1179,32 @@ pub struct BackupRun {
     pub started_by: String,
     pub started_at: chrono::DateTime<chrono::Utc>,
     pub finished_at: Option<chrono::DateTime<chrono::Utc>>,
+    /// Whether the dump named by `path` is still on disk.
+    ///
+    /// Not a column: a row records that a dump was taken, which is a different
+    /// claim from the dump being there now. Rotation, a clear-out or a lost
+    /// volume all leave the row behind, and a restore needs the file.
+    #[sqlx(default)]
+    pub available: bool,
 }
 
 #[derive(Serialize)]
 pub struct Backups {
     pub runs: Vec<BackupRun>,
     pub last_success_at: Option<chrono::DateTime<chrono::Utc>>,
-    /// Churches with no successful backup on record. The number that decides
-    /// whether "we have backups" is a true sentence.
+    /// Churches with no successful backup whose file is still on disk. The
+    /// number that decides whether "we have backups" is a true sentence.
     pub unprotected: Vec<String>,
     /// Databases with no church behind them. Not covered by `unprotected`,
     /// which can only count churches the registry knows about.
     pub unregistered: Vec<UnregisteredDatabase>,
+    /// Bytes actually on disk, measured rather than summed from what each run
+    /// reported writing.
     pub total_size_bytes: i64,
+    /// Successful runs whose file has since gone. Named on the page, because a
+    /// backup nobody can restore from is worse than a missing one: it is a
+    /// missing one that reads as covered.
+    pub missing_files: i64,
     pub pg_dump_available: bool,
 }
 
@@ -1199,8 +1212,14 @@ pub struct Backups {
 pub struct UnregisteredDatabase {
     pub name: String,
     pub size_bytes: i64,
-    /// A stray can still have been dumped from this page, which is the
+    /// When this stray was last dumped to a file that is still there - the
     /// difference between "at risk" and "kept, pending a decision".
+    ///
+    /// Filled in by the caller from the same disk walk the rest of the page
+    /// uses, rather than read from the runs table, so it cannot report a date
+    /// for a dump that has since been deleted. Not the latest run: the latest
+    /// run whose file survived, which may be an older one.
+    #[sqlx(default)]
     pub last_backup_at: Option<chrono::DateTime<chrono::Utc>>,
 }
 
@@ -1219,10 +1238,7 @@ async fn unregistered_databases(
 ) -> Result<Vec<UnregisteredDatabase>, sqlx::Error> {
     sqlx::query_as::<_, UnregisteredDatabase>(
         "SELECT d.datname::text AS name,
-                pg_database_size(d.datname)::bigint AS size_bytes,
-                (SELECT MAX(b.finished_at) FROM backup_runs b
-                  WHERE b.church_slug = d.datname::text
-                    AND b.kind = 'backup' AND b.status = 'ok') AS last_backup_at
+                pg_database_size(d.datname)::bigint AS size_bytes
            FROM pg_database d
           WHERE NOT d.datistemplate
             AND d.datallowconn
@@ -1261,41 +1277,102 @@ pub async fn list_backups(
     _auth: Authenticated,
     State(st): State<AppState>,
 ) -> Result<Json<Backups>, AppError> {
-    let runs = sqlx::query_as::<_, BackupRun>(
+    let mut runs = sqlx::query_as::<_, BackupRun>(
         "SELECT * FROM backup_runs ORDER BY started_at DESC LIMIT 100",
     )
     .fetch_all(&st.pool)
     .await?;
 
-    let last_success_at = sqlx::query_scalar(
-        "SELECT MAX(finished_at) FROM backup_runs WHERE kind = 'backup' AND status = 'ok'",
-    )
-    .fetch_one(&st.pool)
-    .await
-    .unwrap_or(None);
+    // Every successful run, checked against the disk. A row saying a dump was
+    // taken and a dump you can restore from are different claims, and this page
+    // is only worth reading if it makes the second one. `path` is stored the way
+    // run_backup wrote it - relative to this process's directory - so the same
+    // relative path resolves here.
+    //
+    // One metadata call per successful run, on local disk, for a table that
+    // holds one row per backup ever taken. If that ever grows enough to be felt,
+    // the walk belongs in spawn_blocking rather than in the request.
+    let recorded: Vec<(Option<String>, String, Option<chrono::DateTime<chrono::Utc>>)> =
+        sqlx::query_as(
+            "SELECT church_slug, path, finished_at FROM backup_runs
+              WHERE kind = 'backup' AND status = 'ok'",
+        )
+        .fetch_all(&st.pool)
+        .await?;
 
-    let unprotected: Vec<String> = sqlx::query_scalar(
-        // Runs are keyed by slug, and a slug is reusable: delete a church and
-        // create another with the same name and it inherits the dumps taken of
-        // the first one. Without the date test this page would call a church
-        // that has never been backed up covered, on the strength of a backup of
-        // data that no longer exists - the precise reassurance it exists to
-        // avoid giving. A dump older than the church cannot be a dump of it.
-        "SELECT c.slug FROM churches c
-          WHERE NOT EXISTS (
-              SELECT 1 FROM backup_runs b
-               WHERE b.church_slug = c.slug AND b.kind = 'backup' AND b.status = 'ok'
-                 AND b.finished_at >= c.created_at AT TIME ZONE 'UTC')
-          ORDER BY c.slug",
+    let mut total_size_bytes: i64 = 0;
+    let mut missing_files: i64 = 0;
+    let mut last_success_at: Option<chrono::DateTime<chrono::Utc>> = None;
+    let mut on_disk: std::collections::HashSet<String> = std::collections::HashSet::new();
+
+    for (slug, path, finished_at) in &recorded {
+        match std::fs::metadata(path) {
+            // Measured, not the size the run reported writing: a truncated or
+            // partly-copied file should not be counted at its intended size.
+            Ok(m) => {
+                total_size_bytes += m.len() as i64;
+                on_disk.insert(path.clone());
+                if let Some(slug) = slug {
+                    // Keyed by path so the church check below can ask whether
+                    // *this particular* dump survived.
+                    on_disk.insert(format!("{slug}\u{0}{path}"));
+                }
+                if *finished_at > last_success_at {
+                    last_success_at = *finished_at;
+                }
+            }
+            Err(_) => missing_files += 1,
+        }
+    }
+
+    for r in &mut runs {
+        r.available = r.status == "ok" && on_disk.contains(&r.path);
+    }
+
+    // Runs are keyed by slug, and a slug is reusable: delete a church and create
+    // another with the same name and it inherits the dumps taken of the first.
+    // A dump older than the church cannot be a dump of it, hence the date test -
+    // and a dump whose file is gone cannot restore it, hence the disk test. Both
+    // omitted, this page would call a church covered on the strength of a backup
+    // of data that no longer exists, which is the precise reassurance it is here
+    // to avoid giving.
+    let covered: Vec<(String, String)> = sqlx::query_as(
+        "SELECT c.slug, b.path
+           FROM churches c
+           JOIN backup_runs b ON b.church_slug = c.slug
+          WHERE b.kind = 'backup' AND b.status = 'ok'
+            AND b.finished_at >= c.created_at AT TIME ZONE 'UTC'",
     )
     .fetch_all(&st.pool)
     .await?;
+    let protected: std::collections::HashSet<&str> = covered
+        .iter()
+        .filter(|(slug, path)| on_disk.contains(&format!("{slug}\u{0}{path}")))
+        .map(|(slug, _)| slug.as_str())
+        .collect();
 
-    let total_size_bytes: i64 = sqlx::query_scalar(
-        "SELECT COALESCE(SUM(size_bytes), 0)::bigint FROM backup_runs WHERE status = 'ok'",
-    )
-    .fetch_one(&st.pool)
-    .await?;
+    let all_slugs: Vec<String> =
+        sqlx::query_scalar("SELECT slug FROM churches ORDER BY slug")
+            .fetch_all(&st.pool)
+            .await?;
+    let unprotected: Vec<String> = all_slugs
+        .into_iter()
+        .filter(|s| !protected.contains(s.as_str()))
+        .collect();
+
+    // Strays are dated from the same walk: the most recent dump of one that is
+    // still on disk, which is not necessarily the most recent dump taken.
+    let mut unregistered = unregistered_databases(&st.pool).await?;
+    for stray in &mut unregistered {
+        stray.last_backup_at = recorded
+            .iter()
+            .filter(|(slug, path, _)| {
+                slug.as_deref() == Some(stray.name.as_str())
+                    && on_disk.contains(&format!("{}\u{0}{path}", stray.name))
+            })
+            .filter_map(|(_, _, finished_at)| *finished_at)
+            .max();
+    }
 
     // Said plainly rather than discovered at the moment a backup is needed.
     // `.is_ok()` alone would call a command that ran and failed "available", so
@@ -1312,8 +1389,9 @@ pub async fn list_backups(
         runs,
         last_success_at,
         unprotected,
-        unregistered: unregistered_databases(&st.pool).await?,
+        unregistered,
         total_size_bytes,
+        missing_files,
         pg_dump_available,
     }))
 }
