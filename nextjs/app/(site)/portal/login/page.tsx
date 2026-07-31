@@ -82,12 +82,25 @@ export default function PortalLoginPage() {
 
   const isFormValid = formData.email && formData.password && validateEmail(formData.email)
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setLocalError(null)
 
-    if (!isFormValid) {
+    // Read the form, not React state. A password manager writes straight to the
+    // DOM without firing onChange, so formData can be empty while the member is
+    // looking at a filled-in form. Submitting state here would also have posted
+    // empty credentials rather than what they could see.
+    const data = new FormData(e.currentTarget)
+    const email = String(data.get('email') ?? '').trim() || formData.email.trim()
+    const password = String(data.get('password') ?? '') || formData.password
+
+    if (!email || !password || !validateEmail(email)) {
       setTouched({ email: true, password: true })
+      setLocalError(
+        !email || !password
+          ? 'Enter your email address and password.'
+          : 'That does not look like an email address.',
+      )
       return
     }
 
@@ -95,7 +108,7 @@ export default function PortalLoginPage() {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({ email, password }),
       })
       const data = await res.json()
       if (res.ok && data.token) {
@@ -269,12 +282,16 @@ export default function PortalLoginPage() {
                   )}
                 </motion.div>
 
+                {/* Never disabled on !isFormValid: that reads React state, and a
+                    password manager fills the DOM without React hearing about
+                    it, so the button greyed itself out over a form the member
+                    could see was complete. handleSubmit refuses empty
+                    credentials out loud instead. */}
                 <motion.button
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.25 }}
                   type="submit"
-                  disabled={!isFormValid}
                   className="w-full py-2.5 bg-gradient-to-r from-primary to-primary/80 text-primary-foreground rounded-lg font-medium hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
                 >
                   Sign In

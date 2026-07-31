@@ -77,17 +77,30 @@ export default function LoginPage() {
 
   const isFormValid = formData.email && formData.password && validateEmail(formData.email)
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setLocalError(null)
 
-    if (!isFormValid) {
+    // Read the form, not React state. A password manager writes straight to the
+    // DOM without firing onChange, so formData can be empty while the person is
+    // looking at a filled-in form - and this is the moment where being wrong
+    // means they cannot sign in at all.
+    const data = new FormData(e.currentTarget)
+    const email = String(data.get('email') ?? '').trim() || formData.email.trim()
+    const password = String(data.get('password') ?? '') || formData.password
+
+    if (!email || !password || !validateEmail(email)) {
       setTouched({ email: true, password: true })
+      setLocalError(
+        !email || !password
+          ? 'Enter your email address and password.'
+          : 'That does not look like an email address.',
+      )
       return
     }
 
     try {
-      await login(formData.email, formData.password)
+      await login(email, password)
     } catch (err: any) {
       const errorMessage = err?.response?.data?.detail || 'Login failed. Please try again.'
       setLocalError(errorMessage)
@@ -226,13 +239,20 @@ export default function LoginPage() {
                 )}
               </motion.div>
 
-              {/* Submit Button */}
+              {/* Submit Button.
+
+                  Disabled only while a request is in flight. It used to also
+                  disable on !isFormValid, which reads React state - and a
+                  password manager fills the DOM without React hearing about it.
+                  The button greyed itself out over a form the person could see
+                  was complete, and their click did nothing at all. handleSubmit
+                  refuses empty credentials out loud instead. */}
               <motion.button
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.25 }}
                 type="submit"
-                disabled={loading || !isFormValid}
+                disabled={loading}
                 className="w-full py-2.5 bg-gradient-to-r from-primary to-primary/80 text-primary-foreground rounded-lg font-medium hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
               >
                 {loading ? (

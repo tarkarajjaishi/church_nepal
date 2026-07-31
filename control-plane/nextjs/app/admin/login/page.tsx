@@ -28,6 +28,7 @@ function AdminLoginContent() {
   const [password, setPassword] = useState("");
   const [twofaCode, setTwofaCode] = useState("");
   const [twofaRequired, setTwofaRequired] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   // Token rehydration now happens once in lib/api-client.ts when the module
   // loads, so it applies to every route rather than just this page.
@@ -46,10 +47,39 @@ function AdminLoginContent() {
 
   const loginMutation = useLogin();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Note there is deliberately no autofill-detection effect here. Polling the
+  // DOM to copy an autofilled value into state would only be papering over a
+  // dependency that no longer exists — handleSubmit reads the form directly, and
+  // a real submit is always preceded by a user gesture, which is the point at
+  // which Chrome commits a suggested value anyway.
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!email || !password) return;
-    loginMutation.mutate({ email, password, code: twofaRequired ? twofaCode : undefined });
+
+    // The form is the source of truth, not React state. State can be stale or
+    // empty for exactly the fields a password manager just filled, and this is
+    // the moment where being wrong means the person cannot sign in.
+    const data = new FormData(e.currentTarget);
+    const emailValue = String(data.get("email") ?? "").trim() || email.trim();
+    const passwordValue = String(data.get("password") ?? "") || password;
+    const codeValue = String(data.get("code") ?? "") || twofaCode;
+
+    // Said out loud. This used to `return` silently, so a form that could not be
+    // submitted looked identical to one the server had not answered yet.
+    if (!emailValue || !passwordValue) {
+      setFormError("Enter your email address and password.");
+      return;
+    }
+    if (twofaRequired && !codeValue) {
+      setFormError("Enter the six-digit code from your authenticator app.");
+      return;
+    }
+
+    setFormError(null);
+    loginMutation.mutate({
+      email: emailValue,
+      password: passwordValue,
+      code: twofaRequired ? codeValue : undefined,
+    });
   };
 
   // Handle successful login
@@ -113,6 +143,7 @@ function AdminLoginContent() {
                 </label>
                 <Input
                   id="email"
+                  name="email"
                   type="email"
                   placeholder="owner@churchnepal.com"
                   value={email}
@@ -132,17 +163,18 @@ function AdminLoginContent() {
                 >
                   Password
                 </label>
+                {/* No onKeyDown. It called handleSubmit only when React state
+                    was already populated — the very condition autofill breaks —
+                    and it passed a keyboard event where the handler expects the
+                    form. Enter now submits the form natively, which works
+                    because the button below is no longer disabled. */}
                 <Input
                   id="password"
+                  name="password"
                   type="password"
                   placeholder="Enter your password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && email && password && (!twofaRequired || twofaCode)) {
-                      handleSubmit(e);
-                    }
-                  }}
                   disabled={loginMutation.isPending}
                   required
                   autoComplete="current-password"
@@ -160,39 +192,51 @@ function AdminLoginContent() {
                   </label>
                   <Input
                     id="twofa"
+                    name="code"
                     type="text"
+                    inputMode="numeric"
                     placeholder="Enter your 2FA code"
                     value={twofaCode}
                     onChange={(e) => setTwofaCode(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && email && password && twofaCode) {
-                        handleSubmit(e);
-                      }
-                    }}
                     disabled={loginMutation.isPending}
                     required
-                    autoComplete="off"
+                    autoComplete="one-time-code"
                     autoFocus
                   />
                 </div>
               )}
 
               {/* Error State */}
-              {loginMutation.error && (
-                <InlineError 
-                  message={loginMutation.error.message || "Login failed. Please check your credentials."} 
+              {(formError || loginMutation.error) && (
+                <InlineError
+                  message={
+                    formError ||
+                    loginMutation.error?.message ||
+                    "Login failed. Please check your credentials."
+                  }
                   className="mt-2"
                 />
               )}
             </CardContent>
 
             <CardFooter className="flex flex-col gap-4">
-              <Button 
-                type="submit" 
-                variant="primary" 
-                size="lg" 
+              {/* Disabled only while a request is in flight, which is the one
+                  thing that genuinely must not be repeated.
+
+                  It used to also disable on !email || !password, read from React
+                  state. A password manager fills the DOM without React hearing
+                  about it, so the button disabled itself over a form the person
+                  could see was complete — and `disabled:pointer-events-none`
+                  meant the click dispatched no event at all, to anything. No
+                  request, no error, nothing to notice. Empty credentials are
+                  refused in handleSubmit now, out loud, where refusing can say
+                  why. */}
+              <Button
+                type="submit"
+                variant="primary"
+                size="lg"
                 className="w-full"
-                disabled={loginMutation.isPending || !email || !password || (twofaRequired && !twofaCode)}
+                disabled={loginMutation.isPending}
               >
                 {loginMutation.isPending ? "Signing in..." : twofaRequired ? "Verify & Sign in" : "Sign in to Master Control"}
               </Button>
