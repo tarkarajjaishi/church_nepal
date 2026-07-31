@@ -1275,17 +1275,32 @@ pub async fn list_billing(State(st): State<AppState>) -> Result<Json<Vec<Billing
         .fetch_all(&st.pool)
         .await?;
 
+    // What each plan is worth per month, so a row can say the same thing the
+    // headline does. Every row previously reported 0 while the total above it
+    // reported the real figure — one page contradicting itself.
+    let prices: Vec<(String, i64)> =
+        sqlx::query_as("SELECT name, price_monthly::bigint FROM plans")
+            .fetch_all(&st.pool)
+            .await?;
+
     let mut billing = Vec::new();
     for c in churches {
+        let plan = c.plan.unwrap_or_else(|| "Free".to_string());
+        // Only an active church is billed; a suspended one is not earning.
+        let mrr = if c.status == "active" {
+            prices.iter().find(|(n, _)| *n == plan).map(|(_, p)| *p).unwrap_or(0)
+        } else {
+            0
+        };
         billing.push(BillingInfo {
             id: c.id,
             church_id: c.id,
             church_name: c.name,
-            plan: c.plan.unwrap_or_else(|| "Free".to_string()),
+            plan,
             status: c.status,
             trial_ends_at: None,
             current_period_end: None,
-            mrr: 0,
+            mrr,
         });
     }
     Ok(Json(billing))
@@ -1566,6 +1581,12 @@ pub async fn list_church_stripe_invoices(
 
 #[derive(Serialize)]
 pub struct BillingOverview {
+    /// Whether these figures came from Stripe or were derived from the plans
+    /// churches are on. Without this the page cannot tell "nobody is paying"
+    /// from "no payment provider is connected" — and it showed the first while
+    /// meaning the second.
+    pub source: String,
+    pub stripe_connected: bool,
     pub mrr: i64,
     pub active_subscriptions: i64,
     pub total_churn: i64,
@@ -1575,13 +1596,28 @@ pub struct BillingOverview {
 pub async fn get_billing_overview(State(st): State<AppState>) -> Result<Json<BillingOverview>, AppError> {
     let client = crate::stripe::StripeClient::new(&st.cfg.stripe_secret_key);
     if !client.enabled() {
-        let overview = BillingOverview {
-            mrr: 0,
-            active_subscriptions: 0,
+        // No Stripe key. Reporting zeroes here told the operator that nobody
+        // was paying, which is a different and much more alarming statement
+        // than "no payment provider is connected". Fall back to what the
+        // churches' plans imply — the same figure /analytics/overview reports,
+        // so the two pages agree instead of contradicting each other.
+        let (mrr, subs): (i64, i64) = sqlx::query_as(
+            "SELECT COALESCE(SUM(p.price_monthly), 0)::bigint, COUNT(*)::bigint
+               FROM churches c
+               JOIN plans p ON p.name = c.plan
+              WHERE c.status = 'active'",
+        )
+        .fetch_one(&st.pool)
+        .await?;
+
+        return Ok(Json(BillingOverview {
+            source: "plans".into(),
+            stripe_connected: false,
+            mrr,
+            active_subscriptions: subs,
             total_churn: 0,
             churn_rate: 0.0,
-        };
-        return Ok(Json(overview));
+        }));
     }
 
     let subscriptions = client
@@ -1614,6 +1650,8 @@ pub async fn get_billing_overview(State(st): State<AppState>) -> Result<Json<Bil
     };
 
     let overview = BillingOverview {
+        source: "stripe".into(),
+        stripe_connected: true,
         mrr,
         active_subscriptions,
         total_churn: churned_mrr,
