@@ -29,7 +29,9 @@ export function PageTitle({ title, subtitle, actions }: {
 export function Stat({ label, value, hint, tone }: {
   label: string;
   value: React.ReactNode;
-  hint?: string;
+  // ReactNode rather than string: a hint is sometimes a link to the page that
+  // explains the number.
+  hint?: React.ReactNode;
   tone?: "good" | "warn" | "bad";
 }) {
   const colour =

@@ -1,115 +1,119 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { use } from "react";
+import { useQuery } from "@tanstack/react-query";
+import Link from "next/link";
+import { ExternalLink, ArrowLeft } from "lucide-react";
+import { apiClient } from "@/lib/api-client";
+import { PageTitle, Stat, Failed, Loading, rupees } from "@/components/platform";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+
+/**
+ * One church, as the platform sees it.
+ *
+ * This said "Church not found." for every church that exists. It called
+ * `fetch('/api/admin/churches/{id}')` — a relative URL, so it went to the Next
+ * server on 3200 rather than the API on 3100; at a path that does not exist
+ * either way; with no Authorization header; from inside the render body rather
+ * than an effect, so it re-fired on every render. Any one of those was enough.
+ *
+ * apiClient handles the origin and the token, which is why everything else in
+ * this console uses it.
+ */
 
 interface Church {
   id: string;
   name: string;
+  slug: string;
+  db_name: string;
   subdomain: string;
-  // Add other fields as needed
+  admin_email: string;
+  status: string;
+  plan: string | null;
+  custom_domain: string | null;
+  created_at: string;
+  last_active_at: string | null;
+  member_count: number;
+  giving_total: number;
 }
 
-async function fetchChurch(id: string): Promise<Church | null> {
-  try {
-    const res = await fetch(`/api/admin/churches/${id}`);
-    if (!res.ok) {
-      console.error('Failed to fetch church:', res.status);
-      return null;
-    }
-    return res.json();
-  } catch (error) {
-    console.error('Error fetching church:', error);
-    return null;
-  }
-}
+export default function ChurchDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
+  const q = useQuery({
+    queryKey: ["church", id],
+    queryFn: async () => (await apiClient.get<Church>(`/churches/${id}`)).data,
+  });
 
-export default function ChurchDetailPage({ params }: { params: { id: string } }) {
-  const [church, setChurch] = useState<Church | null>(null);
-  const [loading, setLoading] = useState(true);
-  const router = useRouter();
-
-  if (loading && !church) {
-    fetchChurch(params.id)
-      .then(data => {
-        setChurch(data);
-        setLoading(false);
-      })
-      .catch(() => {
-        setLoading(false);
-      });
-  }
-
-  const handleImpersonate = async () => {
-    if (!church) return;
-
-    try {
-      // First, try to call the backend impersonation endpoint
-      const impersonateRes = await fetch('/api/admin/impersonate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ churchId: church.id }),
-      });
-
-      if (impersonateRes.ok) {
-        const data = await impersonateRes.json();
-        const token = data.token;
-        // Open the church admin URL with the impersonation token
-        window.open(`https://${church.subdomain}.churchnepal.com/admin?impersonationToken=${token}`, '_blank');
-      } else {
-        // Fallback: just open the church URL without token
-        window.open(`https://${church.subdomain}.churchnepal.com/admin`, '_blank');
-      }
-    } catch (error) {
-      console.error('Impersonation failed, opening URL directly:', error);
-      // Fallback: just open the church URL without token
-      window.open(`https://${church.subdomain}.churchnepal.com/admin`, '_blank');
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="p-6 max-w-4xl mx-auto">
-        <Card className="bg-[var(--panel)] border border-[var(--border)] rounded-xl p-5">
-          <p>Loading...</p>
-        </Card>
-      </div>
-    );
-  }
-
-  if (!church) {
-    return (
-      <div className="p-6 max-w-4xl mx-auto">
-        <Card className="bg-[var(--panel)] border border-[var(--border)] rounded-xl p-5">
-          <p>Church not found.</p>
-          <Link href="/admin/churches" className="mt-4 inline-block">
-            Back to Churches
-          </Link>
-        </Card>
-      </div>
-    );
-  }
+  const c = q.data;
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Church Details</h1>
-        <Button onClick={handleImpersonate}>
-          Log in as
-        </Button>
-      </div>
-      <Card className="bg-[var(--panel)] border border-[var(--border)] rounded-xl p-5">
-        <div className="space-y-4">
-          <div>
-            <h2 className="text-lg font-semibold">{church.name}</h2>
-            <p className="text-[var(--muted)]">{church.subdomain}.churchnepal.com</p>
+    <div className="space-y-6">
+      <Link
+        href="/admin/churches"
+        className="inline-flex items-center gap-1.5 text-sm text-[var(--muted)] hover:underline"
+      >
+        <ArrowLeft size={14} aria-hidden /> All churches
+      </Link>
+
+      {q.isError ? (
+        <Failed error={q.error} onRetry={() => q.refetch()} />
+      ) : !c ? (
+        <Loading />
+      ) : (
+        <>
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <PageTitle title={c.name} subtitle={c.custom_domain || c.subdomain} />
+            <Button variant="outline" className="gap-2" asChild>
+              <a
+                href={`http://${c.slug}.localhost:3005`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                <ExternalLink size={14} aria-hidden /> Open the site
+              </a>
+            </Button>
           </div>
-          {/* Add more details as needed */}
-        </div>
-      </Card>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Stat
+              label="Status"
+              value={c.status}
+              tone={c.status === "active" ? "good" : "bad"}
+            />
+            <Stat label="Plan" value={c.plan || "Free"} />
+            <Stat label="Members" value={c.member_count} />
+            {/* Paisa on the wire; the offering module stores minor units. */}
+            <Stat label="Given" value={rupees(Math.round(c.giving_total / 100))} />
+          </div>
+
+          <Card className="bg-[var(--panel)] border border-[var(--border)] rounded-xl p-5">
+            <h2 className="font-semibold mb-4">Details</h2>
+            <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3 text-sm">
+              {[
+                ["Slug", c.slug],
+                ["Database", c.db_name],
+                ["Administrator", c.admin_email],
+                ["Subdomain", c.subdomain],
+                ["Custom domain", c.custom_domain || "none"],
+                ["Created", c.created_at.slice(0, 10)],
+                ["Last active", c.last_active_at ? c.last_active_at.slice(0, 10) : "never"],
+              ].map(([k, v]) => (
+                <div key={k} className="flex justify-between gap-4 border-b border-[var(--border)] pb-2">
+                  <dt className="text-[var(--muted)]">{k}</dt>
+                  <dd className="text-right break-all">{v}</dd>
+                </div>
+              ))}
+            </dl>
+          </Card>
+
+          <div className="flex flex-wrap gap-3">
+            <Button variant="outline" asChild>
+              <Link href={`/admin/churches/${c.id}/billing`}>Billing</Link>
+            </Button>
+          </div>
+        </>
+      )}
     </div>
   );
 }

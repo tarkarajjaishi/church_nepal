@@ -67,7 +67,9 @@ export default function RolesPage() {
                   </h2>
                   <p className="text-sm text-[var(--muted)] mt-0.5">{r.description}</p>
                   <p className="text-xs text-[var(--muted)] mt-1">
-                    {r.admin_count} administrator{r.admin_count === 1 ? "" : "s"} hold this
+                    {/* The verb agrees too: "1 administrator holds this",
+                        "0 administrators hold this". */}
+                    {r.admin_count} administrator{r.admin_count === 1 ? " holds" : "s hold"} this
                   </p>
                 </div>
                 {!r.is_builtin && (

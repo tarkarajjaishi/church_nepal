@@ -77,10 +77,20 @@ export default function AdminLayout({
     return <>{children}</>;
   }
 
-  // Render nothing until the token check resolves, so the admin shell never
-  // flashes for someone who is about to be redirected to login.
+  // Don't render the shell until the token check resolves, so it never flashes
+  // for someone about to be redirected to login. Returning null gave a blank
+  // white screen instead, which is indistinguishable from a page that crashed —
+  // it is exactly what made /admin look broken during a routine session expiry.
   if (!authChecked) {
-    return null;
+    return (
+      <div className="min-h-screen flex items-center justify-center" role="status">
+        <span className="sr-only">Checking your session</span>
+        <span
+          className="size-6 rounded-full border-2 border-[var(--border)] border-t-[var(--accent)] animate-spin"
+          aria-hidden
+        />
+      </div>
+    );
   }
 
   return (

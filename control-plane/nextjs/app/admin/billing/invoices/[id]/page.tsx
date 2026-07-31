@@ -1,275 +1,129 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { toast } from 'sonner';
+import { use } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
+import { apiClient } from "@/lib/api-client";
+import { PageTitle, Stat, Failed, Loading, rupees } from "@/components/platform";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 
-// Mock data - replace with real API calls
-const mockInvoice = {
-  id: 'inv_12345',
-  number: 'INV-2026-001',
-  status: 'paid', // paid, unpaid, refunded, partially_refunded
-  issueDate: '2026-07-15',
-  dueDate: '2026-08-15',
-  currency: 'USD',
-  total: 29900, // in cents
-  subtotal: 29900,
-  tax: 0,
-  discount: 0,
-  description: 'Monthly subscription',
-  customerName: 'Grace Community Church',
-  customerId: 'ch_abc123',
-  items: [
-    {
-      id: 'item_1',
-      name: 'Standard Plan',
-      description: 'Basic features for small churches',
-      quantity: 1,
-      unitAmount: 29900,
-    },
-  ],
-  paymentMethod: 'Visa ending in 4242',
-  transactionId: 'txn_xyz789',
-};
+/**
+ * One invoice.
+ *
+ * This page previously rendered a complete, paid invoice — INV-2026-001, a Visa
+ * ending 4242, transaction txn_xyz789, billed to "Grace Community Church" in US
+ * dollars — for whatever id happened to be in the URL, including ids that do
+ * not exist. It offered Download PDF, Resend and Refund buttons against it.
+ *
+ * A fabricated financial record is the worst thing on a console like this: it
+ * is exactly the kind of page someone screenshots as evidence. It now shows the
+ * invoice, or says there isn't one.
+ */
 
-export default function InvoiceDetailPage() {
-  const params = useParams();
-  const router = useRouter();
-  const [invoice, setInvoice] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [refundAmount, setRefundAmount] = useState('');
-  const [showRefundDialog, setShowRefundDialog] = useState(false);
+interface Invoice {
+  id: string;
+  church_id: string;
+  church_name: string | null;
+  church_slug: string | null;
+  amount: number;
+  status: string;
+  period_start: string;
+  period_end: string;
+  due_date: string;
+  paid_at: string | null;
+  created_at: string | null;
+}
 
-  useEffect(() => {
-    // Simulate fetching invoice data
-    setTimeout(() => {
-      setInvoice(mockInvoice);
-      setLoading(false);
-    }, 500);
-  }, [params.id]);
+export default function InvoicePage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
+  const qc = useQueryClient();
 
-  if (loading) {
-    return (
-      <div className="p-6 max-w-4xl mx-auto">
-        <Card className="bg-[var(--panel)] border border-[var(--border)] rounded-xl p-5">
-          <div className="animate-pulse space-y-4">
-            <div className="h-6 bg-[var(--panel-2)] rounded w-1/4"></div>
-            <div className="h-4 bg-[var(--panel-2)] rounded w-1/3"></div>
-            <div className="h-4 bg-[var(--panel-2)] rounded w-full"></div>
-            <div className="h-4 bg-[var(--panel-2)] rounded w-2/3"></div>
-          </div>
-        </Card>
-      </div>
-    );
-  }
+  const q = useQuery({
+    queryKey: ["invoice", id],
+    queryFn: async () => (await apiClient.get<Invoice>(`/invoices/${id}`)).data,
+    retry: false,
+  });
 
-  if (!invoice) {
-    return (
-      <div className="p-6 max-w-4xl mx-auto">
-        <Card className="bg-[var(--panel)] border border-[var(--border)] rounded-xl p-5">
-          <h1 className="text-xl font-semibold">Invoice Not Found</h1>
-        </Card>
-      </div>
-    );
-  }
+  const pay = useMutation({
+    mutationFn: () => apiClient.post(`/invoices/${id}/pay`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["invoice", id] }),
+  });
 
-  const handleDownloadPDF = () => {
-    window.print();
-  };
-
-  const handleResend = async () => {
-    try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      toast.success('Invoice resent successfully');
-    } catch (error) {
-      toast.error('Failed to resend invoice');
-    }
-  };
-
-  const handleRefundSubmit = async () => {
-    if (!refundAmount || parseFloat(refundAmount) <= 0) {
-      toast.error('Please enter a valid refund amount');
-      return;
-    }
-
-    try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      toast.success(`Refund of $${parseFloat(refundAmount).toFixed(2)} processed`);
-      setShowRefundDialog(false);
-      setRefundAmount('');
-    } catch (error) {
-      toast.error('Failed to process refund');
-    }
-  };
-
-  const formatCurrency = (amount: number) => {
-    return (amount / 100).toLocaleString('en-US', {
-      style: 'currency',
-      currency: invoice.currency || 'USD',
-    });
-  };
+  const inv = q.data;
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
-      {/* Breadcrumb */}
-      <div className="mb-6 flex items-center gap-2 text-[var(--muted)]">
-        <button 
-          onClick={() => router.push('/admin/billing')}
-          className="hover:text-[var(--text)] transition-colors"
-        >
-          Billing
-        </button>
-        <span>/</span>
-        <button 
-          onClick={() => router.push('/admin/billing/invoices')}
-          className="hover:text-[var(--text)] transition-colors"
-        >
-          Invoices
-        </button>
-        <span>/</span>
-        <span>{invoice.number}</span>
-      </div>
+    <div className="space-y-6">
+      <Link
+        href="/admin/billing"
+        className="inline-flex items-center gap-1.5 text-sm text-[var(--muted)] hover:underline"
+      >
+        <ArrowLeft size={14} aria-hidden /> Billing
+      </Link>
 
-      <Card className="bg-[var(--panel)] border border-[var(--border)] rounded-xl p-5 mb-6">
-        <div className="flex justify-between items-start mb-6">
-          <div>
-            <h1 className="text-2xl font-bold">Invoice #{invoice.number}</h1>
-            <div className="mt-1 flex items-center gap-2">
-              <Badge 
-                variant={invoice.status === 'paid' ? 'default' : 
-                         invoice.status === 'refunded' ? 'secondary' : 
-                         'outline'}
-              >
-                {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
-              </Badge>
-              <span className="text-[var(--muted)]">
-                Issued: {new Date(invoice.issueDate).toLocaleDateString()}
-              </span>
-            </div>
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={handleDownloadPDF}>
-              Download PDF
-            </Button>
-            <Button variant="outline" onClick={handleResend}>
-              Resend
-            </Button>
-            <Button 
-              variant="destructive" 
-              onClick={() => setShowRefundDialog(true)}
-            >
-              Refund
-            </Button>
-          </div>
-        </div>
+      {q.isError ? (
+        <Failed error={q.error} onRetry={() => q.refetch()} />
+      ) : !inv ? (
+        <Loading />
+      ) : (
+        <>
+          <PageTitle
+            title={`Invoice ${inv.id.slice(0, 8)}`}
+            subtitle={
+              inv.church_name
+                ? `${inv.church_name} · raised ${(inv.created_at ?? inv.due_date).slice(0, 10)}`
+                : // The church can be deleted while its invoices remain.
+                  "The church this was raised for no longer exists"
+            }
+          />
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-          <div>
-            <h2 className="font-semibold mb-2">Bill To</h2>
-            <p className="text-[var(--text)]">{invoice.customerName}</p>
-            <p className="text-[var(--muted)]">ID: {invoice.customerId}</p>
-          </div>
-          <div>
-            <h2 className="font-semibold mb-2">Payment Method</h2>
-            <p className="text-[var(--text)]">{invoice.paymentMethod}</p>
-            <p className="text-[var(--muted)]">Transaction ID: {invoice.transactionId}</p>
-          </div>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-[var(--border-soft)]">
-                <th className="text-left py-2 text-[var(--muted)]">Item</th>
-                <th className="text-right py-2 text-[var(--muted)]">Quantity</th>
-                <th className="text-right py-2 text-[var(--muted)]">Unit Price</th>
-                <th className="text-right py-2 text-[var(--muted)]">Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              {invoice.items.map((item: any) => (
-                <tr key={item.id} className="border-b border-[var(--border-soft)]">
-                  <td className="py-3">
-                    <div className="font-medium">{item.name}</div>
-                    <div className="text-sm text-[var(--muted)]">{item.description}</div>
-                  </td>
-                  <td className="py-3 text-right">{item.quantity}</td>
-                  <td className="py-3 text-right">{formatCurrency(item.unitAmount)}</td>
-                  <td className="py-3 text-right">{formatCurrency(item.unitAmount * item.quantity)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="flex justify-end mt-6">
-          <div className="w-full max-w-xs space-y-1">
-            <div className="flex justify-between">
-              <span className="text-[var(--muted)]">Subtotal:</span>
-              <span>{formatCurrency(invoice.subtotal)}</span>
-            </div>
-            {invoice.discount > 0 && (
-              <div className="flex justify-between">
-                <span className="text-[var(--muted)]">Discount:</span>
-                <span>-{formatCurrency(invoice.discount)}</span>
-              </div>
-            )}
-            {invoice.tax > 0 && (
-              <div className="flex justify-between">
-                <span className="text-[var(--muted)]">Tax:</span>
-                <span>+{formatCurrency(invoice.tax)}</span>
-              </div>
-            )}
-            <div className="flex justify-between pt-2 border-t border-[var(--border-soft)] font-semibold">
-              <span>Total:</span>
-              <span>{formatCurrency(invoice.total)}</span>
-            </div>
-          </div>
-        </div>
-      </Card>
-
-      {/* Refund Dialog */}
-      {showRefundDialog && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <Card className="bg-[var(--panel)] border border-[var(--border)] rounded-xl p-5 w-full max-w-md">
-            <h2 className="text-xl font-bold mb-4">Process Refund</h2>
-            <p className="text-[var(--muted)] mb-4">
-              Enter the amount to refund for invoice {invoice.number}
-            </p>
-            
-            <Input
-              type="number"
-              step="0.01"
-              min="0.01"
-              max={formatCurrency(invoice.total).replace(/[^0-9.]/g, '')}
-              placeholder="Enter refund amount"
-              value={refundAmount}
-              onChange={(e) => setRefundAmount(e.target.value)}
-              className="mb-4"
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Stat label="Amount" value={rupees(inv.amount)} />
+            <Stat
+              label="Status"
+              value={inv.status}
+              tone={inv.status === "paid" ? "good" : "bad"}
             />
-            
-            <div className="flex justify-end gap-2">
-              <Button 
-                variant="outline" 
-                onClick={() => setShowRefundDialog(false)}
-              >
-                Cancel
-              </Button>
-              <Button 
-                variant="destructive"
-                onClick={handleRefundSubmit}
-              >
-                Process Refund
-              </Button>
-            </div>
+            <Stat label="Due" value={inv.due_date.slice(0, 10)} />
+            <Stat label="Paid" value={inv.paid_at ? inv.paid_at.slice(0, 10) : "not yet"} />
+          </div>
+
+          <Card className="bg-[var(--panel)] border border-[var(--border)] rounded-xl p-5">
+            <h2 className="font-semibold mb-4">Period covered</h2>
+            <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3 text-sm">
+              {[
+                ["From", inv.period_start.slice(0, 10)],
+                ["To", inv.period_end.slice(0, 10)],
+                ["Church", inv.church_name ?? "deleted"],
+                ["Invoice id", inv.id],
+              ].map(([k, v]) => (
+                <div
+                  key={k}
+                  className="flex justify-between gap-4 border-b border-[var(--border)] pb-2"
+                >
+                  <dt className="text-[var(--muted)]">{k}</dt>
+                  <dd className="text-right break-all">{v}</dd>
+                </div>
+              ))}
+            </dl>
           </Card>
-        </div>
+
+          {inv.status !== "paid" && (
+            <div className="flex flex-wrap items-center gap-3">
+              <Button disabled={pay.isPending} onClick={() => pay.mutate()}>
+                {pay.isPending ? "Recording…" : "Mark as paid"}
+              </Button>
+              {/* No payment provider is connected, so this records that money
+                  arrived by some other route. It does not take a payment, and
+                  it should not look as though it does. */}
+              <p className="text-sm text-[var(--muted)]">
+                Records that this was settled elsewhere — it does not collect
+                anything.
+              </p>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
