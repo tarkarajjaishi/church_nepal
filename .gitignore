@@ -82,6 +82,11 @@ Dockerfile.auth
 .qwen_agent/
 task.txt
 
+# Database dumps written by /platform/backups. Every one of these is a full
+# copy of a church's members, giving and pastoral notes - never commit them.
+backups/
+*.sql.gz
+
 # Misc
 *.local
 .cache/

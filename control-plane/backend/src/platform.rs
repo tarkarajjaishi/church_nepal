@@ -1192,6 +1192,23 @@ pub struct Backups {
     pub pg_dump_available: bool,
 }
 
+/// The command that produces a dump, as program plus arguments.
+///
+/// Defaults to `pg_dump` on the PATH. `PG_DUMP_COMMAND` overrides it, which is
+/// how a machine that runs Postgres in a container points at the copy inside:
+///
+///     PG_DUMP_COMMAND="docker exec -i grace-church-postgres pg_dump"
+///
+/// Version matters: pg_dump refuses to dump a server newer than itself, so the
+/// binary must be at least the server's major version. Using the container's
+/// own pg_dump sidesteps that question entirely.
+fn pg_dump_command() -> (String, Vec<String>) {
+    let raw = std::env::var("PG_DUMP_COMMAND").unwrap_or_else(|_| "pg_dump".to_string());
+    let mut parts = raw.split_whitespace().map(str::to_string);
+    let program = parts.next().unwrap_or_else(|| "pg_dump".to_string());
+    (program, parts.collect())
+}
+
 pub async fn list_backups(
     _auth: Authenticated,
     State(st): State<AppState>,
@@ -1226,10 +1243,15 @@ pub async fn list_backups(
     .await?;
 
     // Said plainly rather than discovered at the moment a backup is needed.
-    let pg_dump_available = std::process::Command::new("pg_dump")
+    // `.is_ok()` alone would call a command that ran and failed "available", so
+    // the exit status is checked too.
+    let (program, args) = pg_dump_command();
+    let pg_dump_available = std::process::Command::new(&program)
+        .args(&args)
         .arg("--version")
         .output()
-        .is_ok();
+        .map(|o| o.status.success())
+        .unwrap_or(false);
 
     Ok(Json(Backups {
         runs,
@@ -1284,19 +1306,31 @@ pub async fn run_backup(
         None => format!("{base}/{db_name}"),
     };
 
-    let out = std::process::Command::new("pg_dump")
+    // Captured from stdout rather than written with -f: the file has to land
+    // here, and `-f` writes wherever the command itself runs — which for a
+    // containerised pg_dump is inside the container, where nothing can restore
+    // from it.
+    let (program, args) = pg_dump_command();
+    let out = std::process::Command::new(&program)
+        .args(&args)
         .arg(&dsn)
-        .arg("-f")
-        .arg(&path)
         .output();
 
     let (status, size, error) = match out {
         Ok(o) if o.status.success() => {
-            let size = std::fs::metadata(&path).map(|m| m.len() as i64).unwrap_or(0);
-            ("ok", size, String::new())
+            match std::fs::write(&path, &o.stdout) {
+                // An empty dump is a failed dump, however cleanly pg_dump exited.
+                Ok(()) if !o.stdout.is_empty() => ("ok", o.stdout.len() as i64, String::new()),
+                Ok(()) => ("failed", 0, "pg_dump produced nothing".to_string()),
+                Err(e) => ("failed", 0, format!("could not write the dump: {e}")),
+            }
         }
-        Ok(o) => ("failed", 0, String::from_utf8_lossy(&o.stderr).to_string()),
-        Err(e) => ("failed", 0, format!("pg_dump could not be run: {e}")),
+        Ok(o) => ("failed", 0, String::from_utf8_lossy(&o.stderr).trim().to_string()),
+        Err(e) => (
+            "failed",
+            0,
+            format!("{program} could not be run: {e}. Set PG_DUMP_COMMAND if Postgres runs in a container."),
+        ),
     };
 
     sqlx::query(
