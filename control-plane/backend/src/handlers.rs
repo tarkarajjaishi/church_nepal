@@ -636,10 +636,13 @@ pub async fn list_churches(_auth: Authenticated, State(st): State<AppState>) -> 
             .await
             .unwrap_or((0,));
 
-        let giving_total: (i64,) = sqlx::query_as("SELECT COALESCE(SUM(total_amount), 0) FROM offerings")
-            .fetch_one(&pool)
-            .await
-            .unwrap_or((0,));
+        // ::bigint — see get_church. SUM() over bigint is numeric, and without
+        // the cast this silently reported every church as having given nothing.
+        let giving_total: (i64,) =
+            sqlx::query_as("SELECT COALESCE(SUM(total_amount), 0)::bigint FROM offerings")
+                .fetch_one(&pool)
+                .await
+                .unwrap_or((0,));
 
         let mut church_json = serde_json::to_value(&church).map_err(|e| AppError::internal(e.to_string()))?;
         church_json["member_count"] = json!(member_count.0);
@@ -718,6 +721,7 @@ pub async fn create_church(
 }
 
 pub async fn get_church(
+    _auth: Authenticated,
     Path(id): Path<uuid::Uuid>,
     State(st): State<AppState>,
 ) -> Result<Json<Value>, AppError> {
@@ -739,10 +743,15 @@ pub async fn get_church(
         .await
         .unwrap_or((0,));
 
-    let giving_total: (i64,) = sqlx::query_as("SELECT COALESCE(SUM(total_amount), 0) FROM offerings")
-        .fetch_one(&pool)
-        .await
-        .unwrap_or((0,));
+    // ::bigint because SUM() over a bigint column returns numeric, which will not
+    // decode into i64. Without the cast this query failed every time and the
+    // unwrap_or below turned the failure into a confident "Rs 0" on the
+    // dashboard, beside a member count that worked because COUNT(*) is bigint.
+    let giving_total: (i64,) =
+        sqlx::query_as("SELECT COALESCE(SUM(total_amount), 0)::bigint FROM offerings")
+            .fetch_one(&pool)
+            .await
+            .unwrap_or((0,));
 
     let mut church_json = serde_json::to_value(&church).map_err(|e| AppError::internal(e.to_string()))?;
     church_json["member_count"] = json!(member_count.0);
@@ -894,6 +903,11 @@ pub struct Admin {
     pub invite_expires_at: Option<chrono::DateTime<chrono::Utc>>,
     pub last_active_at: Option<chrono::DateTime<chrono::Utc>>,
     pub created_at: chrono::DateTime<chrono::Utc>,
+    /// Never serialised. This is the shared secret that *is* the second factor:
+    /// anyone holding it can generate that account's codes forever, so it must
+    /// not travel to a browser, a log or a devtools pane. `twofa_enabled` below
+    /// answers the only question a caller actually has.
+    #[serde(skip_serializing)]
     pub totp_secret: Option<String>,
     pub twofa_enabled: Option<bool>,
 }
@@ -1130,7 +1144,8 @@ pub struct Plan {
     pub created_at: Option<chrono::NaiveDateTime>,
 }
 
-pub async fn list_plans(State(st): State<AppState>) -> Result<Json<Vec<Plan>>, AppError> {
+pub async fn list_plans(
+    _auth: Authenticated,State(st): State<AppState>) -> Result<Json<Vec<Plan>>, AppError> {
     // price_monthly and price_annual are NUMERIC in the database and i64 here.
     // sqlx will not decode one into the other, so `SELECT *` made this endpoint
     // 500 — and the pricing page, the plan picker and billing all read it.
@@ -1145,7 +1160,8 @@ pub async fn list_plans(State(st): State<AppState>) -> Result<Json<Vec<Plan>>, A
     Ok(Json(plans))
 }
 
-pub async fn get_plan(Path(id): Path<uuid::Uuid>, State(st): State<AppState>) -> Result<Json<Plan>, AppError> {
+pub async fn get_plan(
+    _auth: Authenticated,Path(id): Path<uuid::Uuid>, State(st): State<AppState>) -> Result<Json<Plan>, AppError> {
     let plan = sqlx::query_as(
         "SELECT id, name, price_monthly::bigint, price_annual::bigint,
                 max_members::bigint, max_storage_mb::bigint, max_emails::bigint,
@@ -1249,7 +1265,11 @@ pub async fn delete_plan(
 pub struct Invoice {
     pub id: uuid::Uuid,
     pub church_id: uuid::Uuid,
-    pub amount: i64,
+    /// Rupees. The column is numeric(10,2), which does not decode into an
+    /// integer — every query selecting it would have failed the moment a single
+    /// invoice existed. There are none yet, so an empty result set has been
+    /// hiding it: the decode only runs per row.
+    pub amount: f64,
     pub status: String,
     pub period_start: chrono::NaiveDateTime,
     pub period_end: chrono::NaiveDateTime,
@@ -1270,7 +1290,8 @@ pub struct BillingInfo {
     pub mrr: i64,
 }
 
-pub async fn list_billing(State(st): State<AppState>) -> Result<Json<Vec<BillingInfo>>, AppError> {
+pub async fn list_billing(
+    _auth: Authenticated,State(st): State<AppState>) -> Result<Json<Vec<BillingInfo>>, AppError> {
     let churches = sqlx::query_as::<_, crate::handlers::Church>("SELECT * FROM churches ORDER BY created_at DESC")
         .fetch_all(&st.pool)
         .await?;
@@ -1307,6 +1328,7 @@ pub async fn list_billing(State(st): State<AppState>) -> Result<Json<Vec<Billing
 }
 
 pub async fn get_billing_for_church(
+    _auth: Authenticated,
     Path(church_id): Path<uuid::Uuid>,
     State(st): State<AppState>,
 ) -> Result<Json<BillingInfo>, AppError> {
@@ -1316,15 +1338,33 @@ pub async fn get_billing_for_church(
         .await?
         .ok_or_else(|| AppError::not_found("Church not found"))?;
     
+    let plan = church.plan.unwrap_or_else(|| "Free".to_string());
+
+    // Derived the same way list_billing derives it, from the plans table. It was
+    // hardcoded to 0, so one church's own billing page said it was worth nothing
+    // per month while the billing list counted it toward the platform MRR. Two
+    // endpoints reporting the same figure from different sources will disagree;
+    // this one now reads the same source.
+    let mrr: i64 = if church.status == "active" {
+        sqlx::query_scalar("SELECT price_monthly::bigint FROM plans WHERE name = $1")
+            .bind(&plan)
+            .fetch_optional(&st.pool)
+            .await?
+            .unwrap_or(0)
+    } else {
+        // A suspended church is not earning, which is the same rule as the list.
+        0
+    };
+
     let billing = BillingInfo {
         id: church.id,
         church_id: church.id,
         church_name: church.name,
-        plan: church.plan.unwrap_or_else(|| "Free".to_string()),
+        plan,
         status: church.status,
         trial_ends_at: None,
         current_period_end: None,
-        mrr: 0,
+        mrr,
     };
     Ok(Json(billing))
 }
@@ -1398,18 +1438,19 @@ pub struct SubscribeReq {
 }
 
 pub async fn list_invoices(
+    _auth: Authenticated,
     Query(params): Query<InvoiceParams>,
     State(st): State<AppState>,
 ) -> Result<Json<Vec<Invoice>>, AppError> {
     if let Some(church_id) = params.church_id {
-        let invoices = sqlx::query_as("SELECT * FROM invoices WHERE church_id = $1 ORDER BY created_at DESC")
+        let invoices = sqlx::query_as("SELECT id, church_id, amount::float8 AS amount, status, period_start, period_end, due_date, paid_at, created_at FROM invoices WHERE church_id = $1 ORDER BY created_at DESC")
             .bind(church_id)
             .fetch_all(&st.pool)
             .await?;
         return Ok(Json(invoices));
     }
     
-    let invoices = sqlx::query_as("SELECT * FROM invoices ORDER BY created_at DESC")
+    let invoices = sqlx::query_as("SELECT id, church_id, amount::float8 AS amount, status, period_start, period_end, due_date, paid_at, created_at FROM invoices ORDER BY created_at DESC")
         .fetch_all(&st.pool)
         .await?;
     Ok(Json(invoices))
@@ -1420,15 +1461,121 @@ pub struct InvoiceParams {
     pub church_id: Option<uuid::Uuid>,
 }
 
+/// One invoice, with the church it belongs to.
+///
+/// The detail page previously had nothing to call, and rendered a fabricated
+/// paid invoice — complete with a card number and a transaction id — for any id
+/// in the URL, including ids that do not exist.
+pub async fn get_invoice(
+    _auth: Authenticated,
+    State(st): State<AppState>,
+    Path(id): Path<uuid::Uuid>,
+) -> Result<Json<Value>, AppError> {
+    let invoice: Option<Invoice> = sqlx::query_as(
+        "SELECT id, church_id, amount::float8 AS amount, status, period_start, \
+                period_end, due_date, paid_at, created_at FROM invoices WHERE id = $1",
+    )
+    .bind(id)
+    .fetch_optional(&st.pool)
+    .await?;
+    let invoice = invoice.ok_or_else(|| AppError::not_found("No such invoice"))?;
+
+    let church: Option<(String, String)> =
+        sqlx::query_as("SELECT name, slug FROM churches WHERE id = $1")
+            .bind(invoice.church_id)
+            .fetch_optional(&st.pool)
+            .await?;
+
+    let mut out = serde_json::to_value(&invoice).map_err(|e| AppError::internal(e.to_string()))?;
+    // Named rather than left as a bare uuid, and honest when the church behind
+    // the invoice has since been deleted.
+    out["church_name"] = json!(church.as_ref().map(|c| c.0.clone()));
+    out["church_slug"] = json!(church.as_ref().map(|c| c.1.clone()));
+    Ok(Json(out))
+}
+
+#[derive(Serialize, sqlx::FromRow)]
+pub struct AuditEntry {
+    pub id: i64,
+    pub actor_email: Option<String>,
+    pub action: String,
+    pub target_type: Option<String>,
+    pub target_id: Option<String>,
+    pub ip: Option<String>,
+    pub metadata: Value,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+}
+
+/// What administrators have actually done.
+///
+/// There was no endpoint at all, so the page invented entries — CREATE_USER
+/// against usr-123 from 192.168.1.1, dated 2024. An audit log that shows things
+/// nobody did is worse than no audit log, because it is believed.
+pub async fn list_audit_log(
+    _auth: Authenticated,
+    State(st): State<AppState>,
+) -> Result<Json<Vec<AuditEntry>>, AppError> {
+    let entries = sqlx::query_as::<_, AuditEntry>(
+        // ip is inet; ::text so it decodes as a string rather than needing a
+        // network-address type on the Rust side.
+        "SELECT id, actor_email, action, target_type, target_id, ip::text AS ip,
+                metadata, created_at
+           FROM audit_log ORDER BY created_at DESC LIMIT 200",
+    )
+    .fetch_all(&st.pool)
+    .await?;
+    Ok(Json(entries))
+}
+
+/// Withdraw an invoice raised in error.
+///
+/// There was no way to remove one at all, so a mistake stayed on a church's
+/// billing page permanently. Audited, because deleting a financial record is
+/// precisely the kind of thing the audit log exists to remember.
+pub async fn delete_invoice(
+    admin: AdminGuard,
+    State(st): State<AppState>,
+    Path(id): Path<uuid::Uuid>,
+) -> Result<Json<Value>, AppError> {
+    let existing: Option<(uuid::Uuid, String)> =
+        sqlx::query_as("SELECT church_id, status FROM invoices WHERE id = $1")
+            .bind(id)
+            .fetch_optional(&st.pool)
+            .await?;
+    let (church_id, status) = existing.ok_or_else(|| AppError::not_found("No such invoice"))?;
+
+    sqlx::query("DELETE FROM invoices WHERE id = $1")
+        .bind(id)
+        .execute(&st.pool)
+        .await?;
+
+    audit_log(
+        &st.pool,
+        &admin.0,
+        "delete_invoice",
+        &id.to_string(),
+        "invoices",
+        Some(json!({ "church_id": church_id, "status_when_deleted": status })),
+    )
+    .await?;
+
+    Ok(Json(json!({ "deleted": id })))
+}
+
 pub async fn create_invoice(
     _admin: AdminGuard,
     State(st): State<AppState>,
     Json(req): Json<CreateInvoiceReq>,
 ) -> Result<Json<Value>, AppError> {
+    // RETURNING the columns rather than *, so amount comes back cast. `*` here
+    // hit the same numeric/f64 mismatch as the SELECTs: creating an invoice
+    // failed outright, which nobody had noticed because no invoice had ever
+    // been created through this endpoint.
     let invoice = sqlx::query_as::<_, Invoice>(
         "INSERT INTO invoices (church_id, amount, status, period_start, period_end, due_date) \
          VALUES ($1, $2, 'unpaid', $3, $4, $5) \
-         RETURNING *"
+         RETURNING id, church_id, amount::float8 AS amount, status, period_start, \
+                   period_end, due_date, paid_at, created_at"
     )
     .bind(req.church_id)
     .bind(req.amount)
@@ -1456,7 +1603,10 @@ pub async fn mark_invoice_paid(
     State(st): State<AppState>,
 ) -> Result<Json<Value>, AppError> {
     let invoice = sqlx::query_as::<_, Invoice>(
-        "UPDATE invoices SET status = 'paid', paid_at = NOW() WHERE id = $1 RETURNING *"
+        // Columns, not *, for the amount cast — see create_invoice.
+        "UPDATE invoices SET status = 'paid', paid_at = NOW() WHERE id = $1 \
+         RETURNING id, church_id, amount::float8 AS amount, status, period_start, \
+                   period_end, due_date, paid_at, created_at"
     )
     .bind(id)
     .fetch_optional(&st.pool)
@@ -1593,7 +1743,8 @@ pub struct BillingOverview {
     pub churn_rate: f64,
 }
 
-pub async fn get_billing_overview(State(st): State<AppState>) -> Result<Json<BillingOverview>, AppError> {
+pub async fn get_billing_overview(
+    _auth: Authenticated,State(st): State<AppState>) -> Result<Json<BillingOverview>, AppError> {
     let client = crate::stripe::StripeClient::new(&st.cfg.stripe_secret_key);
     if !client.enabled() {
         // No Stripe key. Reporting zeroes here told the operator that nobody
@@ -1681,6 +1832,7 @@ pub struct RefundAnalytics {
 }
 
 pub async fn get_refund_analytics(
+    _auth: Authenticated,
     State(st): State<AppState>,
 ) -> Result<Json<RefundAnalytics>, AppError> {
     let churches = sqlx::query_as::<_, crate::handlers::Church>("SELECT * FROM churches ORDER BY created_at DESC")
@@ -1873,7 +2025,8 @@ pub async fn refund_donation(
 // Analytics handlers
 // =============================================================================
 
-pub async fn get_analytics_overview(State(st): State<AppState>) -> Result<Json<AnalyticsOverview>, AppError> {
+pub async fn get_analytics_overview(
+    _auth: Authenticated,State(st): State<AppState>) -> Result<Json<AnalyticsOverview>, AppError> {
     let total_churches: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM churches")
         .fetch_one(&st.pool)
         .await
@@ -1944,6 +2097,7 @@ pub struct ChurchStats {
 }
 
 pub async fn get_church_stats(
+    _auth: Authenticated,
     Path(slug): Path<String>,
     State(st): State<AppState>,
 ) -> Result<Json<ChurchStats>, AppError> {
@@ -1990,6 +2144,7 @@ pub async fn get_church_stats(
 }
 
 pub async fn get_growth_analytics(
+    _auth: Authenticated,
     Query(params): Query<GrowthQuery>,
     State(st): State<AppState>,
 ) -> Result<Json<Vec<Value>>, AppError> {
@@ -2029,6 +2184,7 @@ pub async fn get_growth_analytics(
 }
 
 pub async fn get_top_churches(
+    _auth: Authenticated,
     State(st): State<AppState>,
 ) -> Result<Json<Vec<Church>>, AppError> {
     let churches = sqlx::query_as("SELECT * FROM churches WHERE status = 'active' ORDER BY created_at DESC LIMIT 10")
@@ -2041,7 +2197,8 @@ pub async fn get_top_churches(
 // Notifications handlers
 // =============================================================================
 
-pub async fn list_notifications(State(st): State<AppState>) -> Result<Json<Value>, AppError> {
+pub async fn list_notifications(
+    _auth: Authenticated,State(st): State<AppState>) -> Result<Json<Value>, AppError> {
     let notifications: Vec<Notification> =
         sqlx::query_as("SELECT * FROM notifications ORDER BY created_at DESC")
             .fetch_all(&st.pool)
@@ -2059,6 +2216,7 @@ pub async fn list_notifications(State(st): State<AppState>) -> Result<Json<Value
 }
 
 pub async fn mark_notification_read(
+    _auth: Authenticated,
     Path(id): Path<i64>,
     State(st): State<AppState>,
 ) -> Result<Json<Value>, AppError> {
@@ -2076,6 +2234,7 @@ pub async fn mark_notification_read(
 }
 
 pub async fn mark_all_notifications_read(
+    _auth: Authenticated,
     State(st): State<AppState>,
 ) -> Result<Json<Value>, AppError> {
     sqlx::query("UPDATE notifications SET read = true WHERE read = false")

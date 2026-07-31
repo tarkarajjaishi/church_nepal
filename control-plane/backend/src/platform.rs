@@ -212,10 +212,15 @@ pub async fn ops(
     .await?;
 
     // Every tenant database on this instance, and what they add up to.
+    // `postgres` is the cluster's own maintenance database, not a tenant, and
+    // counting it made this tile disagree with the number of churches by one
+    // for no reason a reader could work out. Same exclusion the backups page
+    // reconciles with, so the two pages cannot contradict each other.
     let (tenant_databases, tenant_size_bytes): (i64, i64) = sqlx::query_as(
         "SELECT COUNT(*)::bigint, COALESCE(SUM(pg_database_size(datname)), 0)::bigint
            FROM pg_database
-          WHERE datistemplate = false AND datname <> current_database()",
+          WHERE datistemplate = false
+            AND datname NOT IN ('postgres', current_database())",
     )
     .fetch_one(&st.pool)
     .await
@@ -302,19 +307,29 @@ pub async fn security(
     _auth: SuperAdmin,
     State(st): State<AppState>,
 ) -> Result<Json<Security>, AppError> {
+    // Read from refresh_tokens, which is what signing in actually creates.
+    //
+    // This used to read `sessions`, a table whose only writer - session.rs - is
+    // never called from anywhere. So the page reported nobody signed in while
+    // eighty-one live sessions existed, and it reported it in green. The
+    // give-away was that the number never moved, no matter who logged in.
+    //
+    // user_agent and ip_address are null because refresh_tokens does not record
+    // them. That is worth saying rather than papering over: the page shows who
+    // and when, and admits it cannot show from where.
     let sessions = sqlx::query_as::<_, SessionRow>(
-        r#"SELECT s.id, a.email AS admin_email, s.user_agent,
-                  host(s.ip_address) AS ip_address,
-                  s.last_used_at, s.expires_at, s.created_at
-             FROM sessions s
-             JOIN admins a ON a.id = s.admin_id
-            WHERE s.expires_at > NOW()
-            ORDER BY s.last_used_at DESC NULLS LAST
+        r#"SELECT r.id, a.email AS admin_email,
+                  NULL::text AS user_agent, NULL::text AS ip_address,
+                  NULL::timestamptz AS last_used_at,
+                  r.expires_at, r.created_at
+             FROM refresh_tokens r
+             JOIN admins a ON a.id = r.admin_id
+            WHERE r.expires_at > NOW() AND NOT r.revoked
+            ORDER BY r.created_at DESC
             LIMIT 100"#,
     )
     .fetch_all(&st.pool)
-    .await
-    .unwrap_or_default();
+    .await?;
 
     let (admins_total, admins_without_2fa): (i64, i64) = sqlx::query_as(
         "SELECT COUNT(*)::bigint,
@@ -350,7 +365,14 @@ pub async fn revoke_session(
     State(st): State<AppState>,
     Path(id): Path<uuid::Uuid>,
 ) -> Result<Json<Value>, AppError> {
-    let res = sqlx::query("DELETE FROM sessions WHERE id = $1")
+    // Must target the same table the list came from. It deleted from `sessions`
+    // while the list now reads refresh_tokens, so every revoke would have
+    // matched nothing and reported "already ended" for a session that was still
+    // very much alive.
+    //
+    // Marked revoked rather than deleted, so the row remains as evidence that
+    // the token existed and was cut off deliberately.
+    let res = sqlx::query("UPDATE refresh_tokens SET revoked = true WHERE id = $1 AND NOT revoked")
         .bind(id)
         .execute(&st.pool)
         .await?;

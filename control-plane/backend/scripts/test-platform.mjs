@@ -68,6 +68,32 @@ async function api(method, route, body) {
   return parsed
 }
 
+// The seeded test account is role=admin, which cannot reach the super_admin
+// routes. Anything asserting those signs in as the owner when its password is in
+// the environment, and says out loud when it could not.
+const SUPER_PW = process.env.SUPER_ADMIN_PASSWORD
+const SUPER_TOKEN = SUPER_PW
+  ? await fetch(`${API}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        email: process.env.SUPER_ADMIN_EMAIL || 'owner@churchnepal.com',
+        password: SUPER_PW,
+      }),
+    })
+      .then((r) => r.json())
+      .then((d) => d.token ?? d.access_token ?? null)
+      .catch(() => null)
+  : null
+
+/** Same as api(), as the owner. Returns the raw Response so callers can assert. */
+const asSuper = (method, route, body) =>
+  fetch(`${API}/api${route}`, {
+    method,
+    headers: { 'content-type': 'application/json', authorization: `Bearer ${SUPER_TOKEN}` },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  })
+
 let passed = 0
 const failures = []
 const check = (name, cond, detail = '') => {
@@ -87,6 +113,43 @@ async function expectReject(name, status, fn) {
 }
 
 console.log('\nControl plane — platform pages\n')
+
+// -- Authentication -------------------------------------------------------
+// Ten endpoints answered 200 to anyone who asked: every invoice, the billing
+// table and the platform MRR, the analytics, any church's record by id, and any
+// church's stats by slug — and a slug is the public subdomain, so those were not
+// even guesswork. The guard is a one-line extractor, which is exactly why its
+// absence is easy to miss in review and worth asserting here.
+console.log('0. Nothing answers without a token')
+{
+  const CH = (await api('GET', '/churches'))[0]
+  const shouldRefuse = [
+    '/invoices', '/plans', '/billing', '/billing/overview',
+    '/analytics/overview', '/analytics/growth', '/analytics/top-churches',
+    '/notifications', '/settings', '/admins', '/churches', '/audit-log',
+    `/churches/${CH.id}`, `/churches/${CH.slug}/stats`,
+  ]
+  const open = []
+  for (const route of shouldRefuse) {
+    const r = await fetch(`${API}/api${route}`)
+    if (r.status !== 401) open.push(`${route} → ${r.status}`)
+  }
+  check(`${shouldRefuse.length} endpoints refuse an anonymous request`,
+    open.length === 0, open.join('; '))
+
+  // The 2FA shared secret is the second factor. Anyone holding it can generate
+  // that account's codes forever, so it must not travel to a browser at all.
+  // Only a super_admin can list admins, hence the owner token.
+  if (!SUPER_TOKEN) {
+    console.log('  SKIP  the TOTP secret is never serialised'
+      + ' — set SUPER_ADMIN_PASSWORD to run this one')
+  } else {
+    const admins = await (await asSuper('GET', '/admins')).json()
+    check('the TOTP secret is never serialised',
+      admins.every((a) => !('totp_secret' in a)),
+      admins.filter((a) => 'totp_secret' in a).map((a) => a.email).join(', '))
+  }
+}
 
 // -- Storage --------------------------------------------------------------
 console.log('1. Storage')
@@ -251,6 +314,56 @@ const owner = roles.find((r) => /owner|super/i.test(r.name))
 check('the owner role cannot be stripped of everything',
   !owner || (owner.permissions ?? []).length > 0)
 
+// -- Figures that were quietly zero ---------------------------------------
+// SUM() over a bigint column returns numeric, which will not decode into i64.
+// The query failed every time and `.unwrap_or((0,))` turned that into a
+// confident "Rs 0" on the dashboard — beside a member count that worked,
+// because COUNT(*) is bigint. A wrong number that looks plausible outlives an
+// error, so this asserts the figure rather than the shape.
+console.log('\n10b. Derived figures')
+{
+  const churches = await api('GET', '/churches')
+  check('churches report members', churches.every((c) => typeof c.member_count === 'number'))
+  check('giving is not silently zero for every church',
+    churches.some((c) => c.giving_total > 0),
+    churches.map((c) => `${c.slug}=${c.giving_total}`).join(', '))
+
+  // Two endpoints reporting the same figure from different sources will
+  // disagree. This one was hardcoded to 0 while the list derived it from plans.
+  const one = churches[0]
+  const detail = await api('GET', `/billing/${one.id}`)
+  const fromList = (await api('GET', '/billing')).find((b) => b.church_id === one.id)
+  check("a church's own billing page agrees with the billing list",
+    detail.mrr === fromList.mrr, `${detail.mrr} vs ${fromList.mrr}`)
+
+  // numeric(10,2) does not decode into an integer either. There were no
+  // invoices, so an empty result set hid it: the decode only runs per row.
+  const inv = await api('POST', '/invoices', {
+    church_id: one.id,
+    amount: 1234,
+    period_start: '2026-01-01T00:00:00',
+    period_end: '2026-01-31T00:00:00',
+    due_date: '2026-02-15T00:00:00',
+  })
+  check('an invoice can be created and read back', inv.amount === 1234, `${inv.amount}`)
+  const fetched = await api('GET', `/invoices/${inv.id}`)
+  check('and it names the church rather than a bare uuid', !!fetched.church_name)
+  await expectReject('a missing invoice is a 404, not an invented one', 404, () =>
+    api('GET', '/invoices/00000000-0000-0000-0000-000000000000'))
+  await api('POST', `/invoices/${inv.id}/pay`)
+  check('marking it paid works', (await api('GET', `/invoices/${inv.id}`)).status === 'paid')
+
+  // Withdrawn again, so a repeated run does not quietly add a paid invoice to a
+  // real church's billing page every time the suite is run.
+  await api('DELETE', `/invoices/${inv.id}`)
+  await expectReject('a withdrawn invoice is gone', 404, () =>
+    api('GET', `/invoices/${inv.id}`))
+  check('withdrawing it left an audit entry',
+    (await api('GET', '/audit-log')).some(
+      (e) => e.action === 'delete_invoice' && e.target_id === inv.id,
+    ))
+}
+
 // -- Provisioning ---------------------------------------------------------
 // Migrations only ever run once, on an empty database at provision time, so a
 // migration that references a table created by a later-numbered one is invisible
@@ -399,26 +512,13 @@ check('the control-plane database is not reported as a stray',
 // with a 403 and never reaches the name check. Asserting "some 4xx" would
 // therefore pass even if the name check were deleted — a test no regression
 // could fail. It runs for real with the owner account, or says it did not run.
-const SUPER_PW = process.env.SUPER_ADMIN_PASSWORD
-if (!SUPER_PW) {
+if (!SUPER_TOKEN) {
   console.log('  SKIP  only a name reconciliation returned may be dumped'
     + ' — set SUPER_ADMIN_PASSWORD to run this one')
 } else {
-  const su = await (await fetch(`${API}/api/auth/login`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({
-      email: process.env.SUPER_ADMIN_EMAIL || 'owner@churchnepal.com',
-      password: SUPER_PW,
-    }),
-  })).json()
-  const suToken = su.token ?? su.access_token
-  check('the owner account can sign in', !!suToken, su.error ?? '')
+  check('the owner account can sign in', !!SUPER_TOKEN)
   for (const name of ['churchnepal_control', 'postgres', 'template1', 'no_such_db']) {
-    const r = await fetch(`${API}/api/platform/backups/${name}`, {
-      method: 'POST',
-      headers: { authorization: `Bearer ${suToken}` },
-    })
+    const r = await asSuper('POST', `/platform/backups/${name}`)
     check(`a super_admin still cannot dump "${name}"`, r.status === 404, `HTTP ${r.status}`)
   }
   // ...and the same account can dump a stray, so the refusals above are the
@@ -427,10 +527,7 @@ if (!SUPER_PW) {
     // The list is biggest-first; take the last so a repeated test run writes the
     // smallest dump it can rather than the largest database on the instance.
     const stray = backups.unregistered[backups.unregistered.length - 1].name
-    const r = await fetch(`${API}/api/platform/backups/${stray}`, {
-      method: 'POST',
-      headers: { authorization: `Bearer ${suToken}` },
-    })
+    const r = await asSuper('POST', `/platform/backups/${stray}`)
     const body = await r.json().catch(() => ({}))
     check(`a stray database can be dumped ("${stray}")`,
       r.status === 200 && body.size_bytes > 0, `HTTP ${r.status}, ${body.size_bytes ?? 0} bytes`)
