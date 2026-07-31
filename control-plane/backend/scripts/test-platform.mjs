@@ -371,6 +371,12 @@ if (!SUPER_PW) {
     const body = await r.json().catch(() => ({}))
     check(`a stray database can be dumped ("${stray}")`,
       r.status === 200 && body.size_bytes > 0, `HTTP ${r.status}, ${body.size_bytes ?? 0} bytes`)
+
+    // The dump is deliberately left on disk. Deleting it would leave a run row
+    // saying "ok, 1021 KB" with no file behind it, and the page counts those
+    // bytes into its stored total - so tidying up here would make the page
+    // claim a backup that does not exist, which is the one thing it is for.
+    // The cost is a real dump per run in a gitignored folder; clear it by hand.
   }
 }
 
