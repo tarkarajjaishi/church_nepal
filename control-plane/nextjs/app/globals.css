@@ -606,9 +606,12 @@
     font-weight: 800;
     color: var(--text-strong);
   }
+  /* The headline reads as one sentence, in one colour. It used to run a
+     blue-to-gold gradient across "its own website", which set that phrase in a
+     different colour from the words either side of it and put the lightest part
+     of the ramp in the middle of the line. */
   .grad {
-    background: linear-gradient(120deg, var(--accent), var(--gold));
-    -webkit-background-clip: text; background-clip: text; color: transparent;
+    color: inherit;
   }
   .lp-lead {
     position: relative; z-index: 1;

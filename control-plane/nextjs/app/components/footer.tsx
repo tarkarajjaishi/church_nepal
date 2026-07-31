@@ -62,31 +62,11 @@ export function Footer() {
               )}
             </div>
             
-            {/* Social Links */}
-            <div className="flex gap-3">
-              <a
-                href="https://twitter.com"
-                target="_blank"
-                rel="noreferrer"
-                className="p-2 rounded-md text-[var(--muted)] hover:text-[var(--accent)] hover:bg-[var(--panel-2)] transition-colors"
-                aria-label="Twitter"
-              >
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M23 3a10.9 10.9 0 0 1-3.14 1.53 4.48 4.48 0 0 0-7.86 3v1A10.66 10.66 0 0 1 3 4s-4 9 5 13a11.64 11.64 0 0 1-7 2c9 5 20 0 20-11.5a4.5 4.5 0 0 0-.08-.83A7.72 7.72 0 0 0 23 3z" />
-                </svg>
-              </a>
-              <a
-                href="https://github.com"
-                target="_blank"
-                rel="noreferrer"
-                className="p-2 rounded-md text-[var(--muted)] hover:text-[var(--accent)] hover:bg-[var(--panel-2)] transition-colors"
-                aria-label="GitHub"
-              >
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                  <path fillRule="evenodd" clipRule="evenodd" d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.164 6.839 9.489.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-3.002.653-3.667-1.512-3.667-1.512-.453-1.155-1.107-1.462-1.107-1.462-.904-.623.069-.61.069-.61 1.004.07 1.586 1.028 1.586 1.028.89 1.528 2.34 1.087 2.907.83.092-.646.35-1.086.636-1.336-2.556-.29-5.239-1.279-5.239-5.726 0-1.258.438-2.28 1.167-3.1-.577-.157-1.215-.26-1.91-.26-1.02 0-1.95.377-2.63.995-.102-.29-.248-.56-.428-.795 0 0 .005-.02.015-.05-.002-.02-.008-.04-.015-.06 0 0 .005-.02.015-.05-.002-.02-.008-.04-.015-.06 0 0 .005-.02.015-.05-.002-.02-.008-.04-.015-.06 0 0 .005-.02.015-.05-.002-.02-.008-.04-.015-.06 0 0 .005-.02.015-.05-.002-.02-.008-.04-.015-.06z" />
-                </svg>
-              </a>
-            </div>
+            {/* Social links removed. They pointed at twitter.com and github.com
+                themselves rather than at any ChurchNepal account, so they sent
+                people off the site for nothing - and the GitHub path data was
+                malformed, which is why that icon rendered as a faint smudge.
+                Put them back when there are real accounts to link to. */}
           </div>
 
            {/* Product Links */}

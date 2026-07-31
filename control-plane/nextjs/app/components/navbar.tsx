@@ -104,11 +104,19 @@ export function Navbar() {
 
   return (
     <>
+      {/* The bar keeps its own background at every scroll position.
+
+          It used to be transparent until scrolled, which only worked while the
+          thing behind it happened to be a pale surface. The links are muted
+          grey, so over the blue hero and the blue call-to-action they were grey
+          on blue and effectively unreadable - and the bar is fixed, so it sits
+          over those sections at some point on every page. Scrolling still
+          changes it, by adding the shadow that lifts it off the content. */}
       <header
         className={`
-          fixed top-0 left-0 right-0 z-50 transition-all duration-300
-          ${isScrolled ? "bg-[var(--panel-2)]/80 backdrop-blur-md shadow-md" : "bg-transparent"}
-          border-b border-[var(--border)]/0 ${isScrolled ? "border-[var(--border)]" : ""}
+          fixed top-0 left-0 right-0 z-50 transition-shadow duration-300
+          bg-[var(--panel)] border-b border-[var(--border)]
+          ${isScrolled ? "shadow-md" : ""}
         `}
       >
         <nav className="max-w-[var(--max)] mx-auto px-6 h-16 flex items-center justify-between">
