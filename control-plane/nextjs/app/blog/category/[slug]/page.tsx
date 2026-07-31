@@ -47,7 +47,7 @@ export default async function CategoryPage({ params }: Props) {
               <div className="flex flex-wrap gap-2 mb-3">
                 {post.categories.map((category) => (
                   <Link key={category} href={`/blog/category/${category.toLowerCase().replace(/\s+/g, '-')}`}>
-                    <Badge variant="secondary" className="bg-[var(--accent-soft)] hover:bg-[var(--accent)]">
+                    <Badge variant="secondary" className="bg-[var(--accent-soft)] hover:bg-[var(--accent)] hover:text-[var(--accent-contrast)]">
                       {category}
                     </Badge>
                   </Link>

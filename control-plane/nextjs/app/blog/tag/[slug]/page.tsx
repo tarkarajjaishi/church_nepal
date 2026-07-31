@@ -47,7 +47,7 @@ export default async function TagPage({ params }: Props) {
               <div className="flex flex-wrap gap-2 mb-3">
                 {post.tags.map((tag) => (
                   <Link key={tag} href={`/blog/tag/${tag.toLowerCase().replace(/\s+/g, '-')}`}>
-                    <Badge variant="secondary" className="bg-[var(--accent-soft)] hover:bg-[var(--accent)]">
+                    <Badge variant="secondary" className="bg-[var(--accent-soft)] hover:bg-[var(--accent)] hover:text-[var(--accent-contrast)]">
                       #{tag}
                     </Badge>
                   </Link>

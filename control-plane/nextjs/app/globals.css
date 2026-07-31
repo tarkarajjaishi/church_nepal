@@ -73,6 +73,16 @@
     --gold: #e5b567;
     --gold-soft: rgba(229, 181, 103, 0.14);
 
+    /* Ink for text sitting ON those three surfaces. Dark, not white: the dark
+       theme's status colours are deliberately bright so they read against a
+       dark page, which means white on top of them is the wrong way round -
+       white measured 2.39 on good, 3.01 on danger and 1.89 on gold. Dark ink
+       gives 8.02, 6.37 and 10.17. Only --accent had a contrast partner before;
+       these three were left to whatever the element happened to inherit. */
+    --good-contrast: #06210f;
+    --danger-contrast: #2a0808;
+    --gold-contrast: #241a06;
+
     --ring: #4f8cff;
     --ring-offset: #0b0f17;
 
@@ -115,12 +125,24 @@
     --accent-soft: rgba(47, 111, 224, 0.10);
     --accent-contrast: #ffffff;
 
-    --good: #1f9d57;
+    /* Both darkened. These are used as ink on their own pale tints - a success
+       chip is green text on a green wash - and at #1f9d57 / #e23b3b that
+       measured 3.26 and 4.27, under the 4.5 a 12px chip needs. They now measure
+       4.78 and 4.98, and white on top of them improves at the same time
+       (3.49 to 5.11, 4.27 to 4.98), which fixes the solid buttons too. */
+    --good: #177e45;
     --good-soft: rgba(31, 157, 87, 0.12);
-    --danger: #e23b3b;
+    --danger: #d32f2f;
     --danger-soft: rgba(226, 59, 59, 0.10);
     --gold: #b8842b;
     --gold-soft: rgba(184, 132, 43, 0.12);
+
+    /* White works on the darkened green and red. Gold stays a pale surface in
+       both themes - white on it is 3.29 - so it keeps dark ink, which is the
+       long-standing convention here: gold is a surface, never a text colour. */
+    --good-contrast: #ffffff;
+    --danger-contrast: #ffffff;
+    --gold-contrast: #241a06;
 
     --ring: #2f6fe0;
     --ring-offset: #ffffff;
@@ -324,8 +346,13 @@
     transition: border-color var(--dur) var(--ease),
       box-shadow var(--dur) var(--ease), background var(--dur) var(--ease);
   }
+  /* --muted, not --muted-2. Placeholder text is real text a person has to read
+     to know what a field wants, and --muted-2 measured 2.98:1 on --panel-2 in
+     light. --muted is 5.05:1 there, and is already what input.tsx and
+     textarea.tsx use for their own placeholder classes - this rule was quietly
+     disagreeing with them. */
   input::placeholder,
-  textarea::placeholder { color: var(--muted-2); }
+  textarea::placeholder { color: var(--muted); }
   input:focus,
   textarea:focus,
   select:focus {

@@ -127,12 +127,19 @@ export default function PartnersPage() {
 
         {/* CTA Section */}
         <section className="container mx-auto px-4 max-w-4xl">
-          <Card className="bg-gradient-to-r from-[var(--accent-soft)] to-[var(--accent)] rounded-2xl overflow-hidden">
+          {/* Both ends of the ramp are solid now.
+              It ran from --accent-soft, a 10% wash, to --accent - so white text
+              began on something almost the same colour as the page. The heading
+              measured 1.14:1 at the card's left edge, and the paragraph, set in
+              --accent-2, passed through exactly 1.00:1 partway across: text the
+              same colour as what it sits on. A gradient with a pale end cannot
+              carry one text colour across it. */}
+          <Card className="bg-gradient-to-r from-[var(--accent-2)] to-[var(--accent)] rounded-2xl overflow-hidden">
             <CardContent className="p-8 md:p-12 text-center">
-              <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
+              <h2 className="text-3xl md:text-4xl font-bold text-[var(--accent-contrast)] mb-4">
                 Ready to Become a Partner?
               </h2>
-              <p className="text-[var(--accent-2)] mb-6 max-w-2xl mx-auto">
+              <p className="text-[var(--accent-contrast)] opacity-90 mb-6 max-w-2xl mx-auto">
                 Join our partner program today and start growing your business while helping churches thrive.
               </p>
               <Link href="/contact">

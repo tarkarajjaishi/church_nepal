@@ -14,7 +14,7 @@ export default function NotFound() {
           Sorry, we couldn't find the page you're looking for.
         </p>
         <Link href="/" passHref>
-          <button className="px-6 py-3 bg-[var(--accent)] text-white rounded-xl hover:bg-[var(--accent-soft)] transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:ring-offset-2 focus:ring-offset-[var(--bg)]">
+          <button className="px-6 py-3 bg-[var(--accent)] text-white rounded-xl hover:bg-[var(--accent-2)] transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:ring-offset-2 focus:ring-offset-[var(--bg)]">
             Go Back Home
           </button>
         </Link>

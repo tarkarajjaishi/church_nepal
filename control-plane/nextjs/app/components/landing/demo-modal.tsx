@@ -269,7 +269,7 @@ export default function DemoModal() {
                     <Button
                       type="submit"
                       disabled={isSubmitting}
-                      className="bg-[var(--accent)] hover:bg-[var(--accent-soft)] text-white"
+                      className="bg-[var(--accent)] hover:bg-[var(--accent-2)] text-white"
                     >
                       {isSubmitting ? 'Sending...' : 'Send Request'}
                     </Button>

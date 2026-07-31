@@ -101,7 +101,10 @@ const DateRangePicker = ({ value, onChange }: DateRangePickerProps) => {
               onClick={() => handlePresetClick(preset)}
               className={`cursor-pointer ${
                 activePreset === preset
-                  ? 'bg-[var(--accent)] text-[var(--max)] border-[var(--accent)]'
+                  // --max is the layout width (1120px), not a colour. As a text
+                  // colour it is meaningless, so the selected preset kept the
+                  // colour it already had and sat on solid accent at 2.73:1.
+                  ? 'bg-[var(--accent)] text-[var(--accent-contrast)] border-[var(--accent)]'
                   : 'bg-transparent text-[var(--text)] border-[var(--border-soft)] hover:bg-[var(--panel-2)]'
               }`}
             >

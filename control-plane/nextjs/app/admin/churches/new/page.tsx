@@ -66,7 +66,7 @@ export default function NewChurchPage() {
               <div key={num} className="flex flex-col items-center">
                 <Badge 
                   variant={step === num ? 'default' : 'outline'} 
-                  className={`w-8 h-8 rounded-full flex items-center justify-center ${step > num ? '!bg-[var(--good)] !text-white' : ''}`}
+                  className={`w-8 h-8 rounded-full flex items-center justify-center ${step > num ? '!bg-[var(--good)] !text-[var(--good-contrast)]' : ''}`}
                 >
                   {step > num ? '✓' : num}
                 </Badge>

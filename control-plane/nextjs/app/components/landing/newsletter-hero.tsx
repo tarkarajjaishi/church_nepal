@@ -59,7 +59,10 @@ export default function NewsletterHero() {
               <Button 
                 type="submit" 
                 disabled={isSubmitting || isSuccess}
-                className="px-6 py-3 bg-[var(--accent)] hover:bg-[var(--accent-2)] text-[var(--max)] rounded-lg transition-colors whitespace-nowrap"
+                // text-[var(--max)] was here: --max is the layout width
+                // (1120px), not a colour, so it set nothing and the label kept
+                // the page's body colour on a solid accent button.
+                className="px-6 py-3 bg-[var(--accent)] hover:bg-[var(--accent-2)] text-[var(--accent-contrast)] rounded-lg transition-colors whitespace-nowrap"
               >
                 {isSubmitting ? 'Subscribing...' : 'Subscribe'}
               </Button>

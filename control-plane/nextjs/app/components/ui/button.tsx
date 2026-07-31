@@ -33,7 +33,7 @@ const buttonVariants = cva(
         link: 'text-primary underline-offset-4 hover:underline',
         primary: 'bg-[var(--accent)] text-white hover:opacity-90',
         accent: 'bg-[var(--accent-soft)] text-[var(--accent)] hover:bg-[var(--accent)] hover:text-white',
-        success: 'bg-[var(--good)] text-white hover:opacity-90',
+        success: 'bg-[var(--good)] text-[var(--good-contrast)] hover:opacity-90',
         warning: 'bg-[var(--gold-soft)] text-[var(--text-strong)] hover:opacity-90',
       },
       size: {
