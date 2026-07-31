@@ -1131,14 +1131,27 @@ pub struct Plan {
 }
 
 pub async fn list_plans(State(st): State<AppState>) -> Result<Json<Vec<Plan>>, AppError> {
-    let plans = sqlx::query_as("SELECT * FROM plans ORDER BY price_monthly ASC")
+    // price_monthly and price_annual are NUMERIC in the database and i64 here.
+    // sqlx will not decode one into the other, so `SELECT *` made this endpoint
+    // 500 — and the pricing page, the plan picker and billing all read it.
+    let plans = sqlx::query_as(
+        "SELECT id, name, price_monthly::bigint, price_annual::bigint,
+                max_members::bigint, max_storage_mb::bigint, max_emails::bigint,
+                max_churches::bigint, features, created_at
+           FROM plans ORDER BY price_monthly ASC",
+    )
         .fetch_all(&st.pool)
         .await?;
     Ok(Json(plans))
 }
 
 pub async fn get_plan(Path(id): Path<uuid::Uuid>, State(st): State<AppState>) -> Result<Json<Plan>, AppError> {
-    let plan = sqlx::query_as("SELECT * FROM plans WHERE id = $1")
+    let plan = sqlx::query_as(
+        "SELECT id, name, price_monthly::bigint, price_annual::bigint,
+                max_members::bigint, max_storage_mb::bigint, max_emails::bigint,
+                max_churches::bigint, features, created_at
+           FROM plans WHERE id = $1",
+    )
         .bind(id)
         .fetch_optional(&st.pool)
         .await?
@@ -1313,7 +1326,12 @@ pub async fn subscribe_church(
         .await?
         .ok_or_else(|| AppError::not_found("Church not found"))?;
 
-    let plan = sqlx::query_as::<_, crate::handlers::Plan>("SELECT * FROM plans WHERE id = $1")
+    let plan = sqlx::query_as::<_, crate::handlers::Plan>(
+        "SELECT id, name, price_monthly::bigint, price_annual::bigint,
+                max_members::bigint, max_storage_mb::bigint, max_emails::bigint,
+                max_churches::bigint, features, created_at
+           FROM plans WHERE id = $1",
+    )
         .bind(req.plan_id)
         .fetch_optional(&st.pool)
         .await?
@@ -1842,10 +1860,13 @@ pub async fn get_analytics_overview(State(st): State<AppState>) -> Result<Json<A
 
     // Calculate MRR: sum of plan price_monthly for active churches with a plan
     let mrr: (i64,) = sqlx::query_as(
-        "SELECT COALESCE(SUM(p.price_monthly), 0) 
-         FROM churches c 
-         LEFT JOIN plans p ON c.plan = p.id 
-         WHERE c.status = 'active' AND c.plan IS NOT NULL"
+        // `churches.plan` is text holding the plan *name* ("Standard"), not a
+        // foreign key. Joining it to plans.id compares text with uuid, which
+        // Postgres refuses outright — this endpoint has been 500ing.
+        "SELECT COALESCE(SUM(p.price_monthly), 0)::bigint
+         FROM churches c
+         JOIN plans p ON p.name = c.plan
+         WHERE c.status = 'active'"
     )
     .fetch_one(&st.pool)
     .await
@@ -1853,13 +1874,11 @@ pub async fn get_analytics_overview(State(st): State<AppState>) -> Result<Json<A
 
     // Get churches by plan
     let churches_by_plan: Vec<PlanCount> = sqlx::query_as(
-        "SELECT 
-            COALESCE(p.name, 'Free') as plan,
-            COUNT(*) as count
-         FROM churches c
-         LEFT JOIN plans p ON c.plan = p.id
-         GROUP BY p.name
-         ORDER BY count DESC"
+        "SELECT COALESCE(NULLIF(btrim(c.plan), ''), 'Free') AS plan,
+                COUNT(*)::bigint AS count
+           FROM churches c
+          GROUP BY 1
+          ORDER BY count DESC"
     )
     .fetch_all(&st.pool)
     .await

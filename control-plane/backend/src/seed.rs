@@ -4,6 +4,10 @@ use crate::provision::{provision_church, Provisioned};
 use bcrypt;
 use sqlx::postgres::PgPoolOptions;
 
+/// Fixed so a test can compute the same codes the server expects, and 160
+/// bits so the TOTP library accepts it at all.
+const TEST_ADMIN_TOTP_SECRET: &str = "JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP";
+
 /// Dummy church data for seeding.
 pub struct DummyChurch {
     pub name: &'static str,
@@ -65,7 +69,12 @@ pub async fn seed_test_admin(_cfg: &Config, pool: &sqlx::PgPool) -> Result<(), A
     )
     .bind("test@churchnepal.com")
     .bind(&password_hash)
-    .bind("JBSWY3DPEHPK3PXP")
+    // 32 base32 characters = 160 bits. The well-known 16-character test
+    // vector is only 80 bits, which the TOTP library refuses outright — so the
+    // seeded admin could never finish a login, and the failure surfaced as a
+    // library message about shared-secret length rather than anything a person
+    // could act on.
+    .bind(TEST_ADMIN_TOTP_SECRET)
     .execute(pool)
     .await
     .map_err(|e| AppError::internal(format!("insert test admin: {e}")))?;
