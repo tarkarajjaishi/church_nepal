@@ -25,7 +25,13 @@ export default function AdminPage() {
   const totalChurches = churches.length;
   const activeChurches = churches.filter(c => c.status === "active").length;
   const totalMembers = churches.reduce((sum, c) => sum + (c.member_count || 0), 0);
-  const totalGiving = churches.reduce((sum, c) => sum + (c.giving_total || 0), 0);
+  // giving_total arrives in paisa, the minor unit the offering module stores.
+  // This was being printed straight out as though it were rupees, so the
+  // dashboard read "Rs. 8,260,000" against a real figure of Rs 82,600 - a
+  // hundred times over, on the first screen of the console, in the one number
+  // somebody might repeat to a church.
+  const totalGivingPaisa = churches.reduce((sum, c) => sum + (c.giving_total || 0), 0);
+  const totalGiving = Math.round(totalGivingPaisa / 100);
 
   // Recent churches (last 5)
   const recentChurches = [...churches]
@@ -81,26 +87,41 @@ export default function AdminPage() {
   return (
     <div className="space-y-6">
       {/* Stats Cards */}
+      {/* Every tile knows whether the figure is knowable at all.
+          They were only told whether the query was still loading, so an
+          unanswered request settled to churches = [] and each tile rendered a
+          confident 0 - "Total Churches 0" on a platform with four. The chart
+          directly below already showed an error for the same query, so the page
+          contradicted itself, and the zero was the more believable half.
+
+          Keyed on the absence of data rather than on isError: with the API
+          stopped, this query sits pending with its fetch paused - no data, no
+          error, not loading - and an isError check left the zeros exactly where
+          they were. Verified by stopping the API and reloading. */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatsCardItem
           label="Total Churches"
           value={totalChurches.toString()}
           isLoading={churchesQuery.isLoading}
+          unknown={!churchesQuery.data}
         />
         <StatsCardItem
           label="Active Churches"
           value={activeChurches.toString()}
           isLoading={churchesQuery.isLoading}
+          unknown={!churchesQuery.data}
         />
         <StatsCardItem
           label="Total Members"
           value={totalMembers.toLocaleString()}
           isLoading={churchesQuery.isLoading}
+          unknown={!churchesQuery.data}
         />
         <StatsCardItem
           label="Total Giving"
           value={`Rs. ${totalGiving.toLocaleString()}`}
           isLoading={churchesQuery.isLoading}
+          unknown={!churchesQuery.data}
         />
       </div>
 
@@ -297,15 +318,30 @@ interface StatsCardProps {
   label: string;
   value: string;
   isLoading: boolean;
+  /**
+   * There is no data to derive this from, so no figure is shown.
+   *
+   * Deliberately not `isError`. A query whose request fails can sit pending with
+   * its fetch paused - no data, no error, not loading - and keying the tile on
+   * isError left it rendering a confident 0 in exactly that state, which is the
+   * bug this was meant to fix. What matters is whether the number is knowable,
+   * not which of several ways the request went wrong.
+   */
+  unknown?: boolean;
 }
 
-function StatsCardItem({ label, value, isLoading }: StatsCardProps) {
+function StatsCardItem({ label, value, isLoading, unknown }: StatsCardProps) {
   return (
     <Card>
       <CardContent className="p-6">
         <p className="text-sm text-muted mb-1">{label}</p>
         {isLoading ? (
           <Skeleton className="h-8 w-16" />
+        ) : unknown ? (
+          // A dash, not a zero. Zero is an answer, and it was the wrong one.
+          <p className="text-2xl font-bold text-[var(--danger)]" title="Could not be loaded">
+            —
+          </p>
         ) : (
           <p className="text-2xl font-bold text-text-strong">{value}</p>
         )}
