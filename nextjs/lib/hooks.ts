@@ -309,9 +309,18 @@ export interface ContentBlock {
 
 export function useContentBlocks() {
   return useQuery({
-    queryKey: ["content-blocks"],
+    queryKey: ["content-blocks", "enabled"],
     queryFn: async () => {
-      const { data } = await api.get("/content-blocks")
+      // The PUBLIC endpoint. This called /content-blocks, which is admin-only,
+      // so every visitor got a 401 - and placeholderData turned that into an
+      // empty list rather than an error. useContentBlock() then returned null
+      // for every key and each page quietly fell back to its hardcoded copy.
+      //
+      // The effect was that no church's CMS content ever reached its own site:
+      // this church has seventy blocks, including site_brand, and was still
+      // rendering the seed's default name to visitors. Editing anything in the
+      // admin appeared to do nothing.
+      const { data } = await api.get("/content-blocks/enabled")
       // Handle both paginated responses and direct arrays
       return Array.isArray(data) ? (data as ContentBlock[]) : (data as any).data ?? []
     },
@@ -387,7 +396,9 @@ export function useContactInfo() {
   return useQuery({
     queryKey: ["contact-info"],
     queryFn: () => fetchAll<ContactInfo>("contact-info").then(list => list[0] ?? null),
-    placeholderData: null,
+    // Annotated: a bare `null` makes TypeScript infer the query's data type as
+    // null, which then rejects the ContactInfo the queryFn actually returns.
+    placeholderData: null as ContactInfo | null,
   })
 }
 

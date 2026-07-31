@@ -16,10 +16,22 @@ export interface ContentBlock {
   updatedAt?: string
 }
 
+/**
+ * The blocks a visitor is allowed to see.
+ *
+ * This called `/content-blocks`, which is admin-only, so every anonymous
+ * visitor got a 401 and the public site fell back to its hardcoded copy. The
+ * effect was that no church's CMS content ever reached its own site - this
+ * tenant has seventy blocks, including site_brand, and was still showing the
+ * seed's default name. Editing anything in the admin appeared to do nothing.
+ *
+ * `/content-blocks/enabled` is the public counterpart and also filters out the
+ * blocks an administrator has switched off, which is what a visitor should get.
+ */
 export function useContentBlocks() {
   return useQuery({
-    queryKey: ['content-blocks'],
-    queryFn: () => api.get<ContentBlock[]>('/content-blocks').then(r => r.data),
+    queryKey: ['content-blocks', 'enabled'],
+    queryFn: () => api.get<ContentBlock[]>('/content-blocks/enabled').then(r => r.data),
   })
 }
 

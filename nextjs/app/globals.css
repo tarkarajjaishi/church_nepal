@@ -253,6 +253,19 @@ body {
 }
 
 [class~="bg-white"] { background-color: var(--card) !important; }
+
+/* The same remap for the alpha variants that are effectively opaque.
+   `[class~="bg-white"]` matches the exact class token only, so `bg-white/95`
+   slipped past it and painted a white card in dark mode while the text inside
+   kept following the dark theme - measured 1.74:1 for a status pill and 2.59:1
+   for every muted label in the homepage hero card.
+
+   Only the high alphas are remapped. bg-white/5 through /30 are deliberate
+   translucent overlays on dark hero imagery: a ten per cent white wash over a
+   photograph stays dark, reads correctly, and would be ruined by this. */
+[class~="bg-white/95"] { background-color: color-mix(in srgb, var(--card) 95%, transparent) !important; }
+[class~="bg-white/90"] { background-color: color-mix(in srgb, var(--card) 90%, transparent) !important; }
+[class~="bg-white/50"] { background-color: color-mix(in srgb, var(--card) 50%, transparent) !important; }
 [class~="bg-gray-50"] { background-color: var(--muted) !important; }
 [class~="bg-gray-100"] { background-color: var(--muted) !important; }
 [class~="hover:bg-white"]:hover { background-color: var(--card) !important; }

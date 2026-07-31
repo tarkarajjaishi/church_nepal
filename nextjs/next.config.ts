@@ -44,6 +44,29 @@ const nextConfig: NextConfig = {
         port: '3002',
         pathname: '/api/uploads/**',
       },
+      // Every tenant is reached on its own subdomain in development -
+      // gracechurchkathmandu.localhost:3002 - which is a different hostname
+      // from plain localhost and so was not matched by the rule above. Uploaded
+      // images therefore failed on every church except the default one.
+      {
+        protocol: 'http',
+        hostname: '*.localhost',
+        port: '3002',
+        pathname: '/api/uploads/**',
+      },
+      // The seed ships placeholder artwork from picsum.photos for sermons and
+      // events, so a freshly provisioned church has some. Unconfigured,
+      // next/image THROWS on those URLs rather than failing to load them, and
+      // the error boundary took down the whole page - one row in the database
+      // blanked the site. Worth allowing while the seed still produces them.
+      {
+        protocol: 'https',
+        hostname: 'picsum.photos',
+      },
+      {
+        protocol: 'https',
+        hostname: '*.picsum.photos',
+      },
     ],
     // Explicit qualities when components pass quality props
     qualities: [50, 75, 90, 100],
