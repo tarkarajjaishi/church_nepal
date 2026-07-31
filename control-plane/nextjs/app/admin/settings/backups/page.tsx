@@ -15,8 +15,9 @@ import { PageTitle, Stat, Failed, Loading, Empty, Table, TR, TD, bytes } from "@
  *
  * Coverage is worked out from the registry, which means it can only ever be a
  * statement about churches the registry remembers. A database left behind by a
- * failed deprovision is not covered by that sentence and not contradicted by it
- * either, so it is reconciled separately and shown on its own terms.
+ * provision that failed partway is not covered by that sentence and not
+ * contradicted by it either, so it is reconciled separately and shown on its
+ * own terms.
  */
 
 interface Run {
@@ -105,12 +106,12 @@ export default function BackupsPage() {
                 <Unplug size={16} className="text-amber-400" aria-hidden /> Databases with no church
               </h2>
               <p className="text-sm text-[var(--muted)] mt-1 mb-4 max-w-2xl">
-                These exist on the instance but no church row points at them, which
-                is usually a deprovision that dropped the record and left the data.
-                Every other figure on this page is counted from the registry, so
-                nothing above describes them. Back one up before deciding whether
-                to keep it — dropping a database is not something this page will do
-                for you.
+                These exist on the instance but no church row points at them —
+                usually a provision that created the database and then failed
+                before the registry row was written. Every other figure on this
+                page is counted from the registry, so nothing above describes
+                them. Back one up before deciding whether to keep it — dropping a
+                database is not something this page will do for you.
               </p>
               <Table head={["Database", "Size", "Last backup", ""]}>
                 {d.unregistered.map((s) => (

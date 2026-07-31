@@ -1275,10 +1275,17 @@ pub async fn list_backups(
     .unwrap_or(None);
 
     let unprotected: Vec<String> = sqlx::query_scalar(
+        // Runs are keyed by slug, and a slug is reusable: delete a church and
+        // create another with the same name and it inherits the dumps taken of
+        // the first one. Without the date test this page would call a church
+        // that has never been backed up covered, on the strength of a backup of
+        // data that no longer exists - the precise reassurance it exists to
+        // avoid giving. A dump older than the church cannot be a dump of it.
         "SELECT c.slug FROM churches c
           WHERE NOT EXISTS (
               SELECT 1 FROM backup_runs b
-               WHERE b.church_slug = c.slug AND b.kind = 'backup' AND b.status = 'ok')
+               WHERE b.church_slug = c.slug AND b.kind = 'backup' AND b.status = 'ok'
+                 AND b.finished_at >= c.created_at AT TIME ZONE 'UTC')
           ORDER BY c.slug",
     )
     .fetch_all(&st.pool)
