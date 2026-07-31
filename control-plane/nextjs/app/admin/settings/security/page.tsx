@@ -5,7 +5,7 @@ import { ShieldAlert } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import {
-  PageTitle, Stat, Failed, Loading, Empty, Table, TR, TD,
+  PageTitle, Stat, Failed, Loading, Empty, Table, TR, TD, outcome,
 } from "@/components/platform";
 
 /**
@@ -37,12 +37,13 @@ export default function SecurityPage() {
   });
 
   const d = q.data;
+  const { failed, loading, reason } = outcome(q);
 
   return (
     <div className="space-y-6">
       <PageTitle title="Security" subtitle="Sessions, two-factor and recent sign-ins" />
 
-      {q.isError ? <Failed error={q.error} onRetry={() => q.refetch()} /> : !d ? <Loading /> : (
+      {failed ? <Failed error={reason} onRetry={() => q.refetch()} /> : loading || !d ? <Loading /> : (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <Stat label="Administrators" value={d.admins_total} />

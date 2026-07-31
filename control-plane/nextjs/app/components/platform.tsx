@@ -136,3 +136,28 @@ export function Table({ head, children }: { head: string[]; children: React.Reac
 
 export const TR = "border-b border-[var(--border)] last:border-0";
 export const TD = "px-4 py-3";
+
+/**
+ * Which of the three states a query is actually in.
+ *
+ * `isError` is not enough on its own: while a query is still retrying it stays
+ * false and `error` stays null, so a page branching on it alone sits in its
+ * loading skeleton indefinitely. A refused request then reads as "still
+ * loading" rather than "you are not allowed to see this" — which is how
+ * /admin/settings/security showed a bare heading and nothing else to anyone
+ * without super_admin.
+ *
+ * The reason lives in `failureReason` until the retries give up.
+ */
+export function outcome(q: {
+  isError: boolean;
+  isLoading: boolean;
+  isFetching: boolean;
+  error: unknown;
+  failureReason?: unknown;
+  data: unknown;
+}): { failed: boolean; loading: boolean; reason: unknown } {
+  const reason = q.error ?? q.failureReason ?? null;
+  const failed = q.isError || (!q.isLoading && !q.isFetching && q.data === undefined);
+  return { failed, loading: !failed && q.data === undefined, reason };
+}
