@@ -499,6 +499,23 @@ pub async fn create_webhook(
         ));
     }
 
+    // An endpoint subscribed to nothing never fires, but it sits in the list
+    // looking like a live integration — so the first anyone knows is when the
+    // receiving system has silently had no events for a month.
+    let events: Vec<String> = req
+        .events
+        .clone()
+        .unwrap_or_default()
+        .into_iter()
+        .map(|e| e.trim().to_string())
+        .filter(|e| !e.is_empty())
+        .collect();
+    if events.is_empty() {
+        return Err(AppError::bad_request(
+            "Choose at least one event — an endpoint subscribed to nothing never fires",
+        ));
+    }
+
     let secret = random_secret();
     let id: uuid::Uuid = sqlx::query_scalar(
         "INSERT INTO webhook_endpoints (url, description, events, secret)
@@ -506,7 +523,7 @@ pub async fn create_webhook(
     )
     .bind(url)
     .bind(req.description.unwrap_or_default())
-    .bind(req.events.unwrap_or_default())
+    .bind(&events)
     .bind(&secret)
     .fetch_one(&st.pool)
     .await?;
