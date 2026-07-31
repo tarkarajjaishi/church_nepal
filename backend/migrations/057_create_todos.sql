@@ -9,3 +9,9 @@ CREATE TABLE IF NOT EXISTS todos (
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
+
+-- Moved here from 040, which runs first and so indexed a table that did not
+-- exist yet. Existing churches already have both, from when the ordering
+-- happened to work; a fresh provision could not get past it.
+CREATE INDEX IF NOT EXISTS idx_todos_status ON todos(status);
+CREATE INDEX IF NOT EXISTS idx_todos_sort_order ON todos(sort_order);

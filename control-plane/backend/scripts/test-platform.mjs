@@ -250,8 +250,58 @@ const owner = roles.find((r) => /owner|super/i.test(r.name))
 check('the owner role cannot be stripped of everything',
   !owner || (owner.permissions ?? []).length > 0)
 
+// -- Provisioning ---------------------------------------------------------
+// Migrations only ever run once, on an empty database at provision time, so a
+// migration that references a table created by a later-numbered one is invisible
+// to every existing church and breaks every new one. That is exactly what 040
+// did to `todos`: CREATE DATABASE succeeded, the migration failed, no registry
+// row was written, and the leftover database was then reported by nothing.
+// The round trip is the only thing that would have caught it.
+console.log('\n11. Provisioning a church end to end')
+const NAME = 'Provision Check Temporary'
+const SLUG = 'provisionchecktemporary'
+{
+  const existing = (await api('GET', '/churches')).find(c => c.slug === SLUG)
+  if (existing) await api('DELETE', `/churches/${existing.id}`)
+
+  // Caught rather than thrown: a broken migration fails this request, and an
+  // uncaught rejection here ends the whole run with a stack trace, losing every
+  // check after it. The reason belongs in the failure line instead.
+  let made = null, why = ''
+  try { made = await api('POST', '/churches', { name: NAME }) }
+  catch (e) { why = String(e.message).slice(0, 160) }
+  check('a new church can be provisioned', made?.slug === SLUG, why)
+
+  const row = (await api('GET', '/churches')).find(c => c.slug === SLUG)
+  check('it is written to the registry, not left as a stray database', !!row)
+
+  const after = await api('GET', '/platform/backups')
+  check('the new church is not reported as an unregistered database',
+    !after.unregistered.some(s => s.name === SLUG),
+    after.unregistered.map(s => s.name).join(', ') || 'none')
+  check('it is counted as a church still needing a backup',
+    after.unprotected.includes(SLUG), after.unprotected.join(', ') || 'none')
+
+  if (row) {
+    await api('DELETE', `/churches/${row.id}`)
+    const gone = await api('GET', '/platform/backups')
+    check('deprovision removes it without leaving a stray behind',
+      !gone.unregistered.some(s => s.name === SLUG)
+      && !(await api('GET', '/churches')).some(c => c.slug === SLUG))
+  } else if (!made) {
+    // Provisioning failed after CREATE DATABASE, which is the very state that
+    // produced the original orphan. Say so, and leave it for the operator - a
+    // test that silently drops databases is worse than one that reports.
+    const stray = (await api('GET', '/platform/backups')).unregistered
+      .some(s => s.name === SLUG)
+    console.log(stray
+      ? `  NOTE  provisioning left "${SLUG}" behind as an unregistered database`
+      : `  NOTE  provisioning failed cleanly, nothing left behind`)
+  }
+}
+
 // -- Backups --------------------------------------------------------------
-console.log('\n11. Backups')
+console.log('\n12. Backups')
 const backups = await api('GET', '/platform/backups')
 check('backup state loads', Array.isArray(backups.runs))
 // The honest bit: if pg_dump is not on PATH the page must say so rather than
@@ -263,7 +313,7 @@ check('churches with no successful backup are named, not just counted',
   Array.isArray(backups.unprotected))
 
 // Coverage is computed from the registry, so it can only ever describe churches
-// the registry remembers. A database left behind by a failed deprovision is
+// the registry remembers. A database left by a provision that failed partway is
 // invisible to every other figure on the page while still holding real members
 // and giving, which is the one way church data is lost without a reported
 // failure. Reconciliation has to come from pg_database, not from churches.

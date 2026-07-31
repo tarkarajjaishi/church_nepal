@@ -19,9 +19,14 @@ const DUMMY_CHURCHES: &[DummyChurch] = &[
     DummyChurch { name: "Grace Church Kathmandu", plan: "Pro" },
     DummyChurch { name: "Hillside Church Pokhara", plan: "Standard" },
     DummyChurch { name: "Riverside Church Lalitpur", plan: "Standard" },
-    DummyChurch { name: "Cornerstone Church Biratnagar", plan: "Free" },
     DummyChurch { name: "New Life Church Dharan", plan: "Pro" },
 ];
+// Cornerstone Church Biratnagar was dropped by request. It had spent its whole
+// life as a database with no registry row, because provisioning failed partway
+// through and the seed retried it on every startup. Left in this list it would
+// simply come back on the next restart, now that the migration that broke it is
+// fixed - so removing it is what makes the drop hold. Add it back if a fifth
+// dummy church is wanted; provisioning it works now.
 
 /// Seed super admin into the admins table if empty (idempotent).
 pub async fn seed_admins(cfg: &Config, pool: &sqlx::PgPool) -> Result<(), AppError> {
@@ -83,7 +88,11 @@ pub async fn seed_test_admin(_cfg: &Config, pool: &sqlx::PgPool) -> Result<(), A
     Ok(())
 }
 
-/// Seed 5 dummy churches on startup (dev only). Idempotent - checks if slug exists first.
+/// Seed the dummy churches on startup (dev only).
+///
+/// Idempotency is decided by the registry alone, which is why a half-provisioned
+/// church retries forever: the database it already created makes provisioning
+/// fail, and failing means the registry row it checks for is never written.
 pub async fn seed_dummy_churches(cfg: &Config, control_pool: &sqlx::PgPool) -> Result<Vec<Provisioned>, AppError> {
     let mut seeded = Vec::new();
 
@@ -138,8 +147,15 @@ pub async fn seed_dummy_churches(cfg: &Config, control_pool: &sqlx::PgPool) -> R
                 println!("  ✓ Seeded '{}': {} (admin: {})", church.name, provisioned.subdomain, provisioned.admin_email);
                 seeded.push(provisioned);
             }
-            Err(_) => {
-                eprintln!("  ✗ Failed to seed '{}'", church.name);
+            // Discarding the reason here is how a church came to exist as a
+            // database with no registry row: provisioning got far enough to
+            // CREATE DATABASE, failed after that, and said only that it had
+            // failed. Every startup then retried, hit the database it had
+            // already made, and printed the same unactionable line - while the
+            // backups page, which counts from the registry, could not see the
+            // data at all.
+            Err(e) => {
+                eprintln!("  x Failed to seed '{}': {}", church.name, e.message);
             }
         }
     }

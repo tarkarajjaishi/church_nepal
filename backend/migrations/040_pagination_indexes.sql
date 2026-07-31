@@ -53,9 +53,9 @@ CREATE INDEX IF NOT EXISTS idx_portfolio_sort_order ON portfolio(sort_order);
 -- Groups
 CREATE INDEX IF NOT EXISTS idx_groups_sort_order ON groups(sort_order);
 
--- Todos
-CREATE INDEX IF NOT EXISTS idx_todos_status ON todos(status);
-CREATE INDEX IF NOT EXISTS idx_todos_sort_order ON todos(sort_order);
+-- Todos: indexed in 057, where the table is created. Indexing it here failed
+-- outright on any database provisioned from scratch, because migrations run in
+-- filename order and 040 comes first.
 
 -- Contact messages
 CREATE INDEX IF NOT EXISTS idx_contact_messages_created_at ON contact_messages(created_at DESC);
