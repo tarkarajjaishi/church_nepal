@@ -4,6 +4,7 @@ mod contract_tests;
 mod email;
 mod error;
 mod handlers;
+mod platform;
 mod provision;
 mod seed;
 mod stripe;
@@ -107,6 +108,34 @@ async fn main() {
         // Settings
         .route("/settings", get(handlers::get_settings).put(handlers::update_settings))
         // Seeding
+        // ---- Platform operations -------------------------------------
+        // Storage, retention, security and ops are read models over churches,
+        // sessions and Postgres' own statistics — nothing here is stored.
+        .route("/platform/storage", get(platform::storage))
+        .route("/platform/retention", get(platform::retention))
+        .route("/platform/ops", get(platform::ops))
+        .route("/platform/security", get(platform::security))
+        .route("/platform/security/sessions/{id}", delete(platform::revoke_session))
+        .route("/platform/report", get(platform::platform_report))
+        .route("/platform/flags", get(platform::list_flags))
+        .route("/platform/flags/{key}", patch(platform::update_flag))
+        .route("/platform/webhooks", get(platform::list_webhooks).post(platform::create_webhook))
+        .route("/platform/webhooks/{id}", delete(platform::delete_webhook))
+        .route("/platform/webhooks/{id}/deliveries", get(platform::webhook_deliveries))
+        .route("/platform/webhooks/{id}/test", post(platform::test_webhook))
+        .route("/platform/templates", get(platform::list_templates))
+        .route("/platform/templates/{key}", patch(platform::update_template))
+        .route("/platform/tax", get(platform::get_tax).put(platform::update_tax))
+        .route("/platform/coupons", get(platform::list_coupons).post(platform::create_coupon))
+        .route("/platform/coupons/{code}/{active}", post(platform::set_coupon_active))
+        .route("/platform/broadcasts", get(platform::list_broadcasts).post(platform::create_broadcast))
+        .route("/platform/broadcasts/audience", get(platform::preview_audience))
+        .route("/platform/broadcasts/{id}/send", post(platform::send_broadcast))
+        .route("/platform/roles", get(platform::list_roles))
+        .route("/platform/roles/{name}", patch(platform::update_role))
+        .route("/platform/permissions", get(platform::list_permissions))
+        .route("/platform/backups", get(platform::list_backups))
+        .route("/platform/backups/{slug}", post(platform::run_backup))
         .route("/seed/dummy", post(handlers::seed_dummy))
         .route("/search", get(handlers::search))
         // Blog

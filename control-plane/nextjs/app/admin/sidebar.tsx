@@ -35,16 +35,41 @@ export default function Sidebar({ onClose }: SidebarProps) {
     };
   }, []);
 
+  // Sub-pages are listed, not hidden. Reports, flags, webhooks and the rest
+  // existed as routes but appeared nowhere in this menu, so the only way to
+  // reach them was to already know the URL.
   const navigation = [
     { name: 'Dashboard', href: '/admin' },
     { name: 'Churches', href: '/admin/churches' },
-    { name: 'Admins', href: '/admin/admins' },
-    { name: 'Billing', href: '/admin/billing' },
-    { name: 'Analytics', href: '/admin/analytics' },
+    {
+      name: 'Admins', href: '/admin/admins',
+      children: [{ name: 'Roles', href: '/admin/admins/roles' }],
+    },
+    {
+      name: 'Billing', href: '/admin/billing',
+      children: [{ name: 'Coupons', href: '/admin/billing/coupons' }],
+    },
+    {
+      name: 'Analytics', href: '/admin/analytics',
+      children: [{ name: 'Retention', href: '/admin/analytics/retention' }],
+    },
+    { name: 'Reports', href: '/admin/reports' },
     { name: 'Audit Log', href: '/admin/audit-log' },
     { name: 'Blog', href: '/admin/blog' },
     { name: 'Broadcasts', href: '/admin/broadcasts' },
-    { name: 'Settings', href: '/admin/settings' },
+    {
+      name: 'Settings', href: '/admin/settings',
+      children: [
+        { name: 'Feature flags', href: '/admin/settings/flags' },
+        { name: 'Email templates', href: '/admin/settings/emails' },
+        { name: 'Webhooks', href: '/admin/settings/webhooks' },
+        { name: 'Storage', href: '/admin/settings/storage' },
+        { name: 'Backups', href: '/admin/settings/backups' },
+        { name: 'Security', href: '/admin/settings/security' },
+        { name: 'Tax', href: '/admin/settings/tax' },
+        { name: 'API keys', href: '/admin/settings/api-keys' },
+      ],
+    },
     { name: 'Notifications', href: '/admin/notifications' },
     { name: 'Status', href: '/admin/status' },
     { name: 'Ops', href: '/admin/ops' },
@@ -77,21 +102,48 @@ export default function Sidebar({ onClose }: SidebarProps) {
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto py-4 px-2">
         <ul className="space-y-1">
-          {navigation.map((item) => (
-            <li key={item.name}>
-              <Link
-                href={item.href}
-                onClick={onClose}
-                className={`flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
-                  isActive(item.href)
-                    ? 'bg-[var(--accent-soft)] text-[var(--accent)]'
-                    : 'text-[var(--text)] hover:bg-[var(--panel-2)]'
-                }`}
-              >
-                <span>{item.name}</span>
-              </Link>
-            </li>
-          ))}
+          {navigation.map((item) => {
+            // A section's own pages show only while you are inside it, so the
+            // menu does not become forty links deep on the dashboard.
+            const inside = pathname.startsWith(item.href) && item.href !== '/admin';
+            return (
+              <li key={item.name}>
+                <Link
+                  href={item.href}
+                  onClick={onClose}
+                  aria-current={pathname === item.href ? 'page' : undefined}
+                  className={`flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
+                    isActive(item.href)
+                      ? 'bg-[var(--accent-soft)] text-[var(--accent)]'
+                      : 'text-[var(--text)] hover:bg-[var(--panel-2)]'
+                  }`}
+                >
+                  <span>{item.name}</span>
+                </Link>
+
+                {inside && item.children && (
+                  <ul className="mt-0.5 mb-1 ml-4 pl-3 border-l border-[var(--border)] space-y-0.5">
+                    {item.children.map((c) => (
+                      <li key={c.href}>
+                        <Link
+                          href={c.href}
+                          onClick={onClose}
+                          aria-current={pathname === c.href ? 'page' : undefined}
+                          className={`block px-3 py-2 text-[13px] rounded-md transition-colors ${
+                            pathname === c.href
+                              ? 'bg-[var(--accent-soft)] text-[var(--accent)] font-medium'
+                              : 'text-[var(--muted)] hover:bg-[var(--panel-2)] hover:text-[var(--text)]'
+                          }`}
+                        >
+                          {c.name}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </li>
+            );
+          })}
         </ul>
       </nav>
 
