@@ -147,40 +147,22 @@ export default function NewChurchPage() {
               {step === 3 && (
                 <div className="space-y-4">
                   <h2 className="text-xl font-semibold text-[var(--text)]">Admin Account</h2>
-                  <div>
-                    <label className="block text-sm font-medium text-[var(--text)] mb-1">Admin Email</label>
-                    <Input
-                      type="email"
-                      name="adminEmail"
-                      value={formData.adminEmail}
-                      onChange={handleChange}
-                      placeholder="admin@yourchurch.org"
-                      required
-                      className="bg-[var(--panel-2)] border-[var(--border-soft)] text-[var(--text)]"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-[var(--text)] mb-1">Password</label>
-                    <Input
-                      type="password"
-                      name="adminPassword"
-                      value={formData.adminPassword}
-                      onChange={handleChange}
-                      required
-                      className="bg-[var(--panel-2)] border-[var(--border-soft)] text-[var(--text)]"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-[var(--text)] mb-1">Confirm Password</label>
-                    <Input
-                      type="password"
-                      name="confirmPassword"
-                      value={formData.confirmPassword}
-                      onChange={handleChange}
-                      required
-                      className="bg-[var(--panel-2)] border-[var(--border-soft)] text-[var(--text)]"
-                    />
-                  </div>
+                  {/* This step used to ask for an admin email and password and
+                      then discard both: provisioning generates the account and
+                      returns a one-time password, and there is no field on the
+                      request for a chosen one. Asking for a password that is
+                      thrown away is worse than not asking - somebody would have
+                      tried to sign in with it. */}
+                  <p className="text-sm text-[var(--muted)]">
+                    An administrator account is created automatically from the
+                    church name, and its password is generated. Both are shown
+                    once when provisioning finishes, and the password cannot be
+                    shown again — copy it before leaving that screen.
+                  </p>
+                  <p className="text-sm text-[var(--muted)]">
+                    The administrator can change the address and password from
+                    their own profile afterwards.
+                  </p>
                 </div>
               )}
 
@@ -191,7 +173,10 @@ export default function NewChurchPage() {
                     <div><span className="font-medium text-[var(--text)]">Name:</span> {formData.name}</div>
                     <div><span className="font-medium text-[var(--text)]">Subdomain:</span> {formData.subdomain}.churchnepal.com</div>
                     <div><span className="font-medium text-[var(--text)]">Plan:</span> {formData.plan}</div>
-                    <div><span className="font-medium text-[var(--text)]">Admin:</span> {formData.adminEmail}</div>
+                    <div>
+                      <span className="font-medium text-[var(--text)]">Admin:</span>{" "}
+                      generated during provisioning, shown once
+                    </div>
                   </div>
                 </div>
               )}
