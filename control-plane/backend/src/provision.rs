@@ -61,22 +61,53 @@ pub async fn provision_church(cfg: &Config, name: &str) -> Result<Provisioned, A
     }
 
     create_database(cfg, &slug).await?;
-    run_church_migrations(cfg, &slug).await?;
-    let storage_path = create_storage(cfg, &slug)?;
+
+    // Everything after CREATE DATABASE has to be all-or-nothing.
+    //
+    // These steps used to run on bare `?`, so a failure part-way — a migration
+    // that would not apply, a disk that would not take the storage folder —
+    // left the database behind with no row in the registry. Nothing then
+    // counted it, nothing backed it up, and every later attempt died on
+    // "a church database already exists", so it could never repair itself
+    // either. That is exactly how cornerstonechurchbiratnagar came to exist and
+    // to survive being dropped.
+    //
+    // A failed provision now leaves nothing, which also means retrying is a
+    // sensible thing for a person to do.
+    match build_church(cfg, &slug).await {
+        Ok((storage_path, admin_email, admin_password)) => {
+            notify_church_app(cfg, &slug).await;
+            Ok(Provisioned {
+                subdomain: format!("{}.{}", slug, cfg.base_domain),
+                slug,
+                admin_email,
+                admin_password,
+                storage_path,
+            })
+        }
+        Err(e) => {
+            // Best-effort: if the cleanup itself fails the original error is
+            // still the one worth reporting, and the leftover is now at least
+            // visible on the backups page as a database with no church.
+            let _ = deprovision(cfg, &slug).await;
+            Err(e)
+        }
+    }
+}
+
+/// The part of provisioning that must be undone as a unit if any of it fails.
+///
+/// Split out so the caller has one place to roll back from, rather than three
+/// early returns that each leave a different amount of mess.
+async fn build_church(cfg: &Config, slug: &str) -> Result<(String, String, String), AppError> {
+    run_church_migrations(cfg, slug).await?;
+    let storage_path = create_storage(cfg, slug)?;
 
     let admin_email = format!("admin@{}.{}", slug, cfg.base_domain);
     let admin_password = random_password();
-    seed_church_admin(cfg, &slug, &admin_email, &admin_password).await?;
+    seed_church_admin(cfg, slug, &admin_email, &admin_password).await?;
 
-    notify_church_app(cfg, &slug).await;
-
-    Ok(Provisioned {
-        subdomain: format!("{}.{}", slug, cfg.base_domain),
-        slug,
-        admin_email,
-        admin_password,
-        storage_path,
-    })
+    Ok((storage_path, admin_email, admin_password))
 }
 
 /// Tell the church app to forget its "tenant missing" cache entry for this slug.

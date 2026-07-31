@@ -56,7 +56,7 @@ export default function ProvisionProgress({
         setError(
           e?.response?.data?.error ||
             e?.message ||
-            'Could not create the church. Nothing was changed.',
+            'Could not create the church.',
         ),
       );
   }, [churchData.name]);
@@ -67,7 +67,14 @@ export default function ProvisionProgress({
         <h2 className="text-xl font-semibold text-[var(--text)] mb-1">
           {churchData.name} was not created
         </h2>
-        <p className="text-sm text-[var(--muted)] mb-4">{error}</p>
+        <p className="text-sm text-[var(--muted)] mb-2">{error}</p>
+        {/* Provisioning undoes itself on failure, so trying again is safe and
+            is usually the right move. Not promised as "nothing was changed",
+            because if the rollback itself failed a database may remain — and
+            the backups page names those rather than this screen guessing. */}
+        <p className="text-sm text-[var(--muted)] mb-4">
+          A failed attempt cleans up after itself, so it is safe to try again.
+        </p>
         <div className="flex gap-3">
           <Button onClick={onComplete}>Back to churches</Button>
         </div>
