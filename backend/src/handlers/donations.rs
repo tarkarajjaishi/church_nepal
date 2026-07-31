@@ -11,6 +11,16 @@ use crate::models::fund::{RecurringDonation, CreateRecurringDonation};
 use crate::handlers::audit::create_audit_entry;
 use std::collections::HashMap;
 
+/// Where a payment gateway should send the donor back to.
+///
+/// The fallback was localhost:3000 while the church app runs on 3005, and
+/// SITE_DOMAIN was set nowhere - so in development every success and failure
+/// return URL pointed at a dead port. A donor who actually paid landed on
+/// nothing, which is the worst moment in the whole flow to lose them.
+fn site_domain() -> String {
+    std::env::var("SITE_DOMAIN").unwrap_or_else(|_| "http://localhost:3005".to_string())
+}
+
 pub async fn initiate(
     Db(pool): Db,
     Json(input): Json<InitiateDonation>,
@@ -54,8 +64,7 @@ pub async fn initiate(
     });
     crate::handlers::webhooks::enqueue_webhook_delivery(&pool, "donation.created", event_payload);
 
-    let domain = std::env::var("SITE_DOMAIN")
-        .unwrap_or_else(|_| "http://localhost:3000".to_string());
+    let domain = site_domain();
 
     let payment_url = match input.payment_method.as_str() {
         "esewa" => {
@@ -176,8 +185,7 @@ pub async fn callback_esewa(
         }
     }
 
-    let domain = std::env::var("SITE_DOMAIN")
-        .unwrap_or_else(|_| "http://localhost:3000".to_string());
+    let domain = site_domain();
 
     // Create receipt entry for successful payment
     let receipt_id = uuid::Uuid::new_v4();
@@ -239,8 +247,7 @@ pub async fn init_esewa(
         &config.secret_key,
     );
 
-    let domain = std::env::var("SITE_DOMAIN")
-        .unwrap_or_else(|_| "http://localhost:3000".to_string());
+    let domain = site_domain();
 
     let success_url = format!("{}/give/success?donation_id={}", domain, row.id);
     let failure_url = format!("{}/give", domain);
@@ -359,8 +366,7 @@ async fn esewa_callback_impl(
         .fetch_one(&pool)
         .await?;
 
-    let domain = std::env::var("SITE_DOMAIN")
-        .unwrap_or_else(|_| "http://localhost:3000".to_string());
+    let domain = site_domain();
 
     Ok(Json(serde_json::json!({
         "status": "completed",
@@ -417,7 +423,7 @@ pub async fn callback_khalti(
     Ok(Json(serde_json::json!({
         "status": "completed",
         "message": "Payment confirmed",
-        "redirect_url": format!("{}/give/success?donation_id={}&receipt={}", "http://localhost:3000", donation_id, receipt_id),
+        "redirect_url": format!("{}/give/success?donation_id={}&receipt={}", site_domain(), donation_id, receipt_id),
     })))
 }
 
