@@ -1188,8 +1188,56 @@ pub struct Backups {
     /// Churches with no successful backup on record. The number that decides
     /// whether "we have backups" is a true sentence.
     pub unprotected: Vec<String>,
+    /// Databases with no church behind them. Not covered by `unprotected`,
+    /// which can only count churches the registry knows about.
+    pub unregistered: Vec<UnregisteredDatabase>,
     pub total_size_bytes: i64,
     pub pg_dump_available: bool,
+}
+
+#[derive(Serialize, sqlx::FromRow)]
+pub struct UnregisteredDatabase {
+    pub name: String,
+    pub size_bytes: i64,
+    /// A stray can still have been dumped from this page, which is the
+    /// difference between "at risk" and "kept, pending a decision".
+    pub last_backup_at: Option<chrono::DateTime<chrono::Utc>>,
+}
+
+/// Databases on this instance that the registry has no row for.
+///
+/// Every other number on the backups page is computed from `churches`, so a
+/// database missing from the registry is not merely unprotected — it is outside
+/// the question being asked. It is never dumped, never counted, and never named,
+/// and it still holds somebody's members, giving and pastoral notes. This is the
+/// one way church data can be lost without a single failure being reported.
+///
+/// Reconciling from `pg_database` rather than from the registry is the whole
+/// point: the registry cannot report what it has forgotten.
+async fn unregistered_databases(
+    pool: &sqlx::PgPool,
+) -> Result<Vec<UnregisteredDatabase>, sqlx::Error> {
+    sqlx::query_as::<_, UnregisteredDatabase>(
+        "SELECT d.datname::text AS name,
+                pg_database_size(d.datname)::bigint AS size_bytes,
+                (SELECT MAX(b.finished_at) FROM backup_runs b
+                  WHERE b.church_slug = d.datname::text
+                    AND b.kind = 'backup' AND b.status = 'ok') AS last_backup_at
+           FROM pg_database d
+          WHERE NOT d.datistemplate
+            AND d.datallowconn
+            -- The cluster's own bookkeeping and the registry itself are not
+            -- strays; everything else here is a tenant or a leak.
+            AND d.datname NOT IN ('postgres', current_database())
+            -- A church may be recorded under a database name that differs from
+            -- its slug, so matching only one of the two invents strays.
+            AND NOT EXISTS (
+                SELECT 1 FROM churches c
+                 WHERE c.db_name = d.datname::text OR c.slug = d.datname::text)
+          ORDER BY pg_database_size(d.datname) DESC",
+    )
+    .fetch_all(pool)
+    .await
 }
 
 /// The command that produces a dump, as program plus arguments.
@@ -1257,6 +1305,7 @@ pub async fn list_backups(
         runs,
         last_success_at,
         unprotected,
+        unregistered: unregistered_databases(&st.pool).await?,
         total_size_bytes,
         pg_dump_available,
     }))
@@ -1274,12 +1323,27 @@ pub async fn run_backup(
         return Err(AppError::bad_request("That is not a valid church slug"));
     }
 
-    let db_name: Option<String> =
+    let registered: Option<String> =
         sqlx::query_scalar("SELECT db_name FROM churches WHERE slug = $1")
             .bind(&slug)
             .fetch_optional(&st.pool)
             .await?;
-    let db_name = db_name.ok_or_else(|| AppError::not_found("No such church"))?;
+
+    // A database with no registry row still holds real people's records, so the
+    // page would otherwise be able to name the risk and do nothing about it -
+    // and dumping it is the one safe move available before anyone decides
+    // whether to keep or drop it. Only a name that reconciliation actually
+    // returned is accepted, never an arbitrary one off the wire, which keeps
+    // the control-plane's own database out of reach.
+    let db_name = match registered {
+        Some(name) => name,
+        None => unregistered_databases(&st.pool)
+            .await?
+            .into_iter()
+            .find(|d| d.name == slug)
+            .map(|d| d.name)
+            .ok_or_else(|| AppError::not_found("No such church"))?,
+    };
 
     let dir = std::path::Path::new("../../backups");
     std::fs::create_dir_all(dir)

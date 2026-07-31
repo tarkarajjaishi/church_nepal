@@ -262,6 +262,68 @@ check('it says whether pg_dump is even available',
 check('churches with no successful backup are named, not just counted',
   Array.isArray(backups.unprotected))
 
+// Coverage is computed from the registry, so it can only ever describe churches
+// the registry remembers. A database left behind by a failed deprovision is
+// invisible to every other figure on the page while still holding real members
+// and giving, which is the one way church data is lost without a reported
+// failure. Reconciliation has to come from pg_database, not from churches.
+check('databases with no church are reconciled from the instance',
+  Array.isArray(backups.unregistered),
+  `${backups.unregistered?.length ?? 'missing'} found`)
+check('each stray says how big it is and whether it has ever been dumped',
+  backups.unregistered.every(s =>
+    typeof s.name === 'string' && typeof s.size_bytes === 'number'
+    && (s.last_backup_at === null || typeof s.last_backup_at === 'string')))
+// The registry's own database and the cluster's bookkeeping are not strays, and
+// must never be offered as something to dump.
+check('the control-plane database is not reported as a stray',
+  !backups.unregistered.some(s => ['postgres', 'template0', 'template1'].includes(s.name)
+    || s.name.includes('control')),
+  backups.unregistered.map(s => s.name).join(', ') || 'none')
+// The set that may be dumped is exactly the set reconciliation returned, so a
+// name that is neither a church nor a stray has to be refused.
+// Taking a backup needs super_admin, so this account is turned away at the door
+// with a 403 and never reaches the name check. Asserting "some 4xx" would
+// therefore pass even if the name check were deleted — a test no regression
+// could fail. It runs for real with the owner account, or says it did not run.
+const SUPER_PW = process.env.SUPER_ADMIN_PASSWORD
+if (!SUPER_PW) {
+  console.log('  SKIP  only a name reconciliation returned may be dumped'
+    + ' — set SUPER_ADMIN_PASSWORD to run this one')
+} else {
+  const su = await (await fetch(`${API}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      email: process.env.SUPER_ADMIN_EMAIL || 'owner@churchnepal.com',
+      password: SUPER_PW,
+    }),
+  })).json()
+  const suToken = su.token ?? su.access_token
+  check('the owner account can sign in', !!suToken, su.error ?? '')
+  for (const name of ['churchnepal_control', 'postgres', 'template1', 'no_such_db']) {
+    const r = await fetch(`${API}/api/platform/backups/${name}`, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${suToken}` },
+    })
+    check(`a super_admin still cannot dump "${name}"`, r.status === 404, `HTTP ${r.status}`)
+  }
+  // ...and the same account can dump a stray, so the refusals above are the
+  // name check working rather than the endpoint being broken for everything.
+  if (backups.unregistered.length) {
+    // The list is biggest-first; take the last so a repeated test run writes the
+    // smallest dump it can rather than the largest database on the instance.
+    const stray = backups.unregistered[backups.unregistered.length - 1].name
+    const r = await fetch(`${API}/api/platform/backups/${stray}`, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${suToken}` },
+    })
+    const body = await r.json().catch(() => ({}))
+    check(`a stray database can be dumped ("${stray}")`,
+      r.status === 200 && body.size_bytes > 0, `HTTP ${r.status}, ${body.size_bytes ?? 0} bytes`)
+  }
+}
+
 // -- Report ---------------------------------------------------------------
 console.log('\n12. Platform report')
 const report = await api('GET', '/platform/report')

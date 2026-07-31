@@ -84,7 +84,9 @@ task.txt
 
 # Database dumps written by /platform/backups. Every one of these is a full
 # copy of a church's members, giving and pastoral notes - never commit them.
-backups/
+# Anchored: unanchored "backups/" also matched the admin page's own folder,
+# app/admin/settings/backups, and quietly excluded it from the repository.
+/backups/
 *.sql.gz
 
 # Misc
