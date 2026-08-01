@@ -348,11 +348,15 @@ pub async fn overview(Db(pool): Db) -> Result<Json<ChurchDashboard>, AppError> {
     .await
     .unwrap_or(0);
 
+    // `campaigns` has no `is_active` column - 001_init created it without one and
+    // 005 added `enabled`. Postgres answered `column "is_active" does not exist`
+    // and the `.unwrap_or(0)` below turned that error into a confident "0 active
+    // campaigns" sitting beside six live appeals. Propagating with `?` means the
+    // next column rename surfaces as a visible error, not a plausible zero.
     let active_campaigns: i64 =
-        sqlx::query_scalar("SELECT COUNT(*) FROM campaigns WHERE is_active = true")
+        sqlx::query_scalar("SELECT COUNT(*) FROM campaigns WHERE COALESCE(enabled, true)")
             .fetch_one(&pool)
-            .await
-            .unwrap_or(0);
+            .await?;
 
     let currency: String =
         sqlx::query_scalar("SELECT currency FROM offerings ORDER BY created_at DESC LIMIT 1")
