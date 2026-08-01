@@ -4,6 +4,33 @@ import path from 'path'
 
 const BIBLE_DIR = path.join(process.cwd(), 'nnrv_bible-main')
 
+/**
+ * Parsed books, kept in memory.
+ *
+ * Every chapter request used to `readFileSync` + `JSON.parse` the whole book:
+ * 302KB for John, more for Psalms, out of 12MB of scripture on disk. Turning
+ * a page re-read and re-parsed the entire book, which is why the reader sat on
+ * skeletons for seconds before any verse appeared.
+ *
+ * The NNRV text is immutable — it cannot change between requests — so a plain
+ * Map is the whole solution. Bounded at 66 books by construction, so it needs
+ * no eviction policy.
+ */
+const bookCache = new Map<string, BookData>()
+
+function loadBook(book: string): BookData | null {
+  const cached = bookCache.get(book)
+  if (cached) return cached
+  const filePath = path.join(BIBLE_DIR, `${book}.json`)
+  if (!fs.existsSync(filePath)) return null
+  const parsed: BookData = JSON.parse(fs.readFileSync(filePath, 'utf-8'))
+  bookCache.set(book, parsed)
+  return parsed
+}
+
+/** Scripture does not change, so let the browser keep it too. */
+const IMMUTABLE = { 'Cache-Control': 'public, max-age=31536000, immutable' } as const
+
 const BOOK_NAMES: Record<string, string> = {
   'GEN': 'उत्‍पत्ति', 'EXO': 'प्रस्‍थान', 'LEV': 'लेवीहरू', 'NUM': 'गन्ती',
   'DEU': 'व्यवस्था', 'JOS': 'यहोशू', 'JDG': 'न्यायकर्ताहरू', 'RUT': 'रूथ',
@@ -84,15 +111,13 @@ export async function GET(request: NextRequest) {
         testament: OT_BOOKS.includes(abbr) ? 'OT' : 'NT'
       }
     })
-    return NextResponse.json({ books })
+    return NextResponse.json({ books }, { headers: IMMUTABLE })
   }
 
-  const filePath = path.join(BIBLE_DIR, `${book}.json`)
-  if (!fs.existsSync(filePath)) {
+  const bookData = loadBook(book)
+  if (!bookData) {
     return NextResponse.json({ error: 'Book not found' }, { status: 404 })
   }
-
-  const bookData: BookData = JSON.parse(fs.readFileSync(filePath, 'utf-8'))
 
   if (verse) {
     const verseNum = parseInt(verse)
@@ -129,5 +154,5 @@ export async function GET(request: NextRequest) {
     isIntro: chapter === 0,
     totalChapters: chapterCount(bookData),
     verses: chapterData.verses
-  })
+  }, { headers: IMMUTABLE })
 }

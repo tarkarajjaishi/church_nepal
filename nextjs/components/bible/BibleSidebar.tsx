@@ -21,6 +21,7 @@ import {
   NT_BOOKS,
   CHAPTER_COUNTS,
   normalizeBookCode,
+  BIBLE_FONTS,
 } from '@/lib/bible/books'
 
 interface BibleSidebarProps {
@@ -39,6 +40,8 @@ export function BibleSidebar({
   onClose,
   fontSize,
   onFontSizeChange,
+  fontId,
+  onFontChange,
   mode = 'desktop',
 }: BibleSidebarProps) {
   const book = normalizeBookCode(selectedBook)
@@ -81,7 +84,7 @@ export function BibleSidebar({
 
   const content = (
     <aside
-      className={`flex flex-col h-full text-white bg-gradient-to-b from-church-blue via-church-blue to-[#082a42] ${
+      className={`flex flex-col h-full text-white bg-gradient-to-b from-[var(--church-blue-surface)] via-[var(--church-blue-surface)] to-[#082a42] dark:from-card dark:via-card dark:to-background ${
         mode === 'desktop'
           ? 'w-[280px] shrink-0 border-r border-white/10'
           : 'w-[min(100vw-3rem,320px)] shadow-2xl'
@@ -183,8 +186,26 @@ export function BibleSidebar({
 
       {/* Footer controls */}
       <div className="px-3 py-3.5 border-t border-white/10 space-y-2.5 bg-black/15">
+        {/* Reading face. Persisted by the reader, so the choice is the default
+            the next time the Bible is opened. */}
         <div className="flex items-center justify-between gap-2">
-          <span className="text-xs text-white/50">अक्षर आकार</span>
+          <label htmlFor="bible-font" className="text-xs text-white/70 shrink-0">अक्षर शैली</label>
+          <select
+            id="bible-font"
+            value={fontId}
+            onChange={(e) => onFontChange(e.target.value)}
+            className="min-h-10 flex-1 min-w-0 rounded-xl bg-white/[0.08] border border-white/10 px-2 text-xs text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/50"
+          >
+            {BIBLE_FONTS.map((f) => (
+              <option key={f.id} value={f.id} className="text-black">
+                {f.label}{f.localOnly ? ' (स्थानीय)' : ''}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-xs text-white/70">अक्षर आकार</span>
           <div className="flex items-center gap-0.5 bg-white/[0.08] rounded-xl p-0.5 border border-white/10">
             <button
               type="button"
@@ -256,11 +277,11 @@ function Section({
       <button
         type="button"
         onClick={onToggle}
-        className="w-full flex items-center justify-between min-h-11 px-2.5 py-2 text-[11px] font-semibold text-white/45 uppercase tracking-[0.14em] hover:text-white/70 transition-colors rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/40"
+        className="w-full flex items-center justify-between min-h-11 px-2.5 py-2 text-[11px] font-semibold text-white/70 uppercase tracking-[0.14em] hover:text-white/70 transition-colors rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/40"
       >
         <span className="flex items-center gap-2 font-nepali normal-case tracking-wide">
           {title}
-          <span className="tracking-normal font-medium text-white/30 tabular-nums text-[10px]">
+          <span className="tracking-normal font-medium text-white/70 tabular-nums text-[10px]">
             {count}
           </span>
         </span>
@@ -307,7 +328,7 @@ function BookLink({
         className={`group w-full flex items-center gap-2.5 min-h-11 px-3 py-2.5 rounded-xl text-[13px] font-nepali transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/40 ${
           active || expanded
             ? 'bg-white/15 text-white shadow-sm ring-1 ring-white/10'
-            : 'text-white/65 hover:bg-white/[0.08] hover:text-white'
+            : 'text-white/85 hover:bg-white/[0.08] hover:text-white'
         }`}
       >
         <BookOpen

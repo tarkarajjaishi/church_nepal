@@ -1,7 +1,8 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { useTheme } from 'next-themes'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
@@ -9,7 +10,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Menu,
-  Sparkles,
   Share2,
   Clock,
   TrendingUp,
@@ -20,6 +20,11 @@ import {
   ArrowRight,
   Home,
   Info,
+  Sun,
+  Moon,
+  Columns2,
+  AlignJustify,
+  Maximize2,
 } from 'lucide-react'
 import {
   Dialog,
@@ -31,15 +36,18 @@ import {
 import { stripHtml } from '@/lib/sanitize-html'
 import { VerseRenderer } from '@/components/bible/VerseRenderer'
 import { BibleSidebar } from '@/components/bible/BibleSidebar'
-import { useBookmarks, useReadingHistory, useReadingProgress } from '@/lib/bible/hooks'
+import { VersePresenter } from '@/components/bible/VersePresenter'
+import { useBookmarks, useReadingHistory, useReadingProgress, useHighlights, type HighlightColor } from '@/lib/bible/hooks'
 import {
   BOOK_NAMES,
   OT_BOOKS,
   NT_BOOKS,
   POPULAR_BOOKS,
-  RANDOM_VERSES,
   getBookName,
   normalizeBookCode,
+  BIBLE_FONTS,
+  DEFAULT_BIBLE_FONT,
+  fontStack,
 } from '@/lib/bible/books'
 
 type TabKey = 'read' | 'stats' | 'history' | 'bookmarks'
@@ -62,6 +70,40 @@ const iconBtn =
 const cardShell =
   'rounded-2xl border border-church-blue/8 bg-white shadow-sm'
 
+/**
+ * Light/dark switch for the reader.
+ *
+ * /bible sits outside the (site) route group, so it never had the site
+ * header's theme control — a reader on this page could not change the mode at
+ * all. `resolvedTheme` rather than `theme`, because the stored value is often
+ * "system" and the button has to reflect what is actually on screen.
+ *
+ * Rendered only after mount: on the server there is no way to know the
+ * visitor's preference, and guessing produces a hydration mismatch.
+ */
+function ThemeToggle() {
+  const { resolvedTheme, setTheme } = useTheme()
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
+
+  // Before mount `resolvedTheme` is undefined, so gate the LABEL on `mounted`
+  // too — gating only the icon announced "switch to dark" to a screen reader
+  // while the page was already dark.
+  const isDark = mounted && resolvedTheme === 'dark'
+  const label = !mounted ? 'रङ मोड बदल्नुहोस्' : isDark ? 'उज्यालो मोड' : 'अँध्यारो मोड'
+  return (
+    <button
+      type="button"
+      onClick={() => setTheme(isDark ? 'light' : 'dark')}
+      className={iconBtn}
+      aria-label={label}
+      title={label}
+    >
+      {isDark ? <Sun className="size-5" /> : <Moon className="size-5" />}
+    </button>
+  )
+}
+
 export function BibleApp({ initialBook = 'JHN', initialChapter = 1 }: BibleAppProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -78,12 +120,29 @@ export function BibleApp({ initialBook = 'JHN', initialChapter = 1 }: BibleAppPr
   const [chapter, setChapter] = useState(queryChapter)
   const [selectedVerse, setSelectedVerse] = useState<number | null>(queryVerse)
   const [fontSize, setFontSize] = useState(17)
+  const [fontId, setFontId] = useState(DEFAULT_BIBLE_FONT)
+  // Two columns by default, the way a printed Bible sets scripture: at full
+  // width a single column runs to ~150 characters a line, which is well past
+  // a comfortable measure. Below lg the layout forces one column regardless.
+  const [columns, setColumns] = useState<1 | 2>(2)
+  // Distraction-free reading: the same idea as the verse presenter, but for a
+  // whole chapter. Implemented by hiding the chrome rather than rendering a
+  // second copy of the verse list, so selection, highlighting and the font
+  // controls keep working and cannot drift out of sync with the normal view.
+  const [fullscreen, setFullscreen] = useState(false)
+  // Both the restore and the persist effect fire on mount. Without this guard
+  // the persist one wrote the DEFAULT over the reader's saved face before the
+  // restore one had read it, so a chosen font survived exactly until the next
+  // page load. Only writes made after the restore has run are real choices.
+  const fontRestored = useRef(false)
   const [activeTab, setActiveTab] = useState<TabKey>('read')
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [chapterPickerOpen, setChapterPickerOpen] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
+  const [presenting, setPresenting] = useState<number | null>(null)
 
   const { bookmarks, addBookmark, removeBookmark, isBookmarked } = useBookmarks()
+  const { setHighlight, getHighlight } = useHighlights()
   const { history, addToHistory, clearHistory } = useReadingHistory()
   const { getProgress, updateProgress, progress } = useReadingProgress()
 
@@ -115,10 +174,36 @@ export function BibleApp({ initialBook = 'JHN', initialChapter = 1 }: BibleAppPr
     try {
       const saved = localStorage.getItem('bible_font_size')
       if (saved) setFontSize(Number(saved) || 17)
+      // The chosen face is the reader's default on every later visit, which is
+      // the point of choosing one — so it is restored here, not just applied.
+      const savedFont = localStorage.getItem('bible_font_family')
+      if (savedFont && BIBLE_FONTS.some((f) => f.id === savedFont)) setFontId(savedFont)
+      const savedCols = localStorage.getItem('bible_columns')
+      if (savedCols === '1' || savedCols === '2') setColumns(Number(savedCols) as 1 | 2)
+    } catch {
+      /* ignore */
+    } finally {
+      fontRestored.current = true
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!fontRestored.current) return
+    try {
+      localStorage.setItem('bible_columns', String(columns))
     } catch {
       /* ignore */
     }
-  }, [])
+  }, [columns])
+
+  useEffect(() => {
+    if (!fontRestored.current) return
+    try {
+      localStorage.setItem('bible_font_family', fontId)
+    } catch {
+      /* ignore */
+    }
+  }, [fontId])
 
   useEffect(() => {
     try {
@@ -174,15 +259,20 @@ export function BibleApp({ initialBook = 'JHN', initialChapter = 1 }: BibleAppPr
     [activeTab]
   )
 
+  useEffect(() => {
+    if (!fullscreen) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setFullscreen(false)
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [fullscreen])
+
   const showToast = useCallback((msg: string) => {
     setToast(msg)
     window.setTimeout(() => setToast(null), 2000)
   }, [])
 
-  const handleRandomVerse = () => {
-    const random = RANDOM_VERSES[Math.floor(Math.random() * RANDOM_VERSES.length)]
-    router.push(`/bible/${random.book}?chapter=${random.chapter}&verse=${random.verse}`)
-  }
 
   const getVerseText = (verseNum: number) => {
     const plain = chapterData?.verses?.[verseNum - 1]?.text?.replace(/<\/?red>/g, '') || ''
@@ -203,6 +293,16 @@ export function BibleApp({ initialBook = 'JHN', initialChapter = 1 }: BibleAppPr
     } catch {
       /* user cancelled share */
     }
+  }
+
+  const handleHighlight = (verseNum: number, color: HighlightColor) => {
+    setHighlight({
+      book: selectedBook,
+      chapter,
+      verse: verseNum,
+      color,
+      reference: `${bookName} ${chapter}:${verseNum}`,
+    })
   }
 
   const handleToggleBookmark = (verseNum: number) => {
@@ -238,13 +338,15 @@ export function BibleApp({ initialBook = 'JHN', initialChapter = 1 }: BibleAppPr
   return (
     <div className="flex h-[100dvh] bg-section-bg overflow-hidden">
       {/* Desktop sidebar */}
-      <div className="hidden lg:flex h-full">
+      <div className={`${fullscreen ? 'hidden' : 'hidden lg:flex'} h-full`}>
         <BibleSidebar
           selectedBook={selectedBook}
           open
           onClose={() => {}}
           fontSize={fontSize}
           onFontSizeChange={setFontSize}
+        fontId={fontId}
+        onFontChange={setFontId}
           mode="desktop"
         />
       </div>
@@ -256,14 +358,16 @@ export function BibleApp({ initialBook = 'JHN', initialChapter = 1 }: BibleAppPr
         onClose={() => setSidebarOpen(false)}
         fontSize={fontSize}
         onFontSizeChange={setFontSize}
+        fontId={fontId}
+        onFontChange={setFontId}
         mode="drawer"
       />
 
       {/* Main */}
       <main className="flex-1 flex flex-col min-w-0 min-h-0">
         {/* Top bar */}
-        <header className="shrink-0 z-20 border-b border-church-blue/8 bg-white/90 backdrop-blur-md">
-          <div className="px-3 sm:px-5 py-3 flex items-center gap-3">
+        <header className={`${fullscreen ? 'hidden' : ''} shrink-0 z-20 border-b border-church-blue/8 bg-white/90 backdrop-blur-md`}>
+          <div className="relative px-3 sm:px-5 py-3 flex items-center gap-3">
             <button
               type="button"
               onClick={() => setSidebarOpen(true)}
@@ -280,32 +384,101 @@ export function BibleApp({ initialBook = 'JHN', initialChapter = 1 }: BibleAppPr
               <Home className="size-5" />
             </Link>
 
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2 min-w-0">
+            {/* Centred on the same axis as the chapter control below it.
+                `flex-1` alone only centres when both sides weigh the same, and
+                they do not — the left holds two icon buttons on mobile and
+                nothing on desktop, the right holds the theme toggle. So the
+                block is centred against the header box itself and the actions
+                are taken out of the flow with absolute positioning. */}
+            <div className="min-w-0 flex-1 text-center">
+              <div className="flex items-center justify-center gap-2 min-w-0">
                 <h1
                   className="text-lg sm:text-xl font-bold text-church-blue truncate font-nepali"
                   style={{ fontFamily: 'var(--font-heading)' }}
                 >
                   {bookName}
                 </h1>
-                <span className="hidden sm:inline-flex items-center rounded-full bg-gold/12 text-accent-foreground border border-gold/25 px-2.5 py-0.5 text-[10px] font-semibold tracking-wide">
+                <span className="hidden sm:inline-flex shrink-0 items-center rounded-full bg-gold/12 text-accent-foreground border border-gold/25 px-2.5 py-0.5 text-[10px] font-semibold tracking-wide">
                   NNRV
                 </span>
               </div>
               <p className="text-[11px] sm:text-xs text-muted-foreground truncate font-nepali mt-0.5">
                 पवित्र बाइबल — नेपाली नयाँ संशोधित संस्करण
               </p>
+
+              {/* Chapter controls live in the header rather than in a bar of
+                  their own below the tabs: it is the same axis as the title,
+                  costs no extra band of height, and stays reachable without
+                  the reader scrolling back up. */}
+              <div className="mt-2 flex items-center justify-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => goToChapter(Math.max(0, chapter - 1))}
+                  disabled={chapter <= 0}
+                  className={iconBtn}
+                  aria-label="Previous chapter"
+                >
+                  <ChevronLeft className="size-5" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setChapterPickerOpen(true)}
+                  className="inline-flex items-center gap-2 min-h-11 rounded-xl border border-church-blue/12 bg-section-bg hover:bg-church-blue/5 px-3.5 text-sm font-semibold text-church-blue font-nepali transition-colors min-w-[8rem] justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-blue/45"
+                >
+                  <LayoutGrid className="size-4 text-gold" />
+                  {isIntro ? 'पुस्तक परिचय' : `अध्याय ${chapter}`}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => goToChapter(Math.min(totalChapters, chapter + 1))}
+                  disabled={chapter >= totalChapters}
+                  className={iconBtn}
+                  aria-label="Next chapter"
+                >
+                  <ChevronRight className="size-5" />
+                </button>
+
+                <span className="hidden sm:inline text-xs text-muted-foreground tabular-nums font-nepali ml-1">
+                  {isIntro ? 'परिचय' : `${chapter} / ${totalChapters}`}
+                </span>
+              </div>
             </div>
 
-            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            <div className="absolute right-3 sm:right-5 top-1/2 -translate-y-1/2 flex items-center gap-1.5 sm:gap-2 shrink-0">
+              {/* Single / double column. Hidden under lg because two columns
+                  on a phone gives ~20 characters a line, which is worse than
+                  the problem it solves. */}
+              <div className="hidden lg:inline-flex items-center rounded-xl border border-church-blue/12 bg-card p-0.5">
+                {([1, 2] as const).map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => setColumns(n)}
+                    aria-pressed={columns === n}
+                    aria-label={n === 1 ? 'एकल स्तम्भ' : 'दोहोरो स्तम्भ'}
+                    title={n === 1 ? 'एकल स्तम्भ' : 'दोहोरो स्तम्भ'}
+                    className={`inline-flex items-center justify-center size-10 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-blue/45 ${
+                      columns === n
+                        ? 'bg-church-blue/10 text-church-blue'
+                        : 'text-muted-foreground hover:text-church-blue'
+                    }`}
+                  >
+                    {n === 1 ? <AlignJustify className="size-5" /> : <Columns2 className="size-5" />}
+                  </button>
+                ))}
+              </div>
               <button
                 type="button"
-                onClick={handleRandomVerse}
-                className="inline-flex items-center justify-center gap-1.5 min-h-11 rounded-xl bg-gold hover:bg-gold/90 text-white text-xs sm:text-sm font-medium px-3 sm:px-3.5 shadow-sm shadow-gold/25 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/50 focus-visible:ring-offset-1"
+                onClick={() => setFullscreen(true)}
+                aria-label="पूर्ण स्क्रिन"
+                title="पूर्ण स्क्रिन"
+                className={`hidden lg:inline-flex ${iconBtn}`}
               >
-                <Sparkles className="size-4" />
-                <span className="hidden sm:inline font-nepali">यादृच्छिक पद</span>
+                <Maximize2 className="size-5" />
               </button>
+              <ThemeToggle />
               {selectedVerse && (
                 <button
                   type="button"
@@ -359,7 +532,13 @@ export function BibleApp({ initialBook = 'JHN', initialChapter = 1 }: BibleAppPr
         {/* Scrollable content */}
         <div className="flex-1 overflow-y-auto">
           <div
-            className="mx-auto w-full max-w-3xl px-3 sm:px-5 py-4 sm:py-6 pb-24"
+            // max-w-3xl alone left roughly a third of a 1568px window empty on
+            // either side of the text. Widening in steps fills that back in
+            // without letting a line of Devanagari run past a comfortable
+            // measure: 4xl is about 90 characters at the default 17px, which is
+            // the top of the readable range, so it stops there rather than
+            // stretching to the full column.
+            className="w-full px-3 sm:px-5 lg:px-8 py-4 sm:py-6 pb-24"
             role="tabpanel"
             id={`bible-panel-${activeTab}`}
             aria-labelledby={`bible-tab-${activeTab}`}
@@ -380,6 +559,11 @@ export function BibleApp({ initialBook = 'JHN', initialChapter = 1 }: BibleAppPr
                 selectedVerse={selectedVerse}
                 setSelectedVerse={setSelectedVerse}
                 fontSize={fontSize}
+                fontFamily={fontStack(fontId)}
+                getHighlight={(v: number) => getHighlight(selectedBook, chapter, v)}
+                onHighlight={handleHighlight}
+                columns={columns}
+                onPresent={setPresenting}
                 chapterPickerOpen={chapterPickerOpen}
                 setChapterPickerOpen={setChapterPickerOpen}
                 isBookmarked={isBookmarked}
@@ -412,6 +596,35 @@ export function BibleApp({ initialBook = 'JHN', initialChapter = 1 }: BibleAppPr
         </div>
       </main>
 
+      {fullscreen && (
+        <button
+          type="button"
+          onClick={() => setFullscreen(false)}
+          aria-label="पूर्ण स्क्रिनबाट बाहिर"
+          title="बाहिर निस्कनुहोस् (Esc)"
+          className="fixed right-4 top-4 z-[80] inline-flex items-center justify-center size-11 rounded-xl bg-card/90 backdrop-blur border border-border text-muted-foreground hover:text-foreground shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-blue/50"
+        >
+          <X className="size-6" />
+        </button>
+      )}
+
+      {presenting !== null && chapterData?.verses?.[presenting - 1] && (
+        <VersePresenter
+          text={getVerseText(presenting)}
+          reference={`${bookName} ${chapter}:${presenting}`}
+          fontFamily={fontStack(fontId)}
+          onClose={() => setPresenting(null)}
+          // Undefined rather than a no-op at the ends, so the component hides
+          // the arrow instead of showing a dead control.
+          onPrev={presenting > 1 ? () => setPresenting(presenting - 1) : undefined}
+          onNext={
+            presenting < (chapterData?.verses?.length ?? 0)
+              ? () => setPresenting(presenting + 1)
+              : undefined
+          }
+        />
+      )}
+
       {/* Toast */}
       {toast && (
         <div
@@ -441,6 +654,11 @@ function ReadTab({
   selectedVerse,
   setSelectedVerse,
   fontSize,
+  fontFamily,
+  getHighlight,
+  onHighlight,
+  onPresent,
+  columns,
   chapterPickerOpen,
   setChapterPickerOpen,
   isBookmarked,
@@ -461,6 +679,11 @@ function ReadTab({
   selectedVerse: number | null
   setSelectedVerse: (n: number | null) => void
   fontSize: number
+  fontFamily: string
+  columns: 1 | 2
+  onPresent: (verse: number) => void
+  getHighlight: (verse: number) => HighlightColor | null
+  onHighlight: (verse: number, color: HighlightColor) => void
   chapterPickerOpen: boolean
   setChapterPickerOpen: (v: boolean) => void
   isBookmarked: (book: string, chapter: number, verse: number) => boolean
@@ -472,8 +695,10 @@ function ReadTab({
 
   return (
     <>
-      {/* Quick books */}
-      <div className="mb-4 flex gap-2 overflow-x-auto pb-1 scrollbar-none -mx-1 px-1">
+      {/* Quick books — mobile only. From lg up the full book sidebar is
+          permanently on screen, so this row repeats a navigation the reader
+          already has and costs a whole band of vertical space above the text. */}
+      <div className="lg:hidden mb-4 flex gap-2 overflow-x-auto pb-1 scrollbar-none -mx-1 px-1">
         {POPULAR_BOOKS.map((b) => {
           const active = selectedBook === b.abbr
           return (
@@ -482,8 +707,12 @@ function ReadTab({
               href={`/bible/${b.abbr}`}
               className={`shrink-0 inline-flex items-center min-h-11 rounded-full px-4 text-sm font-medium font-nepali border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-blue/45 ${
                 active
-                  ? 'bg-church-blue text-white border-church-blue shadow-sm'
-                  : 'bg-white text-church-blue border-church-blue/12 hover:border-church-blue/30 hover:bg-church-blue/[0.03]'
+                  // --church-blue lightens in dark mode, so white-on-it drops to
+                  // ~2.2:1. --church-blue-ink is the partner that stays navy in
+                  // both themes, which is what a solid chip needs. It is not
+                  // registered in tailwind.config, hence the arbitrary value.
+                  ? 'bg-[var(--church-blue-ink)] text-white border-[var(--church-blue-ink)] shadow-sm'
+                  : 'bg-card text-church-blue border-church-blue/12 hover:border-church-blue/30 hover:bg-church-blue/[0.03]'
               }`}
             >
               {b.name}
@@ -496,7 +725,7 @@ function ReadTab({
       {lastRead && !(lastRead.book === selectedBook && lastRead.chapter === chapter) && (
         <Link
           href={`/bible/${lastRead.book}?chapter=${lastRead.chapter}`}
-          className="mb-4 flex items-center gap-3 min-h-[3.25rem] rounded-2xl border border-gold/25 bg-gradient-to-r from-accent to-white px-4 py-3 hover:shadow-sm transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/40"
+          className="mb-4 flex items-center gap-3 min-h-[3.25rem] rounded-2xl border border-gold/25 bg-gradient-to-r from-accent to-card px-4 py-3 hover:shadow-sm transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/40"
         >
           <div className="size-10 rounded-xl bg-gold/20 flex items-center justify-center shrink-0">
             <Clock className="size-4 text-accent-foreground" />
@@ -514,75 +743,18 @@ function ReadTab({
       )}
 
       {/* Chapter controls */}
-      <div className="sticky top-0 z-10 mb-4 rounded-2xl border border-church-blue/8 bg-white/95 backdrop-blur-md shadow-sm p-3 sm:p-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => goToChapter(Math.max(0, chapter - 1))}
-              disabled={chapter <= 0}
-              className={iconBtn}
-              aria-label="Previous chapter"
-            >
-              <ChevronLeft className="size-5" />
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setChapterPickerOpen(true)}
-              className="inline-flex items-center gap-2 min-h-11 rounded-xl border border-church-blue/12 bg-section-bg hover:bg-church-blue/5 px-3.5 text-sm font-semibold text-church-blue font-nepali transition-colors min-w-[8rem] justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-blue/45"
-            >
-              <LayoutGrid className="size-4 text-gold" />
-              {isIntro ? 'पुस्तक परिचय' : `अध्याय ${chapter}`}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => goToChapter(Math.min(totalChapters, chapter + 1))}
-              disabled={chapter >= totalChapters}
-              className={iconBtn}
-              aria-label="Next chapter"
-            >
-              <ChevronRight className="size-5" />
-            </button>
-          </div>
-
-          <div className="text-xs sm:text-sm text-muted-foreground tabular-nums font-nepali">
-            {isIntro ? (
-              <span className="font-medium text-church-blue font-nepali">परिचय</span>
-            ) : (
-              <>
-                <span className="font-medium text-church-blue">{chapter}</span>
-                <span className="mx-1 text-muted-foreground/40">/</span>
-                {totalChapters} अध्याय
-              </>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Reading card */}
+      {/* Reading card.
+          The decorative banner that used to sit here (gold eyebrow, repeated
+          "Book · Chapter N" heading and a rainbow rule) restated what the
+          chapter bar directly above already says, and cost a screenful of
+          height before the first verse. The book and chapter live in the top
+          bar and the chapter selector; scripture starts at the top now.
+          `sr-only` keeps a real heading for screen readers and the document
+          outline, which the visual block was the only thing providing. */}
       <article className={`${cardShell} overflow-hidden`}>
-        <div className="relative px-5 sm:px-7 pt-6 pb-4 border-b border-church-blue/6 bg-gradient-to-br from-church-blue/[0.04] via-white to-gold/[0.06]">
-          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-church-blue via-sky-blue to-gold" />
-          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gold mb-1.5">
-            {isIntro ? bookName : 'पवित्र शास्त्र'}
-          </p>
-          <h2
-            className="text-xl sm:text-2xl font-bold text-church-blue font-nepali"
-            style={{ fontFamily: 'var(--font-heading)' }}
-          >
-            {isIntro ? (
-              chapterTitle || 'पुस्तक परिचय'
-            ) : (
-              <>
-                {bookName}
-                <span className="text-muted-foreground/60 font-medium"> · </span>
-                अध्याय {chapter}
-              </>
-            )}
-          </h2>
-        </div>
+        <h2 className="sr-only">
+          {isIntro ? chapterTitle || 'पुस्तक परिचय' : `${bookName} · अध्याय ${chapter}`}
+        </h2>
 
         <div className="px-2 sm:px-4 py-4 sm:py-5">
           {isLoading ? (
@@ -602,14 +774,16 @@ function ReadTab({
                 <p
                   key={i}
                   className="text-foreground font-nepali"
-                  style={{ fontSize: `${fontSize}px`, lineHeight: 1.9, letterSpacing: '0.01em' }}
+                  style={{ fontSize: `${fontSize}px`, fontFamily, lineHeight: 1.9, letterSpacing: '0.01em' }}
                 >
                   {stripHtml(v.text.replace(/<\/?red>/g, ''))}
                 </p>
               ))}
             </div>
           ) : chapterData?.verses?.length ? (
-            <div className="space-y-0.5">
+            <div
+              className={`space-y-0.5 ${columns === 2 ? 'lg:columns-2 lg:gap-10' : ''}`}
+            >
               {chapterData.verses.map((v: { text: string }, i: number) => {
                 const verseNum = i + 1
                 return (
@@ -619,6 +793,10 @@ function ReadTab({
                     verseNumber={verseNum}
                     selected={selectedVerse === verseNum}
                     fontSize={fontSize}
+                    fontFamily={fontFamily}
+                    highlight={getHighlight(verseNum)}
+                    onHighlight={(c) => onHighlight(verseNum, c)}
+                    onPresent={() => onPresent(verseNum)}
                     onClick={() =>
                       setSelectedVerse(selectedVerse === verseNum ? null : verseNum)
                     }
@@ -733,7 +911,7 @@ function LoadingSkeleton() {
         <div key={i} className="flex gap-3 items-start animate-pulse">
           <div className="size-7 rounded-lg bg-gold-soft/50 shrink-0" />
           <div
-            className="h-12 rounded-xl bg-gradient-to-r from-slate-100 via-slate-50 to-slate-100"
+            className="h-12 rounded-xl bg-gradient-to-r from-muted via-card to-muted"
             style={{ width: `${88 - (i % 3) * 8}%` }}
           />
         </div>
@@ -774,7 +952,7 @@ function StatsTab({
           ].map((stat) => (
             <div
               key={stat.label}
-              className="text-center p-4 rounded-2xl bg-gradient-to-b from-section-bg to-white border border-church-blue/6"
+              className="text-center p-4 rounded-2xl bg-gradient-to-b from-section-bg to-card border border-church-blue/6"
             >
               <div
                 className={`text-2xl font-bold ${stat.accent}`}

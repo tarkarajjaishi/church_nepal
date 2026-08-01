@@ -161,3 +161,44 @@ export const CHAPTER_COUNTS: Record<string, number> = {
   "2TI": 4, "TIT": 3, "PHM": 1, "HEB": 13, "JAS": 5, "1PE": 5,
   "2PE": 3, "1JN": 5, "2JN": 1, "3JN": 1, "JUD": 1, "REV": 22,
 }
+
+/**
+ * Reading faces offered by the Bible reader.
+ *
+ * The stack always ends in Noto Sans Devanagari, the site's own Devanagari
+ * face, so a chosen font that fails to load still renders Nepali correctly
+ * rather than dropping to a Latin default that cannot draw the script.
+ *
+ * Annapurna SIL is published by SIL rather than Google Fonts, so it is
+ * resolved with local() only: readers who have it installed get it, everyone
+ * else falls through to Noto. It is listed because it is a scripture face
+ * many Nepali readers already have.
+ */
+export interface BibleFont {
+  id: string
+  label: string
+  stack: string
+  /** True when the face is not web-delivered and depends on a local install. */
+  localOnly?: boolean
+}
+
+export const BIBLE_FONTS: BibleFont[] = [
+  { id: 'noto', label: 'Noto Sans Devanagari', stack: "'Noto Sans Devanagari', sans-serif" },
+  { id: 'anek', label: 'Anek Devanagari', stack: "'Anek Devanagari', 'Noto Sans Devanagari', sans-serif" },
+  { id: 'khand', label: 'Khand', stack: "'Khand', 'Noto Sans Devanagari', sans-serif" },
+  { id: 'yatra', label: 'Yatra One', stack: "'Yatra One', 'Noto Sans Devanagari', sans-serif" },
+  { id: 'annapurna', label: 'Annapurna SIL', stack: "'Annapurna SIL', 'Noto Sans Devanagari', sans-serif", localOnly: true },
+  { id: 'gotu', label: 'Gotu', stack: "'Gotu', 'Noto Sans Devanagari', sans-serif" },
+]
+
+// Anek Devanagari is the reader's default face: it is a contemporary
+// Devanagari design with better fitted conjuncts at reading sizes than the
+// Noto fallback. A visitor's own choice still wins — it is restored from
+// localStorage on load and only this initial value is affected.
+export const DEFAULT_BIBLE_FONT = 'anek'
+
+/** Unknown/absent ids fall back to the default rather than to no font at all. */
+export function fontStack(id: string | null | undefined): string {
+  const fallback = BIBLE_FONTS.find((f) => f.id === DEFAULT_BIBLE_FONT) ?? BIBLE_FONTS[0]
+  return (BIBLE_FONTS.find((f) => f.id === id) ?? fallback).stack
+}
