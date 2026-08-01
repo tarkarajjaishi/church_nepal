@@ -6,7 +6,6 @@ import { Providers } from '@/lib/providers'
 import { AuthProvider, useAuth } from '@/lib/auth'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { Layout } from '@/components/admin/Layout'
-import AdminNav from '@/components/admin/AdminNav'
 import { ThemeCustomizer } from '@/components/theme/ThemeCustomizer'
 import { Toaster } from '@/components/ui/sonner'
 
@@ -58,8 +57,12 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       <ErrorBoundary>
         <AuthProvider>
           {isLogin ? (
+            // No AdminNav here. Every link in it (Dashboard, Blog, Events,
+            // Users, Settings) is behind the auth guard, so on the login page
+            // they were five dead ends that bounced straight back here — and
+            // the avatar beside them implied a signed-in user who is not.
+            // A login screen should offer exactly one action.
             <div className="min-h-screen bg-background">
-              <AdminNav />
               <main className="container mx-auto py-8 px-4">
                 {children}
               </main>

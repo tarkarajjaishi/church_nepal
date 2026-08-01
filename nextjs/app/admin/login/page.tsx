@@ -127,10 +127,14 @@ export default function LoginPage() {
               transition={{ delay: 0.2, type: 'spring' }}
               className="inline-flex items-center justify-center w-16 h-16 rounded-xl bg-white/20 backdrop-blur-md mb-4"
             >
-              <Church className="w-8 h-8 text-white" />
+              <Church className="w-8 h-8 text-primary-foreground" />
             </motion.div>
 
-            <h1 className="text-2xl font-bold text-white mb-2">Grace Nepal Church</h1>
+            {/* Not text-white: this header sits on --primary, which is navy in
+                light mode but near-white in dark, so white measured 1.04:1 and
+                the church name vanished. --primary-foreground inverts with it,
+                which is why the subtitle below already uses it. */}
+            <h1 className="text-2xl font-bold text-primary-foreground mb-2">Grace Nepal Church</h1>
             <p className="text-primary-foreground/70 text-sm">Admin Dashboard</p>
           </div>
 

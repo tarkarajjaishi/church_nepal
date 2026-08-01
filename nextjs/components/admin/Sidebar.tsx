@@ -214,7 +214,7 @@ export function Sidebar() {
                   type="button"
                   onClick={() => toggleGroup(g.id)}
                   aria-expanded={open}
-                  className={`flex items-center gap-1 w-full px-2 py-1 text-[11px] font-medium uppercase tracking-wider text-white/40 hover:text-white/70 transition-colors ${rail ? 'lg:hidden' : ''}`}
+                  className={`flex items-center gap-1 w-full px-2 py-1 text-[11px] font-medium uppercase tracking-wider text-white/70 hover:text-white transition-colors ${rail ? 'lg:hidden' : ''}`}
                 >
                   {g.label}
                   <ChevronDown
@@ -308,7 +308,9 @@ export function Sidebar() {
             </span>
             <span className={`min-w-0 flex-1 ${rail ? 'lg:hidden' : ''}`}>
               <span className="block text-sm truncate">{user?.name}</span>
-              <span className="block text-[11px] text-white/50 truncate">{user?.email}</span>
+              {/* /50 measures 4.1:1 on the navy rail and /40 only 3.17:1;
+                  white/60 is the first step that clears AA here. */}
+              <span className="block text-[11px] text-white/70 truncate">{user?.email}</span>
             </span>
             <a
               href="/"
