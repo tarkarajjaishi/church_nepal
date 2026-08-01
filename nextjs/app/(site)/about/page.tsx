@@ -109,8 +109,8 @@ export default function About() {
                 <Reveal key={item.year} delay={i * 0.05}>
                   <div className={`relative mb-10 sm:w-1/2 ${i % 2 ? "sm:ml-auto sm:pl-10" : "sm:pr-10 sm:text-right"}`}>
                     <span className={`absolute top-1 size-4 rounded-full bg-gold ring-4 ring-section ${i % 2 ? "-left-[1.6rem] sm:-left-2" : "-left-[1.6rem] sm:-right-2 sm:left-auto"}`} />
-                    <Milestone className="size-4 text-gold inline-block mb-1" />
-                    <div className="text-gold" style={{ fontFamily: "var(--font-heading)", fontWeight: 700 }}>{item.year}</div>
+                    <Milestone className="size-4 text-gold-text inline-block mb-1" />
+                    <div className="text-gold-text" style={{ fontFamily: "var(--font-heading)", fontWeight: 700 }}>{item.year}</div>
                     <h3 className="text-church-blue" style={{ fontFamily: "var(--font-heading)", fontWeight: 600 }}>{item.title}</h3>
                     <p className="mt-1 text-sm text-muted-foreground">{item.text}</p>
                   </div>

@@ -89,7 +89,7 @@ export function Navbar() {
             <span className="block text-church-blue" style={{ fontFamily: "var(--font-heading)", fontWeight: 700 }}>
               {churchName}
             </span>
-            <span className="block text-[11px] text-gold" style={{ fontFamily: "var(--font-heading)" }}>
+            <span className="block text-[11px] text-gold-text" style={{ fontFamily: "var(--font-heading)" }}>
               {tagline}
             </span>
           </span>

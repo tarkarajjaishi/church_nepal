@@ -39,10 +39,13 @@ export function AnnouncementBar() {
     : "आइतबार सेवा बिहान १०:०० बजे प्रत्यक्ष — सबैलाई स्वागत छ!");
   const link = banner.items?.[0]?.link || null;
 
+  // Not text-white: the bar sits on --primary, which is navy in light mode and
+  // near-white in dark, so white measured 1.04:1 against the dark theme's bar.
+  // --primary-foreground is the partner token that inverts along with it.
   const content = (
-    <span className="text-white/90 text-center">
+    <span className="text-primary-foreground/90 text-center">
       {link ? (
-        <Link href={link} className="underline underline-offset-2 hover:text-white transition-colors">
+        <Link href={link} className="underline underline-offset-2 hover:text-primary-foreground transition-colors">
           {text}
         </Link>
       ) : text}

@@ -1,4 +1,12 @@
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=Noto+Sans+Devanagari:wght@400;500;600;700&display=swap');
+/* Devanagari faces offered by the Bible reader's font picker. Kept in a second
+   @import so the site's own three faces above are unaffected: these are only
+   requested because the reader lets a visitor choose one, and `display=swap`
+   means scripture is never invisible while a face downloads.
+   Annapurna SIL is deliberately absent — it is published by SIL, not Google
+   Fonts, so the picker resolves it through local() and falls back when the
+   reader does not have it installed. */
+@import url('https://fonts.googleapis.com/css2?family=Anek+Devanagari:wght@400;500;600;700&family=Khand:wght@400;500;600;700&family=Yatra+One&family=Gotu&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -31,8 +39,11 @@
   --gold-soft: #f3e2b3;
   /* `--gold` is a SURFACE colour (gold buttons/badges with dark text on top).
      As label text on white it only reaches 2.25:1, well under WCAG AA. Use
-     --gold-text for gold-coloured text on light backgrounds — 4.5:1 on #f7f9fc. */
-  --gold-text: #8a6400;
+     --gold-text for gold-coloured text on light backgrounds — 4.5:1 on #f7f9fc.
+     Nudged from #8a6400: on the tinted surface a bg-gold/15 badge actually
+     produces (#f0e7cf) it measured 4.36:1, so the one place gold text is used
+     most was the one place it missed. #845f00 clears 4.5:1 on all four. */
+  --gold-text: #845f00;
   --success: #2e8b57;
   --section-bg: #f7f9fc;
 
@@ -47,7 +58,12 @@
   --secondary: #eaf2f6;
   --secondary-foreground: #0b3c5d;
   --muted: #f7f9fc;
-  --muted-foreground: #64748b;
+  /* Was slate-500 (#64748b), which reaches only 4.32:1 on the warm off-white
+     section surfaces and 4.51:1 on --muted - i.e. it failed AA on exactly the
+     backgrounds it is most often used against. A dozen text-slate and text-gray
+     utilities are remapped onto this token, so the shortfall was site-wide.
+     Darkened just enough to clear 4.5:1 on every surface in use (worst 5.00:1). */
+  --muted-foreground: #5c6a7d;
   --accent: #fbf3dd;
   --accent-foreground: #7a5a04;
   --destructive: #d4183d;
@@ -647,3 +663,20 @@ body {
     display: table-header-group;
   }
 }
+
+
+/* The Bible sidebar already carried `scrollbar-thin`, but nothing ever defined
+   it — so a default light-grey native scrollbar sat against the navy rail.
+   Scoped to the class rather than applied globally, since the rest of the site
+   is on light surfaces where the platform scrollbar is the right one. */
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.32) transparent;
+}
+.scrollbar-thin::-webkit-scrollbar { width: 8px; height: 8px; }
+.scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.28);
+  border-radius: 9999px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb:hover { background-color: rgba(255, 255, 255, 0.48); }
