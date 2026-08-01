@@ -678,7 +678,18 @@ pub(crate) async fn build(
 /// Completed and not refunded, netted. A refunded gift that still counts is
 /// the reason a treasurer stops trusting the report.
 const GIVEN: &str = "status = 'completed' AND refund_status <> 'refunded'";
-const NET: &str = "COALESCE(SUM(amount - COALESCE(refund_amount, 0))::bigint, 0)";
+/// Donation money, in minor units.
+///
+/// Two conventions live in this database: `offerings.total_amount` is already
+/// paisa, but `donations.amount`, `pledges.amount` and `campaigns.goal` are
+/// whole rupees — the public site, the admin campaign page and the pledges
+/// table all render those three with `.toLocaleString()` and no division.
+/// Every report here declares its money columns `ColumnKind::Money`, which the
+/// client divides by 100 exactly once at the edge, so the rupee-denominated
+/// tables have to be lifted to minor units here or they come out 100x short.
+/// Unfixed, a church that received Rs 837,000 read "Rs 8,370" on the dashboard,
+/// in every report and in the CSV a treasurer hands to an auditor.
+const NET: &str = "(COALESCE(SUM(amount - COALESCE(refund_amount, 0))::bigint, 0) * 100)";
 
 async fn giving_summary(
     pool: &sqlx::PgPool,
@@ -1479,10 +1490,13 @@ async fn pledge_fulfilment(
     // dropping it because it was promised outside the window is how a
     // shortfall quietly disappears from the report that exists to show it.
     let rows = sqlx::query_as::<_, (String, String, i64, i64, String)>(
+        // Both figures are whole rupees on the pledges table (see NET), so both
+        // are lifted to minor units here. Scaling only one of the pair would
+        // report every pledge as 99% outstanding.
         "SELECT COALESCE(NULLIF(pl.person_name,''), 'Anonymous'),
                 COALESCE(c.title, 'No campaign'),
-                pl.amount::bigint,
-                COALESCE(pl.fulfilled_amount, 0)::bigint,
+                (pl.amount::bigint * 100),
+                (COALESCE(pl.fulfilled_amount, 0)::bigint * 100),
                 COALESCE(NULLIF(pl.status,''), 'open')
          FROM pledges pl LEFT JOIN campaigns c ON c.id = pl.campaign_id
          WHERE pl.created_at::date BETWEEN $1 AND $2
@@ -1501,7 +1515,7 @@ async fn pledge_fulfilment(
     let complete = rows.iter().filter(|x| x.2 > 0 && x.3 >= x.2).count() as i64;
 
     let (prev_promised,): (i64,) = sqlx::query_as(
-        "SELECT COALESCE(SUM(amount)::bigint, 0) FROM pledges
+        "SELECT (COALESCE(SUM(amount)::bigint, 0) * 100) FROM pledges
          WHERE created_at::date BETWEEN $1 AND $2",
     )
     .bind(p.compare_from)
@@ -1639,8 +1653,12 @@ async fn campaign_progress(
     // the donations, so the report and the ledger cannot disagree about how
     // an appeal is doing.
     let rows = sqlx::query_as::<_, (String, i64, i64, i64, bool)>(&format!(
+        // `c.goal` is whole rupees (see NET); lifted to minor units so it is
+        // comparable with the donation total beside it. Left unscaled, the
+        // "targets met" count below compared paisa against rupees and every
+        // appeal looked 100x over target.
         "SELECT c.title,
-                COALESCE(c.goal, 0)::bigint,
+                (COALESCE(c.goal, 0)::bigint * 100),
                 COALESCE(g.total, 0)::bigint,
                 COALESCE(g.gifts, 0)::bigint,
                 c.enabled
