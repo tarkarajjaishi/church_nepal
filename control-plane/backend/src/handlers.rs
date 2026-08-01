@@ -639,7 +639,7 @@ pub async fn list_churches(_auth: Authenticated, State(st): State<AppState>) -> 
         // ::bigint — see get_church. SUM() over bigint is numeric, and without
         // the cast this silently reported every church as having given nothing.
         let giving_total: (i64,) =
-            sqlx::query_as("SELECT COALESCE(SUM(total_amount), 0)::bigint FROM offerings")
+            sqlx::query_as("SELECT COALESCE((SELECT SUM(total_amount) FILTER (WHERE status = 'approved') FROM offerings), 0)::bigint + COALESCE((SELECT SUM(amount) FILTER (WHERE status = 'completed') FROM donations), 0)::bigint * 100")
                 .fetch_one(&pool)
                 .await
                 .unwrap_or((0,));
@@ -748,7 +748,7 @@ pub async fn get_church(
     // unwrap_or below turned the failure into a confident "Rs 0" on the
     // dashboard, beside a member count that worked because COUNT(*) is bigint.
     let giving_total: (i64,) =
-        sqlx::query_as("SELECT COALESCE(SUM(total_amount), 0)::bigint FROM offerings")
+        sqlx::query_as("SELECT COALESCE((SELECT SUM(total_amount) FILTER (WHERE status = 'approved') FROM offerings), 0)::bigint + COALESCE((SELECT SUM(amount) FILTER (WHERE status = 'completed') FROM donations), 0)::bigint * 100")
             .fetch_one(&pool)
             .await
             .unwrap_or((0,));
@@ -2114,7 +2114,7 @@ pub async fn get_church_stats(
         .await
         .unwrap_or((0,));
 
-    let giving: (i64,) = sqlx::query_as("SELECT COALESCE(SUM(total_amount), 0) FROM offerings")
+    let giving: (i64,) = sqlx::query_as("SELECT COALESCE((SELECT SUM(total_amount) FILTER (WHERE status = 'approved') FROM offerings), 0)::bigint + COALESCE((SELECT SUM(amount) FILTER (WHERE status = 'completed') FROM donations), 0)::bigint * 100")
         .fetch_one(&pool)
         .await
         .unwrap_or((0,));
