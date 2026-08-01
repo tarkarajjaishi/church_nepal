@@ -5,10 +5,54 @@ use crate::auth::AuthUser;
 use crate::error::AppError;
 use crate::models::{Campaign, CreateCampaign, Paginated, Pagination, UpdateCampaign};
 
+/// Replace the stored `raised` with what the donations ledger actually holds.
+///
+/// `campaigns.raised` is a stored total that only moves when someone calls
+/// `recalc_raised` by hand, and nothing calls it when a gift completes. It had
+/// drifted to Rs 1,440,000 across six appeals while the completed donations
+/// linked to them came to Rs 25,000 — the public homepage was advertising
+/// fundraising progress that no gift in the database supported, and the admin
+/// reports (which derive the figure) disagreed with the website.
+///
+/// Deriving on read means the number cannot drift again: the appeal and the
+/// ledger are the same query.
+async fn with_derived_raised(
+    pool: &sqlx::PgPool,
+    rows: &mut [Campaign],
+) -> Result<(), AppError> {
+    if rows.is_empty() {
+        return Ok(());
+    }
+    let ids: Vec<uuid::Uuid> = rows.iter().map(|c| c.id).collect();
+    // ::bigint because SUM() over BIGINT returns NUMERIC, which sqlx will not
+    // decode into i64.
+    let sums: Vec<(uuid::Uuid, i64)> = sqlx::query_as(
+        "SELECT campaign_id, COALESCE(SUM(amount), 0)::bigint
+         FROM donations
+         WHERE campaign_id = ANY($1) AND status = 'completed'
+         GROUP BY campaign_id",
+    )
+    .bind(&ids)
+    .fetch_all(pool)
+    .await?;
+
+    for row in rows.iter_mut() {
+        // An appeal with no completed gifts has raised nothing, so absence has
+        // to reset the figure rather than leave the stale one in place.
+        row.raised = sums
+            .iter()
+            .find(|(id, _)| *id == row.id)
+            .map(|(_, total)| *total)
+            .unwrap_or(0);
+    }
+    Ok(())
+}
+
 pub async fn list(Db(pool): Db, Query(p): Query<Pagination>) -> Result<Json<Paginated<Campaign>>, AppError> {
     let total: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM campaigns").fetch_one(&pool).await?;
-    let rows = sqlx::query_as::<_, Campaign>("SELECT * FROM campaigns ORDER BY sort_order NULLS LAST, created_at DESC LIMIT $1 OFFSET $2")
+    let mut rows = sqlx::query_as::<_, Campaign>("SELECT * FROM campaigns ORDER BY sort_order NULLS LAST, created_at DESC LIMIT $1 OFFSET $2")
         .bind(p.limit()).bind(p.offset()).fetch_all(&pool).await?;
+    with_derived_raised(&pool, &mut rows).await?;
     Ok(Json(Paginated::new(rows, total, &p)))
 }
 
@@ -16,6 +60,9 @@ pub async fn get(Db(pool): Db, Path(id): Path<uuid::Uuid>) -> Result<Json<Campai
     let row = sqlx::query_as::<_, Campaign>("SELECT * FROM campaigns WHERE id = $1")
         .bind(id)
         .fetch_optional(&pool).await?.ok_or_else(|| AppError::not_found("Campaign not found"))?;
+    let mut one = [row];
+    with_derived_raised(&pool, &mut one).await?;
+    let [row] = one;
     Ok(Json(row))
 }
 
@@ -34,7 +81,9 @@ pub async fn get_stats(Db(pool): Db, Path(id): Path<uuid::Uuid>) -> Result<Json<
     let campaign: Option<Campaign> = sqlx::query_as("SELECT * FROM campaigns WHERE id = $1")
         .bind(id).fetch_optional(&pool).await?;
     let goal = campaign.as_ref().map(|c| c.goal).unwrap_or(0);
-    let raised = campaign.as_ref().map(|c| c.raised).unwrap_or(0);
+    // The completed-donation total queried above, not the stored column, for
+    // the same reason as `with_derived_raised`: the stored one drifts.
+    let raised = donation_total.0;
     let total_toward_goal = raised + pledge_total.0;
     let pct = if goal > 0 { ((total_toward_goal as f64 / goal as f64) * 100.0).min(100.0) } else { 0.0 };
 
