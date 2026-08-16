@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { motion, useReducedMotion } from "motion/react";
 import useEmblaCarousel from 'embla-carousel-react';
 import {
-  Play, Calendar, Clock, MapPin, ArrowRight, Quote, Star, Share2, HandHeart, Heart, ChevronRight, ChevronLeft, Mail, CheckCircle, FileText, ZoomIn, Target, Car,
+  Play, Calendar, CalendarDays, Clock, MapPin, ArrowRight, Quote, Star, Share2, HandHeart, Heart, ChevronRight, ChevronLeft, Mail, CheckCircle, FileText, ZoomIn, Target, Car,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,7 @@ import { images } from "@/lib/data";
 import {
   useEnabledServiceTimes, useEnabledSermons, useEnabledMinistries, useEnabledEvents,
   useEnabledTestimonies, useEnabledGallery, useEnabledCampaigns, useEnabledVerses,
+  useEnabledNotices, useEnabledMembers,
   useContentBlocks, ContentBlock,
 } from "@/lib/hooks";
 import { EditableBlock } from "@/components/site/EditableBlock";
@@ -822,12 +823,45 @@ function PrayerCtaSection({ block, t }: { block: ContentBlock | null; t: (k: str
   );
 }
 
-function NoticeBoardSection({ block }: { block: ContentBlock | null }) {
+// Rendered nothing but a heading and a button until 2026-08-16, while the API
+// had notices to show — the section looked built and was empty on every church.
+function NoticeBoardSection({ block, allNotices }: {
+  block: ContentBlock | null;
+  allNotices: any[];
+}) {
+  const notices = allNotices.slice(0, 6);
   return (
     <EditableBlock block={block} adminHref="/admin/notices" adminLabel="notices">
       <section className="py-20">
         <div className="mx-auto max-w-7xl px-4">
           <SectionHeading eyebrow={<Eyebrow block={block} fallback="Notice Board" />} title={block?.title || "Church Notices"} subtitle={block?.subtitle || ""} />
+
+          {notices.length > 0 && (
+            <div className="mt-12 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+              {notices.map((n, i) => (
+                <Reveal key={n.id} delay={(i % 3) * 0.08}>
+                  <Card className={`h-full p-5 border-border/60 hover:shadow-lg transition-all ${n.urgent ? 'border-l-4 border-l-gold' : ''}`}>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {n.urgent && (
+                        <Badge className="bg-gold text-church-blue border-0">Urgent</Badge>
+                      )}
+                      {n.category && (
+                        <span className="text-xs uppercase tracking-wide text-muted-foreground">{n.category}</span>
+                      )}
+                    </div>
+                    <h3 className="mt-2 text-church-blue" style={{ fontFamily: "var(--font-heading)", fontWeight: 600 }}>{n.title}</h3>
+                    {n.date && (
+                      <div className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
+                        <CalendarDays className="size-4 text-gold" /> {n.date}
+                      </div>
+                    )}
+                    {n.text && <p className="mt-3 text-sm text-muted-foreground">{n.text}</p>}
+                  </Card>
+                </Reveal>
+              ))}
+            </div>
+          )}
+
           <div className="mt-8 text-center"><Button asChild variant="outline" className="border-church-blue text-church-blue hover:bg-church-blue hover:text-white"><Link href="/events">{block?.items?.[0]?.view_all || "View All Events"} <ArrowRight className="size-4" /></Link></Button></div>
         </div>
       </section>
@@ -950,12 +984,40 @@ function TestimoniesSection({ block, allTestimonies }: {
   );
 }
 
-function ChurchMembersSection({ block }: { block: ContentBlock | null }) {
+// Also rendered nothing but a heading and two buttons, while /api/members had
+// the congregation to show. components/site/ChurchMembers.tsx contains a grid
+// that does this properly but is imported nowhere — this is the section the
+// homepage actually renders.
+function ChurchMembersSection({ block, allMembers }: {
+  block: ContentBlock | null;
+  allMembers: any[];
+}) {
+  const members = allMembers.slice(0, 8);
   return (
     <EditableBlock block={block} adminHref="/admin/members" adminLabel="members">
       <section className="py-20 bg-section">
         <div className="mx-auto max-w-7xl px-4">
           <SectionHeading eyebrow={<Eyebrow block={block} fallback="Our Family" />} title={block?.title || "Church Members"} subtitle={block?.subtitle || ""} />
+
+          {members.length > 0 && (
+            <div className="mt-12 grid grid-cols-2 gap-6 sm:grid-cols-3 lg:grid-cols-4">
+              {members.map((m, i) => (
+                <Reveal key={m.id} delay={(i % 4) * 0.06}>
+                  <Card className="group overflow-hidden h-full border-border/60 hover:shadow-xl transition-all gap-0 text-center">
+                    <div className="relative aspect-square overflow-hidden">
+                      <ImageWithFallback fill src={m.image} alt={m.name} sizes="(max-width:640px) 50vw, 25vw" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                    </div>
+                    <div className="p-4">
+                      <h3 className="text-church-blue" style={{ fontFamily: "var(--font-heading)", fontWeight: 600 }}>{m.name}</h3>
+                      {m.role && <p className="text-sm text-gold">{m.role}</p>}
+                      {m.since && <p className="mt-1 text-xs text-muted-foreground">Member since {m.since}</p>}
+                    </div>
+                  </Card>
+                </Reveal>
+              ))}
+            </div>
+          )}
+
           <div className="mt-10 text-center">
             <p className="text-muted-foreground max-w-xl mx-auto">{block?.items?.[0]?.join_desc || ""}</p>
             <div className="mt-6 flex gap-4 justify-center">
@@ -1435,6 +1497,10 @@ export function HomepageSections() {
   const { data: allGallery = [] } = useEnabledGallery();
   const { data: allCampaigns = [] } = useEnabledCampaigns();
   const { data: allVerses = [] } = useEnabledVerses();
+  // Both hooks already existed; the homepage simply never called them, so the
+  // notice board and members sections rendered headings over nothing.
+  const { data: allNotices = [] } = useEnabledNotices();
+  const { data: allMembers = [] } = useEnabledMembers();
   // contentBlocks drives BOTH the copy and the section order, so rendering
   // before it arrives paints an empty page in the default order and then
   // reflows/reorders once it lands. Gate on it instead.
@@ -1632,6 +1698,7 @@ export function HomepageSections() {
               <NoticeBoardSection
                 key={key}
                 block={cb('notice_board')}
+                allNotices={allNotices}
               />
             );
             break;
@@ -1655,6 +1722,7 @@ export function HomepageSections() {
               <ChurchMembersSection
                 key={key}
                 block={cb('church_members')}
+                allMembers={allMembers}
               />
             );
             break;

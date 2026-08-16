@@ -25,6 +25,21 @@ spec:
     requests:
       storage: 5Gi
 ---
+# Next's image optimiser cache. Without a volume it lives in the container, so
+# every rollout throws it away and the next visitor pays to re-fetch and
+# re-encode every remote image on the page — ~1.5s each, 17 of them on the
+# homepage. With auto-deploy on each push, that was happening constantly.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: churchnepal-image-cache
+  namespace: churchnepal
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 2Gi
+---
 apiVersion: v1
 kind: Service
 metadata:
@@ -145,6 +160,8 @@ spec:
     metadata:
       labels: { app: church-ui }
     spec:
+      # Matches the uid the image runs as, so the mounted cache is writable.
+      securityContext: { runAsUser: 100, runAsGroup: 101, fsGroup: 101 }
       containers:
         - name: church-ui
           image: churchnepal/church-ui:dev
@@ -152,12 +169,17 @@ spec:
           env:
             - { name: API_INTERNAL_ORIGIN, value: "http://church-api:3002" }
           ports: [{ containerPort: 3000 }]
+          volumeMounts:
+            - { name: image-cache, mountPath: /app/.next/cache }
           readinessProbe:
             tcpSocket: { port: 3000 }
             initialDelaySeconds: 5
           resources:
             requests: { cpu: 50m, memory: 160Mi }
             limits:   { cpu: 800m, memory: 512Mi }
+      volumes:
+        - name: image-cache
+          persistentVolumeClaim: { claimName: churchnepal-image-cache }
 ---
 apiVersion: v1
 kind: Service
