@@ -79,7 +79,11 @@ function BlogPageContent() {
       if (page > 1) params.set('page', String(page))
       params.set('per_page', String(perPage))
       const qs = params.toString()
-      const { data } = await api.get('/blog/published' + (qs ? '?' + qs : ''))
+      // Typed so `pageData.data` is BlogPost[] rather than any — otherwise the
+      // .map() callback below has implicit-any parameters.
+      const { data } = await api.get<{ data: BlogPost[]; total: number; per_page: number }>(
+        '/blog/published' + (qs ? '?' + qs : '')
+      )
       return data
     },
   })

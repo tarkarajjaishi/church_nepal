@@ -17,6 +17,13 @@ interface Donation {
   createdAt: string
   transactionId?: string
   notes?: string
+  // /portal/donations returns the whole donations row, and the CSV export
+  // below reads these. Names are camelCase because the api client's response
+  // interceptor rewrites the snake_case the backend emits.
+  donorName?: string
+  donorEmail?: string
+  donorPhone?: string
+  fundId?: string
 }
 
 interface DonationSummary {

@@ -73,7 +73,10 @@ export default function Events() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   // Get distinct categories from events
-  const categories = Array.from(new Set(events.map(e => e.category).filter(Boolean)));
+  // A type predicate, because .filter(Boolean) does not narrow away undefined.
+  const categories = Array.from(
+    new Set(events.map(e => e.category).filter((c): c is string => Boolean(c)))
+  );
 
   // Filter events by selected category
   const filteredEvents = events.filter(event => {

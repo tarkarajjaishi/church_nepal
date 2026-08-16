@@ -416,9 +416,12 @@ function ServiceTimesTab() {
     }
   }, [deleteMut, refetchServiceTimes])
 
-  const handleToggle = useCallback(async (id: string) => {
+  // Takes the new value because the mutation needs {id, enabled}. It was
+  // passed the bare id, so the hook read `values.id` off a string and issued
+  // PUT /service-times/undefined — the switch never persisted anything.
+  const handleToggle = useCallback(async (id: string, enabled: boolean) => {
     try {
-      await toggleMut.mutateAsync(id)
+      await toggleMut.mutateAsync({ id, enabled })
       toast.success('Status updated')
       refetchServiceTimes()
     } catch {
@@ -430,16 +433,16 @@ function ServiceTimesTab() {
     e.preventDefault()
     try {
       if (editId) {
+        // Flat, not nested under `data` — the mutation takes
+        // `Partial<ServiceTime> & { id }` and splits the id off itself.
         await updateMut.mutateAsync({
           id: editId,
-          data: {
-            name: form.name,
-            nameNe: form.nameNe,
-            day: form.day,
-            time: form.time,
-            icon: form.icon,
-            sortOrder: form.sortOrder,
-          },
+          name: form.name,
+          nameNe: form.nameNe,
+          day: form.day,
+          time: form.time,
+          icon: form.icon,
+          sortOrder: form.sortOrder,
         })
         toast.success('Service time updated')
       } else {
@@ -493,7 +496,7 @@ function ServiceTimesTab() {
                 <div className="flex items-center gap-3">
                   <Switch
                     checked={st.enabled ?? false}
-                    onCheckedChange={() => handleToggle(st.id)}
+                    onCheckedChange={(checked) => handleToggle(st.id, checked)}
                     disabled={deletingId === st.id}
                     aria-label={`Show ${st.name} in the service times list`}
                   />
@@ -752,7 +755,7 @@ export default function SettingsPage() {
           phone: contactInfo?.phone ?? '',
           email: contactInfo?.email ?? '',
           hours: contactInfo?.hours ?? '',
-          map_url: contactInfo?.mapUrl ?? '',
+          mapUrl: contactInfo?.mapUrl ?? '',
         })
         toast.success('Contact info created')
         refetchContactInfo()

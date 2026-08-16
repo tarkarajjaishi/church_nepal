@@ -45,7 +45,8 @@ export default function ThemePage() {
   const [publishing, setPublishing] = useState(false)
   const [published, setPublished] = useState(false)
   const [saving, setSaving] = useState(false)
-  const saveTimer = useRef<ReturnType<typeof setTimeout>>()
+  // React 19's useRef requires an explicit initial value.
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
   const activePreset = findPresetByName(themeSettings[THEME_SETTING_KEYS.theme_preset] || '')
   const primary = isValidHex(themeSettings[THEME_SETTING_KEYS.primary]) && themeSettings[THEME_SETTING_KEYS.primary].length >= 7

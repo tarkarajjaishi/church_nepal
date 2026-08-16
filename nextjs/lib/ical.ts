@@ -1,4 +1,5 @@
-import { Event } from '@/types';
+// There is no `@/types` module; the event type lives with its hooks.
+import type { ChurchEvent as Event } from '@/lib/hooks/events';
 
 // iCal generator for a single event (returns VEVENT block only)
 export function generateICal(event: Event): string {

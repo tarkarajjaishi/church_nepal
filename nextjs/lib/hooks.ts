@@ -395,7 +395,11 @@ export function useUpsertSetting() {
 export function useContactInfo() {
   return useQuery({
     queryKey: ["contact-info"],
-    queryFn: () => fetchAll<ContactInfo>("contact-info").then(list => list[0] ?? null),
+    // Return type is explicit: `list[0]` is typed non-null, so without it the
+    // queryFn infers Promise<ContactInfo> and the null placeholder below no
+    // longer fits any overload. The table really can be empty.
+    queryFn: (): Promise<ContactInfo | null> =>
+      fetchAll<ContactInfo>("contact-info").then(list => list[0] ?? null),
     // Annotated: a bare `null` makes TypeScript infer the query's data type as
     // null, which then rejects the ContactInfo the queryFn actually returns.
     placeholderData: null as ContactInfo | null,

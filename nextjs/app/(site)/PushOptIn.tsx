@@ -7,7 +7,10 @@ import { Button } from '@/components/ui/button'
 
 const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || ''
 
-function urlBase64ToUint8Array(base64: string): Uint8Array {
+// Return type is pinned to Uint8Array<ArrayBuffer>. Since TS 5.7 Uint8Array is
+// generic over its buffer, and the default ArrayBufferLike is not assignable to
+// the BufferSource that pushManager.subscribe expects.
+function urlBase64ToUint8Array(base64: string): Uint8Array<ArrayBuffer> {
   const padding = '='.repeat((4 - (base64.length % 4)) % 4)
   const base64url = base64.replace(/-/g, '+').replace(/_/g, '/') + padding
   const raw = atob(base64url)

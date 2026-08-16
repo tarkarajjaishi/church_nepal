@@ -79,8 +79,13 @@ const [headingFont, setHeadingFont] = useState<string>(DEFAULT_HEADING_FONT)
         api.get('/settings/theme/draft').then(({ data: draftData }) => {
           const draftExists_ = draftData && Object.keys(draftData).length > 0
           setDraftExists(draftExists_)
-          const draftEntries = draftExists_ ? Object.entries(draftData) : []
-          const merged = new Map([...pubMap, ...draftEntries])
+          // Annotated because `draftData` is untyped: without it the entries
+          // come back as [string, {}] and every merged.get() below widens to
+          // `{}`, which is not assignable to the string setters.
+          const draftEntries: [string, string][] = draftExists_
+            ? Object.entries(draftData as Record<string, string>)
+            : []
+          const merged = new Map<string, string>([...pubMap, ...draftEntries])
 
           const p = merged.get(THEME_SETTING_KEYS.primary)
           if (p && isValidHex(p)) setPrimary(p)
@@ -238,7 +243,9 @@ const changeRadius = (r: string) => {
       [THEME_SETTING_KEYS.radius]: DEFAULT_RADIUS,
       [THEME_SETTING_KEYS.logo]: DEFAULT_LOGO,
     }
-    saveDraft(draft).then(() => setDraftExists(true)).catch(() => {})
+    // saveDraft is debounced and returns void; it already flips draftExists
+    // once the request lands.
+    saveDraft(draft)
   }
 
   const handlePublish = async () => {

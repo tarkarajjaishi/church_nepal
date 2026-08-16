@@ -47,7 +47,9 @@ export default async function manifest(): Promise<MetadataRoute.Manifest> {
     icons: [
       { src: '/icon-192.png', sizes: '192x192', type: 'image/png' },
       { src: '/icon-512.png', sizes: '512x512', type: 'image/png' },
-      { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
+      // 'any maskable' is valid in the raw manifest spec but Next's type takes
+      // one value; the entry above already covers the default 'any' purpose.
+      { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
     ],
   }
 }

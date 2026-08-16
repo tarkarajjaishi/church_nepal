@@ -59,9 +59,10 @@ function createPng(size: number, draw: (x: number, y: number) => [number, number
 }
 
 function drawCrossIcon(size: number): Buffer {
-  const blue = [0x0b, 0x3c, 0x5d, 255]
-  const white = [0xff, 0xff, 0xff, 255]
-  const transparent = [0, 0, 0, 0]
+  // Tuples, not number[] — createPng's draw callback returns exactly RGBA.
+  const blue: [number, number, number, number] = [0x0b, 0x3c, 0x5d, 255]
+  const white: [number, number, number, number] = [0xff, 0xff, 0xff, 255]
+  const transparent: [number, number, number, number] = [0, 0, 0, 0]
 
   return createPng(size, (x, y) => {
     const cx = size / 2

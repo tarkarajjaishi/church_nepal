@@ -3,7 +3,8 @@
 import * as React from 'react';
 import { useState } from 'react';
 import { ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react';
-import { Event } from '@/types';
+// There is no `@/types` module; the event type lives with its hooks.
+import type { ChurchEvent as Event } from '@/lib/hooks/events';
 
 interface CalendarViewProps {
   events: Event[];

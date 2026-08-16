@@ -38,8 +38,12 @@ export interface BlogPost {
   image: string
   published: boolean
   featured: boolean
-  created_at?: string
-  updated_at?: string
+  // camelCase: the api client's response interceptor rewrites the snake_case
+  // the backend emits, so `created_at` was undefined at runtime for every
+  // consumer of this type. Other interfaces in this file still declare
+  // snake_case timestamps; they are dormant only because nothing reads them.
+  createdAt?: string
+  updatedAt?: string
 }
 
 export interface ContentBlock {

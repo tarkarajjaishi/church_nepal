@@ -40,7 +40,9 @@ export default function Contact() {
   const formBlock = useContentBlock("contact_form");
   const infoBlock = useContentBlock("contact_info");
 
-  const contact = contactList?.[0] ?? FALLBACK;
+  // useContactInfo already returns the single record (its queryFn takes
+  // list[0]), so indexing it again was reading [0] off an object.
+  const contact = contactList ?? FALLBACK;
 
   const info = [
     { icon: MapPin, title: "Address", lines: parseLines(contact.address || FALLBACK.address) },

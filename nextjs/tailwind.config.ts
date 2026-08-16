@@ -14,10 +14,14 @@ import type { Config } from 'tailwindcss'
  * and none to the theme customiser, which writes hex at runtime.
  */
 const themed = (name: string) =>
-  ({ opacityValue }: { opacityValue?: string }) =>
+  // Tailwind resolves a colour function at build time, but its own types model
+  // `colors` as RecursiveKeyValuePair<string, string> and have no variant for
+  // the function form. The cast is the gap in the types, not in the value —
+  // every one of these 27 entries is a supported colour function.
+  ((({ opacityValue }: { opacityValue?: string }) =>
     opacityValue === undefined || opacityValue === '1'
       ? `var(${name})`
-      : `color-mix(in srgb, var(${name}) calc(${opacityValue} * 100%), transparent)`
+      : `color-mix(in srgb, var(${name}) calc(${opacityValue} * 100%), transparent)`) as unknown as string)
 
 const config: Config = {
   darkMode: ['class'],

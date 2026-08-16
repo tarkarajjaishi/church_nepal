@@ -84,7 +84,11 @@ function SermonsContent() {
       if (page > 1) params.set('page', String(page))
       params.set('per_page', String(perPage))
       const qs = params.toString()
-      const { data } = await api.get('/sermons/public' + (qs ? '?' + qs : ''))
+      // Typed so `pageData.data` is Sermon[] rather than any — otherwise the
+      // .map() callback below has implicit-any parameters.
+      const { data } = await api.get<{ data: Sermon[]; total: number; per_page: number }>(
+        '/sermons/public' + (qs ? '?' + qs : '')
+      )
       return data
     },
   })

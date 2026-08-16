@@ -28,6 +28,10 @@ export interface ServiceTime {
   day: string;
   time: string;
   icon: string;
+  /** Present on API rows but not on the static fallback list below, which is
+   *  why these are optional — /admin/settings reads and writes both. */
+  sortOrder?: number;
+  enabled?: boolean;
 }
 
 export const serviceTimes: ServiceTime[] = [
@@ -98,6 +102,9 @@ export interface ChurchEvent {
   image: string;
   description: string;
   capacity?: number;
+  /** The API never sends this — the backend event model has no category
+   *  column — so the /events category filter always renders empty. */
+  category?: string;
 }
 
 export const events: ChurchEvent[] = [

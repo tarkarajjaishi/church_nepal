@@ -65,10 +65,15 @@ export default function FormSubmissionPage() {
   }, [slug])
 
   // Generate Zod schema for form validation
-  const generateValidationSchema = () => {
+  // Return type is annotated so both exits agree. Without it the empty early
+  // return infers ZodObject<{}> -> Record<string, never>, which the form
+  // resolver then rejects.
+  const generateValidationSchema = (): z.ZodObject<z.ZodRawShape> => {
     if (!form) return z.object({})
-    
-    const shape: any = {}
+
+    // Mutable record rather than z.ZodRawShape, whose index signature is
+    // readonly and so rejects the assignment below.
+    const shape: Record<string, z.ZodTypeAny> = {}
     
     form.fields.forEach(field => {
       let fieldSchema: any
@@ -85,8 +90,8 @@ export default function FormSubmissionPage() {
         case 'number':
           fieldSchema = z.string()
           if (field.required) fieldSchema = fieldSchema.min(1, `${field.label} is required`)
-          fieldSchema = fieldSchema.transform(val => Number(val))
-          if (field.type === 'number') fieldSchema = fieldSchema.refine(val => !isNaN(val), { message: 'Must be a number' })
+          fieldSchema = fieldSchema.transform((val: string) => Number(val))
+          if (field.type === 'number') fieldSchema = fieldSchema.refine((val: number) => !isNaN(val), { message: 'Must be a number' })
           break
           
         case 'textarea':
@@ -99,7 +104,7 @@ export default function FormSubmissionPage() {
           if (field.required) fieldSchema = fieldSchema.min(1, `${field.label} is required`)
           if (field.options?.length) {
             fieldSchema = fieldSchema.refine(
-              val => field.options!.includes(val),
+              (val: string) => field.options!.includes(val),
               { message: `Please select a valid option` }
             )
           }
@@ -109,7 +114,7 @@ export default function FormSubmissionPage() {
           fieldSchema = z.boolean()
           if (field.required) {
             fieldSchema = fieldSchema.refine(
-              val => val === true,
+              (val: boolean) => val === true,
               { message: `${field.label} is required` }
             )
           }

@@ -30,6 +30,10 @@ interface BibleSidebarProps {
   onClose: () => void
   fontSize: number
   onFontSizeChange: (size: number) => void
+  /** Reading typeface. Destructured by the component and passed by BibleApp,
+   *  but was never declared here — so the props were an error at both ends. */
+  fontId: string
+  onFontChange: (fontId: string) => void
   /** Desktop always-visible mode vs mobile drawer */
   mode?: 'desktop' | 'drawer'
 }
