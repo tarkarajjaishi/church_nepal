@@ -21,6 +21,31 @@ pub struct Member {
     pub household_id: Option<uuid::Uuid>,
 }
 
+/// What `GET /members` and `GET /members/{id}` return.
+///
+/// Those two routes are public — the homepage renders them — so they must not
+/// carry the contact and pastoral columns `Member` holds. This is deliberately
+/// a separate struct rather than `#[serde(skip_serializing)]` on `Member`:
+/// `portal_me` returns a `Member` to a signed-in member looking at their own
+/// record, and that one *should* include their email, phone and address.
+///
+/// Name the columns. `SELECT *` into a struct is what shipped every admin's
+/// TOTP secret to the browser, and it leaks again the day a column is added.
+#[derive(Debug, Serialize, Deserialize, FromRow)]
+pub struct PublicMember {
+    pub id: uuid::Uuid,
+    pub name: String,
+    pub role: String,
+    pub since: String,
+    pub image: String,
+    pub enabled: Option<bool>,
+    pub sort_order: Option<i32>,
+    pub created_at: chrono::NaiveDateTime,
+}
+
+pub const PUBLIC_MEMBER_COLUMNS: &str =
+    "id, name, role, since, image, enabled, sort_order, created_at";
+
 #[derive(Debug, Deserialize, Default)]
 pub struct MemberListQuery {
     pub page: Option<i64>,

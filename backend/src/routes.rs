@@ -99,10 +99,6 @@ fn public_read_routes() -> Router {
         .route("/contact-info/{id}", get(contact_info::get))
         .route("/groups", get(groups::list))
         .route("/groups/{id}", get(groups::get))
-        .route("/dashboard/stats", get(dashboard::stats))
-        .route("/dashboard/search", get(dashboard::search))
-        .route("/people/stats", get(people::stats))
-        .route("/offerings/stats", get(offerings::stats))
         .route("/donations/{id}/receipt", get(donations::receipt))
         .route("/donations/status", get(donations::status))
         // Broadcasts
@@ -944,6 +940,16 @@ pub fn admin_routes() -> Router {
         )
         // Search (admin)
         .route("/search", get(dashboard::search))
+        // These four sat in public_read_routes and answered 200 with no token:
+        // giving totals, congregation counts and the admin dashboard counters
+        // were readable by anyone who knew the hostname. Nothing outside
+        // /admin/* has ever called them. `dashboard`, `people` and `offerings`
+        // are already in the permission catalogue, so the move alone gates them
+        // at dashboard.view / people.view / giving.view respectively.
+        .route("/dashboard/stats", get(dashboard::stats))
+        .route("/dashboard/search", get(dashboard::search))
+        .route("/people/stats", get(people::stats))
+        .route("/offerings/stats", get(offerings::stats))
         // 1 000/min keyed on the bearer token, so one busy admin session cannot
         // consume another's budget. Falls back to IP when no token is present.
         .layer(GovernorLayer { config: per_token_governor() })

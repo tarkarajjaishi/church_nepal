@@ -17,7 +17,12 @@ pub struct SearchResult {
     id: Uuid,
     title: String,
     result_type: String,
-    body: String,
+    /// Nullable. The member branch of the union selects `email`, which is the
+    /// one nullable column feeding this field — a member with no email made
+    /// sqlx fail the row decode and answered 500 for *any* term that matched
+    /// something, while `?q=a` returned a clean `[]` because a stopword makes
+    /// the tsquery match nothing and no row is ever decoded.
+    body: Option<String>,
     rank: f32,
 }
 

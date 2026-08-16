@@ -8,6 +8,7 @@ use crate::auth::AuthUser;
 use crate::error::AppError;
 use crate::models::{
     CreateMember, Member, MemberListQuery, UpdateMember,
+    PublicMember, PUBLIC_MEMBER_COLUMNS,
     BulkAction, CreateHousehold, UpdateHousehold, Household,
     MemberTag, CreateMemberTag,
     MemberNote, CreateMemberNote,
@@ -100,12 +101,15 @@ fn get_val(map: &HashMap<String, String>, key: Option<&str>) -> Option<String> {
 /// the query planner. Since roles arrived that is reachable by anyone holding
 /// `people.view` — a volunteer coordinator — and the injection was never
 /// limited to the members table.
+///
+/// `search` matches on `name` only. It used to match `email` and `phone` too,
+/// which made this public endpoint an enumeration oracle: the columns need not
+/// be in the response for `?search=someone@example.com` to confirm, by whether
+/// a row comes back, that the address is in the directory. Admins reach the
+/// full contact data through `/members/export-csv`, which is guarded.
 const MEMBER_FILTER: &str = r#"
     WHERE ($1::text IS NULL OR member_status = $1)
-      AND ($2::text IS NULL OR (
-            name ILIKE '%' || $2 || '%'
-         OR email ILIKE '%' || $2 || '%'
-         OR phone ILIKE '%' || $2 || '%'))
+      AND ($2::text IS NULL OR name ILIKE '%' || $2 || '%')
       AND ($3::uuid IS NULL OR household_id = $3)
       AND ($4::uuid IS NULL OR id IN (
             SELECT member_id FROM member_tag_assignments WHERE tag_id = $4))
@@ -120,14 +124,14 @@ macro_rules! bind_member_filter {
     };
 }
 
-pub async fn list(Db(pool): Db, Query(q): Query<MemberListQuery>) -> Result<Json<Paginated<Member>>, AppError> {
+pub async fn list(Db(pool): Db, Query(q): Query<MemberListQuery>) -> Result<Json<Paginated<PublicMember>>, AppError> {
     let per_page = q.per_page.unwrap_or(50).clamp(1, 200);
     let page = q.page.unwrap_or(1).max(1);
     let offset = (page - 1) * per_page;
 
     let count_sql = format!("SELECT COUNT(*) FROM members {MEMBER_FILTER}");
     let sql = format!(
-        "SELECT * FROM members {MEMBER_FILTER}
+        "SELECT {PUBLIC_MEMBER_COLUMNS} FROM members {MEMBER_FILTER}
          ORDER BY COALESCE(sort_order, 0) ASC, created_at DESC
          LIMIT $5 OFFSET $6"
     );
@@ -135,7 +139,7 @@ pub async fn list(Db(pool): Db, Query(q): Query<MemberListQuery>) -> Result<Json
     let total: i64 = bind_member_filter!(sqlx::query_scalar(&count_sql), q)
         .fetch_one(&pool)
         .await?;
-    let rows = bind_member_filter!(sqlx::query_as::<_, Member>(&sql), q)
+    let rows = bind_member_filter!(sqlx::query_as::<_, PublicMember>(&sql), q)
         .bind(per_page).bind(offset)
         .fetch_all(&pool).await?;
     let total_pages = (total as f64 / per_page as f64).ceil() as i64;
@@ -148,8 +152,10 @@ pub async fn list(Db(pool): Db, Query(q): Query<MemberListQuery>) -> Result<Json
     }))
 }
 
-pub async fn get(Db(pool): Db, Path(id): Path<uuid::Uuid>) -> Result<Json<Member>, AppError> {
-    let row = sqlx::query_as::<_, Member>("SELECT * FROM members WHERE id = $1")
+pub async fn get(Db(pool): Db, Path(id): Path<uuid::Uuid>) -> Result<Json<PublicMember>, AppError> {
+    let row = sqlx::query_as::<_, PublicMember>(&format!(
+        "SELECT {PUBLIC_MEMBER_COLUMNS} FROM members WHERE id = $1"
+    ))
         .bind(id)
         .fetch_optional(&pool).await?.ok_or_else(|| AppError::not_found("Member not found"))?;
     Ok(Json(row))
