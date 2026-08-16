@@ -55,7 +55,10 @@ jobs:
       # The crate is binary-only (no src/lib.rs), so `--lib` errors with "no
       # library targets found". The contract tests live in the `contract_tests`
       # module, not `contract`, so the old filter also matched nothing.
-      - run: cd control-plane/backend && cargo test --bins -- contract_tests::
+      # Quoted: an unquoted plain scalar ending in `::` is read as a mapping
+      # key, which made this whole file unparseable — GitHub failed the run in
+      # 0s with "workflow file issue" and CI had therefore never executed once.
+      - run: "cd control-plane/backend && cargo test --bins -- contract_tests::"
 
   # Lint and Type Check Frontend
   frontend-lint:
@@ -118,44 +121,107 @@ jobs:
         with:
           sarif_file: 'trivy-results.sarif'
 
-  # Build and Push Docker Images
-  docker-build:
+  # Build all four images and deploy them to the VPS.
+  #
+  # Replaces the old GHCR push, which built only 2 of the 4 images (leaving both
+  # control-plane images to be built by hand), marked the frontend
+  # continue-on-error so a broken image passed silently, and published to a
+  # registry nothing consumed.
+  #
+  # Images are shipped as a tarball over SSH rather than pulled from a registry:
+  # the VPS has no docker, and GHCR packages default to private even for a
+  # public repo, so pulling would need a second credential on the box. One SSH
+  # key is the whole trust surface.
+  deploy:
     runs-on: ubuntu-latest
-    # Only gate on the backend build; the frontend image publishes once the app
-    # compiles (its step is continue-on-error until then).
-    needs: [ backend-check ]
+    needs: [ backend-check, frontend-build, frontend-test, frontend-lint ]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    permissions:
-      contents: read
-      packages: write
+    # Never let two deploys race for the same cluster.
+    concurrency:
+      group: deploy-vps
+      cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
-      - uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: docker/build-push-action@v5
-        with:
-          context: ./backend
-          file: ./backend/Dockerfile
-          push: true
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api:latest
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api:sha-${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+      - name: Build images
+        run: |
+          set -euo pipefail
+          SHA="${GITHUB_SHA::12}"
+          echo "SHA=$SHA" >> "$GITHUB_ENV"
+          build() {  # name, dockerfile, context
+            docker buildx build --load \
+              --cache-from "type=gha,scope=$1" --cache-to "type=gha,mode=max,scope=$1" \
+              -t "churchnepal/$1:$SHA" -f "$2" "$3"
+          }
+          build church-api  backend/Dockerfile                backend
+          build church-ui   nextjs/Dockerfile                 nextjs
+          build control-ui  control-plane/nextjs/Dockerfile   control-plane/nextjs
+          # Root context on purpose: provisioning replays backend/migrations,
+          # which sits outside the control plane's own directory.
+          build control-api control-plane/backend/Dockerfile  .
+          docker save \
+            "churchnepal/church-api:$SHA" "churchnepal/church-ui:$SHA" \
+            "churchnepal/control-api:$SHA" "churchnepal/control-ui:$SHA" \
+            -o images.tar
+          ls -lh images.tar
 
-      - continue-on-error: true
-        uses: docker/build-push-action@v5
-        with:
-          context: ./nextjs
-          file: ./nextjs/Dockerfile
-          push: true
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/frontend:latest
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/frontend:sha-${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+      - name: Authorise SSH
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/deploy
+          chmod 600 ~/.ssh/deploy
+          ssh-keyscan -H "${{ secrets.VPS_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Ship and roll out
+        env:
+          H: ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}
+        run: |
+          set -euo pipefail
+          SSH="ssh -i ~/.ssh/deploy -o BatchMode=yes"
+          scp -i ~/.ssh/deploy -o BatchMode=yes images.tar "$H:/tmp/churchnepal-images.tar"
+          $SSH "$H" bash -euo pipefail -s "$SHA" <<'REMOTE'
+            SHA="$1"
+            sudo k3s ctr images import /tmp/churchnepal-images.tar >/dev/null
+            rm -f /tmp/churchnepal-images.tar
+            cd /tmp && rm -rf cn && git clone -q --depth 1 https://github.com/tarkarajjaishi/church_nepal.git cn
+            # Pin every image to this commit, so `kubectl describe` says exactly
+            # what is running. The manifest carries :dev only as a bootstrap default.
+            sed -E "s|(churchnepal/[a-z-]+):dev|\1:${SHA}|g" cn/k8s/churchnepal.yaml \
+              | sudo k3s kubectl apply -f -
+            for d in church-api church-ui control-api control-ui; do
+              sudo k3s kubectl -n churchnepal rollout status "deploy/$d" --timeout=300s
+            done
+            # nginx config is versioned too; only reload if it actually changed.
+            if ! sudo diff -q cn/k8s/nginx-churchnepal.conf /etc/nginx/sites-available/churchnepal >/dev/null 2>&1; then
+              sudo cp cn/k8s/nginx-churchnepal.conf /etc/nginx/sites-available/churchnepal
+              sudo nginx -t && sudo systemctl reload nginx
+            fi
+            rm -rf /tmp/cn
+            # The box runs other people's sites on a disk that sits near 85%.
+            sudo k3s crictl rmi --prune >/dev/null 2>&1 || true
+            df -h / | tail -1
+          REMOTE
+
+      - name: Verify the deploy actually serves
+        env:
+          H: ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}
+        run: |
+          set -euo pipefail
+          ssh -i ~/.ssh/deploy -o BatchMode=yes "$H" bash -euo pipefail <<'REMOTE'
+            fail=0
+            for h in churchnepal.com gracechurchkathmandu.churchnepal.com; do
+              code=$(curl -s -o /dev/null -w '%{http_code}' --resolve "$h:443:127.0.0.1" "https://$h/")
+              t=$(curl -s -o /dev/null -w '%{time_starttransfer}' --resolve "$h:443:127.0.0.1" "https://$h/")
+              echo "  $h -> $code in ${t}s"
+              [ "$code" = "200" ] || fail=1
+            done
+            # These share the host's nginx — a deploy must never take them down.
+            for h in padmacakes.com nepalidriver.com; do
+              code=$(curl -s -o /dev/null -w '%{http_code}' -H "Host: $h" http://127.0.0.1/)
+              echo "  (existing) $h -> $code"
+              [ "$code" = "200" ] || fail=1
+            done
+            exit $fail
+          REMOTE
