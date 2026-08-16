@@ -170,8 +170,13 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p ~/.ssh && chmod 700 ~/.ssh
-          printf '%s\n' "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/deploy
+          # Base64, because a PEM pasted straight into a secret picks up
+          # whatever line endings the shell that set it used. CRLF gets openssh
+          # "error in libcrypto" — which reads as a corrupt key, not a
+          # whitespace problem.
+          printf '%s' "${{ secrets.VPS_SSH_KEY_B64 }}" | base64 -d > ~/.ssh/deploy
           chmod 600 ~/.ssh/deploy
+          ssh-keygen -y -f ~/.ssh/deploy >/dev/null || { echo "deploy key is unusable"; exit 1; }
           ssh-keyscan -H "${{ secrets.VPS_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
 
       - name: Ship and roll out
