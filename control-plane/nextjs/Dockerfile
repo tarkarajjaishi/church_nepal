@@ -19,10 +19,12 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV HOSTNAME=0.0.0.0
 ENV PORT=3200
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
-COPY --from=builder /app/public ./public
 RUN addgroup --system app && adduser --system --ingroup app app
+COPY --from=builder --chown=app:app /app/.next/standalone ./
+COPY --from=builder --chown=app:app /app/.next/static ./.next/static
+COPY --from=builder --chown=app:app /app/public ./public
+# Same EACCES trap as the church UI — see nextjs/Dockerfile.
+RUN mkdir -p /app/.next/cache && chown -R app:app /app/.next
 USER app
 EXPOSE 3200
 CMD ["node", "server.js"]
