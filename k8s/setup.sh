@@ -92,14 +92,21 @@ ln -sf /etc/nginx/sites-available/churchnepal /etc/nginx/sites-enabled/churchnep
 # The TLS blocks reference a certificate that may not exist yet; get it first,
 # using the HTTP-only form of the config, then reload with TLS.
 if [ ! -d /etc/letsencrypt/live/churchnepal ]; then
-  say "No certificate yet — obtaining one over HTTP-01"
-  # Temporarily strip the TLS server blocks so nginx can start on :80 alone.
+  say "No certificate yet — obtaining a wildcard over DNS-01"
+  # A wildcard can ONLY be issued via DNS-01, never HTTP-01. Without it every
+  # new church would need its own certificate before HTTPS worked.
+  [ -f /root/cf.ini ] || die "need /root/cf.ini containing: dns_cloudflare_api_token = <token>"
+  command -v certbot >/dev/null || die "certbot not installed"
+  certbot plugins 2>/dev/null | grep -q dns-cloudflare \
+    || apt-get install -y python3-certbot-dns-cloudflare
+  # Serve :80 alone while the cert does not exist, or nginx fails to load the
+  # TLS blocks that reference it.
   sed '/^# ── Platform/,$d' k8s/nginx-churchnepal.conf > /etc/nginx/sites-available/churchnepal
   nginx -t && systemctl reload nginx
-  certbot certonly --nginx --non-interactive --agree-tos --cert-name churchnepal \
-    -d churchnepal.com -d www.churchnepal.com -d admin.churchnepal.com \
-    -d gracechurchkathmandu.churchnepal.com -d hillsidechurchpokhara.churchnepal.com \
-    -d newlifechurchdharan.churchnepal.com -d riversidechurchlalitpur.churchnepal.com
+  certbot certonly --dns-cloudflare --dns-cloudflare-credentials /root/cf.ini \
+    --dns-cloudflare-propagation-seconds 30 \
+    --cert-name churchnepal --non-interactive --agree-tos \
+    -d churchnepal.com -d '*.churchnepal.com'
   cp k8s/nginx-churchnepal.conf /etc/nginx/sites-available/churchnepal
 fi
 
@@ -114,8 +121,6 @@ cat <<EOF
   https://churchnepal.com          control plane + marketing site
   https://<slug>.churchnepal.com   a church site
 
-A NEW church needs its subdomain added to the certificate:
-  certbot certonly --nginx --cert-name churchnepal --expand -d <slug>.churchnepal.com
-or switch to a wildcard (needs a Cloudflare API token):
-  apt install python3-certbot-dns-cloudflare
+TLS is a wildcard, so a new church needs no certificate step at all.
+Renewal re-reads /root/cf.ini — keep that file, or auto-renew fails.
 EOF
