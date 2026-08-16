@@ -1,7 +1,7 @@
 import { MetadataRoute } from 'next'
+import { getChurches, allCities, citySlug } from '@/lib/churches'
 
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://churchnepal.com'
-const API = process.env.NEXT_PUBLIC_CONTROL_API || '/api'
 
 /**
  * The sitemap listed 5 URLs while the site had roughly twenty public pages, so
@@ -37,22 +37,26 @@ const STATIC_ROUTES: Array<[string, MetadataRoute.Sitemap[number]['changeFrequen
   ['/accessibility', 'yearly', 0.2],
 ]
 
-async function churchUrls(): Promise<MetadataRoute.Sitemap> {
-  try {
-    const base = API.startsWith('http') ? API : 'http://control-api:3100/api'
-    const res = await fetch(`${base}/public/churches`, { next: { revalidate: 3600 } })
-    if (!res.ok) return []
-    const churches: Array<{ subdomain: string }> = await res.json()
-    return churches.map((c) => ({
-      url: `https://${c.subdomain}/`,
-      lastModified: new Date(),
-      changeFrequency: 'weekly' as const,
-      priority: 0.6,
-    }))
-  } catch {
-    // A sitemap missing the churches is better than a 500 that costs the whole file.
-    return []
-  }
+async function dynamicUrls(): Promise<MetadataRoute.Sitemap> {
+  // A sitemap missing these is better than a 500 that costs the whole file.
+  const churches = await getChurches()
+  const now = new Date()
+
+  const cityPages = allCities(churches).map((c) => ({
+    url: `${BASE_URL}/churches/${citySlug(c)}`,
+    lastModified: now,
+    changeFrequency: 'weekly' as const,
+    priority: 0.7,
+  }))
+
+  const churchSites = churches.map((c) => ({
+    url: `https://${c.subdomain}/`,
+    lastModified: now,
+    changeFrequency: 'weekly' as const,
+    priority: 0.6,
+  }))
+
+  return [...cityPages, ...churchSites]
 }
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
@@ -64,6 +68,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency,
       priority,
     })),
-    ...(await churchUrls()),
+    ...(await dynamicUrls()),
   ]
 }

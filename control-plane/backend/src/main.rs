@@ -79,7 +79,7 @@ async fn main() {
         .route("/api-keys/{id}", delete(handlers::revoke_api_key))
         // Churches
         .route("/churches", get(handlers::list_churches).post(handlers::create_church))
-        .route("/churches/{id}", get(handlers::get_church).delete(handlers::delete_church))
+        .route("/churches/{id}", get(handlers::get_church).patch(handlers::update_church_location).delete(handlers::delete_church))
         .route("/churches/{id}/suspend", post(handlers::suspend_church))
         .route("/churches/{id}/reactivate", post(handlers::reactivate_church))
         .route("/churches/{id}/subscribe", post(handlers::subscribe_church))

@@ -1,11 +1,11 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import PublicLayout from '../public-layout';
+import { getChurches, allCities, citySlug, type Church } from '@/lib/churches';
 
 export const revalidate = 3600;
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://churchnepal.com';
-const API = process.env.NEXT_PUBLIC_CONTROL_API || '/api';
 
 export const metadata: Metadata = {
   title: 'Church Directory Nepal — Find a Church in Nepal',
@@ -20,20 +20,6 @@ export const metadata: Metadata = {
     type: 'website',
   },
 };
-
-type Church = { name: string; slug: string; subdomain: string; created_at?: string };
-
-async function getChurches(): Promise<Church[]> {
-  try {
-    // Server-side, so a relative API base has no host to resolve against.
-    const base = API.startsWith('http') ? API : `http://control-api:3100/api`;
-    const res = await fetch(`${base}/public/churches`, { next: { revalidate: 3600 } });
-    if (!res.ok) return [];
-    return await res.json();
-  } catch {
-    return [];
-  }
-}
 
 export default async function ChurchesPage() {
   const churches = await getChurches();
@@ -119,6 +105,19 @@ export default async function ChurchesPage() {
         )}
 
         <section className="mt-14 border-t border-[var(--border)] pt-8">
+          <h2 className="text-2xl font-semibold mb-4">Browse churches by city</h2>
+          <div className="flex flex-wrap gap-2 mb-10">
+            {allCities(churches).map((c) => (
+              <Link
+                key={c}
+                href={`/churches/${citySlug(c)}`}
+                className="text-sm rounded-md border border-[var(--border)] px-3 py-1.5 hover:border-[var(--accent)] transition-colors"
+              >
+                Churches in {c}
+              </Link>
+            ))}
+          </div>
+
           <h2 className="text-2xl font-semibold mb-3">Finding a church in Nepal</h2>
           <p className="text-[var(--muted)] max-w-3xl">
             Churches listed here publish their own Sunday service times, worship schedule,

@@ -587,6 +587,9 @@ pub struct Church {
     pub suspended_at: Option<chrono::NaiveDateTime>,
     pub created_at: Option<chrono::NaiveDateTime>,
     pub past_due_at: Option<chrono::NaiveDateTime>,
+    pub city: Option<String>,
+    pub district: Option<String>,
+    pub province: Option<String>,
 }
 
 #[derive(Serialize, FromRow)]
@@ -656,6 +659,15 @@ pub async fn list_churches(_auth: Authenticated, State(st): State<AppState>) -> 
 #[derive(Deserialize)]
 pub struct CreateReq {
     pub name: String,
+    /// Optional at creation: an operator often knows the church before the
+    /// address. The directory treats a missing city as "unlisted by location"
+    /// rather than guessing one.
+    #[serde(default)]
+    pub city: Option<String>,
+    #[serde(default)]
+    pub district: Option<String>,
+    #[serde(default)]
+    pub province: Option<String>,
 }
 
 pub async fn create_church(
@@ -3154,12 +3166,15 @@ pub struct PublicChurch {
     pub name: String,
     pub slug: String,
     pub subdomain: String,
+    pub city: Option<String>,
+    pub district: Option<String>,
+    pub province: Option<String>,
     pub created_at: Option<chrono::NaiveDateTime>,
 }
 
 pub async fn list_public_churches(State(st): State<AppState>) -> Result<Json<Vec<PublicChurch>>, AppError> {
     let churches = sqlx::query_as::<_, PublicChurch>(
-        "SELECT name, slug, subdomain, created_at
+        "SELECT name, slug, subdomain, city, district, province, created_at
            FROM churches
           WHERE status = 'active' AND suspended_at IS NULL
           ORDER BY name",
@@ -3167,4 +3182,51 @@ pub async fn list_public_churches(State(st): State<AppState>) -> Result<Json<Vec
     .fetch_all(&st.pool)
     .await?;
     Ok(Json(churches))
+}
+
+#[derive(Deserialize)]
+pub struct UpdateChurchLocation {
+    #[serde(default)]
+    pub city: Option<String>,
+    #[serde(default)]
+    pub district: Option<String>,
+    #[serde(default)]
+    pub province: Option<String>,
+}
+
+/// Set where a church is.
+///
+/// Separate from provisioning because location is usually learned after the
+/// site exists, and every church created before the location columns had none.
+/// COALESCE so omitting a field leaves it alone; an explicit empty string
+/// clears it, which is how an operator corrects a wrong entry.
+pub async fn update_church_location(
+    _admin: AdminGuard,
+    State(st): State<AppState>,
+    Path(id): Path<uuid::Uuid>,
+    Json(req): Json<UpdateChurchLocation>,
+) -> Result<Json<Value>, AppError> {
+    let norm = |v: &Option<String>| -> Option<String> {
+        v.as_deref().map(str::trim).map(|s| s.to_string())
+    };
+    let (city, district, province) = (norm(&req.city), norm(&req.district), norm(&req.province));
+
+    let updated = sqlx::query(
+        "UPDATE churches
+            SET city     = COALESCE(NULLIF($2, ''), city),
+                district = COALESCE(NULLIF($3, ''), district),
+                province = COALESCE(NULLIF($4, ''), province)
+          WHERE id = $1",
+    )
+    .bind(id)
+    .bind(city.as_deref().unwrap_or(""))
+    .bind(district.as_deref().unwrap_or(""))
+    .bind(province.as_deref().unwrap_or(""))
+    .execute(&st.pool)
+    .await?;
+
+    if updated.rows_affected() == 0 {
+        return Err(AppError::not_found("Church not found"));
+    }
+    Ok(Json(json!({ "updated": true })))
 }
