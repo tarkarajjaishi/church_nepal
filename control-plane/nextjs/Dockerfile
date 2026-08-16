@@ -1,32 +1,28 @@
-# ---------- Builder ----------
+# Build context: this directory (control-plane/nextjs/).
+#
+# Unlike the church UI, this one is single-tenant, so baking the API base is
+# safe. "/api" keeps it same-origin behind the ingress.
+
 FROM node:20-slim AS builder
 WORKDIR /app
-# Copy package files
+ARG NEXT_PUBLIC_CONTROL_API=/api
+ENV NEXT_PUBLIC_CONTROL_API=$NEXT_PUBLIC_CONTROL_API
 COPY package*.json ./
-# Install dependencies (including dev) for building
-RUN npm ci
-# Copy source code
+# ponytail: see the note in nextjs/Dockerfile — same @testing-library/react
+# peer conflict, same deferred fix.
+RUN npm ci --legacy-peer-deps
 COPY . .
-# Build for production (standalone output)
 RUN npm run build
 
-# ---------- Runtime ----------
 FROM node:20-slim
 WORKDIR /app
-# Copy package files
-COPY package*.json ./
-# Install production dependencies only
-RUN npm ci --omit=dev
-# Copy standalone output from builder
+ENV NODE_ENV=production
+ENV HOSTNAME=0.0.0.0
+ENV PORT=3200
 COPY --from=builder /app/.next/standalone ./
-# Copy static assets
 COPY --from=builder /app/.next/static ./.next/static
-# Copy public assets
 COPY --from=builder /app/public ./public
-# Create non-root user
 RUN addgroup --system app && adduser --system --ingroup app app
 USER app
-# Expose port
-EXPOSE 3000
-# Start the app
+EXPOSE 3200
 CMD ["node", "server.js"]

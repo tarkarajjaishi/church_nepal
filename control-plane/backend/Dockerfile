@@ -1,31 +1,42 @@
-# ====== Chef: Plan dependencies ======
-FROM rust:latest AS chef
+# Build context: the REPOSITORY ROOT, not this directory.
+#
+#   docker build -f control-plane/backend/Dockerfile -t churchnepal/control-api:dev .
+#
+# It has to be the root because provisioning a new church replays the *church*
+# migrations (CHURCH_MIGRATIONS_DIR, 71 files under backend/migrations), which
+# live outside this directory. Building with this folder as context produces an
+# image that starts fine and then fails on the first church created.
+
+FROM rust:1-bookworm AS chef
 RUN cargo install cargo-chef
 WORKDIR /app
-COPY Cargo.toml Cargo.lock ./
+
+FROM chef AS planner
+COPY control-plane/backend/Cargo.toml control-plane/backend/Cargo.lock ./
+COPY control-plane/backend/src ./src
 RUN cargo chef prepare --recipe-path recipe.json
 
-# ====== Chef: Cook dependencies ======
-FROM chef AS chef
-COPY src ./src
-COPY migrations ./migrations
-RUN cargo chef cook --release --recipe-path recipe.json
-
-# ====== Builder: Build application ======
 FROM chef AS builder
-COPY src ./src
-COPY migrations ./migrations
-RUN cargo build --release --recipe-path recipe.json
+COPY --from=planner /app/recipe.json recipe.json
+RUN cargo chef cook --release --recipe-path recipe.json
+COPY control-plane/backend/Cargo.toml control-plane/backend/Cargo.lock ./
+COPY control-plane/backend/src ./src
+COPY control-plane/backend/migrations ./migrations
+RUN cargo build --release --bin churchnepal-control-plane
 
-# ====== Runtime: Minimal image ======
 FROM debian:bookworm-slim
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     libssl3 \
+    postgresql-client \
     && rm -rf /var/lib/apt/lists/*
-# Create non-root user
 RUN addgroup --system app && adduser --system --ingroup app app
-USER app
+WORKDIR /app
 COPY --from=builder /app/target/release/churchnepal-control-plane /usr/local/bin/
+# Its own migrations, for the control database.
+COPY --from=builder /app/migrations /app/migrations
+# The church migrations, replayed into each new church's database at provision.
+COPY backend/migrations /app/church-migrations
+USER app
 EXPOSE 3100
 CMD ["churchnepal-control-plane"]

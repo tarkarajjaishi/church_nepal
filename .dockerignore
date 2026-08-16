@@ -1,0 +1,15 @@
+# Context for the control-plane API image, which builds from the repo root
+# because it needs backend/migrations. Without this the context is several GB
+# of Rust target dirs and node_modules.
+**/target
+**/node_modules
+**/.next
+**/.env
+**/.env.*
+.git
+.github
+.claude
+storage
+backups
+k8s
+*.log

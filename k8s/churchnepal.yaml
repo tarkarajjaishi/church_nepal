@@ -1,0 +1,401 @@
+# ChurchNepal on single-node k3s.
+#
+#   kubectl apply -f k8s/churchnepal.yaml
+#
+# Fill in the Secret below FIRST — it ships with placeholders on purpose.
+#
+# Routing model, which is the part that matters:
+#   churchnepal.com / www / admin  -> control plane (marketing site + console)
+#   *.churchnepal.com              -> church sites, one database per subdomain
+# The church API is reached same-origin at /api so the tenant's own Host header
+# survives to the backend. It is the only tenant signal there is.
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: churchnepal
+---
+# The Secret `churchnepal-secrets` is NOT defined here on purpose — it would
+# mean committing credentials, and re-applying this file would overwrite the
+# real ones with placeholders. Create it from the command line before applying;
+# it needs these keys:
+#   POSTGRES_PASSWORD  JWT_SECRET  INTERNAL_API_SECRET
+#   SUPER_ADMIN_EMAIL  SUPER_ADMIN_PASSWORD
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: churchnepal-storage
+  namespace: churchnepal
+spec:
+  # Uploads. Written by the control plane at provision, served by the church
+  # API, so both mount it. ReadWriteOnce is fine only because this is a single
+  # node — both pods land on the same host. It will not survive adding a node.
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: churchnepal
+spec:
+  clusterIP: None
+  selector:
+    app: postgres
+  ports:
+    - port: 5432
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: churchnepal
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          env:
+            - name: POSTGRES_USER
+              value: postgres
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef: { name: churchnepal-secrets, key: POSTGRES_PASSWORD }
+            - name: POSTGRES_DB
+              value: postgres
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          ports:
+            - containerPort: 5432
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "postgres"]
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits:   { cpu: "1",  memory: 1Gi }
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources:
+          requests:
+            storage: 20Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: church-api
+  namespace: churchnepal
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: church-api }
+  template:
+    metadata:
+      labels: { app: church-api }
+    spec:
+      containers:
+        - name: church-api
+          image: churchnepal/church-api:dev
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef: { name: churchnepal-secrets, key: POSTGRES_PASSWORD }
+            - name: PG_BASE_URL
+              value: "postgres://postgres:$(POSTGRES_PASSWORD)@postgres:5432"
+            - name: DATABASE_URL
+              value: "postgres://postgres:$(POSTGRES_PASSWORD)@postgres:5432/postgres"
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef: { name: churchnepal-secrets, key: JWT_SECRET }
+            - name: INTERNAL_API_SECRET
+              valueFrom:
+                secretKeyRef: { name: churchnepal-secrets, key: INTERNAL_API_SECRET }
+            - name: BASE_DOMAIN
+              value: churchnepal.com
+            # DEFAULT_TENANT is deliberately unset. With it set, any unknown or
+            # apex hostname silently falls back to that church and answers 200
+            # with another congregation's data.
+            - name: PORT
+              value: "3002"
+            - name: DB_MIGRATE_ON_STARTUP
+              value: "false"
+            - name: STORAGE_ROOT
+              value: /storage
+            - name: RUST_LOG
+              value: info
+            # Payment gateways build return URLs from this. It is global, but
+            # donations happen per church — see the note in the deploy steps.
+            - name: SITE_DOMAIN
+              value: https://churchnepal.com
+          ports:
+            - containerPort: 3002
+          volumeMounts:
+            - name: storage
+              mountPath: /storage
+          readinessProbe:
+            tcpSocket: { port: 3002 }
+            initialDelaySeconds: 5
+          resources:
+            requests: { cpu: 100m, memory: 128Mi }
+            limits:   { cpu: "1",  memory: 512Mi }
+      volumes:
+        - name: storage
+          persistentVolumeClaim:
+            claimName: churchnepal-storage
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: church-api
+  namespace: churchnepal
+spec:
+  selector: { app: church-api }
+  ports:
+    - port: 3002
+      targetPort: 3002
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: church-ui
+  namespace: churchnepal
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: church-ui }
+  template:
+    metadata:
+      labels: { app: church-ui }
+    spec:
+      containers:
+        - name: church-ui
+          image: churchnepal/church-ui:dev
+          imagePullPolicy: IfNotPresent
+          env:
+            # Server-side rendering only. The browser uses same-origin /api.
+            - name: API_INTERNAL_ORIGIN
+              value: http://church-api:3002
+          ports:
+            - containerPort: 3000
+          readinessProbe:
+            tcpSocket: { port: 3000 }
+            initialDelaySeconds: 5
+          resources:
+            requests: { cpu: 100m, memory: 192Mi }
+            limits:   { cpu: "1",  memory: 768Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: church-ui
+  namespace: churchnepal
+spec:
+  selector: { app: church-ui }
+  ports:
+    - port: 3000
+      targetPort: 3000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: control-api
+  namespace: churchnepal
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: control-api }
+  template:
+    metadata:
+      labels: { app: control-api }
+    spec:
+      containers:
+        - name: control-api
+          image: churchnepal/control-api:dev
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef: { name: churchnepal-secrets, key: POSTGRES_PASSWORD }
+            - name: CONTROL_DATABASE_URL
+              value: "postgres://postgres:$(POSTGRES_PASSWORD)@postgres:5432/churchnepal_control"
+            - name: PG_SUPER_URL
+              value: "postgres://postgres:$(POSTGRES_PASSWORD)@postgres:5432/postgres"
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef: { name: churchnepal-secrets, key: JWT_SECRET }
+            - name: INTERNAL_API_SECRET
+              valueFrom:
+                secretKeyRef: { name: churchnepal-secrets, key: INTERNAL_API_SECRET }
+            - name: SUPER_ADMIN_EMAIL
+              valueFrom:
+                secretKeyRef: { name: churchnepal-secrets, key: SUPER_ADMIN_EMAIL }
+            - name: SUPER_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef: { name: churchnepal-secrets, key: SUPER_ADMIN_PASSWORD }
+            - name: PORT
+              value: "3100"
+            - name: BASE_DOMAIN
+              value: churchnepal.com
+            # Baked into the image by its Dockerfile.
+            - name: CHURCH_MIGRATIONS_DIR
+              value: /app/church-migrations
+            - name: STORAGE_ROOT
+              value: /storage
+            - name: CHURCH_APP_URL
+              value: http://church-api:3002
+            # pg_dump is in this image now, so no docker exec wrapper.
+            - name: PG_DUMP_COMMAND
+              value: pg_dump
+            - name: RUST_LOG
+              value: info
+          ports:
+            - containerPort: 3100
+          volumeMounts:
+            - name: storage
+              mountPath: /storage
+          readinessProbe:
+            httpGet: { path: /readyz, port: 3100 }
+            initialDelaySeconds: 5
+          resources:
+            requests: { cpu: 100m, memory: 128Mi }
+            limits:   { cpu: "1",  memory: 512Mi }
+      volumes:
+        - name: storage
+          persistentVolumeClaim:
+            claimName: churchnepal-storage
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: control-api
+  namespace: churchnepal
+spec:
+  selector: { app: control-api }
+  ports:
+    - port: 3100
+      targetPort: 3100
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: control-ui
+  namespace: churchnepal
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: control-ui }
+  template:
+    metadata:
+      labels: { app: control-ui }
+    spec:
+      containers:
+        - name: control-ui
+          image: churchnepal/control-ui:dev
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3200
+          readinessProbe:
+            tcpSocket: { port: 3200 }
+            initialDelaySeconds: 5
+          resources:
+            requests: { cpu: 100m, memory: 192Mi }
+            limits:   { cpu: "1",  memory: 768Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: control-ui
+  namespace: churchnepal
+spec:
+  selector: { app: control-ui }
+  ports:
+    - port: 3200
+      targetPort: 3200
+---
+# Platform hosts. Listed before the wildcard and matched exactly, so `admin`
+# and `www` can never be shadowed by a church that registers those slugs.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: churchnepal-platform
+  namespace: churchnepal
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - churchnepal.com
+        - "*.churchnepal.com"
+      secretName: churchnepal-tls
+  rules:
+    - host: churchnepal.com
+      http: &platform
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: control-api
+                port: { number: 3100 }
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: control-ui
+                port: { number: 3200 }
+    - host: www.churchnepal.com
+      http: *platform
+    - host: admin.churchnepal.com
+      http: *platform
+---
+# Every church. The wildcard is what makes a new church need no DNS change.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: churchnepal-tenants
+  namespace: churchnepal
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - "*.churchnepal.com"
+      secretName: churchnepal-tls
+  rules:
+    - host: "*.churchnepal.com"
+      http:
+        paths:
+          # Same-origin API. The tenant's Host header reaches the backend
+          # unchanged, which is how it picks the database.
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: church-api
+                port: { number: 3002 }
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: church-ui
+                port: { number: 3000 }
