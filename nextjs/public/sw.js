@@ -1,7 +1,14 @@
 // Bumped whenever the caching rules change: `activate` deletes every cache
 // whose name is not this one, so the name is the only eviction mechanism there
 // is. Leaving it fixed meant a stale entry could outlive the code that made it.
-const CACHE = 'grace-church-v2'
+// Bump this whenever a release changes routing or bundles. /api is never
+// cached and navigations are network-first, but `/_next/static/` is
+// stale-while-revalidate, so a returning visitor can run one render against
+// the previous build. Renaming the cache drops the old entries on activate.
+// v3: /api/bible and five other Next route handlers were being routed to the
+// Rust backend and 404ing; anyone who loaded the site during that window could
+// otherwise keep a stale bundle.
+const CACHE = 'grace-church-v3'
 const APP_SHELL = ['/', '/offline.html']
 
 self.addEventListener('install', (event) => {
