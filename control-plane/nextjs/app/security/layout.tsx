@@ -8,6 +8,7 @@ export const metadata: Metadata = {
     "How Church Nepal protects church data: an isolated database and media store per church, encrypted connections, access control and backups.",
   alternates: { canonical: `${SITE_URL}/security` },
   openGraph: {
+    images: ['/opengraph-image'],
     title: "Security at Church Nepal",
     description:
       "How Church Nepal protects church data: an isolated database and media store per church, encrypted connections, access control and backups.",

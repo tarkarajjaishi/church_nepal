@@ -8,6 +8,7 @@ export const metadata: Metadata = {
     "Everything a church website on Church Nepal includes: sermon archive, events calendar, online giving, member directory, prayer requests, notices and a Bible reader.",
   alternates: { canonical: `${SITE_URL}/features` },
   openGraph: {
+    images: ['/opengraph-image'],
     title: "Church Website Features — Sermons, Events, Giving and Members",
     description:
       "Everything a church website on Church Nepal includes: sermon archive, events calendar, online giving, member directory, prayer requests, notices and a Bible reader.",

@@ -8,6 +8,7 @@ export const metadata: Metadata = {
     'Church Nepal pricing in Nepali rupees. Compare plans for a church website with its own subdomain, database, sermons, events, online giving and member management.',
   alternates: { canonical: `${SITE_URL}/pricing` },
   openGraph: {
+    images: ['/opengraph-image'],
     title: 'Church Website Pricing in Nepal — Plans in NPR',
     description:
       'Church Nepal pricing in Nepali rupees. Compare plans for a church website with its own subdomain, database, sermons, events, online giving and member management.',

@@ -8,6 +8,7 @@ export const metadata: Metadata = {
     "Church Nepal builds and hosts websites for churches in Nepal, giving each church its own subdomain, database and media storage, alongside a public church directory.",
   alternates: { canonical: `${SITE_URL}/about` },
   openGraph: {
+    images: ['/opengraph-image'],
     title: "About Church Nepal",
     description:
       "Church Nepal builds and hosts websites for churches in Nepal, giving each church its own subdomain, database and media storage, alongside a public church directory.",

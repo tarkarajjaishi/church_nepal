@@ -22,6 +22,7 @@ export async function generateMetadata(
     authors: [{ name: post.author.name }],
     keywords: [...post.categories, ...post.tags],
     openGraph: {
+      images: ['/opengraph-image'],
       type: 'article',
       title: post.title,
       description: post.excerpt,

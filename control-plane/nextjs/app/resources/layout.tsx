@@ -8,6 +8,7 @@ export const metadata: Metadata = {
     "Resources for churches in Nepal: guides, templates and tools for worship planning, sermons, events, giving and running a church website.",
   alternates: { canonical: `${SITE_URL}/resources` },
   openGraph: {
+    images: ['/opengraph-image'],
     title: "Christian Resources for Churches in Nepal",
     description:
       "Resources for churches in Nepal: guides, templates and tools for worship planning, sermons, events, giving and running a church website.",

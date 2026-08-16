@@ -82,7 +82,9 @@ export async function placeMetadata(kind: Kind, lang: Lang, slug: string): Promi
         ? { languages: { 'en-NP': `${SITE_URL}${p.en}`, ne: `${SITE_URL}${p.ne}`, 'x-default': `${SITE_URL}${p.en}` } }
         : {}),
     },
-    openGraph: { title: heading, description, url: `${SITE_URL}${canonical}`, type: 'website' },
+    openGraph: {
+      images: ['/opengraph-image'],
+      title: heading, description, url: `${SITE_URL}${canonical}`, type: 'website' },
   };
 }
 
@@ -184,7 +186,9 @@ export default async function PlaceDirectory(
               {found.map((c: Church) => (
                 <li key={c.slug} className="rounded-lg border border-[var(--border)] p-5 hover:border-[var(--accent)] transition-colors">
                   <h2 className="text-lg font-semibold mb-1">
-                    <a href={`https://${c.subdomain}`} target="_blank" rel="noopener" className="hover:underline">{c.name}</a>
+                    {/* Internal, so the profile pages are crawlable; the
+                        outbound link to the church's own site is below. */}
+                    <Link href={`/churches/church/${c.slug}`} className="hover:underline">{c.name}</Link>
                   </h2>
                   <p className="text-sm text-[var(--muted)]">
                     {[c.city, c.district, c.province].filter(Boolean).join(', ') || full}

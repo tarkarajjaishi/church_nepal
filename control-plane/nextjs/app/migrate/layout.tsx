@@ -8,6 +8,7 @@ export const metadata: Metadata = {
     "Move an existing church website to Church Nepal — content, sermons, events and media — and keep your church's own domain.",
   alternates: { canonical: `${SITE_URL}/migrate` },
   openGraph: {
+    images: ['/opengraph-image'],
     title: "Migrate Your Church Website to Church Nepal",
     description:
       "Move an existing church website to Church Nepal — content, sermons, events and media — and keep your church's own domain.",

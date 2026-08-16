@@ -69,6 +69,11 @@ async function dynamicUrls(): Promise<MetadataRoute.Sitemap> {
     ...allProvinces(churches).map((p) => page(`/churches/province/${slugify(p)}`, 0.6)),
   ]
 
+  // The profile pages are on our domain, so they are the ones a crawler can
+  // actually attribute to this site; the subdomains are listed too but they
+  // are separate sites.
+  const profiles = churches.map((c) => page(`/churches/church/${c.slug}`, 0.7))
+
   const churchSites = churches.map((c) => ({
     url: `https://${c.subdomain}/`,
     lastModified: now,
@@ -90,7 +95,7 @@ async function dynamicUrls(): Promise<MetadataRoute.Sitemap> {
   ]
   const helpArticles = getAllHelpArticles().map((a) => page(`/help/${a.slug}`, 0.5))
 
-  return [...placePages, ...posts, ...taxonomies, ...helpArticles, ...churchSites]
+  return [...placePages, ...profiles, ...posts, ...taxonomies, ...helpArticles, ...churchSites]
 }
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {

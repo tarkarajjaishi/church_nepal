@@ -13,6 +13,7 @@ export const metadata: Metadata = {
     "Help articles and support for churches using Church Nepal, covering site setup, content, members, giving, domains and troubleshooting.",
   alternates: { canonical: `${SITE_URL}/help` },
   openGraph: {
+    images: ['/opengraph-image'],
     title: "Help Center — Church Nepal Support",
     description:
       "Help articles and support for churches using Church Nepal, covering site setup, content, members, giving, domains and troubleshooting.",

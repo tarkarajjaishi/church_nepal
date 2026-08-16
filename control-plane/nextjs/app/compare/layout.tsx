@@ -8,6 +8,7 @@ export const metadata: Metadata = {
     "How Church Nepal compares with general website builders for a church in Nepal: subdomains, isolated databases, giving in NPR, Nepali content and church features.",
   alternates: { canonical: `${SITE_URL}/compare` },
   openGraph: {
+    images: ['/opengraph-image'],
     title: "Compare Church Website Builders",
     description:
       "How Church Nepal compares with general website builders for a church in Nepal: subdomains, isolated databases, giving in NPR, Nepali content and church features.",

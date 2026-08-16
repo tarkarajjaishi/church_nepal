@@ -30,6 +30,7 @@ export const metadata: Metadata = {
   applicationName: "Church Nepal",
   authors: [{ name: "ChurchNepal" }],
   openGraph: {
+    images: ['/opengraph-image'],
     type: "website",
     url: SITE_URL,
     siteName: "Church Nepal",

@@ -8,6 +8,7 @@ export const metadata: Metadata = {
     "Get in touch with Church Nepal to list your church in the directory, start a church website, or ask about plans, migration and support.",
   alternates: { canonical: `${SITE_URL}/contact` },
   openGraph: {
+    images: ['/opengraph-image'],
     title: "Contact Church Nepal",
     description:
       "Get in touch with Church Nepal to list your church in the directory, start a church website, or ask about plans, migration and support.",

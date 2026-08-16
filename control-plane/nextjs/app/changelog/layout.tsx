@@ -8,6 +8,7 @@ export const metadata: Metadata = {
     "Recent releases and improvements to the Church Nepal platform for church websites.",
   alternates: { canonical: `${SITE_URL}/changelog` },
   openGraph: {
+    images: ['/opengraph-image'],
     title: "Changelog — What's New on Church Nepal",
     description:
       "Recent releases and improvements to the Church Nepal platform for church websites.",

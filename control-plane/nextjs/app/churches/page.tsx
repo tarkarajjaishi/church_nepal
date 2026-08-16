@@ -31,6 +31,7 @@ export const metadata: Metadata = {
     },
   },
   openGraph: {
+    images: ['/opengraph-image'],
     title: 'Church Directory Nepal — Find a Church in Nepal',
     description:
       'Browse churches in Nepal: websites, service times, worship, Bible study and contact details.',
@@ -95,14 +96,9 @@ export default async function ChurchesPage() {
                   className="rounded-lg border border-[var(--border)] p-5 hover:border-[var(--accent)] transition-colors"
                 >
                   <h2 className="text-lg font-semibold mb-1">
-                    <a
-                      href={`https://${c.subdomain}`}
-                      target="_blank"
-                      rel="noopener"
-                      className="hover:underline"
-                    >
+                    <Link href={`/churches/church/${c.slug}`} className="hover:underline">
                       {c.name}
-                    </a>
+                    </Link>
                   </h2>
                   <p className="text-sm text-[var(--muted)] break-all">{c.subdomain}</p>
                   <div className="mt-3 flex flex-wrap gap-3 text-sm">

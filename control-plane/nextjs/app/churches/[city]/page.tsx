@@ -13,10 +13,10 @@ import PlaceDirectory, { placeMetadata } from '@/components/place-directory';
 // round trip per visitor.
 export const dynamic = 'force-dynamic';
 
-// `/churches/district` and `/churches/province` are the parents of the
-// district and province routes. Without this they match [city] and render a
-// straight-faced "Churches in District" page.
-const RESERVED = new Set(['district', 'province']);
+// `/churches/district`, `/churches/province` and `/churches/church` are the
+// parents of the district, province and profile routes. Without this they
+// match [city] and render a straight-faced "Churches in District" page.
+const RESERVED = new Set(['district', 'province', 'church']);
 
 export async function generateMetadata(
   { params }: { params: Promise<{ city: string }> },

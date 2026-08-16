@@ -22,6 +22,7 @@ export const metadata: Metadata = {
     },
   },
   openGraph: {
+    images: ['/opengraph-image'],
     title: 'नेपाल चर्च निर्देशिका',
     description: 'नेपालका चर्चहरू: वेबसाइट, आराधना समय, बाइबल अध्ययन र सम्पर्क विवरण।',
     url: `${SITE_URL}/ne/churches`,
@@ -85,7 +86,7 @@ export default async function NeChurchesPage() {
               {churches.map((c: Church) => (
                 <li key={c.slug} className="rounded-lg border border-[var(--border)] p-5 hover:border-[var(--accent)] transition-colors">
                   <h2 className="text-lg font-semibold mb-1">
-                    <a href={`https://${c.subdomain}`} target="_blank" rel="noopener" className="hover:underline">{c.name}</a>
+                    <Link href={`/churches/church/${c.slug}`} className="hover:underline">{c.name}</Link>
                   </h2>
                   <p className="text-sm text-[var(--muted)] break-all">{c.subdomain}</p>
                   <div className="mt-3 flex flex-wrap gap-3 text-sm">

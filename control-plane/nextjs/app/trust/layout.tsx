@@ -8,6 +8,7 @@ export const metadata: Metadata = {
     "Church Nepal's commitments on data ownership, privacy, availability and security for churches in Nepal.",
   alternates: { canonical: `${SITE_URL}/trust` },
   openGraph: {
+    images: ['/opengraph-image'],
     title: "Trust Center",
     description:
       "Church Nepal's commitments on data ownership, privacy, availability and security for churches in Nepal.",

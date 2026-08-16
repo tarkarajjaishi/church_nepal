@@ -8,6 +8,7 @@ export const metadata: Metadata = {
     "How Church Nepal works towards accessible church websites, and how to report an accessibility problem.",
   alternates: { canonical: `${SITE_URL}/accessibility` },
   openGraph: {
+    images: ['/opengraph-image'],
     title: "Accessibility Statement",
     description:
       "How Church Nepal works towards accessible church websites, and how to report an accessibility problem.",
