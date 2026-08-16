@@ -1,7 +1,9 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import PublicLayout from '../public-layout';
-import { getChurches, allCities, citySlug, type Church } from '@/lib/churches';
+import {
+  getChurches, allCities, allDistricts, allProvinces, citySlug, slugify,
+} from '@/lib/churches';
 
 // Rendered per request, not at build.
 //
@@ -20,7 +22,14 @@ export const metadata: Metadata = {
   title: 'Church Directory Nepal — Find a Church in Nepal',
   description:
     'Directory of churches in Nepal on ChurchNepal. Browse Christian churches by name, visit their websites, and find service times, worship, Bible study and contact details.',
-  alternates: { canonical: `${SITE_URL}/churches` },
+  alternates: {
+    canonical: `${SITE_URL}/churches`,
+    languages: {
+      'en-NP': `${SITE_URL}/churches`,
+      ne: `${SITE_URL}/ne/churches`,
+      'x-default': `${SITE_URL}/churches`,
+    },
+  },
   openGraph: {
     title: 'Church Directory Nepal — Find a Church in Nepal',
     description:
@@ -127,6 +136,32 @@ export default async function ChurchesPage() {
             ))}
           </div>
 
+          <h2 className="text-2xl font-semibold mb-4">Browse churches by district</h2>
+          <div className="flex flex-wrap gap-2 mb-10">
+            {allDistricts(churches).map((d) => (
+              <Link
+                key={d}
+                href={`/churches/district/${slugify(d)}`}
+                className="text-sm rounded-md border border-[var(--border)] px-3 py-1.5 hover:border-[var(--accent)] transition-colors"
+              >
+                {d} District
+              </Link>
+            ))}
+          </div>
+
+          <h2 className="text-2xl font-semibold mb-4">Browse churches by province</h2>
+          <div className="flex flex-wrap gap-2 mb-10">
+            {allProvinces(churches).map((p) => (
+              <Link
+                key={p}
+                href={`/churches/province/${slugify(p)}`}
+                className="text-sm rounded-md border border-[var(--border)] px-3 py-1.5 hover:border-[var(--accent)] transition-colors"
+              >
+                {p} Province
+              </Link>
+            ))}
+          </div>
+
           <h2 className="text-2xl font-semibold mb-3">Finding a church in Nepal</h2>
           <p className="text-[var(--muted)] max-w-3xl">
             Churches listed here publish their own Sunday service times, worship schedule,
@@ -134,6 +169,12 @@ export default async function ChurchesPage() {
             its address, contact number and directions. Churches serve congregations across
             Nepal, including Kathmandu, Lalitpur, Bhaktapur, Pokhara, Chitwan, Biratnagar,
             Dharan, Butwal and Birgunj.
+          </p>
+
+          <p className="mt-8 text-sm text-[var(--muted)]">
+            <Link href="/ne/churches" className="underline" hrefLang="ne">
+              नेपाल चर्च निर्देशिका — नेपालीमा हेर्नुहोस्
+            </Link>
           </p>
         </section>
       </main>

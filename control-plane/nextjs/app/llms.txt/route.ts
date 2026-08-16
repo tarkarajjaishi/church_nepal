@@ -42,6 +42,7 @@ media storage per church, reached at its own subdomain.
 
 - [Home](${SITE_URL}/): what the platform does
 - [Church directory](${SITE_URL}/churches): churches in Nepal with websites here
+- [Church directory in Nepali](${SITE_URL}/ne/churches): the same directory, नेपालीमा
 - [Features](${SITE_URL}/features): what a church website includes
 - [Pricing](${SITE_URL}/pricing): plans in NPR
 - [How it works](${SITE_URL}/how-it-works): provisioning a church site

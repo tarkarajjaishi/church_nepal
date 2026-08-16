@@ -1,5 +1,7 @@
 import { MetadataRoute } from 'next'
-import { getChurches, allCities, citySlug } from '@/lib/churches'
+import {
+  getChurches, allCities, allDistricts, allProvinces, citySlug, slugify,
+} from '@/lib/churches'
 
 // Same reason as the directory pages: built statically this would ship a
 // sitemap with no churches and no city pages in it.
@@ -17,6 +19,7 @@ const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://churchnepal.com'
 const STATIC_ROUTES: Array<[string, MetadataRoute.Sitemap[number]['changeFrequency'], number]> = [
   ['', 'daily', 1.0],
   ['/churches', 'daily', 0.9],
+  ['/ne/churches', 'daily', 0.8],
   ['/features', 'weekly', 0.8],
   ['/pricing', 'monthly', 0.8],
   ['/how-it-works', 'monthly', 0.7],
@@ -46,12 +49,24 @@ async function dynamicUrls(): Promise<MetadataRoute.Sitemap> {
   const churches = await getChurches()
   const now = new Date()
 
-  const cityPages = allCities(churches).map((c) => ({
-    url: `${BASE_URL}/churches/${citySlug(c)}`,
+  const page = (path: string, priority: number) => ({
+    url: `${BASE_URL}${path}`,
     lastModified: now,
     changeFrequency: 'weekly' as const,
-    priority: 0.7,
-  }))
+    priority,
+  })
+
+  const cities = allCities(churches)
+  const placePages = [
+    // Nepali city pages are listed as their own URLs, not as alternates of the
+    // English ones — Google needs to crawl both before it will honour hreflang.
+    ...cities.flatMap((c) => [
+      page(`/churches/${citySlug(c)}`, 0.7),
+      page(`/ne/churches/${citySlug(c)}`, 0.6),
+    ]),
+    ...allDistricts(churches).map((d) => page(`/churches/district/${slugify(d)}`, 0.6)),
+    ...allProvinces(churches).map((p) => page(`/churches/province/${slugify(p)}`, 0.6)),
+  ]
 
   const churchSites = churches.map((c) => ({
     url: `https://${c.subdomain}/`,
@@ -60,7 +75,7 @@ async function dynamicUrls(): Promise<MetadataRoute.Sitemap> {
     priority: 0.6,
   }))
 
-  return [...cityPages, ...churchSites]
+  return [...placePages, ...churchSites]
 }
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
