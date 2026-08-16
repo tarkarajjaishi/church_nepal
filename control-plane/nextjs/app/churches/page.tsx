@@ -3,7 +3,16 @@ import Link from 'next/link';
 import PublicLayout from '../public-layout';
 import { getChurches, allCities, citySlug, type Church } from '@/lib/churches';
 
-export const revalidate = 3600;
+// Rendered per request, not at build.
+//
+// These pages read the church list from the control API, which only exists
+// inside the cluster — at build time on a CI runner the fetch fails, and with
+// static generation that empty result is what gets frozen into the HTML. The
+// directory shipped saying "being populated" and every city page said "No
+// churches in ...", which is the exact failure this content was added to avoid.
+// The underlying fetch still caches for an hour, so this costs a render, not a
+// round trip per visitor.
+export const dynamic = 'force-dynamic'
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://churchnepal.com';
 

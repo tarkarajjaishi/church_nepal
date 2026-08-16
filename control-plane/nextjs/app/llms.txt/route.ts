@@ -1,7 +1,8 @@
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://churchnepal.com'
 const API = process.env.NEXT_PUBLIC_CONTROL_API || '/api'
 
-export const revalidate = 3600
+// Built statically this would list zero churches forever.
+export const dynamic = 'force-dynamic'
 
 /**
  * llms.txt — a plain-text brief for answer engines.

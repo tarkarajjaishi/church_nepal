@@ -1,6 +1,10 @@
 import { MetadataRoute } from 'next'
 import { getChurches, allCities, citySlug } from '@/lib/churches'
 
+// Same reason as the directory pages: built statically this would ship a
+// sitemap with no churches and no city pages in it.
+export const dynamic = 'force-dynamic'
+
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://churchnepal.com'
 
 /**
