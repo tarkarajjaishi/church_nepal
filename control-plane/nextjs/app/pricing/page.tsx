@@ -1,18 +1,14 @@
 import { PricingSection } from '../pricing-section';
-import { PricingCalculator } from '../components/pricing-calculator';
 import PublicLayout from '../public-layout';
 import CtaSection from '../cta-section';
 
+// The "Estimate Your Costs" calculator was removed on request. The component
+// still exists at ../components/pricing-calculator if it is ever wanted back.
 export default function PricingPage() {
   return (
     <PublicLayout>
       <main>
         <PricingSection />
-        <div className="py-16 bg-[var(--bg)]">
-          <div className="container mx-auto px-4 max-w-3xl">
-            <PricingCalculator />
-          </div>
-        </div>
         <CtaSection />
       </main>
     </PublicLayout>

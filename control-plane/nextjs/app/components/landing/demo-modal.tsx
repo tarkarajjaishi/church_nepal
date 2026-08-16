@@ -136,12 +136,18 @@ export default function DemoModal() {
 
   return (
     <>
-      <Button 
-        onClick={openModal}
-        className="bg-[var(--accent)] hover:bg-[var(--accent-2)] text-white font-medium px-5 py-2.5 rounded-lg shadow-lg transition-colors"
+      {/* Was "Book a demo", which opened a contact form. It now sends people
+          straight to a real church running on the platform — the most direct
+          answer to "what does this actually look like". The modal below is left
+          intact so the form can be restored by swapping this back. */}
+      <a
+        href="https://gracechurchkathmandu.churchnepal.com/"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex items-center bg-[var(--accent)] hover:bg-[var(--accent-2)] text-white font-medium px-5 py-2.5 rounded-lg shadow-lg transition-colors"
       >
-        Book a demo
-      </Button>
+        Watch Demo
+      </a>
 
       {isOpen && (
         <div 

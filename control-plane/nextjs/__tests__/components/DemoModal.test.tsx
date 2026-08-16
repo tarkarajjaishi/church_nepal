@@ -1,65 +1,31 @@
-import { describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { describe, it, expect } from 'vitest'
+import { render, screen } from '@testing-library/react'
 import DemoModal from '@/components/landing/demo-modal'
 
-describe('DemoModal', () => {
-  it('renders the open button', () => {
+/**
+ * The trigger used to open a "Schedule a Demo" form. It now links straight to a
+ * live church on the platform, so the modal is unreachable and the tests that
+ * drove it (open, close, validate email, submit) were asserting behaviour no
+ * visitor can reach. What matters now is that the link says the right thing and
+ * points at the right place.
+ */
+describe('DemoModal trigger', () => {
+  it('renders a Watch Demo link', () => {
     render(<DemoModal />)
-    expect(screen.getByText('Book a demo')).toBeInTheDocument()
+    expect(screen.getByText('Watch Demo')).toBeInTheDocument()
   })
 
-  it('opens modal when button is clicked', async () => {
+  it('points at a real church site and opens in a new tab safely', () => {
     render(<DemoModal />)
-    const openButton = screen.getByText('Book a demo')
-    fireEvent.click(openButton)
-    expect(await screen.findByText('Schedule a Demo')).toBeInTheDocument()
+    const link = screen.getByText('Watch Demo').closest('a')
+    expect(link).toHaveAttribute('href', 'https://gracechurchkathmandu.churchnepal.com/')
+    expect(link).toHaveAttribute('target', '_blank')
+    // Without noopener the opened page gets a handle on window.opener.
+    expect(link?.getAttribute('rel')).toContain('noopener')
   })
 
-  it('closes modal when cancel is clicked', async () => {
+  it('does not open a dialog', () => {
     render(<DemoModal />)
-    fireEvent.click(screen.getByText('Book a demo'))
-    await screen.findByText('Schedule a Demo')
-    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
-    await waitFor(() => {
-      expect(screen.queryByText('Schedule a Demo')).not.toBeInTheDocument()
-    })
-  })
-
-  it('closes modal when close icon is clicked', async () => {
-    render(<DemoModal />)
-    fireEvent.click(screen.getByText('Book a demo'))
-    await screen.findByText('Schedule a Demo')
-    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
-    await waitFor(() => {
-      expect(screen.queryByText('Schedule a Demo')).not.toBeInTheDocument()
-    })
-  })
-
-  it('shows validation errors when form is submitted empty', async () => {
-    render(<DemoModal />)
-    fireEvent.click(screen.getByText('Book a demo'))
-    await screen.findByText('Schedule a Demo')
-    fireEvent.click(screen.getByRole('button', { name: 'Send Request' }))
-    expect(await screen.findByText('Name is required')).toBeInTheDocument()
-    expect(await screen.findByText('Church name is required')).toBeInTheDocument()
-    expect(await screen.findByText('Email is required')).toBeInTheDocument()
-  })
-
-  it('validates email format', async () => {
-    const { container } = render(<DemoModal />)
-    fireEvent.click(screen.getByText('Book a demo'))
-    await screen.findByText('Schedule a Demo')
-    fireEvent.change(screen.getByLabelText('Your Name *'), { target: { value: 'John' } })
-    fireEvent.change(screen.getByLabelText('Church Name *'), { target: { value: 'Church' } })
-    fireEvent.change(screen.getByLabelText('Email Address *'), { target: { value: 'invalid' } })
-
-    // The field is <input type="email">, so clicking submit makes jsdom's native
-    // constraint validation reject the form before handleSubmit ever runs — the
-    // component's own validation would never be exercised. Submitting the form
-    // directly is what actually tests it.
-    const form = container.querySelector('form')!
-    fireEvent.submit(form)
-
-    expect(await screen.findByText('Email is invalid')).toBeInTheDocument()
+    expect(screen.queryByText('Schedule a Demo')).not.toBeInTheDocument()
   })
 })

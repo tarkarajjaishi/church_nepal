@@ -158,15 +158,9 @@ export function Navbar() {
             </button>
           </div>
 
-          <Button asChild size="sm" className="hidden md:inline-flex bg-gold text-church-blue hover:bg-gold/90">
-            <Link href="/live">
-              <Radio className="size-4" /> {t("joinLive")}
-            </Link>
-          </Button>
-
-          <Button asChild size="sm" className="hidden xl:inline-flex bg-church-blue hover:bg-church-blue/90">
-            <Link href="/give">{t("give")}</Link>
-          </Button>
+          {/* The "Join Live" and "Give" header buttons were removed on request.
+              Both destinations still exist — /live and /give are reachable from
+              the footer and by URL — this only takes them out of the header. */}
 
           {/* Mobile menu */}
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>

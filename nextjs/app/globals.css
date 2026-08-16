@@ -69,7 +69,14 @@
   --destructive: #d4183d;
   --destructive-foreground: #ffffff;
   --border: rgba(11, 60, 93, 0.12);
-  --input: transparent;
+  /* `--input` is the BORDER colour of every input, select and textarea
+     (`border-input` in components/ui/*). It was `transparent`, so on the white
+     background the fields had no visible edge at all — the membership form
+     looked like floating labels with nothing to type into. Dark mode set a real
+     colour, which is why this only ever showed in light. Stronger than
+     `--border` on purpose: a control the user is meant to click needs a firmer
+     edge than a divider. */
+  --input: rgba(11, 60, 93, 0.28);
   --input-background: #f2f6f9;
   --switch-background: #cbced4;
   --font-weight-medium: 500;

@@ -10,7 +10,10 @@ export default function BlogPage() {
   const authors = getAuthors();
 
   return (
-    <div className="container py-8">
+    // `container` alone is not centred or padded here, so the page sat flush
+    // against the left edge of the viewport. Every other page pairs it with
+    // mx-auto px-4.
+    <div className="container mx-auto px-4 max-w-7xl py-12">
       <div className="mb-12 text-center">
         <h1 className="text-4xl font-bold mb-4">Our Blog</h1>
         <p className="text-[var(--muted)] max-w-2xl mx-auto">

@@ -62,7 +62,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <StructuredData />
       </head>
       <body>
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+        {/* Light by default, and not following the OS. `system` meant a visitor
+            whose phone was in dark mode got the dark palette without ever
+            choosing it. The toggle still works and still persists. */}
+        <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false} disableTransitionOnChange>
           <ErrorReporter />
           <SiteThemeApplier />
           {children}

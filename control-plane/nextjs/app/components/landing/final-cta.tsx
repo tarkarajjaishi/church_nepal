@@ -41,12 +41,14 @@ export default function FinalCTA() {
               Get Started
             </Link>
 
-            <button
-              type="button"
+            <a
+              href="https://gracechurchkathmandu.churchnepal.com/"
+              target="_blank"
+              rel="noopener noreferrer"
               className="inline-flex items-center justify-center rounded-md border border-white/70 px-6 py-3 text-base font-semibold text-white transition-colors hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-[var(--accent)]"
             >
-              Book a demo
-            </button>
+              Watch Demo
+            </a>
           </div>
         </div>
       </div>

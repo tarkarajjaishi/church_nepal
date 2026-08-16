@@ -36,7 +36,7 @@ export default function SiteLayout({ children }: { children: React.ReactNode }) 
         <Navbar />
         <main id="main-content">{children}</main>
         <Footer />
-        <FloatingButtons />
+        {/* FloatingButtons (prayer / chat / call) removed on request. */}
         <ThemeCustomizer />
         <PushOptIn />
         <Toaster position="top-center" richColors />

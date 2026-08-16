@@ -40,17 +40,15 @@ export const metadata: Metadata = {
 };
 
 // Inline script to prevent flash of wrong theme on load
+// Light-only on request. The toggle that let a visitor pick dark has been
+// removed from the navbar, so anything still in localStorage from before would
+// otherwise pin them to a theme they can no longer change.
 const themeScript = `
   (function() {
     try {
-      var theme = localStorage.getItem('theme');
-      var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      // Default to dark, only override if user explicitly set theme
-      var resolvedTheme = theme || 'dark';
-      document.documentElement.setAttribute('data-theme', resolvedTheme);
-    } catch (e) {
-      document.documentElement.setAttribute('data-theme', 'dark');
-    }
+      localStorage.removeItem('theme');
+    } catch (e) {}
+    document.documentElement.setAttribute('data-theme', 'light');
   })();
 `;
 

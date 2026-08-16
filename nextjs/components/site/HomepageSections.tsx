@@ -1755,17 +1755,11 @@ export function HomepageSections() {
             break;
 
           /* ---------- Donation ---------- */
+          // Removed from the homepage on request. /give still exists as a page
+          // and DonationSection is still defined — restore the render here to
+          // bring the section back.
           case 'donation_section':
-            if (cb('donation_section')?.enabled === false) return null;
-            content = (
-              <DonationSection
-                key={key}
-                block={cb('donation_section')}
-                allCampaigns={allCampaigns}
-                t={t}
-              />
-            );
-            break;
+            return null;
 
           /* ---------- Map + Visit ---------- */
           case 'map_visit':

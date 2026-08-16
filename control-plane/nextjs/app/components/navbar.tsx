@@ -154,101 +154,15 @@ export function Navbar() {
 
           {/* Desktop Actions */}
           <div className="hidden md:flex items-center gap-3">
-            {/* Theme Toggle - Desktop */}
-            <button
-              onClick={toggleTheme}
-              className="p-2 rounded-md text-[var(--muted)] hover:text-[var(--text-strong)] hover:bg-[var(--panel-2)] transition-colors"
-              aria-label={mounted && theme === "dark" ? "Switch to light theme" : mounted ? "Switch to dark theme" : "Toggle theme"}
-            >
-              {mounted && theme === "dark" ? (
-                // Moon icon - switch to light
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M21 12.79A9 9 0 1111.21 3c-.34 0-.67.02-1 .05a7 7 0 109.79 9.74c.03-.33.04-.66.04-1z" />
-                </svg>
-              ) : mounted ? (
-                // Sun icon - switch to dark
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                  <circle cx="12" cy="12" r="5" />
-                  <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" strokeWidth="2" strokeLinecap="round" />
-                </svg>
-              ) : (
-                // Loading placeholder - neutral icon
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                  <circle cx="12" cy="12" r="5" />
-                </svg>
-              )}
-            </button>
-
-            {/* Language Switcher */}
-            <div className="relative" ref={langMenuRef}>
-              <button
-                onClick={() => setIsLangOpen(!isLangOpen)}
-                className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-[var(--muted)] hover:text-[var(--text-strong)] bg-[var(--panel-2)] hover:bg-[var(--panel-3)] rounded-md transition-colors"
-                aria-label="Select locale"
-                aria-expanded={isLangOpen}
-              >
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M4.083 9h11.834c.076-.429-.068-.91-.37-1.238l-4.918-5.41c-.448-.5-1.152-.5-1.598 0L4.453 7.762c-.3.329-.408.81-.282 1.238zm0 2h11.834c.076.429-.068.91-.37 1.238l-4.918 5.41c-.448.5-1.152.5-1.598 0L4.453 12.238c-.3-.329-.408-.81-.282-1.238H4.083z" clipRule="evenodd" />
-                </svg>
-                {locale === "en" ? "EN" : "ने"}
-                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                </svg>
-              </button>
-
-              {isLangOpen && (
-                <div className="absolute right-0 mt-2 w-36 bg-[var(--panel)] border border-[var(--border)] rounded-md shadow-lg z-50">
-                  <button
-                    className="w-full px-3 py-2 text-left text-sm hover:bg-[var(--panel-2)] transition-colors"
-                    onClick={() => {
-                      setLocale("en");
-                      setIsLangOpen(false);
-                    }}
-                  >
-                    {locale === "en" && <span className="float-right ml-1">✓</span>}
-                    English
-                  </button>
-                  <button
-                    className="w-full px-3 py-2 text-left text-sm hover:bg-[var(--panel-2)] transition-colors"
-                    onClick={() => {
-                      setLocale("ne");
-                      setIsLangOpen(false);
-                    }}
-                  >
-                    {locale === "ne" && <span className="float-right ml-1">✓</span>}
-                    नेपाली
-                  </button>
-                </div>
-              )}
-            </div>
+            {/* Theme toggle and language switcher removed on request: the site
+                is light-only now and ships English only. setLocale/toggleTheme
+                still exist in the provider, so restoring either is a matter of
+                putting a control back here. */}
           </div>
 
           {/* Mobile Menu Button */}
           <div className="md:hidden flex items-center gap-2">
-            {/* Theme Toggle (mobile) */}
-            <button
-              onClick={toggleTheme}
-              className="p-2 rounded-md text-[var(--muted)] hover:text-[var(--text-strong)] hover:bg-[var(--panel-2)] transition-colors"
-              aria-label={mounted && theme === "dark" ? "Switch to light theme" : mounted ? "Switch to dark theme" : "Toggle theme"}
-            >
-              {mounted && theme === "dark" ? (
-                // Moon icon - switch to light
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M21 12.79A9 9 0 1111.21 3c-.34 0-.67.02-1 .05a7 7 0 109.79 9.74c.03-.33.04-.66.04-1z" />
-                </svg>
-              ) : mounted ? (
-                // Sun icon - switch to dark
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                  <circle cx="12" cy="12" r="5" />
-                  <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" strokeWidth="2" strokeLinecap="round" />
-                </svg>
-              ) : (
-                // Loading placeholder - neutral icon
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                  <circle cx="12" cy="12" r="5" />
-                </svg>
-              )}
-            </button>
+            {/* Mobile theme toggle removed with the desktop one. */}
 
             <button
               onClick={() => setIsMobileMenuOpen(true)}

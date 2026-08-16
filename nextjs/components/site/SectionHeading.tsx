@@ -14,11 +14,17 @@ export function SectionHeading({ eyebrow, title, subtitle, center = true, light 
     <Reveal className={center ? "text-center mx-auto max-w-2xl" : "max-w-2xl"}>
       {eyebrow && (
         <div className={`mb-3 inline-flex items-center gap-2 ${center ? "justify-center" : ""}`}>
-          <span className="h-px w-6 bg-gold" />
-          <span className="uppercase tracking-[0.2em] text-xs text-gold-text" style={{ fontFamily: "var(--font-heading)" }}>
+          <span className={`h-px w-6 ${light ? "bg-white/50" : "bg-gold"}`} />
+          {/* The eyebrow ignored `light`, so on the dark-blue sections it stayed
+              gold-on-blue — small, letter-spaced, uppercase text at roughly 2:1.
+              Gold is a surface colour here, not an ink colour. */}
+          <span
+            className={`uppercase tracking-[0.2em] text-xs ${light ? "text-white/90" : "text-gold-text"}`}
+            style={{ fontFamily: "var(--font-heading)" }}
+          >
             {eyebrow}
           </span>
-          <span className="h-px w-6 bg-gold" />
+          <span className={`h-px w-6 ${light ? "bg-white/50" : "bg-gold"}`} />
         </div>
       )}
       <h2

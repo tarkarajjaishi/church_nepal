@@ -45,11 +45,11 @@ export default function StickyCTA() {
           >
             Dismiss
           </Button>
-          <Link href="/contact">
+          <a href="https://gracechurchkathmandu.churchnepal.com/" target="_blank" rel="noopener noreferrer">
             <Button size="sm" className="bg-[var(--accent)] hover:bg-[var(--accent-2)] text-white">
-              Book a Demo
+              Watch Demo
             </Button>
-          </Link>
+          </a>
         </div>
       </div>
     </div>

@@ -36,7 +36,14 @@ export function Footer() {
     ? "A Christ-centred community in Nepal, growing in faith, hope and love — reaching every village with the gospel."
     : "नेपालमा ख्रीष्ट-केन्द्रित समुदाय, विश्वास, आशा र प्रेममा बढ्दै — हरेक गाउँमा सुसमाचार पुर्‍याउँदै।");
 
-  const quickLinksGroup = groups.find((g: any) => g.group === "Quick Links");
+  // The footer links come from the `footer` content block, which every church
+  // is seeded with, so dropping /give here covers all of them at once rather
+  // than editing each tenant's data. Remove this filter if giving is ever put
+  // back in the footer.
+  const withoutGiving = (g: any) =>
+    g ? { ...g, links: (g.links || []).filter((l: any) => l?.to !== '/give' && l?.href !== '/give') } : g;
+
+  const quickLinksGroup = withoutGiving(groups.find((g: any) => g.group === "Quick Links"));
   const ministryGroup = groups.find((g: any) => g.group === "Ministries");
   const connectedGroup = groups.find((g: any) => g.group === "Stay Connected");
   const services = serviceTimes.slice(0, 4);
@@ -167,9 +174,20 @@ export function Footer() {
       <div className="border-t border-white/10">
         <div className="mx-auto max-w-7xl px-4 py-5 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-white/70">
           <span>&copy; {new Date().getFullYear()} {churchName}. All rights reserved.</span>
-          <div className="flex gap-5">
+          <div className="flex flex-wrap items-center justify-center gap-5">
             <Link href="/privacy" className="hover:text-gold transition-colors">{t("privacy_policy")}</Link>
             <Link href="/terms" className="hover:text-gold transition-colors">{t("terms_of_service")}</Link>
+            {/* Platform credit. A plain <a>, not next/link: churchnepal.com is a
+                different app on a different host, so client-side routing would
+                only 404 inside this church's site. */}
+            <a
+              href="https://churchnepal.com/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-gold transition-colors"
+            >
+              Managed and developed by ChurchNepal
+            </a>
           </div>
         </div>
       </div>
