@@ -24,12 +24,23 @@ const DEFAULT_BASE: &str = "http://localhost:3002/api";
 const DEFAULT_HOST: &str = "grace_church_dev.localhost";
 const DEFAULT_SECRET: &str = "grace-nepal-church-jwt-secret-2026";
 
+/// Must match `crate::auth::Claims` exactly. It drifted: the server grew
+/// session fields and this struct did not, so every minted token failed to
+/// decode and *every* admin smoke test 401'd — around forty of them, which
+/// reads as "the admin API is broken" rather than "the test mints a stale
+/// token".
 #[derive(Debug, Serialize)]
 struct Claims {
     sub: String,
     email: String,
     role: String,
     exp: i64,
+    jti: String,
+    iat: i64,
+    /// The server enforces a 15-minute idle window on this, not on `exp`.
+    last_active_at: i64,
+    /// Rejected if older than the user row's `updated_at`.
+    pwd_changed_at: i64,
 }
 
 /// Mint an admin JWT using the same secret + claims shape the server expects.
@@ -39,12 +50,19 @@ fn admin_token() -> String {
         .checked_add_signed(chrono::Duration::hours(24))
         .expect("valid timestamp")
         .timestamp();
+    let now = Utc::now().timestamp();
     let claims = Claims {
-        // Seeded church admin (provisioned user) so /auth/me resolves a real row.
-        sub: "1f42037d-7878-4890-a4a0-29a60b310c69".to_string(),
+        // Must be a user that actually exists, or /auth/me resolves no row and
+        // 401s. Overridable because the seed's uuids are per-environment.
+        sub: std::env::var("SMOKE_ADMIN_SUB")
+            .unwrap_or_else(|_| "0db83c02-e7fd-4442-ba75-e739337f17bd".to_string()),
         email: "admin@gracenepal.org".to_string(),
         role: "admin".to_string(),
         exp,
+        jti: "smoke-test".to_string(),
+        iat: now,
+        last_active_at: now,
+        pwd_changed_at: now,
     };
     encode(
         &Header::default(),
@@ -343,17 +361,38 @@ async fn public_groups_detail() {
         assert_object(get(&format!("/groups/{id}")).await, "/groups/{id}").await;
     }
 }
+// These three were named `public_*` and called the unauthenticated helper,
+// which is exactly the bug they were passing on: giving totals, congregation
+// counts and the admin dashboard counters answered anyone who knew the
+// hostname. They are admin-only now, so they assert with a token — and the
+// companion test below asserts that no token gets nothing.
 #[tokio::test]
-async fn public_dashboard_stats() {
-    assert_object(get("/dashboard/stats").await, "/dashboard/stats").await;
+async fn admin_dashboard_stats() {
+    assert_object(get_admin("/dashboard/stats").await, "/dashboard/stats").await;
 }
 #[tokio::test]
-async fn public_people_stats() {
-    assert_object(get("/people/stats").await, "/people/stats").await;
+async fn admin_people_stats() {
+    assert_object(get_admin("/people/stats").await, "/people/stats").await;
 }
 #[tokio::test]
-async fn public_offerings_stats() {
-    assert_object(get("/offerings/stats").await, "/offerings/stats").await;
+async fn admin_offerings_stats() {
+    assert_object(get_admin("/offerings/stats").await, "/offerings/stats").await;
+}
+#[tokio::test]
+async fn stats_endpoints_refuse_an_anonymous_caller() {
+    for path in ["/dashboard/stats", "/people/stats", "/offerings/stats", "/dashboard/search?q=a"] {
+        let status = get(path).await.status().as_u16();
+        assert_eq!(status, 401, "GET {path} without a token returned {status}, expected 401");
+    }
+}
+#[tokio::test]
+async fn public_members_carry_no_contact_details() {
+    // /members stays public — the site renders it — so it must not ship the
+    // columns the members table also holds.
+    let body = ok_json(get("/members").await, "/members").await.to_string();
+    for field in ["\"email\"", "\"phone\"", "\"address\"", "\"notes\"", "\"member_status\""] {
+        assert!(!body.contains(field), "public /members leaked {field}");
+    }
 }
 #[tokio::test]
 async fn public_donations_status() {
@@ -364,16 +403,21 @@ async fn public_donations_status() {
     }
 }
 #[tokio::test]
-async fn public_donations_stats() {
-    assert_object(get("/donations/stats").await, "/donations/stats").await;
+// Named `public_*` but these have always been admin-only — giving figures and
+// the reports. They were asserting 200 on an unauthenticated call and failing
+// long before the stats endpoints moved.
+async fn admin_donations_stats_summary() {
+    assert_object(get_admin("/donations/stats").await, "/donations/stats").await;
 }
 #[tokio::test]
-async fn public_reports_giving_summary() {
-    assert_object(get("/reports/giving-summary").await, "/reports/giving-summary").await;
+async fn admin_reports_giving_summary() {
+    assert_object(get_admin("/reports/giving-summary").await, "/reports/giving-summary").await;
 }
 #[tokio::test]
-async fn public_reports_people_summary() {
-    assert_object(get("/reports/people-summary").await, "/reports/people-summary").await;
+async fn admin_reports_membership() {
+    // Was `/reports/people-summary`, which is not a key in the catalogue and so
+    // matched `/reports/{key}` and 404'd. The people-side report is `membership`.
+    assert_object(get_admin("/reports/membership").await, "/reports/membership").await;
 }
 #[tokio::test]
 async fn public_auth_me() {
@@ -694,8 +738,11 @@ async fn shape_person() {
 }
 #[tokio::test]
 async fn shape_giving_summary() {
-    let val = assert_object(get("/reports/giving-summary").await, "/reports/giving-summary").await;
-    assert!(val.get("total_raised").is_some(), "giving-summary missing 'total_raised'");
-    assert!(val.get("total_donations").is_some(), "giving-summary missing 'total_donations'");
-    assert!(val.get("top_donors").is_some(), "giving-summary missing 'top_donors'");
+    let val = assert_object(get_admin("/reports/giving-summary").await, "/reports/giving-summary").await;
+    // Every report answers in one shared envelope, so this asserts the envelope
+    // rather than the flat `total_raised` / `top_donors` fields that predate it.
+    for field in ["key", "columns", "rows", "stats", "totals"] {
+        assert!(val.get(field).is_some(), "giving-summary envelope missing '{field}'");
+    }
+    assert_eq!(val["key"], "giving-summary");
 }
