@@ -36,7 +36,15 @@ export default function ProvisionProgress({
   churchData,
   onComplete,
 }: {
-  churchData: { name: string; subdomain: string; plan: string; adminEmail: string };
+  churchData: {
+    name: string;
+    subdomain: string;
+    plan: string;
+    adminEmail: string;
+    city?: string;
+    district?: string;
+    province?: string;
+  };
   onComplete: () => void;
 }) {
   const [created, setCreated] = useState<NewChurch | null>(null);
@@ -50,7 +58,14 @@ export default function ProvisionProgress({
     if (started.current) return;
     started.current = true;
     apiClient
-      .post<NewChurch>('/churches', { name: churchData.name })
+      // Location is sent on create so the church appears on its city page
+      // immediately, rather than needing a follow-up PATCH nobody remembers.
+      .post<NewChurch>('/churches', {
+        name: churchData.name,
+        city: churchData.city || undefined,
+        district: churchData.district || undefined,
+        province: churchData.province || undefined,
+      })
       .then((r) => setCreated(r.data))
       .catch((e) =>
         setError(
@@ -59,7 +74,7 @@ export default function ProvisionProgress({
             'Could not create the church.',
         ),
       );
-  }, [churchData.name]);
+  }, [churchData.name, churchData.city, churchData.district, churchData.province]);
 
   if (error) {
     return (

@@ -7,6 +7,7 @@ import { ExternalLink, ArrowLeft } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
 import { PageTitle, Stat, Failed, Loading, rupees } from "@/components/platform";
 import { Card } from "@/components/ui/card";
+import { ChurchLocationForm } from "@/components/admin/church-location-form";
 import { Button } from "@/components/ui/button";
 
 /**
@@ -36,6 +37,9 @@ interface Church {
   last_active_at: string | null;
   member_count: number;
   giving_total: number;
+  city: string | null;
+  district: string | null;
+  province: string | null;
 }
 
 export default function ChurchDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -96,6 +100,7 @@ export default function ChurchDetailPage({ params }: { params: Promise<{ id: str
                 ["Administrator", c.admin_email],
                 ["Subdomain", c.subdomain],
                 ["Custom domain", c.custom_domain || "none"],
+                ["Location", [c.city, c.district, c.province].filter(Boolean).join(", ") || "not set"],
                 ["Created", c.created_at.slice(0, 10)],
                 ["Last active", c.last_active_at ? c.last_active_at.slice(0, 10) : "never"],
               ].map(([k, v]) => (
@@ -106,6 +111,13 @@ export default function ChurchDetailPage({ params }: { params: Promise<{ id: str
               ))}
             </dl>
           </Card>
+
+          <ChurchLocationForm
+            id={c.id}
+            city={c.city}
+            district={c.district}
+            province={c.province}
+          />
 
           <div className="flex flex-wrap gap-3">
             <Button variant="outline" asChild>

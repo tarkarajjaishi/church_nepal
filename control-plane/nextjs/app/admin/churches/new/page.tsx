@@ -14,6 +14,12 @@ export default function NewChurchPage() {
   const [formData, setFormData] = useState({
     name: '',
     subdomain: '',
+    // Location drives the public /churches/[city] pages. Optional, because an
+    // operator often has the church before the address — a church with no city
+    // is listed in the directory, just not under a city.
+    city: '',
+    district: '',
+    province: '',
     plan: 'basic',
     adminEmail: '',
     adminPassword: '',
@@ -115,6 +121,47 @@ export default function NewChurchPage() {
                     </div>
                     <p className="mt-1 text-xs text-[var(--muted)]">Lowercase letters, numbers, and hyphens only.</p>
                   </div>
+
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    <div>
+                      <label className="block text-sm font-medium text-[var(--text)] mb-1">City</label>
+                      <Input
+                        type="text"
+                        name="city"
+                        value={formData.city}
+                        onChange={handleChange}
+                        placeholder="Kathmandu"
+                        className="bg-[var(--panel-2)] border-[var(--border-soft)] text-[var(--text)]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-[var(--text)] mb-1">District</label>
+                      <Input
+                        type="text"
+                        name="district"
+                        value={formData.district}
+                        onChange={handleChange}
+                        placeholder="Kathmandu"
+                        className="bg-[var(--panel-2)] border-[var(--border-soft)] text-[var(--text)]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-[var(--text)] mb-1">Province</label>
+                      <Input
+                        type="text"
+                        name="province"
+                        value={formData.province}
+                        onChange={handleChange}
+                        placeholder="Bagmati"
+                        className="bg-[var(--panel-2)] border-[var(--border-soft)] text-[var(--text)]"
+                      />
+                    </div>
+                  </div>
+                  <p className="-mt-2 text-xs text-[var(--muted)]">
+                    Optional. The city puts this church on the public
+                    <span className="font-mono"> /churches/&lt;city&gt; </span>
+                    directory page; without it the church is still listed, just not by location.
+                  </p>
                 </div>
               )}
 
@@ -171,6 +218,10 @@ export default function NewChurchPage() {
                   <h2 className="text-xl font-semibold text-[var(--text)]">Review Details</h2>
                   <div className="space-y-2 text-sm">
                     <div><span className="font-medium text-[var(--text)]">Name:</span> {formData.name}</div>
+                    <div>
+                      <span className="font-medium text-[var(--text)]">Location:</span>{' '}
+                      {[formData.city, formData.district, formData.province].filter(Boolean).join(', ') || 'not set'}
+                    </div>
                     <div><span className="font-medium text-[var(--text)]">Subdomain:</span> {formData.subdomain}.churchnepal.com</div>
                     <div><span className="font-medium text-[var(--text)]">Plan:</span> {formData.plan}</div>
                     <div>
