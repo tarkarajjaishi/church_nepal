@@ -237,7 +237,7 @@ export default function ContentBlocksPage() {
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault()
     if (!form.section_key || !form.title) return
-    let itemsArr: Record<string, any>[] = [...(form.items || [])]
+    const itemsArr: Record<string, any>[] = [...(form.items || [])]
     if (itemsArr.length === 0) {
       const itemsObj: Record<string, any> = {}
       if (form.eyebrow) itemsObj.eyebrow = form.eyebrow
@@ -261,7 +261,7 @@ export default function ContentBlocksPage() {
   const handleUpdate = (e: React.FormEvent) => {
     e.preventDefault()
     if (!editing) return
-    let itemsArr: Record<string, any>[] = [...(form.items || [])]
+    const itemsArr: Record<string, any>[] = [...(form.items || [])]
     if (itemsArr.length === 0) {
       const itemsObj: Record<string, any> = {}
       if (form.eyebrow) itemsObj.eyebrow = form.eyebrow

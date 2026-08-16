@@ -8,7 +8,7 @@ const DEFAULT_BG = '#ffffff'
 
 export default async function manifest(): Promise<MetadataRoute.Manifest> {
   let name = DEFAULT_NAME
-  let shortName = DEFAULT_SHORT
+  const shortName = DEFAULT_SHORT
   let desc = DEFAULT_DESC
   let themeColor = DEFAULT_THEME
   let bgColor = DEFAULT_BG

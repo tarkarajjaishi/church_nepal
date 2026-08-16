@@ -43,27 +43,11 @@ export function RichTextEditor({ value, onChange, placeholder }: RichTextEditorP
     },
   })
 
-  if (!editor) return null
-
+  // Every hook must run before the `if (!editor) return null` below. useEditor
+  // returns null on the first render, so with the early return above them these
+  // two ran on some renders and not others — React's hook order breaks the
+  // moment the editor finishes initialising.
   const fileInputRef = useRef<HTMLInputElement>(null)
-
-  const addImage = async () => {
-    fileInputRef.current?.click()
-  }
-
-  const handleFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    try {
-      const result = await uploadFile(file)
-      editor.chain().focus().setImage({ src: result.url }).run()
-    } catch (err) {
-      console.error('Image upload failed', err)
-      // Optionally show a toast/error
-    } finally {
-      e.target.value = ''
-    }
-  }
 
   useEffect(() => {
     if (!editor) return
@@ -97,6 +81,26 @@ export function RichTextEditor({ value, onChange, placeholder }: RichTextEditorP
       }
     }
   }, [editor])
+
+  if (!editor) return null
+
+  const addImage = async () => {
+    fileInputRef.current?.click()
+  }
+
+  const handleFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    try {
+      const result = await uploadFile(file)
+      editor.chain().focus().setImage({ src: result.url }).run()
+    } catch (err) {
+      console.error('Image upload failed', err)
+      // Optionally show a toast/error
+    } finally {
+      e.target.value = ''
+    }
+  }
 
   const addLink = () => {
     const url = window.prompt('Link URL:')
