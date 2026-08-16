@@ -113,6 +113,9 @@ fn church_json_contract() {
         suspended_at: None,
         created_at: None,
         past_due_at: None,
+        city: Some("Kathmandu".into()),
+        district: Some("Kathmandu".into()),
+        province: Some("Bagmati".into()),
     };
 
     let value = serde_json::to_value(&church).expect("serialize church");
@@ -131,6 +134,11 @@ fn church_json_contract() {
     assert!(obj.contains_key("suspended_at"));
     assert!(obj.contains_key("past_due_at"));
     assert!(obj.contains_key("created_at"));
+    // Location drives the public /churches/<city> pages; the admin console
+    // reads these off the same payload.
+    assert!(obj.contains_key("city"));
+    assert!(obj.contains_key("district"));
+    assert!(obj.contains_key("province"));
 }
 
 #[test]
