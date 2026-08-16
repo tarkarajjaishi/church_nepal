@@ -2,6 +2,11 @@
 # arrive with CRLF and fail as `$'\r': command not found`, which reads as a
 # syntax error in the script rather than a line-ending problem.
 *.sh text eol=lf
+# sqlx records a SHA-384 of each migration's bytes and refuses to start if it
+# changes. Checked out with CRLF on Windows and LF on a Linux CI runner, the
+# same file hashes differently — an image built here and an image built in CI
+# disagree, and the second one panics with VersionMismatch. Pin them to LF.
+*.sql text eol=lf
 Dockerfile text eol=lf
 *.yaml text eol=lf
 *.yml text eol=lf

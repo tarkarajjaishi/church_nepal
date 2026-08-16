@@ -184,8 +184,12 @@ jobs:
           H: ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}
         run: |
           set -euo pipefail
-          SSH="ssh -i ~/.ssh/deploy -o BatchMode=yes"
-          scp -i ~/.ssh/deploy -o BatchMode=yes images.tar "$H:/tmp/churchnepal-images.tar"
+          # Keepalives are load-bearing: `rollout status` prints nothing while
+          # it waits, and a silent connection got dropped mid-deploy with
+          # "client_loop: send disconnect: Broken pipe" after ~5 minutes.
+          SSH="ssh -i ~/.ssh/deploy -o BatchMode=yes -o ServerAliveInterval=20 -o ServerAliveCountMax=30"
+          scp -i ~/.ssh/deploy -o BatchMode=yes -o ServerAliveInterval=20 -o ServerAliveCountMax=30 \
+            images.tar "$H:/tmp/churchnepal-images.tar"
           $SSH "$H" bash -euo pipefail -s "$SHA" <<'REMOTE'
             SHA="$1"
             sudo k3s ctr images import /tmp/churchnepal-images.tar >/dev/null
@@ -196,7 +200,11 @@ jobs:
             sed -E "s|(churchnepal/[a-z-]+):dev|\1:${SHA}|g" cn/k8s/churchnepal.yaml \
               | sudo k3s kubectl apply -f -
             for d in church-api church-ui control-api control-ui; do
+              # Print something periodically so the SSH channel is never idle,
+              # and so a stuck rollout is visible in the log rather than silent.
+              ( while sleep 30; do echo "   … still waiting on $d"; done ) & keep=$!
               sudo k3s kubectl -n churchnepal rollout status "deploy/$d" --timeout=300s
+              kill $keep 2>/dev/null || true
             done
             # nginx config is versioned too; only reload if it actually changed.
             if ! sudo diff -q cn/k8s/nginx-churchnepal.conf /etc/nginx/sites-available/churchnepal >/dev/null 2>&1; then
