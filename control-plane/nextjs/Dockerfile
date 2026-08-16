@@ -7,10 +7,8 @@ FROM node:20-slim AS builder
 WORKDIR /app
 ARG NEXT_PUBLIC_CONTROL_API=/api
 ENV NEXT_PUBLIC_CONTROL_API=$NEXT_PUBLIC_CONTROL_API
-COPY package*.json ./
-# ponytail: see the note in nextjs/Dockerfile — same @testing-library/react
-# peer conflict, same deferred fix.
-RUN npm ci --legacy-peer-deps
+COPY package*.json .npmrc ./
+RUN npm ci
 COPY . .
 RUN npm run build
 

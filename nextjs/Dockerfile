@@ -8,12 +8,10 @@
 
 FROM node:20-slim AS builder
 WORKDIR /app
-COPY package*.json ./
-# ponytail: --legacy-peer-deps because @testing-library/react@15 pins
-# @types/react@^18 and this project is on 19, so npm refuses to resolve. The
-# real fix is bumping it to v16 (the first release supporting React 19), which
-# needs the vitest suite re-run — deliberately not done as part of a deploy.
-RUN npm ci --legacy-peer-deps
+# .npmrc carries legacy-peer-deps — see it for why. Copied alongside the
+# manifests so the install layer behaves identically here, in CI and locally.
+COPY package*.json .npmrc ./
+RUN npm ci
 COPY . .
 RUN npm run build
 
