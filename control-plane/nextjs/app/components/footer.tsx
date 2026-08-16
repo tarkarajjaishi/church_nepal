@@ -22,7 +22,7 @@ export function Footer() {
     <footer className="bg-[var(--panel)] border-t border-[var(--border)]">
       <div className="max-w-[var(--max)] mx-auto px-6">
         {/* Main Footer Content */}
-        <div className="py-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8">
+        <div className="py-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-8">
           {/* Brand Column */}
           <div className="lg:col-span-2">
             <Link href="/" className="flex items-center gap-3 mb-4 group">
@@ -95,6 +95,34 @@ export function Footer() {
                    Status
                  </Link>
                </li>
+             </ul>
+           </div>
+
+           {/* Church Life
+               These are the topic pages. A sitemap entry alone leaves a page
+               orphaned and it crawls badly, so each cluster gets a site-wide
+               link here; the cluster siblings (youth, children, family,
+               missions) are reached from the pages themselves. */}
+           <div>
+             <h3 className="text-sm font-semibold text-[var(--text-strong)] mb-3 uppercase tracking-wider">
+               Church Life
+             </h3>
+             <ul className="space-y-2">
+               {[
+                 ['/worship', 'Worship'],
+                 ['/bible-study', 'Bible Study'],
+                 ['/prayer', 'Prayer'],
+                 ['/fellowship', 'Fellowship'],
+                 ['/ministries', 'Ministries'],
+                 ['/events', 'Events'],
+                 ['/denominations', 'Denominations'],
+               ].map(([href, label]) => (
+                 <li key={href}>
+                   <Link href={href} className="text-sm text-[var(--muted)] hover:text-[var(--accent)] transition-colors">
+                     {label}
+                   </Link>
+                 </li>
+               ))}
              </ul>
            </div>
 

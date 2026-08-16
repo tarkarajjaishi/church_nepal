@@ -4,6 +4,7 @@ import {
 } from '@/lib/churches'
 import { getAllBlogPosts, getCategories, getTags, termSlug } from '@/lib/blog-data'
 import { getAllHelpArticles } from '@/lib/help-data'
+import { TOPICS, topicPath } from '@/lib/topics'
 
 // Same reason as the directory pages: built statically this would ship a
 // sitemap with no churches and no city pages in it.
@@ -22,6 +23,7 @@ const STATIC_ROUTES: Array<[string, MetadataRoute.Sitemap[number]['changeFrequen
   ['', 'daily', 1.0],
   ['/churches', 'daily', 0.9],
   ['/ne/churches', 'daily', 0.8],
+  ['/denominations', 'monthly', 0.7],
   ['/features', 'weekly', 0.8],
   ['/pricing', 'monthly', 0.8],
   ['/about', 'monthly', 0.7],
@@ -100,6 +102,16 @@ async function dynamicUrls(): Promise<MetadataRoute.Sitemap> {
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date()
+
+  // Topic pages carry no live data, so they are listed from the registry
+  // rather than dynamicUrls() — nothing here can come back empty.
+  const topics = TOPICS.map((t) => ({
+    url: `${BASE_URL}${topicPath(t)}`,
+    lastModified: now,
+    changeFrequency: 'monthly' as const,
+    priority: t.cluster === 'denomination' ? 0.6 : 0.7,
+  }))
+
   return [
     ...STATIC_ROUTES.map(([path, changeFrequency, priority]) => ({
       url: `${BASE_URL}${path || '/'}`,
@@ -107,6 +119,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency,
       priority,
     })),
+    ...topics,
     ...(await dynamicUrls()),
   ]
 }
