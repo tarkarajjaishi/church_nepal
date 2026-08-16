@@ -140,6 +140,9 @@ async fn main() {
         .route("/platform/backups/{slug}", post(platform::run_backup))
         .route("/seed/dummy", post(handlers::seed_dummy))
         .route("/search", get(handlers::search))
+        // Public directory. Unauthenticated on purpose — these sites are
+        // public, and a directory that needs a login cannot be indexed.
+        .route("/public/churches", get(handlers::list_public_churches))
         // Blog
         .route("/blog", get(handlers::list_public_blog_posts))
         .route("/blog/{slug}", get(handlers::get_public_blog_post))

@@ -11,32 +11,46 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://churchnepal.com";
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: "ChurchNepal — Give every church its own website in seconds",
-    template: "%s · ChurchNepal",
+    // Leads with what people search for — "Church Nepal" and churches in Nepal
+    // — rather than with the product pitch. The old title described the SaaS to
+    // someone who already knew it existed.
+    default: "Church Nepal | Churches, Christian Community & Resources in Nepal",
+    template: "%s · Church Nepal",
   },
   description:
-    "ChurchNepal spins up a complete website for each church — its own subdomain, database, and storage. One platform, many churches, fully isolated.",
+    "Church Nepal is a platform to discover churches, Christian communities, worship services, events, Bible studies, prayer meetings and Christian resources across Nepal.",
+  // A short, honest set. Search engines ignore this tag entirely; it is kept
+  // brief on purpose because a hundred keywords here would only be a signal to
+  // a human reviewer that the page is stuffed.
   keywords: [
-    "church website", "church CMS", "multi-tenant", "Nepal", "church management",
-    "subdomain", "SaaS", "eSewa", "Khalti",
+    "Church Nepal", "churches in Nepal", "church directory Nepal",
+    "find a church Nepal", "Christian church Nepal", "Nepali church",
+    "Sunday worship Nepal", "Bible study Nepal", "Christian community Nepal",
   ],
-  applicationName: "ChurchNepal",
+  applicationName: "Church Nepal",
   authors: [{ name: "ChurchNepal" }],
+  alternates: { canonical: SITE_URL },
   openGraph: {
     type: "website",
     url: SITE_URL,
-    siteName: "ChurchNepal",
-    title: "ChurchNepal — Give every church its own website in seconds",
+    siteName: "Church Nepal",
+    locale: "en_US",
+    alternateLocale: ["ne_NP"],
+    title: "Church Nepal | Churches, Christian Community & Resources in Nepal",
     description:
-      "Provision a complete, isolated website for any church in seconds — subdomain, database, storage, and an instant admin login.",
+      "Discover churches, Christian communities, worship services, events, Bible studies and prayer meetings across Nepal.",
   },
   twitter: {
     card: "summary_large_image",
-    title: "ChurchNepal — a website for every church",
+    title: "Church Nepal | Churches & Christian Community in Nepal",
     description:
-      "One control panel, many fully-isolated church websites. Provision in under a minute.",
+      "Find churches in Nepal — service times, worship, Bible study, prayer meetings and events.",
   },
-  robots: { index: true, follow: true },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true, "max-snippet": -1, "max-image-preview": "large", "max-video-preview": -1 },
+  },
 };
 
 // Inline script to prevent flash of wrong theme on load

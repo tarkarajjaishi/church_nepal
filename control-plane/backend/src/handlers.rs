@@ -3139,3 +3139,32 @@ fn read_incidents(dir: &PathBuf) -> Vec<StatusIncident> {
     incidents.reverse();
     incidents
 }
+
+/// Public directory of churches on the platform.
+///
+/// Deliberately unauthenticated and deliberately narrow: name, slug and the
+/// public URL, for active churches only. Everything else on a church row —
+/// admin email, plan, storage, Stripe ids, notes — is operator data and stays
+/// behind the guard on `/api/churches`.
+///
+/// This exists because a directory cannot rank for "church directory Nepal"
+/// without actually listing churches. It is the content, not a keyword.
+#[derive(Serialize, FromRow)]
+pub struct PublicChurch {
+    pub name: String,
+    pub slug: String,
+    pub subdomain: String,
+    pub created_at: Option<chrono::NaiveDateTime>,
+}
+
+pub async fn list_public_churches(State(st): State<AppState>) -> Result<Json<Vec<PublicChurch>>, AppError> {
+    let churches = sqlx::query_as::<_, PublicChurch>(
+        "SELECT name, slug, subdomain, created_at
+           FROM churches
+          WHERE status = 'active' AND suspended_at IS NULL
+          ORDER BY name",
+    )
+    .fetch_all(&st.pool)
+    .await?;
+    Ok(Json(churches))
+}
