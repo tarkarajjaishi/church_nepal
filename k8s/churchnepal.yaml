@@ -112,6 +112,13 @@ spec:
     metadata:
       labels: { app: church-api }
     spec:
+      # fsGroup makes kubelet chown the uploads volume to this gid. Without it
+      # the volume stays root-owned, the non-root container cannot write to it,
+      # and uploads fail at runtime while the pod reports healthy.
+      securityContext:
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
       containers:
         - name: church-api
           image: churchnepal/church-api:dev
@@ -228,6 +235,13 @@ spec:
     metadata:
       labels: { app: control-api }
     spec:
+      # Same as church-api, and load-bearing here: provisioning a church mkdirs
+      # under STORAGE_ROOT. Without fsGroup every church fails to seed with
+      # "Permission denied (os error 13)" and the log still says "complete".
+      securityContext:
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
       containers:
         - name: control-api
           image: churchnepal/control-api:dev

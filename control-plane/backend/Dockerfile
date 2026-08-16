@@ -30,7 +30,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libssl3 \
     postgresql-client \
     && rm -rf /var/lib/apt/lists/*
-RUN addgroup --system app && adduser --system --ingroup app app
+# Explicit uid/gid so the manifest can set fsGroup to match. Left implicit, the
+# mounted uploads volume stays root-owned, this user cannot mkdir inside it, and
+# provisioning fails per church with "Permission denied (os error 13)" while the
+# process otherwise looks healthy.
+RUN addgroup --system --gid 10001 app && adduser --system --uid 10001 --ingroup app app
 WORKDIR /app
 COPY --from=builder /app/target/release/churchnepal-control-plane /usr/local/bin/
 # Its own migrations, for the control database.

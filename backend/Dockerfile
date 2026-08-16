@@ -26,7 +26,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     libssl3 \
     && rm -rf /var/lib/apt/lists/*
-RUN addgroup --system app && adduser --system --ingroup app app
+# Explicit uid/gid so the manifest can set fsGroup to match — this user has to
+# write into the shared uploads volume. See control-plane/backend/Dockerfile.
+RUN addgroup --system --gid 10001 app && adduser --system --uid 10001 --ingroup app app
 WORKDIR /app
 COPY --from=builder /app/target/release/grace-church-backend /usr/local/bin/
 # Needed at runtime when DB_MIGRATE_ON_STARTUP=true.
