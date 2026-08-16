@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation';
-import { getTags, getBlogPostsByTag } from '@/lib/blog-data';
+import { getTags, getBlogPostsByTag, termFromSlug, termSlug } from '@/lib/blog-data';
 import Link from 'next/link';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -13,13 +13,13 @@ interface Props {
 export async function generateStaticParams() {
   const tags = getTags();
   return tags.map((tag) => ({
-    slug: tag.toLowerCase().replace(/\s+/g, '-'),
+    slug: termSlug(tag),
   }));
 }
 
 export default async function TagPage({ params }: Props) {
   const { slug } = await params;
-  const tagName = decodeURIComponent(slug.replace(/-/g, ' '));
+  const tagName = termFromSlug(getTags(), slug) ?? slug;
   const posts = getBlogPostsByTag(tagName);
 
   if (posts.length === 0) {
@@ -46,7 +46,7 @@ export default async function TagPage({ params }: Props) {
               
               <div className="flex flex-wrap gap-2 mb-3">
                 {post.tags.map((tag) => (
-                  <Link key={tag} href={`/blog/tag/${tag.toLowerCase().replace(/\s+/g, '-')}`}>
+                  <Link key={tag} href={`/blog/tag/${termSlug(tag)}`}>
                     <Badge variant="secondary" className="bg-[var(--accent-soft)] hover:bg-[var(--accent)] hover:text-[var(--accent-contrast)]">
                       #{tag}
                     </Badge>

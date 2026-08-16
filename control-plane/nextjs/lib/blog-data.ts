@@ -203,16 +203,33 @@ export const getBlogPostBySlug = (slug: string): BlogPost | undefined => {
 };
 
 // Get blog posts by category (case-insensitive — slugs arrive lowercased)
+/**
+ * Slug for a category or tag.
+ *
+ * The pages used to recover the name by turning hyphens back into spaces,
+ * which cannot work: a hyphen in the URL may have been a space or may have
+ * been a hyphen. The tag "small-groups" came back as "small groups", matched
+ * nothing, and /blog/tag/small-groups 404'd while sitting in the sitemap.
+ * Comparing slug to slug has no ambiguity to lose.
+ */
+export const termSlug = (term: string): string =>
+  term.trim().toLowerCase().replace(/\s+/g, '-');
+
+/** The term as it is actually written, recovered from its slug. */
+export const termFromSlug = (terms: string[], slug: string): string | undefined =>
+  terms.find(t => termSlug(t) === termSlug(slug));
+
 export const getBlogPostsByCategory = (category: string): BlogPost[] => {
-  const target = category.toLowerCase();
+  const target = termSlug(category);
   return mockBlogPosts.filter(post =>
-    post.categories.some(cat => cat.toLowerCase() === target)
+    post.categories.some(cat => termSlug(cat) === target)
   );
 };
 
 // Get blog posts by tag
 export const getBlogPostsByTag = (tag: string): BlogPost[] => {
-  return mockBlogPosts.filter(post => post.tags.includes(tag));
+  const target = termSlug(tag);
+  return mockBlogPosts.filter(post => post.tags.some(t => termSlug(t) === target));
 };
 
 // Get blog posts by author (case-insensitive — slugs arrive lowercased)

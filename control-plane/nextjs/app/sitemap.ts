@@ -2,7 +2,7 @@ import { MetadataRoute } from 'next'
 import {
   getChurches, allCities, allDistricts, allProvinces, citySlug, slugify,
 } from '@/lib/churches'
-import { getAllBlogPosts, getCategories, getTags } from '@/lib/blog-data'
+import { getAllBlogPosts, getCategories, getTags, termSlug } from '@/lib/blog-data'
 import { getAllHelpArticles } from '@/lib/help-data'
 
 // Same reason as the directory pages: built statically this would ship a
@@ -90,8 +90,8 @@ async function dynamicUrls(): Promise<MetadataRoute.Sitemap> {
     priority: 0.6,
   }))
   const taxonomies = [
-    ...getCategories().map((c) => page(`/blog/category/${slugify(c)}`, 0.4)),
-    ...getTags().map((t) => page(`/blog/tag/${slugify(t)}`, 0.3)),
+    ...getCategories().map((c) => page(`/blog/category/${termSlug(c)}`, 0.4)),
+    ...getTags().map((t) => page(`/blog/tag/${termSlug(t)}`, 0.3)),
   ]
   const helpArticles = getAllHelpArticles().map((a) => page(`/help/${a.slug}`, 0.5))
 

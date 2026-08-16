@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation';
-import { getCategories, getBlogPostsByCategory } from '@/lib/blog-data';
+import { getCategories, getBlogPostsByCategory, termFromSlug, termSlug } from '@/lib/blog-data';
 import Link from 'next/link';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -13,13 +13,13 @@ interface Props {
 export async function generateStaticParams() {
   const categories = getCategories();
   return categories.map((category) => ({
-    slug: category.toLowerCase().replace(/\s+/g, '-'),
+    slug: termSlug(category),
   }));
 }
 
 export default async function CategoryPage({ params }: Props) {
   const { slug } = await params;
-  const categoryName = decodeURIComponent(slug.replace(/-/g, ' '));
+  const categoryName = termFromSlug(getCategories(), slug) ?? slug;
   const posts = getBlogPostsByCategory(categoryName);
 
   if (posts.length === 0) {
@@ -46,7 +46,7 @@ export default async function CategoryPage({ params }: Props) {
               
               <div className="flex flex-wrap gap-2 mb-3">
                 {post.categories.map((category) => (
-                  <Link key={category} href={`/blog/category/${category.toLowerCase().replace(/\s+/g, '-')}`}>
+                  <Link key={category} href={`/blog/category/${termSlug(category)}`}>
                     <Badge variant="secondary" className="bg-[var(--accent-soft)] hover:bg-[var(--accent)] hover:text-[var(--accent-contrast)]">
                       {category}
                     </Badge>
