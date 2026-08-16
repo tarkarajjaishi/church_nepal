@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import HowSection from "./how-section";
-import FeaturesSection from "./features-section";
-import PricingSection from "./pricing-section";
-import PublicLayout from "./public-layout";
+import HowSection from "../how-section";
+import FeaturesSection from "../features-section";
+import PricingSection from "../pricing-section";
+import PublicLayout from "../public-layout";
 import { Badge } from "@/components/ui/badge";
 
 // New production landing sections (generated via the Qwen agent)

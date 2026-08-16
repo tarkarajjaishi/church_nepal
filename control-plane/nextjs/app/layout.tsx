@@ -29,7 +29,6 @@ export const metadata: Metadata = {
   ],
   applicationName: "Church Nepal",
   authors: [{ name: "ChurchNepal" }],
-  alternates: { canonical: SITE_URL },
   openGraph: {
     type: "website",
     url: SITE_URL,

@@ -1,3 +1,21 @@
+import type { Metadata } from 'next';
+
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://churchnepal.com';
+
+export const metadata: Metadata = {
+  title: 'Blog — Church Ministry, Technology and Community in Nepal',
+  description:
+    'Articles on church ministry, church websites, digital outreach and Christian community in Nepal from the Church Nepal team.',
+  alternates: { canonical: `${SITE_URL}/blog` },
+  openGraph: {
+    title: 'Blog — Church Ministry, Technology and Community in Nepal',
+    description:
+      'Articles on church ministry, church websites, digital outreach and Christian community in Nepal from the Church Nepal team.',
+    url: `${SITE_URL}/blog`,
+    type: 'website',
+  },
+};
+
 import { getAllBlogPosts, getCategories, getTags, getAuthors } from '@/lib/blog-data';
 import Link from 'next/link';
 import { Card } from '@/components/ui/card';

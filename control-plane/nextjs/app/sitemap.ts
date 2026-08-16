@@ -2,6 +2,8 @@ import { MetadataRoute } from 'next'
 import {
   getChurches, allCities, allDistricts, allProvinces, citySlug, slugify,
 } from '@/lib/churches'
+import { getAllBlogPosts, getCategories, getTags } from '@/lib/blog-data'
+import { getAllHelpArticles } from '@/lib/help-data'
 
 // Same reason as the directory pages: built statically this would ship a
 // sitemap with no churches and no city pages in it.
@@ -22,7 +24,6 @@ const STATIC_ROUTES: Array<[string, MetadataRoute.Sitemap[number]['changeFrequen
   ['/ne/churches', 'daily', 0.8],
   ['/features', 'weekly', 0.8],
   ['/pricing', 'monthly', 0.8],
-  ['/how-it-works', 'monthly', 0.7],
   ['/about', 'monthly', 0.7],
   ['/blog', 'weekly', 0.7],
   ['/contact', 'monthly', 0.6],
@@ -75,7 +76,21 @@ async function dynamicUrls(): Promise<MetadataRoute.Sitemap> {
     priority: 0.6,
   }))
 
-  return [...placePages, ...churchSites]
+  // Blog posts and help articles were reachable only by clicking through the
+  // index, so nothing below /blog and /help was ever submitted for indexing.
+  const posts = getAllBlogPosts().map((post) => ({
+    url: `${BASE_URL}/blog/${post.slug}`,
+    lastModified: new Date(post.date),
+    changeFrequency: 'monthly' as const,
+    priority: 0.6,
+  }))
+  const taxonomies = [
+    ...getCategories().map((c) => page(`/blog/category/${slugify(c)}`, 0.4)),
+    ...getTags().map((t) => page(`/blog/tag/${slugify(t)}`, 0.3)),
+  ]
+  const helpArticles = getAllHelpArticles().map((a) => page(`/help/${a.slug}`, 0.5))
+
+  return [...placePages, ...posts, ...taxonomies, ...helpArticles, ...churchSites]
 }
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
